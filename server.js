@@ -21,7 +21,6 @@ const BCRYPT_SALT_ROUNDS = 10;
 
 const adminSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
-    // Vercel deployment tip: Password should be selected for login
     password: { type: String, required: true, select: false }, 
     role: { type: String, default: 'admin' }
 });
@@ -46,7 +45,6 @@ const connectDB = async () => {
         console.log('✅ New MongoDB connection established.');
     } catch (err) {
         console.error('❌ MongoDB connection error:', err.message);
-        // Do not exit process.exit(1) in a serverless environment
         throw new Error('Failed to connect to database.'); 
     }
 };
@@ -55,7 +53,6 @@ const connectDB = async () => {
 
 async function findAdminUserByEmail(email) {
     console.log(`[DB] Querying MongoDB for admin user: ${email}...`);
-    // Connect inside the function to ensure connection is live for serverless functions
     await connectDB(); 
     const adminUser = await Admin.findOne({ email }).select('+password').lean();
 
@@ -87,7 +84,6 @@ async function createAdminUser(email, hashedPassword) {
 async function getRealTimeDashboardStats() {
     console.log(`[DB] Performing MongoDB aggregation for dashboard statistics...`);
     await connectDB();
-    // Implementation for real data fetching goes here.
     return {
         totalSales: 0,
         pendingOrders: 0,
@@ -102,26 +98,34 @@ const app = express();
 
 app.use(express.json()); 
 
-// --- 1. Serve Static Files (Vercel only serves files in the 'public' or 'static' folder for front-end, 
-// but we keep this for local emulation)
-app.use(express.static(path.join(__dirname)));
-app.use('/admin', express.static(path.join(__dirname, 'Outflickz-Admin')));
-app.use('/store', express.static(path.join(__dirname, 'Outflickz')));
+// --- 1. Serve Static Files (UPDATED FOR PUBLIC FOLDER) ---
+// IMPORTANT: All static content (index.html, Outflickz-Admin, Outflickz) 
+// MUST now be placed inside a folder named 'public' in the root.
+app.use(express.static(path.join(__dirname, 'public')));
+
+
+/* // --- OLD STATIC ROUTES (COMMENTED OUT) ---
+// app.use(express.static(path.join(__dirname)));
+// app.use('/admin', express.static(path.join(__dirname, 'Outflickz-Admin')));
+// app.use('/store', express.static(path.join(__dirname, 'Outflickz')));
+*/
+
 
 // --- 2. Define Frontend Routes ---
-// These routes typically don't work directly in Vercel's Serverless Function mode. 
-// Vercel expects these files to be served directly from a static directory.
+// These Express routes are generally ignored by Vercel's static asset routing
+// but remain for local testing/fallback API behavior.
 app.get('/', (req, res) => {
-    res.redirect('/store/homepage.html');
+    // This will now redirect to the file located at /public/store/homepage.html
+    res.redirect('/store/homepage.html'); 
 });
 
 app.get('/admin', (req, res) => {
+    // This will now redirect to the file located at /public/admin/admin-login.html
     res.redirect('/admin/admin-login.html');
 });
 
 // --- 3. Authentication Middleware ---
 const verifyToken = (req, res, next) => {
-    // ... (unchanged) ...
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -144,7 +148,6 @@ const verifyToken = (req, res, next) => {
 // POST /api/admin/register
 app.post('/api/admin/register', async (req, res) => {
     const { email, password } = req.body;
-    // ... (unchanged) ...
     if (!email || !password || password.length < 6) {
         return res.status(400).json({ message: 'Invalid input. Password must be at least 6 characters.' });
     }
@@ -176,7 +179,6 @@ app.post('/api/admin/register', async (req, res) => {
 // POST /api/admin/login
 app.post('/api/admin/login', async (req, res) => {
     const { email, password } = req.body;
-    // ... (unchanged) ...
     try {
         const adminUser = await findAdminUserByEmail(email);
 
@@ -210,7 +212,6 @@ app.post('/api/admin/login', async (req, res) => {
 // POST /api/admin/forgot-password
 app.post('/api/admin/forgot-password', async (req, res) => {
     const { email } = req.body;
-    // ... (unchanged) ...
     console.log(`[AUTH] Password reset requested for: ${email}`);
     res.status(200).json({
         message: 'If an account with that email address exists, a password reset link has been sent.'
@@ -231,13 +232,11 @@ app.get('/api/admin/dashboard/stats', verifyToken, async (req, res) => {
 
 
 // --- VERCEL EXPORT ---
-// IMPORTANT: For Vercel, we export the app instead of listening on a port.
-// For local testing, you can use a separate file (e.g., dev-server.js) that imports this file and uses app.listen.
-
 module.exports = app;
 
-// For local testing only (wrap this logic in an if(process.env.NODE_ENV !== 'production') block in a real project):
+// For local testing only 
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+    const PORT = process.env.PORT || 3000;
     app.listen(PORT, () => {
         console.log(`Server is running locally on http://localhost:${PORT}`);
     });

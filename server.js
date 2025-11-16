@@ -486,146 +486,146 @@ app.post(
 // ------------------------------------------------------------------------------------------------
 // 🌟 MODIFIED ROUTE: PUT /api/admin/wearscollections/:id (Handle Full Form Update OR Quick Restock JSON) - UPDATED LOGIC FOR PRICE
 // ------------------------------------------------------------------------------------------------
-
 app.put(
-    '/api/admin/wearscollections/:id',
-    verifyToken, 
-    // Use optional file parsing. If no files are sent, req.files will be {}
-    upload.fields(Array.from({ length: 4 }, (_, i) => ({ name: `image-${i + 1}`, maxCount: 1 }))), 
-    async (req, res) => {
-        const collectionId = req.params.id;
-        let existingCollection;
-        
-        try {
-            existingCollection = await WearsCollection.findById(collectionId);
-            if (!existingCollection) {
-                return res.status(404).json({ message: 'Collection not found for update.' });
-            }
+    '/api/admin/wearscollections/:id',
+    verifyToken, 
+    // Use optional file parsing. If no files are sent, req.files will be {}
+    upload.fields(Array.from({ length: 4 }, (_, i) => ({ name: `image-${i + 1}`, maxCount: 1 }))), 
+    async (req, res) => {
+        const collectionId = req.params.id;
+        let existingCollection;
+        
+        try {
+            existingCollection = await WearsCollection.findById(collectionId);
+            if (!existingCollection) {
+                return res.status(404).json({ message: 'Collection not found for update.' });
+            }
 
-            // Check if the request is a simple JSON update (Quick Restock) or a full form update (multipart/form-data).
-            const isQuickRestock = req.get('Content-Type')?.includes('application/json');
-            const hasFiles = req.files && Object.keys(req.files).length > 0;
-            
-            // --- A. HANDLE QUICK RESTOCK (Simple JSON Body, No Files/collectionData wrapper) ---
-            if (isQuickRestock && !hasFiles && !req.body.collectionData) {
-                const { totalStock, isActive } = req.body;
+            // Check if the request is a simple JSON update (Quick Restock) or a full form update (multipart/form-data).
+            const isQuickRestock = req.get('Content-Type')?.includes('application/json');
+            const hasFiles = req.files && Object.keys(req.files).length > 0;
+            
+            // --- A. HANDLE QUICK RESTOCK (Simple JSON Body, No Files/collectionData wrapper) ---
+            if (isQuickRestock && !hasFiles && !req.body.collectionData) {
+                const { totalStock, isActive } = req.body;
 
-                if (totalStock === undefined || isActive === undefined) {
-                    return res.status(400).json({ message: "Missing 'totalStock' or 'isActive' in simple update payload." });
-                }
+                if (totalStock === undefined || isActive === undefined) {
+                    return res.status(400).json({ message: "Missing 'totalStock' or 'isActive' in simple update payload." });
+                }
 
-                if (totalStock <= 0) {
-                     return res.status(400).json({ message: "Total stock must be greater than zero for Quick Restock/Activate." });
-                }
-                
-                // Perform simple update
-                existingCollection.totalStock = totalStock;
-                // Force active state if stock is > 0, as per the quick restock requirement
-                existingCollection.isActive = true; 
+                if (totalStock <= 0) {
+                     return res.status(400).json({ message: "Total stock must be greater than zero for Quick Restock/Activate." });
+                }
+                
+                // Perform simple update
+                existingCollection.totalStock = totalStock;
+                // Force active state if stock is > 0, as per the quick restock requirement
+                existingCollection.isActive = true; 
 
-                const updatedCollection = await existingCollection.save();
-                return res.status(200).json({ 
-                    message: `Collection quick-restocked to ${updatedCollection.totalStock} and activated.`,
-                    collectionId: updatedCollection._id
-                });
-            }
+                const updatedCollection = await existingCollection.save();
+                return res.status(200).json({ 
+                    message: `Collection quick-restocked to ${updatedCollection.totalStock} and activated.`,
+                    collectionId: updatedCollection._id
+                });
+            }
 
-            // --- B. HANDLE FULL FORM SUBMISSION (multipart/form-data with collectionData JSON and optional Files) ---
+            // --- B. HANDLE FULL FORM SUBMISSION (multipart/form-data with collectionData JSON and optional Files) ---
 
-            if (!req.body.collectionData) {
-                return res.status(400).json({ message: "Missing collection data payload for full update." });
-            }
+            if (!req.body.collectionData) {
+                return res.status(400).json({ message: "Missing collection data payload for full update." });
+            }
 
-            const collectionData = JSON.parse(req.body.collectionData);
-            
-            const files = req.files; 
-            const updatedVariations = [];
-            const uploadPromises = [];
-            const oldImagesToDelete = [];
+            const collectionData = JSON.parse(req.body.collectionData);
+            
+            const files = req.files; 
+            const updatedVariations = [];
+            const uploadPromises = [];
+            const oldImagesToDelete = [];
 
-            // Iterate through the variations submitted from the frontend (collectionData)
-            for (const incomingVariation of collectionData.variations) {
-                const fileKey = `image-${incomingVariation.variationIndex}`;
-                const uploadedFileArray = files[fileKey];
-                
-                // Find the existing permanent URL for this variation (using the permanent URL stored in DB)
-                const existingPermanentVariation = existingCollection.variations.find(v => v.variationIndex === incomingVariation.variationIndex);
-                
-                let newImageUrl = existingPermanentVariation?.imageUrl || null; // Start with the DB's permanent URL
+            // Iterate through the variations submitted from the frontend (collectionData)
+            for (const incomingVariation of collectionData.variations) {
+                const fileKey = `image-${incomingVariation.variationIndex}`;
+                const uploadedFileArray = files[fileKey];
+                
+                // Find the existing permanent URL for this variation (using the permanent URL stored in DB)
+                const existingPermanentVariation = existingCollection.variations.find(v => v.variationIndex === incomingVariation.variationIndex);
+                
+                let newImageUrl = existingPermanentVariation?.imageUrl || null; // Start with the DB's permanent URL
 
-                if (uploadedFileArray && uploadedFileArray[0]) {
-                    // 1. New file uploaded: Schedule upload and mark old permanent URL for deletion
-                    const uploadedFile = uploadedFileArray[0];
-                    if (existingPermanentVariation && existingPermanentVariation.imageUrl) {
-                        oldImagesToDelete.push(existingPermanentVariation.imageUrl);
-                    }
-                    
-                    const uploadPromise = uploadFileToPermanentStorage(uploadedFile).then(imageUrl => {
-                        newImageUrl = imageUrl;
-                        updatedVariations.push({
-                            variationIndex: incomingVariation.variationIndex,
-                            colorHex: incomingVariation.colorHex,
-                            imageUrl: newImageUrl, // Store the NEW permanent URL
-                        });
-                    });
-                    uploadPromises.push(uploadPromise);
-                } else {
-                    // 2. No new file: Use the existing permanent URL found in the database
-                    if (existingPermanentVariation && existingPermanentVariation.imageUrl) {
-                         newImageUrl = existingPermanentVariation.imageUrl;
-                    } else if (incomingVariation.imageUrl) {
-                        // Fallback/Safety (assuming incoming.imageUrl might hold the old perm URL if client is smart)
-                        newImageUrl = existingPermanentVariation ? existingPermanentVariation.imageUrl : incomingVariation.imageUrl;
-                    }
-                    
-                    if (newImageUrl) {
-                         updatedVariations.push({
-                             variationIndex: incomingVariation.variationIndex,
-                             colorHex: incomingVariation.colorHex,
-                             imageUrl: newImageUrl, 
-                         });
-                    }
-                }
-            }
-            
-            // Wait for all Backblaze B2 uploads to complete
-            await Promise.all(uploadPromises);
+                if (uploadedFileArray && uploadedFileArray[0]) {
+                    // 1. New file uploaded: Schedule upload and mark old permanent URL for deletion
+                    const uploadedFile = uploadedFileArray[0];
+                    if (existingPermanentVariation && existingPermanentVariation.imageUrl) {
+                        oldImagesToDelete.push(existingPermanentVariation.imageUrl);
+                    }
+                    
+                    const uploadPromise = uploadFileToPermanentStorage(uploadedFile).then(imageUrl => {
+                        // Note: Directly modifying newImageUrl here won't work reliably inside the loop.
+                        // The promise chain must push the final result to updatedVariations.
+                        updatedVariations.push({
+                            variationIndex: incomingVariation.variationIndex,
+                            colorHex: incomingVariation.colorHex,
+                            imageUrl: imageUrl, // Store the NEW permanent URL
+                        });
+                    });
+                    uploadPromises.push(uploadPromise);
+                } else {
+                    // 2. No new file: Use the existing permanent URL found in the database
+                    
+                    // CRITICAL FIX: Use the permanent URL from the DB. 
+                    // The incomingVariation.imageUrl from the client is the temporary Signed URL.
+                    let permanentImageUrlToKeep = existingPermanentVariation?.imageUrl || null;
+                    
+                    if (permanentImageUrlToKeep) {
+                        updatedVariations.push({
+                            variationIndex: incomingVariation.variationIndex,
+                            colorHex: incomingVariation.colorHex,
+                            imageUrl: permanentImageUrlToKeep, // Use the permanent URL
+                        });
+                    }
+                }
+            }
+            
+            // Wait for all Backblaze B2 uploads to complete. 
+            // NOTE: This will only wait for upload promises if any files were uploaded.
+            await Promise.all(uploadPromises);
 
-            if (updatedVariations.length === 0) {
-                 return res.status(400).json({ message: "No valid variations were processed for update." });
-            }
-            
-            // --- Update the Document Fields ---
-            existingCollection.name = collectionData.name;
-            existingCollection.tag = collectionData.tag;
-            existingCollection.price = collectionData.price; // <--- PRICE INCLUDED
-            existingCollection.sizes = collectionData.sizes;
-            existingCollection.totalStock = collectionData.totalStock;
-            existingCollection.variations = updatedVariations;
-            // Only update isActive if explicitly sent (otherwise it stays whatever the stock/manual value is)
-            existingCollection.isActive = collectionData.isActive !== undefined ? collectionData.isActive : existingCollection.isActive;
-            
-            // --- Save to Database ---
-            const updatedCollection = await existingCollection.save();
+            if (updatedVariations.length === 0) {
+                // This means no files were uploaded AND no existing permanent variations were found.
+                 return res.status(400).json({ message: "No valid variations were processed for update. Check if images were present and successfully carried over." });
+            }
+            
+            // --- Update the Document Fields ---
+            existingCollection.name = collectionData.name;
+            existingCollection.tag = collectionData.tag;
+            existingCollection.price = collectionData.price; // <--- PRICE INCLUDED
+            existingCollection.sizes = collectionData.sizes;
+            existingCollection.totalStock = collectionData.totalStock;
+            existingCollection.variations = updatedVariations;
+            // Only update isActive if explicitly sent (otherwise it stays whatever the stock/manual value is)
+            existingCollection.isActive = collectionData.isActive !== undefined ? collectionData.isActive : existingCollection.isActive;
+            
+            // --- Save to Database ---
+            const updatedCollection = await existingCollection.save();
 
-            // --- Delete old images in the background (fire and forget) ---
-            oldImagesToDelete.forEach(url => deleteFileFromPermanentStorage(url));
+            // --- Delete old images in the background (fire and forget) ---
+            oldImagesToDelete.forEach(url => deleteFileFromPermanentStorage(url));
 
-            // Success Response
-            res.status(200).json({ 
-                message: 'Wears Collection updated and images handled successfully.',
-                collectionId: updatedCollection._id,
-                name: updatedCollection.name
-            });
+            // Success Response
+            res.status(200).json({ 
+                message: 'Wears Collection updated and images handled successfully.',
+                collectionId: updatedCollection._id,
+                name: updatedCollection.name
+            });
 
-        } catch (error) {
-            console.error('Error updating wear collection:', error); 
-            if (error.name === 'ValidationError') {
-                return res.status(400).json({ message: error.message, errors: error.errors }); 
-            }
-            res.status(500).json({ message: 'Server error during collection update or file upload.', details: error.message });
-        }
-    }
+        } catch (error) {
+            console.error('Error updating wear collection:', error); 
+            if (error.name === 'ValidationError') {
+                return res.status(400).json({ message: error.message, errors: error.errors }); 
+            }
+            res.status(500).json({ message: 'Server error during collection update or file upload.', details: error.message });
+        }
+    }
 );
 
 // ------------------------------------------------------------------------------------------------

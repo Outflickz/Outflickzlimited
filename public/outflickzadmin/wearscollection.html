@@ -87,17 +87,25 @@
                             <input type="text" id="collection-name" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
                         </div>
                         
-                        <div>
-                            <label for="collection-description" class="block text-sm font-medium text-gray-700">Description/Tag</label>
-                            <select id="collection-description" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
-                                <option value="" disabled selected>Select a collection tag</option>
-                                <option value="Top Deal">Top Deal</option>
-                                <option value="Hot Deal">Hot Deal</option>
-                                <option value="New">New</option>
-                                <option value="Seasonal">Seasonal</option>
-                                <option value="Clearance">Clearance</option>
-                            </select>
-                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="collection-description" class="block text-sm font-medium text-gray-700">Description/Tag</label>
+                                <select id="collection-description" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
+                                    <option value="" disabled selected>Select a collection tag</option>
+                                    <option value="Top Deal">Top Deal</option>
+                                    <option value="Hot Deal">Hot Deal</option>
+                                    <option value="New">New</option>
+                                    <option value="Seasonal">Seasonal</option>
+                                    <option value="Clearance">Clearance</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label for="collection-price" class="block text-sm font-medium text-gray-700">Collection Price (USD)</label>
+                                <input type="number" id="collection-price" min="0.01" step="0.01" value="49.99" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
+                                <p class="mt-1 text-xs text-gray-500">Base price for items in this collection.</p>
+                            </div>
+                            </div>
 
                         <div class="flex items-center space-x-4">
                             <input type="checkbox" id="is-active" class="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500">
@@ -132,7 +140,7 @@
 
                         <div>
                             <label for="available-stock" class="block text-sm font-medium text-gray-700">Total Available Stock Number</label>
-                            <input type="number" id="available-stock" min="1" value="100" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
+                            <input type="number" id="available-stock" min="0" value="100" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
                             <p class="mt-1 text-xs text-gray-500">This is the total stock quantity for the entire collection.</p>
                         </div>
                     </div>
@@ -156,6 +164,7 @@
                         <tr>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tag</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Variations</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
@@ -323,22 +332,25 @@ async function fetchCollections() {
 function renderCollectionsTable(collections) {
     collectionsTableBody.innerHTML = '';
     if (collections.length === 0) {
-        collectionsTableBody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">No collections found.</td></tr>';
+        collectionsTableBody.innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">No collections found.</td></tr>';
         return;
     }
 
     collections.forEach(collection => {
         const tagClass = getTagClass(collection.tag);
-        const statusClass = collection.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+        const statusClass = collection.isActive && collection.totalStock > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
 
         // CRITICAL UPDATE: Extract the FIRST variation's imageUrl (which is now a Signed URL)
         const firstImageUrl = collection.variations[0]?.imageUrl || 'https://via.placeholder.com/64?text=N/A';
         const imagePreview = `<img src="${firstImageUrl}" alt="Preview" class="w-10 h-10 object-cover rounded-full inline mr-2 shadow-sm">`;
+        const formattedPrice = `$${(collection.price || 0).toFixed(2)}`;
 
         // --- NEW LOGIC FOR RESTOCK/ACTIVATE BUTTON ---
-        const restockButton = collection.isActive || collection.totalStock > 0
-            ? '' // Do nothing if active or stock > 0
-            : `<button onclick="quickRestockAndActivate('${collection._id}', '${collection.name.replace(/'/g, "\\'")}')" class="text-emerald-600 hover:text-emerald-900 transition duration-150 mr-3">Restock/Activate</button>`;
+        // Show restock button only if inactive AND stock is zero.
+        const needsRestock = !collection.isActive || collection.totalStock <= 0;
+        const restockButton = needsRestock
+            ? `<button onclick="quickRestockAndActivate('${collection._id}', '${collection.name.replace(/'/g, "\\'")}', ${collection.price})" class="text-emerald-600 hover:text-emerald-900 transition duration-150 mr-3 text-xs font-semibold">Restock/Activate</button>`
+            : '';
         // ---------------------------------------------
 
         const row = `
@@ -347,6 +359,7 @@ function renderCollectionsTable(collections) {
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     ${imagePreview} ${collection.name}
                 </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-emerald-600">${formattedPrice}</td>
                 <td class="px-6 py-4 whitespace-nowrap">
                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${tagClass}">${collection.tag}</span>
                 </td>
@@ -354,7 +367,7 @@ function renderCollectionsTable(collections) {
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${collection.totalStock}</td>
                 <td class="px-6 py-4 whitespace-nowrap">
                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
-                        ${collection.isActive ? 'Active' : 'Inactive'}
+                        ${collection.isActive && collection.totalStock > 0 ? 'Active' : 'Out of Stock'}
                     </span>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -413,6 +426,7 @@ async function editCollection(collectionId) {
         // 2. Populate basic details
         document.getElementById('collection-name').value = collection.name;
         document.getElementById('collection-description').value = collection.tag;
+        document.getElementById('collection-price').value = collection.price; // NEW FIELD
         document.getElementById('available-sizes').value = collection.sizes.join(', ');
         document.getElementById('available-stock').value = collection.totalStock;
         document.getElementById('is-active').checked = collection.isActive;
@@ -486,13 +500,15 @@ async function deleteCollection(collectionId) {
     }
 }
 
+
 /**
  * Prompts admin for new stock and updates totalStock and isActive status.
  * THIS NEW FUNCTION ADDRESSES THE USER REQUEST FOR QUICK STOCK UPDATE.
  * @param {string} collectionId - The ID of the collection.
  * @param {string} collectionName - The name of the collection.
+ * @param {number} currentPrice - The current price of the collection.
  */
-async function quickRestockAndActivate(collectionId, collectionName) {
+async function quickRestockAndActivate(collectionId, collectionName, currentPrice) {
     const token = getAuthToken();
     if (!token) return;
 
@@ -500,7 +516,7 @@ async function quickRestockAndActivate(collectionId, collectionName) {
     let newStock;
     while (true) {
         // Use a placeholder for a modal that takes a number input
-        const stockInput = prompt(`📦 Restock Collection: ${collectionName}\nEnter the NEW total stock quantity (number > 0) to activate this collection:`);
+        const stockInput = prompt(`📦 Restock Collection: ${collectionName} (Price: $${currentPrice})\nEnter the NEW total stock quantity (number > 0) to activate this collection:`);
 
         if (stockInput === null) { // User clicked Cancel
             return;
@@ -786,6 +802,7 @@ async function handleCollectionSubmit(event) {
     const collectionData = {
         name: document.getElementById('collection-name').value,
         tag: document.getElementById('collection-description').value,
+        price: parseFloat(document.getElementById('collection-price').value), // NEW FIELD
         // Split, trim, convert to uppercase, and filter out empty strings
         sizes: document.getElementById('available-sizes').value.split(',').map(s => s.trim().toUpperCase()).filter(s => s),
         totalStock: parseInt(document.getElementById('available-stock').value),

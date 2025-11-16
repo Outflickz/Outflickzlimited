@@ -175,603 +175,639 @@
 <script>
 // --- JAVASCRIPT LOGIC ---
 
-    const sidebar = document.getElementById('sidebar');
-    const sidebarToggle = document.getElementById('sidebar-toggle');
-    const productSectionsContainer = document.getElementById('product-sections');
-    const addSectionBtn = document.getElementById('add-section-btn');
-    const submitBtn = document.getElementById('submit-btn');
-    const formTitle = document.getElementById('form-title');
-    const resetFormBtn = document.getElementById('reset-form-btn');
-    const collectionsTableBody = document.getElementById('collections-table-body');
-    const loadingIndicator = document.getElementById('loading-indicator');
-    const collectionsError = document.getElementById('collections-error');
+const sidebar = document.getElementById('sidebar');
+const sidebarToggle = document.getElementById('sidebar-toggle');
+const productSectionsContainer = document.getElementById('product-sections');
+const addSectionBtn = document.getElementById('add-section-btn');
+const submitBtn = document.getElementById('submit-btn');
+const formTitle = document.getElementById('form-title');
+const resetFormBtn = document.getElementById('reset-form-btn');
+const collectionsTableBody = document.getElementById('collections-table-body');
+const loadingIndicator = document.getElementById('loading-indicator');
+const collectionsError = document.getElementById('collections-error');
 
-    let sectionCount = 0; // Tracks the number of variations currently in the form
-    let collectionIdToUpdate = null; // Stores the ID of the collection being edited (null for creation)
-    
-    const API_BASE_URL = '/api/admin/wearscollections'; // Consistent API endpoint
-    const MAX_VARIATIONS = 4;
+let sectionCount = 0; // Tracks the number of variations currently in the form
+let collectionIdToUpdate = null; // Stores the ID of the collection being edited (null for creation)
 
-    // --- GLOBAL FUNCTIONS REQUIRED FOR INLINE HTML HANDLERS ---
-    // Making these functions globally accessible for the onclick handlers in the HTML table.
-    window.updateColorPreview = updateColorPreview;
-    window.editCollection = editCollection;
-    window.deleteCollection = deleteCollection;
-    window.removeProductSection = removeProductSection;
-    // ---------------------------------------------------------
-    
-    // --- UTILITY FUNCTIONS ---
-    function getAuthToken() {
-        const token = localStorage.getItem('adminToken');
-        if (!token) {
-            alert("Authentication required. Please log in.");
-            window.location.href = './admin-login.html';
-            return null;
-        }
-        return token;
+const API_BASE_URL = '/api/admin/wearscollections'; // Consistent API endpoint
+const MAX_VARIATIONS = 4;
+
+// --- PLACEHOLDER MODAL FUNCTIONS (To be replaced with actual DOM manipulation for a modal) ---
+function showSuccessModal(message) {
+    // TODO: Replace with actual modal DOM manipulation (e.g., document.getElementById('success-modal').textContent = message; showModal())
+    alert(`✅ Success: ${message}`);
+}
+
+function showErrorModal(message) {
+    // TODO: Replace with actual modal DOM manipulation
+    alert(`❌ Error: ${message}`);
+}
+
+/**
+ * Placeholder for a promise-based confirmation modal.
+ * @param {string} message - The message to display.
+ * @returns {Promise<boolean>} - Resolves to true if confirmed, false otherwise.
+ */
+function showConfirmationModal(message) {
+    // TODO: Replace with actual modal DOM manipulation (e.g., showing a modal with "Yes" and "No" buttons)
+    return Promise.resolve(confirm(message));
+}
+// ------------------------------------------------------------------------------------------
+
+// --- GLOBAL FUNCTIONS REQUIRED FOR INLINE HTML HANDLERS ---
+// Making these functions globally accessible for the onclick handlers in the HTML table.
+window.updateColorPreview = updateColorPreview;
+window.editCollection = editCollection;
+window.deleteCollection = deleteCollection;
+window.removeProductSection = removeProductSection;
+// ---------------------------------------------------------
+
+// --- UTILITY FUNCTIONS ---
+function getAuthToken() {
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+        // Changed alert to showErrorModal for consistency, though this is a critical flow.
+        showErrorModal("Authentication required. Please log in.");
+        window.location.href = './admin-login.html';
+        return null;
     }
+    return token;
+}
 
-    // --- LOGOUT FUNCTIONALITY ---
-    function logoutAdmin() {
-        console.log('Logging out admin...');
-        localStorage.removeItem('adminToken');
-        window.location.href = './admin-login.html'; 
-    }
-    // ----------------------------
-    
-    // --- COLLECTION MANAGEMENT (FRONTEND) ---
+// --- LOGOUT FUNCTIONALITY ---
+function logoutAdmin() {
+    console.log('Logging out admin...');
+    localStorage.removeItem('adminToken');
+    window.location.href = './admin-login.html';
+}
+// ----------------------------
 
-    /**
-     * Resets the form to "Create New Collection" mode.
-     */
-    function resetForm() {
-        document.getElementById('wears-collection-form').reset();
-        collectionIdToUpdate = null;
-        formTitle.textContent = '➕ Create New Collection';
-        submitBtn.textContent = 'Submit Collection';
-        submitBtn.classList.remove('bg-yellow-600', 'hover:bg-yellow-700');
-        submitBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
-        resetFormBtn.classList.add('hidden');
-        
-        // Clear and re-initialize product sections
-        productSectionsContainer.innerHTML = ''; 
-        sectionCount = 0; 
-        addProductSection(); 
-        
-        // Reset image inputs to be 'required' for new creation
-        Array.from(productSectionsContainer.querySelectorAll('input[type="file"]')).forEach(input => {
-            input.required = true;
+// --- COLLECTION MANAGEMENT (FRONTEND) ---
+
+/**
+ * Resets the form to "Create New Collection" mode.
+ */
+function resetForm() {
+    document.getElementById('wears-collection-form').reset();
+    collectionIdToUpdate = null;
+    formTitle.textContent = '➕ Create New Collection';
+    submitBtn.textContent = 'Submit Collection';
+    submitBtn.classList.remove('bg-yellow-600', 'hover:bg-yellow-700');
+    submitBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+    resetFormBtn.classList.add('hidden');
+
+    // Clear and re-initialize product sections
+    productSectionsContainer.innerHTML = '';
+    sectionCount = 0;
+    addProductSection();
+
+    // Reset image inputs to be 'required' for new creation
+    Array.from(productSectionsContainer.querySelectorAll('input[type="file"]')).forEach(input => {
+        input.required = true;
+    });
+
+    // Scroll to the form
+    document.getElementById('content-wearscollection').scrollIntoView({ behavior: 'smooth' });
+}
+
+/**
+ * Fetches all collections and renders them to the table.
+ */
+async function fetchCollections() {
+    const token = getAuthToken();
+    if (!token) return;
+
+    collectionsTableBody.innerHTML = ''; // Clear existing
+    loadingIndicator.classList.remove('hidden');
+    collectionsError.classList.add('hidden');
+
+    try {
+        const response = await fetch(API_BASE_URL, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` }
         });
-        
-        // Scroll to the form
+
+        if (!response.ok) {
+            // Robust error handling to catch non-JSON responses (like HTML 404/500 pages)
+            const errorText = await response.text();
+            let errorMessage = `HTTP error! Status: ${response.status}.`;
+
+            try {
+                const errorData = JSON.parse(errorText);
+                errorMessage = errorData.message || errorMessage;
+            } catch (e) {
+                // Non-JSON response (e.g., HTML page from Netlify 404 or backend server)
+                console.error('Raw non-JSON error response (likely 404 or 500 HTML page):', errorText);
+                // Use a more helpful message for the user
+                errorMessage = `${errorMessage} The server returned an invalid response. (See console for raw data).`;
+            }
+
+            throw new Error(errorMessage);
+        }
+
+        const collections = await response.json();
+        renderCollectionsTable(collections);
+
+    } catch (error) {
+        console.error('Error fetching collections:', error);
+        collectionsError.textContent = `Error fetching collections: ${error.message}`;
+        collectionsError.classList.remove('hidden');
+    } finally {
+        loadingIndicator.classList.add('hidden');
+    }
+}
+
+/**
+ * Renders the fetched collections data into the HTML table.
+ */
+function renderCollectionsTable(collections) {
+    collectionsTableBody.innerHTML = '';
+    if (collections.length === 0) {
+        collectionsTableBody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">No collections found.</td></tr>';
+        return;
+    }
+
+    collections.forEach(collection => {
+        const tagClass = getTagClass(collection.tag);
+        const statusClass = collection.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+
+        // CRITICAL UPDATE: Extract the FIRST variation's imageUrl (which is now a Signed URL)
+        const firstImageUrl = collection.variations[0]?.imageUrl || 'https://via.placeholder.com/64?text=N/A';
+        const imagePreview = `<img src="${firstImageUrl}" alt="Preview" class="w-10 h-10 object-cover rounded-full inline mr-2 shadow-sm">`;
+
+        const row = `
+            <tr>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${collection._id.slice(-6)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    ${imagePreview} ${collection.name}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${tagClass}">${collection.tag}</span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${collection.variations.length}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${collection.totalStock}</td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
+                        ${collection.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <button onclick="editCollection('${collection._id}')" class="text-indigo-600 hover:text-indigo-900 transition duration-150 mr-3">Edit</button>
+                    <button onclick="deleteCollection('${collection._id}')" class="text-red-600 hover:text-red-900 transition duration-150">Delete</button>
+                </td>
+            </tr>
+        `;
+        collectionsTableBody.insertAdjacentHTML('beforeend', row);
+    });
+}
+
+/**
+ * Determines the appropriate Tailwind class for a given tag.
+ */
+function getTagClass(tag) {
+    switch (tag) {
+        case 'Top Deal': return 'bg-emerald-100 text-emerald-800';
+        case 'Hot Deal': return 'bg-red-100 text-red-800';
+        case 'New': return 'bg-blue-100 text-blue-800';
+        case 'Seasonal': return 'bg-yellow-100 text-yellow-800';
+        case 'Clearance': return 'bg-pink-100 text-pink-800';
+        default: return 'bg-gray-100 text-gray-800';
+    }
+}
+
+/**
+ * Fetches data for a specific collection and populates the form for editing.
+ */
+async function editCollection(collectionId) {
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/${collectionId}`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
+        }
+
+        const collection = await response.json();
+
+        // 1. Set form mode
+        collectionIdToUpdate = collectionId;
+        formTitle.textContent = `✏️ Edit Collection: ${collection.name}`;
+        submitBtn.textContent = 'Update Collection';
+        submitBtn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
+        submitBtn.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
+        resetFormBtn.classList.remove('hidden');
+
+        // 2. Populate basic details
+        document.getElementById('collection-name').value = collection.name;
+        document.getElementById('collection-description').value = collection.tag;
+        document.getElementById('available-sizes').value = collection.sizes.join(', ');
+        document.getElementById('available-stock').value = collection.totalStock;
+        document.getElementById('is-active').checked = collection.isActive;
+
+        // 3. Populate variations
+        productSectionsContainer.innerHTML = '';
+        sectionCount = 0;
+
+        collection.variations.forEach(variation => {
+            // Use the variationIndex as the 1-based index directly
+            const sectionNumber = variation.variationIndex;
+
+            const newSection = document.createElement('div');
+            // Use createProductSection with the index (0-based) and the SIGNED IMAGE URL
+            newSection.innerHTML = createProductSection(sectionNumber - 1, variation.imageUrl).trim();
+            productSectionsContainer.appendChild(newSection.firstChild);
+            sectionCount++;
+
+            // Populate color and image preview/info
+            const colorInput = document.getElementById(`color-input-${sectionNumber}`);
+            if (colorInput) {
+                colorInput.value = variation.colorHex;
+                updateColorPreview(variation.colorHex, `color-preview-${sectionNumber}`);
+            }
+        });
+
+        // 4. Update the add button state
+        updateAddSectionButtonState();
+
+        // 5. Scroll to the form
         document.getElementById('content-wearscollection').scrollIntoView({ behavior: 'smooth' });
+
+    } catch (error) {
+        console.error('Error fetching collection for edit:', error);
+        showErrorModal(`Error fetching collection data: ${error.message}`); // Updated to use modal
     }
+}
 
-    /**
-     * Fetches all collections and renders them to the table.
-     */
-    async function fetchCollections() {
-        const token = getAuthToken();
-        if (!token) return;
+/**
+ * Sends a DELETE request to remove a collection.
+ */
+async function deleteCollection(collectionId) {
+    const token = getAuthToken();
+    if (!token) return;
 
-        collectionsTableBody.innerHTML = ''; // Clear existing
-        loadingIndicator.classList.remove('hidden');
-        collectionsError.classList.add('hidden');
-
-        try {
-            const response = await fetch(API_BASE_URL, {
-                method: 'GET',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (!response.ok) {
-                // Robust error handling to catch non-JSON responses (like HTML 404/500 pages)
-                const errorText = await response.text(); 
-                let errorMessage = `HTTP error! Status: ${response.status}.`;
-                
-                try {
-                    const errorData = JSON.parse(errorText);
-                    errorMessage = errorData.message || errorMessage;
-                } catch (e) {
-                    // Non-JSON response (e.g., HTML page from Netlify 404 or backend server)
-                    console.error('Raw non-JSON error response (likely 404 or 500 HTML page):', errorText);
-                    // Use a more helpful message for the user
-                    errorMessage = `${errorMessage} The server returned an invalid response. (See console for raw data).`;
-                }
-                
-                throw new Error(errorMessage);
-            }
-
-            const collections = await response.json();
-            renderCollectionsTable(collections);
-
-        } catch (error) {
-            console.error('Error fetching collections:', error);
-            collectionsError.textContent = `Error fetching collections: ${error.message}`;
-            collectionsError.classList.remove('hidden');
-        } finally {
-            loadingIndicator.classList.add('hidden');
-        }
+    // --- MODAL UPDATE: Use showConfirmationModal ---
+    const isConfirmed = await showConfirmationModal(`Are you sure you want to permanently delete collection ${collectionId}? This action cannot be undone.`);
+    if (!isConfirmed) {
+        return;
     }
+    // ---------------------------------------------
 
-    /**
-     * Renders the fetched collections data into the HTML table.
-     */
-    function renderCollectionsTable(collections) {
-        collectionsTableBody.innerHTML = '';
-        if (collections.length === 0) {
-            collectionsTableBody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">No collections found.</td></tr>';
-            return;
-        }
-
-        collections.forEach(collection => {
-            const tagClass = getTagClass(collection.tag);
-            const statusClass = collection.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
-
-            const row = `
-                <tr>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${collection._id.slice(-6)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${collection.name}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${tagClass}">${collection.tag}</span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${collection.variations.length}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${collection.totalStock}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
-                            ${collection.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button onclick="editCollection('${collection._id}')" class="text-indigo-600 hover:text-indigo-900 transition duration-150 mr-3">Edit</button>
-                        <button onclick="deleteCollection('${collection._id}')" class="text-red-600 hover:text-red-900 transition duration-150">Delete</button>
-                    </td>
-                </tr>
-            `;
-            collectionsTableBody.insertAdjacentHTML('beforeend', row);
+    try {
+        const response = await fetch(`${API_BASE_URL}/${collectionId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
         });
-    }
 
-    /**
-     * Determines the appropriate Tailwind class for a given tag.
-     */
-    function getTagClass(tag) {
-        switch (tag) {
-            case 'Top Deal': return 'bg-emerald-100 text-emerald-800';
-            case 'Hot Deal': return 'bg-red-100 text-red-800';
-            case 'New': return 'bg-blue-100 text-blue-800';
-            case 'Seasonal': return 'bg-yellow-100 text-yellow-800';
-            case 'Clearance': return 'bg-pink-100 text-pink-800';
-            default: return 'bg-gray-100 text-gray-800';
-        }
-    }
-
-    /**
-     * Fetches data for a specific collection and populates the form for editing.
-     */
-    async function editCollection(collectionId) {
-        const token = getAuthToken();
-        if (!token) return;
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/${collectionId}`, {
-                method: 'GET',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
-            }
-
-            const collection = await response.json();
-            
-            // 1. Set form mode
-            collectionIdToUpdate = collectionId;
-            formTitle.textContent = `✏️ Edit Collection: ${collection.name}`;
-            submitBtn.textContent = 'Update Collection';
-            submitBtn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
-            submitBtn.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
-            resetFormBtn.classList.remove('hidden');
-
-            // 2. Populate basic details
-            document.getElementById('collection-name').value = collection.name;
-            document.getElementById('collection-description').value = collection.tag;
-            document.getElementById('available-sizes').value = collection.sizes.join(', ');
-            document.getElementById('available-stock').value = collection.totalStock;
-            document.getElementById('is-active').checked = collection.isActive;
-
-            // 3. Populate variations
-            productSectionsContainer.innerHTML = '';
-            sectionCount = 0;
-
-            collection.variations.forEach(variation => {
-                // Use the variationIndex as the 1-based index directly
-                const sectionNumber = variation.variationIndex; 
-                
-                const newSection = document.createElement('div');
-                // Pass the index (which is sectionNumber - 1) and the image URL 
-                newSection.innerHTML = createProductSection(sectionNumber - 1, variation.imageUrl).trim(); 
-                productSectionsContainer.appendChild(newSection.firstChild);
-                sectionCount++;
-                
-                // Populate color and image preview/info
-                const colorInput = document.getElementById(`color-input-${sectionNumber}`);
-                if (colorInput) {
-                    colorInput.value = variation.colorHex;
-                    updateColorPreview(variation.colorHex, `color-preview-${sectionNumber}`);
-                }
-            });
-            
-            // 4. Update the add button state
-            updateAddSectionButtonState();
-            
-            // 5. Scroll to the form
-            document.getElementById('content-wearscollection').scrollIntoView({ behavior: 'smooth' });
-
-        } catch (error) {
-            console.error('Error fetching collection for edit:', error);
-            alert(`❌ Error fetching collection data: ${error.message}`);
-        }
-    }
-
-    /**
-     * Sends a DELETE request to remove a collection.
-     */
-    async function deleteCollection(collectionId) {
-        const token = getAuthToken();
-        if (!token) return;
-
-        if (!confirm(`Are you sure you want to permanently delete collection ${collectionId}? This action cannot be undone.`)) {
-            return;
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
         }
 
-        try {
-            const response = await fetch(`${API_BASE_URL}/${collectionId}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+        // Collection deleted successfully
+        showSuccessModal(`Collection ${collectionId} deleted successfully.`); // Updated to use modal
+        fetchCollections(); // Refresh the table
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
-            }
-
-            // Collection deleted successfully
-            alert(`✅ Collection ${collectionId} deleted successfully.`);
-            fetchCollections(); // Refresh the table
-
-        } catch (error) {
-            console.error('Deletion failed:', error);
-            alert(`❌ Error deleting collection: ${error.message}`);
-        }
+    } catch (error) {
+        console.error('Deletion failed:', error);
+        showErrorModal(`Error deleting collection: ${error.message}`); // Updated to use modal
     }
+}
 
-    // --- FORM SECTION MANAGEMENT ---
+// --- FORM SECTION MANAGEMENT ---
 
-    /**
-     * Function to create a product section HTML structure.
-     * @param {number} index - The zero-based index for the section (0 to 3).
-     * @param {string} [imageUrl=null] - Optional existing image URL for edit mode.
-     */
-    function createProductSection(index, imageUrl = null) {
-        const sectionNumber = index + 1;
-        const uniqueId = `section-${sectionNumber}`;
-        const isEditing = imageUrl !== null;
-        
-        // If editing, the file input is not required, and we show the existing image.
-        const fileRequiredAttribute = isEditing ? '' : 'required';
-        
-        // --- HTML for the Image Preview ---
-        const imagePreviewHtml = isEditing ? 
-            `<div class="mt-3">
-                <p class="text-sm font-medium text-gray-700 mb-2">Current Image:</p>
-                <img src="${imageUrl}" alt="Current product image preview" class="max-w-full h-auto rounded-lg shadow-md max-h-32 object-contain" />
-            </div>` : '';
-        // ----------------------------------------
+/**
+ * Function to create a product section HTML structure.
+ * @param {number} index - The zero-based index for the section (0 to 3).
+ * @param {string} [imageUrl=null] - Optional existing image URL for edit mode (THIS IS NOW THE SIGNED URL).
+ */
+function createProductSection(index, imageUrl = null) {
+    const sectionNumber = index + 1;
+    const uniqueId = `section-${sectionNumber}`;
+    const isEditing = imageUrl !== null;
 
-        const imageInfo = isEditing ? 
-            `<p class="mt-2 text-xs text-gray-500">Existing Image: <a href="${imageUrl}" target="_blank" class="text-blue-500 hover:underline">View Full Image</a>. Uploading a new file will replace it.</p>
-             <input type="hidden" id="existing-image-url-${sectionNumber}" value="${imageUrl}">` : 
-            `<p class="mt-2 text-xs text-gray-500">Upload a new image for this variation.</p>`;
+    // If editing, the file input is not required, and we show the existing image.
+    // We ensure that the file input's 'required' attribute is removed on edit.
+    const fileRequiredAttribute = isEditing ? '' : 'required';
 
-        return `
-            <div id="${uniqueId}" data-variation-index="${sectionNumber}" class="p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-inner relative">
-                <h4 class="text-md font-bold text-gray-600 mb-3 flex justify-between items-center">
-                    Product Variation #${sectionNumber}
-                    ${sectionNumber > 1 ? `<button type="button" onclick="removeProductSection('${uniqueId}')" class="text-red-500 hover:text-red-700 transition duration-150 text-sm">Remove</button>` : ''}
-                </h4>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label for="image-upload-${sectionNumber}" class="block text-sm font-medium text-gray-700">Upload Wears Image</label>
-                        <input type="file" name="image-${sectionNumber}" id="image-upload-${sectionNumber}" accept="image/*" ${fileRequiredAttribute} class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
-                        ${imageInfo}
-                        ${imagePreviewHtml}
-                    </div>
-                    
-                    <div>
-                        <label for="color-input-${sectionNumber}" class="block text-sm font-medium text-gray-700">Color Input</label>
-                        <div class="flex items-center mt-1">
-                            <input type="color" id="color-input-${sectionNumber}" value="#10B981" required 
-                                    class="p-0 h-10 w-10 block rounded-full border-2 border-gray-300 cursor-pointer"
-                                    oninput="updateColorPreview(this.value, 'color-preview-${sectionNumber}')">
-                            <div id="color-preview-${sectionNumber}" class="color-preview ml-3 bg-emerald-600" style="background-color: #10B981;"></div>
-                            <span class="ml-3 text-sm text-gray-500">Pick a color</span>
-                        </div>
+    // --- HTML for the Image Preview (USES SIGNED URL) ---
+    const imagePreviewHtml = isEditing ?
+        `<div class="mt-3">
+            <p class="text-sm font-medium text-gray-700 mb-2">Current Image:</p>
+            <img src="${imageUrl}" alt="Current product image preview" class="max-w-full h-auto rounded-lg shadow-md max-h-32 object-contain" />
+        </div>` : '';
+    // ----------------------------------------
+
+    // The logic below regarding SIGNED vs PERMANENT URL is kept as per your comments,
+    // assuming the backend handles the signed URL for re-submission during update.
+
+    const imageInfo = isEditing ?
+        `<p class="mt-2 text-xs text-gray-500">Existing Image: <a href="${imageUrl}" target="_blank" class="text-blue-500 hover:underline">View Full Image (Signed URL)</a>. Uploading a new file will replace it.</p>
+           <input type="hidden" id="existing-image-url-${sectionNumber}" value="${imageUrl}">` : // We will pass this SIGNED URL back to the backend
+        `<p class="mt-2 text-xs text-gray-500">Upload a new image for this variation.</p>`;
+
+    return `
+        <div id="${uniqueId}" data-variation-index="${sectionNumber}" class="p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-inner relative">
+            <h4 class="text-md font-bold text-gray-600 mb-3 flex justify-between items-center">
+                Product Variation #${sectionNumber}
+                ${sectionNumber > 1 ? `<button type="button" onclick="removeProductSection('${uniqueId}')" class="text-red-500 hover:text-red-700 transition duration-150 text-sm">Remove</button>` : ''}
+            </h4>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="image-upload-${sectionNumber}" class="block text-sm font-medium text-gray-700">Upload Wears Image</label>
+                    <input type="file" name="image-${sectionNumber}" id="image-upload-${sectionNumber}" accept="image/*" ${fileRequiredAttribute} class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
+                    ${imageInfo}
+                    ${imagePreviewHtml}
+                </div>
+
+                <div>
+                    <label for="color-input-${sectionNumber}" class="block text-sm font-medium text-gray-700">Color Input</label>
+                    <div class="flex items-center mt-1">
+                        <input type="color" id="color-input-${sectionNumber}" value="#10B981" required
+                                class="p-0 h-10 w-10 block rounded-full border-2 border-gray-300 cursor-pointer"
+                                oninput="updateColorPreview(this.value, 'color-preview-${sectionNumber}')">
+                        <div id="color-preview-${sectionNumber}" class="color-preview ml-3 bg-emerald-600" style="background-color: #10B981;"></div>
+                        <span class="ml-3 text-sm text-gray-500">Pick a color</span>
                     </div>
                 </div>
             </div>
-        `;
+        </div>
+    `;
+}
+
+/**
+ * Function to add a product section
+ */
+function addProductSection() {
+    if (sectionCount < MAX_VARIATIONS) {
+        const newSection = document.createElement('div');
+        // We pass the current sectionCount as the index (0-based)
+        newSection.innerHTML = createProductSection(sectionCount).trim();
+        productSectionsContainer.appendChild(newSection.firstChild);
+        sectionCount++;
+
+        updateAddSectionButtonState();
     }
-    
-    /**
-     * Function to add a product section
-     */
-    function addProductSection() {
-        if (sectionCount < MAX_VARIATIONS) {
-            const newSection = document.createElement('div');
-            // We pass the current sectionCount as the index (0-based)
-            newSection.innerHTML = createProductSection(sectionCount).trim(); 
-            productSectionsContainer.appendChild(newSection.firstChild);
-            sectionCount++;
-            
-            updateAddSectionButtonState();
-        }
+}
+
+/**
+ * Function to remove a product section
+ */
+function removeProductSection(id) {
+    const sectionToRemove = document.getElementById(id);
+    if (sectionToRemove) {
+        sectionToRemove.remove();
+
+        // Decrement the section count
+        sectionCount--;
+
+        // Re-index all remaining sections to maintain sequential `variationIndex`
+        reindexProductSections();
+
+        updateAddSectionButtonState();
     }
-    
-    /**
-     * Function to remove a product section
-     */
-    function removeProductSection(id) {
-        const sectionToRemove = document.getElementById(id);
-        if (sectionToRemove) {
-            sectionToRemove.remove();
-            
-            // Decrement the section count
-            sectionCount--;
-            
-            // Re-index all remaining sections to maintain sequential `variationIndex`
-            reindexProductSections();
-            
-            updateAddSectionButtonState();
-        }
-    }
+}
 
-    /**
-     * Re-indexes sections after one is removed to ensure keys are sequential (1, 2, 3, 4).
-     * This is the crucial, updated function.
-     */
-    function reindexProductSections() {
-        Array.from(productSectionsContainer.children).forEach((section, index) => {
-            const newSectionNumber = index + 1; // New 1-based index (1, 2, 3...)
-            
-            // Find the existing image URL and color value to pass to the recreation function
-            const existingImageUrl = section.querySelector('[id^="existing-image-url-"]')?.value || null;
-            const existingColor = section.querySelector('[id^="color-input-"]')?.value || '#10B981';
+/**
+ * Re-indexes sections after one is removed to ensure keys are sequential (1, 2, 3, 4).
+ * This is the crucial, updated function.
+ */
+function reindexProductSections() {
+    Array.from(productSectionsContainer.children).forEach((section, index) => {
+        const newSectionNumber = index + 1; // New 1-based index (1, 2, 3...)
 
-            // Recreate the section's HTML with the correct new index and existing data
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = createProductSection(index, existingImageUrl).trim();
-            const newSectionElement = tempDiv.firstChild;
+        // Find the existing image URL and color value to pass to the recreation function
+        const existingImageUrl = section.querySelector('[id^="existing-image-url-"]')?.value || null;
+        const existingColor = section.querySelector('[id^="color-input-"]')?.value || '#10B981';
 
-            // Update the color value in the newly created element before replacing
-            const newColorInput = newSectionElement.querySelector(`#color-input-${newSectionNumber}`);
-            if (newColorInput) {
-                newColorInput.value = existingColor;
-                updateColorPreview(existingColor, `color-preview-${newSectionNumber}`);
-            }
+        // Recreate the section's HTML with the correct new index and existing data
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = createProductSection(index, existingImageUrl).trim();
+        const newSectionElement = tempDiv.firstChild;
 
-            // Replace the old section element with the new, correctly indexed one
-            // This is safer than using .outerHTML which can lose event listeners or references
-            section.replaceWith(newSectionElement);
-        });
-        
-        // After re-indexing, the sectionCount is equal to the number of children
-        sectionCount = productSectionsContainer.children.length;
-    }
-
-    /**
-     * Updates the state of the "Add Product Variation" button.
-     */
-    function updateAddSectionButtonState() {
-        if (sectionCount >= MAX_VARIATIONS) {
-            addSectionBtn.disabled = true;
-            addSectionBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            addSectionBtn.classList.remove('hover:bg-emerald-50');
-        } else {
-            addSectionBtn.disabled = false;
-            addSectionBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-            addSectionBtn.classList.add('hover:bg-emerald-50');
-        }
-    }
-    
-    /** * Function to update the color circle preview
-     * @param {string} colorValue - The hex color value.
-     * @param {string} previewId - The ID of the color preview element.
-     */
-    function updateColorPreview(colorValue, previewId) {
-        const previewElement = document.getElementById(previewId);
-        if(previewElement) {
-            previewElement.style.backgroundColor = colorValue;
-        }
-    }
-
-    /**
-     * Handles the form submission (CREATE or UPDATE).
-     */
-    async function handleCollectionSubmit(event) {
-        event.preventDefault();
-        
-        // Determine if this is a POST (Create) or PUT (Update) operation
-        const isUpdate = collectionIdToUpdate !== null;
-        const method = isUpdate ? 'PUT' : 'POST';
-        const url = isUpdate ? `${API_BASE_URL}/${collectionIdToUpdate}` : API_BASE_URL;
-
-        // Form validation: ensure at least one section exists
-        if (productSectionsContainer.children.length === 0) {
-            alert("Please add at least one product variation.");
-            return;
+        // Update the color value in the newly created element before replacing
+        const newColorInput = newSectionElement.querySelector(`#color-input-${newSectionNumber}`);
+        if (newColorInput) {
+            newColorInput.value = existingColor;
+            updateColorPreview(existingColor, `color-preview-${newSectionNumber}`);
         }
 
-        // Disable button and show loading state
-        submitBtn.disabled = true;
-        submitBtn.textContent = isUpdate ? 'Updating...' : 'Submitting...';
-        submitBtn.classList.remove('hover:bg-emerald-700', 'hover:bg-yellow-700', 'bg-emerald-600', 'bg-yellow-600');
-        submitBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
-
-        const token = getAuthToken();
-        if (!token) {
-             resetFormSubmitButtonState(isUpdate);
-             return;
-        }
-
-        // --- 1. Collect Variations and Files ---
-        const formData = new FormData();
-        let productVariationsMetadata = [];
-        let isValid = true;
-
-        Array.from(productSectionsContainer.children).forEach((section, index) => {
-            const sectionNumber = index + 1; // 1-based index (corresponds to image-1, image-2...)
-            const imageInput = section.querySelector(`#image-upload-${sectionNumber}`);
-            const colorInput = section.querySelector(`#color-input-${sectionNumber}`);
-            const existingImageUrlInput = section.querySelector(`#existing-image-url-${sectionNumber}`);
-
-            if (imageInput && colorInput) {
-                const imageFile = imageInput.files[0];
-                const color = colorInput.value;
-                const existingImageUrl = existingImageUrlInput ? existingImageUrlInput.value : null;
-
-                let imageUrlForMetadata = existingImageUrl;
-                
-                // If a new file is uploaded, append it to FormData.
-                if (imageFile) {
-                    // The key MUST match the Multer configuration in the backend: `image-1`, `image-2`, etc.
-                    formData.append(`image-${sectionNumber}`, imageFile); 
-                    // Set image URL to null/placeholder for new upload, 
-                    // the backend will replace it with the final URL.
-                    imageUrlForMetadata = null; 
-                } else if (isUpdate && existingImageUrl) {
-                    // If updating and NO new file is uploaded, retain the existing URL.
-                    imageUrlForMetadata = existingImageUrl;
-                } else if (!isUpdate && !imageFile) {
-                    // Creating and no image provided 
-                    alert(`Image for Variation #${sectionNumber} is missing.`);
-                    isValid = false;
-                    return; 
-                }
-
-                // Store metadata for this variation
-                productVariationsMetadata.push({
-                    variationIndex: sectionNumber,
-                    colorHex: color,
-                    imageUrl: imageUrlForMetadata, // The backend uses this to know what to update/delete
-                });
-            }
-        });
-
-        if (!isValid) {
-            // Re-enable button on error
-            resetFormSubmitButtonState(isUpdate);
-            return;
-        }
-
-        // --- 2. Collect General Form Data ---
-        const collectionData = {
-            name: document.getElementById('collection-name').value,
-            tag: document.getElementById('collection-description').value,
-            // Split, trim, convert to uppercase, and filter out empty strings
-            sizes: document.getElementById('available-sizes').value.split(',').map(s => s.trim().toUpperCase()).filter(s => s),
-            totalStock: parseInt(document.getElementById('available-stock').value),
-            isActive: document.getElementById('is-active').checked,
-            variations: productVariationsMetadata // Attach the structured variation metadata
-        };
-
-        // --- 3. Append JSON Data to FormData ---
-        // The backend expects the JSON payload under the 'collectionData' key.
-        formData.append('collectionData', JSON.stringify(collectionData));
-
-        // --- 4. Send the Data to the Backend ---
-        try {
-            const response = await fetch(url, {
-                method: method,
-                headers: { 
-                    'Authorization': `Bearer ${token}` 
-                },
-                body: formData // Send the FormData object
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                // Attempt to parse JSON error, fall back to text
-                try {
-                    const errorData = JSON.parse(errorText);
-                    throw new Error(errorData.message || `Server error during ${method}.`);
-                } catch (e) {
-                    // Non-JSON error (e.g., HTML response from server/proxy)
-                    throw new Error(errorText || `HTTP error! Status: ${response.status}`);
-                }
-            }
-
-            const result = await response.json();
-            
-            alert(`✅ Collection ${isUpdate ? 'updated' : 'created'} successfully! ID: ${result.collectionId || 'N/A'}`);
-            
-            // Refresh table and reset form
-            fetchCollections();
-            resetForm();
-
-        } catch (error) {
-            console.error('Submission failed:', error);
-            alert(`❌ Error submitting collection: ${error.message}`);
-        } finally {
-            // Re-enable button
-            resetFormSubmitButtonState(isUpdate);
-        }
-    }
-    
-    /**
-     * Helper to reset the submit button state.
-     * @param {boolean} isUpdate - True if the form was in update mode.
-     */
-    function resetFormSubmitButtonState(isUpdate) {
-        submitBtn.disabled = false;
-        submitBtn.textContent = isUpdate ? 'Update Collection' : 'Submit Collection';
-        submitBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
-        if (isUpdate) {
-            submitBtn.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
-        } else {
-            submitBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
-        }
-    }
-
-    // Initialize the page on load
-    document.addEventListener('DOMContentLoaded', () => {
-        // Add the initial product section for the creation form
-        if (productSectionsContainer.children.length === 0) {
-              addProductSection();
-        }
-        
-        // Attach the form submit handler
-        document.getElementById('wears-collection-form').addEventListener('submit', handleCollectionSubmit);
-
-        // Toggle sidebar visibility on mobile
-        sidebarToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('-translate-x-full');
-        });
-
-        // Add new section button listener
-        addSectionBtn.addEventListener('click', () => {
-            if (sectionCount < MAX_VARIATIONS) {
-                addProductSection();
-            } else {
-                alert(`You can only add a maximum of ${MAX_VARIATIONS} product variations per collection.`);
-            }
-        });
-
-        // Load existing collections on page load
-        fetchCollections();
+        // Replace the old section element with the new, correctly indexed one
+        // This is safer than using .outerHTML which can lose event listeners or references
+        section.replaceWith(newSectionElement);
     });
+
+    // After re-indexing, the sectionCount is equal to the number of children
+    sectionCount = productSectionsContainer.children.length;
+}
+
+/**
+ * Updates the state of the "Add Product Variation" button.
+ */
+function updateAddSectionButtonState() {
+    if (sectionCount >= MAX_VARIATIONS) {
+        addSectionBtn.disabled = true;
+        addSectionBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        addSectionBtn.classList.remove('hover:bg-emerald-50');
+    } else {
+        addSectionBtn.disabled = false;
+        addSectionBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        addSectionBtn.classList.add('hover:bg-emerald-50');
+    }
+}
+
+/** * Function to update the color circle preview
+ * @param {string} colorValue - The hex color value.
+ * @param {string} previewId - The ID of the color preview element.
+ */
+function updateColorPreview(colorValue, previewId) {
+    const previewElement = document.getElementById(previewId);
+    if (previewElement) {
+        previewElement.style.backgroundColor = colorValue;
+    }
+}
+
+/**
+ * Handles the form submission (CREATE or UPDATE).
+ */
+async function handleCollectionSubmit(event) {
+    event.preventDefault();
+
+    // Determine if this is a POST (Create) or PUT (Update) operation
+    const isUpdate = collectionIdToUpdate !== null;
+    const method = isUpdate ? 'PUT' : 'POST';
+    const url = isUpdate ? `${API_BASE_URL}/${collectionIdToUpdate}` : API_BASE_URL;
+
+    // Form validation: ensure at least one section exists
+    if (productSectionsContainer.children.length === 0) {
+        showErrorModal("Please add at least one product variation."); // Updated to use modal
+        return;
+    }
+
+    // Disable button and show loading state
+    submitBtn.disabled = true;
+    submitBtn.textContent = isUpdate ? 'Updating...' : 'Submitting...';
+    submitBtn.classList.remove('hover:bg-emerald-700', 'hover:bg-yellow-700', 'bg-emerald-600', 'bg-yellow-600');
+    submitBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+
+    const token = getAuthToken();
+    if (!token) {
+        resetFormSubmitButtonState(isUpdate);
+        return;
+    }
+
+    // --- 1. Collect Variations and Files ---
+    const formData = new FormData();
+    let productVariationsMetadata = [];
+    let isValid = true;
+
+    Array.from(productSectionsContainer.children).forEach((section, index) => {
+        const sectionNumber = index + 1; // 1-based index (corresponds to image-1, image-2...)
+        const imageInput = section.querySelector(`#image-upload-${sectionNumber}`);
+        const colorInput = section.querySelector(`#color-input-${sectionNumber}`);
+        const existingImageUrlInput = section.querySelector(`#existing-image-url-${sectionNumber}`);
+
+        if (imageInput && colorInput) {
+            const imageFile = imageInput.files[0];
+            const color = colorInput.value;
+            const existingImageUrl = existingImageUrlInput ? existingImageUrlInput.value : null;
+
+            let imageUrlForMetadata = existingImageUrl;
+
+            // If a new file is uploaded, append it to FormData.
+            if (imageFile) {
+                // The key MUST match the Multer configuration in the backend: `image-1`, `image-2`, etc.
+                formData.append(`image-${sectionNumber}`, imageFile);
+                // Set image URL to null/placeholder for new upload.
+                imageUrlForMetadata = null;
+            } else if (isUpdate && existingImageUrl) {
+                // If updating and NO new file is uploaded, retain the existing URL (which is the signed URL).
+                imageUrlForMetadata = existingImageUrl;
+            } else if (!isUpdate && !imageFile) {
+                // Creating and no image provided
+                showErrorModal(`Image for Variation #${sectionNumber} is missing.`); // Updated to use modal
+                isValid = false;
+                return;
+            }
+
+            // Store metadata for this variation
+            productVariationsMetadata.push({
+                variationIndex: sectionNumber,
+                colorHex: color,
+                imageUrl: imageUrlForMetadata, // Send null (new file) or the existing Signed URL (no new file)
+            });
+        }
+    });
+
+    if (!isValid) {
+        // Re-enable button on error
+        resetFormSubmitButtonState(isUpdate);
+        return;
+    }
+
+    // --- 2. Collect General Form Data ---
+    const collectionData = {
+        name: document.getElementById('collection-name').value,
+        tag: document.getElementById('collection-description').value,
+        // Split, trim, convert to uppercase, and filter out empty strings
+        sizes: document.getElementById('available-sizes').value.split(',').map(s => s.trim().toUpperCase()).filter(s => s),
+        totalStock: parseInt(document.getElementById('available-stock').value),
+        isActive: document.getElementById('is-active').checked,
+        variations: productVariationsMetadata // Attach the structured variation metadata
+    };
+
+    // --- 3. Append JSON Data to FormData ---
+    // The backend expects the JSON payload under the 'collectionData' key.
+    formData.append('collectionData', JSON.stringify(collectionData));
+
+    // --- 4. Send the Data to the Backend ---
+    try {
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            body: formData // Send the FormData object
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            // Attempt to parse JSON error, fall back to text
+            try {
+                const errorData = JSON.parse(errorText);
+                throw new Error(errorData.message || `Server error during ${method}.`);
+            } catch (e) {
+                // Non-JSON error (e.g., HTML response from server/proxy)
+                throw new Error(errorText || `HTTP error! Status: ${response.status}`);
+            }
+        }
+
+        const result = await response.json();
+
+        showSuccessModal(`Collection ${isUpdate ? 'updated' : 'created'} successfully! ID: ${result.collectionId || 'N/A'}`); // Updated to use modal
+
+        // Refresh table and reset form
+        fetchCollections();
+        resetForm();
+
+    } catch (error) {
+        console.error('Submission failed:', error);
+        showErrorModal(`Error submitting collection: ${error.message}`); // Updated to use modal
+    } finally {
+        // Re-enable button
+        resetFormSubmitButtonState(isUpdate);
+    }
+}
+
+/**
+ * Helper to reset the submit button state.
+ * @param {boolean} isUpdate - True if the form was in update mode.
+ */
+function resetFormSubmitButtonState(isUpdate) {
+    submitBtn.disabled = false;
+    submitBtn.textContent = isUpdate ? 'Update Collection' : 'Submit Collection';
+    submitBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+    if (isUpdate) {
+        submitBtn.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
+    } else {
+        submitBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+    }
+}
+
+// Initialize the page on load
+document.addEventListener('DOMContentLoaded', () => {
+    // Add the initial product section for the creation form
+    if (productSectionsContainer.children.length === 0) {
+        addProductSection();
+    }
+
+    // Attach the form submit handler
+    document.getElementById('wears-collection-form').addEventListener('submit', handleCollectionSubmit);
+
+    // Toggle sidebar visibility on mobile
+    sidebarToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('-translate-x-full');
+    });
+
+    // Add new section button listener
+    addSectionBtn.addEventListener('click', () => {
+        if (sectionCount < MAX_VARIATIONS) {
+            addProductSection();
+        } else {
+            // Updated to use modal
+            showErrorModal(`You can only add a maximum of ${MAX_VARIATIONS} product variations per collection.`);
+        }
+    });
+
+    // Load existing collections on page load
+    fetchCollections();
+});
 </script>
 </body>
 </html>

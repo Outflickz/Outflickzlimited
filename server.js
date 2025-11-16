@@ -4,12 +4,12 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 const mongoose = require('mongoose');
-const multer = require('multer'); 
+const multer = require('multer');
 
 // --- BACKBLAZE B2 INTEGRATION (USING AWS SDK v3) ---
-const { S3Client } = require('@aws-sdk/client-s3');
+const { S3Client, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { Upload } = require('@aws-sdk/lib-storage');
-const { DeleteObjectCommand } = require('@aws-sdk/client-s3'); // Needed for deleting old images
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner'); // NEW IMPORT
 
 // Load environment variables (ensure these are set in your .env file)
 dotenv.config();
@@ -29,18 +29,67 @@ const s3Client = new S3Client({
         secretAccessKey: BLAZE_SECRET_KEY,
     },
     // Required for Backblaze B2's S3-compatibility layer
-    forcePathStyle: true, 
+    forcePathStyle: true,
 });
+
+/**
+ * Generates a temporary, pre-signed URL for private files in Backblaze B2.
+ * @param {string} fileUrl - The permanent B2 URL (e.g., https://s3.us-west-004.backblazeb2.com/bucket-name/path/to/file.jpg).
+ * @returns {Promise<string|null>} The temporary signed URL, or null if key extraction fails.
+ */
+async function generateSignedUrl(fileUrl) {
+    if (!fileUrl) return null;
+
+    try {
+        // 1. Extract the Key (path after BLAZE_BUCKET_NAME) from the URL
+        const urlObj = new URL(fileUrl);
+        const pathSegments = urlObj.pathname.split('/');
+        
+        // Find the index of the bucket name, and take everything after it.
+        // We use BLAZE_BUCKET_NAME to robustly find the start of the key path.
+        const bucketNameIndex = pathSegments.findIndex(segment => segment === BLAZE_BUCKET_NAME);
+        if (bucketNameIndex === -1) {
+            console.warn(`[Signed URL] Bucket name not found in path: ${fileUrl}`);
+            return null;
+        }
+
+        // The file key is everything after the bucket name
+        const fileKey = pathSegments.slice(bucketNameIndex + 1).join('/');
+
+        if (!fileKey) {
+            console.warn(`[Signed URL] Could not determine file key from URL: ${fileUrl}`);
+            return null;
+        }
+
+        // 2. Create the GetObject command
+        const command = new GetObjectCommand({
+            Bucket: BLAZE_BUCKET_NAME,
+            Key: fileKey,
+        });
+
+        // 3. Generate the signed URL (expires in 300 seconds = 5 minutes)
+        // This temporary URL allows the frontend to access the private file.
+        const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 });
+
+        return signedUrl;
+
+    } catch (error) {
+        // Log the failure but don't crash the server
+        console.error(`[Signed URL] Failed to generate signed URL for ${fileUrl}:`, error);
+        return null;
+    }
+}
+
 
 /**
  * Uploads a file buffer (from Multer memory storage) to Backblaze B2.
  * @param {object} file - The file object from Multer (must contain `buffer`, `originalname`, and `mimetype`).
- * @returns {Promise<string>} The public URL of the uploaded file.
+ * @returns {Promise<string>} The public URL of the uploaded file (this is the permanent, private path).
  */
 async function uploadFileToPermanentStorage(file) {
     console.log(`[Backblaze B2] Starting upload for: ${file.originalname}`);
-    
-    // !!! CRITICAL CHANGE: Using 'wearscollections' as the directory prefix
+
+    // !!! CRITICAL: We DO NOT set ACL to public-read here, ensuring the bucket stays private.
     const fileKey = `wearscollections/${Date.now()}-${Math.random().toString(36).substring(2)}-${file.originalname.replace(/\s/g, '_')}`;
 
     const params = {
@@ -48,7 +97,6 @@ async function uploadFileToPermanentStorage(file) {
         Key: fileKey,
         Body: file.buffer,
         ContentType: file.mimetype,
-        // Optional: Set access control if needed (e.g., 'public-read' for public images)
     };
 
     try {
@@ -59,14 +107,14 @@ async function uploadFileToPermanentStorage(file) {
 
         const result = await uploader.done();
 
-        // Construct the public URL
-        const publicUrl = `${BLAZE_ENDPOINT}/${BLAZE_BUCKET_NAME}/${fileKey}`;
-        
-        console.log(`[Backblaze B2] Upload success. Location: ${result.Location}`);
-        console.log(`[Backblaze B2] Public URL (Estimated): ${publicUrl}`);
+        // Construct the permanent, private URL which we will store in MongoDB
+        const permanentUrl = `${BLAZE_ENDPOINT}/${BLAZE_BUCKET_NAME}/${fileKey}`;
 
-        return publicUrl;
-        
+        console.log(`[Backblaze B2] Upload success. Location: ${result.Location}`);
+        console.log(`[Backblaze B2] Permanent URL stored in DB: ${permanentUrl}`);
+
+        return permanentUrl;
+
     } catch (error) {
         console.error("Backblaze B2 Upload Error:", error);
         throw new Error(`Failed to upload file to Backblaze B2: ${error.message}`);
@@ -75,16 +123,23 @@ async function uploadFileToPermanentStorage(file) {
 
 /**
  * Deletes a file from Backblaze B2 given its URL.
- * @param {string} fileUrl - The public URL of the file to delete.
+ * @param {string} fileUrl - The permanent B2 URL of the file to delete.
  */
 async function deleteFileFromPermanentStorage(fileUrl) {
     if (!fileUrl) return;
 
     try {
         // Extract the Key (path after BLAZE_BUCKET_NAME) from the URL
-        const pathSegments = new URL(fileUrl).pathname.split('/').slice(2);
-        const fileKey = pathSegments.join('/').replace(/^\//, '');
-
+        const urlObj = new URL(fileUrl);
+        const pathSegments = urlObj.pathname.split('/');
+        
+        const bucketNameIndex = pathSegments.findIndex(segment => segment === BLAZE_BUCKET_NAME);
+        if (bucketNameIndex === -1) {
+            console.warn(`[Delete] Bucket name not found in path: ${fileUrl}`);
+            return;
+        }
+        const fileKey = pathSegments.slice(bucketNameIndex + 1).join('/');
+        
         if (!fileKey) {
              console.warn(`Could not determine file key from URL: ${fileUrl}`);
              return;
@@ -108,26 +163,26 @@ async function deleteFileFromPermanentStorage(fileUrl) {
 
 
 // --- CONFIGURATION ---
-const MONGO_URI = process.env.MONGO_URI 
-const JWT_SECRET = process.env.JWT_SECRET 
-const BCRYPT_SALT_ROUNDS = 10; 
+const MONGO_URI = process.env.MONGO_URI
+const JWT_SECRET = process.env.JWT_SECRET
+const BCRYPT_SALT_ROUNDS = 10;
 
 // Default admin credentials
-const DEFAULT_ADMIN_EMAIL = process.env.DEFAULT_ADMIN_EMAIL 
+const DEFAULT_ADMIN_EMAIL = process.env.DEFAULT_ADMIN_EMAIL
 const DEFAULT_ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD
 
 
 // --- MONGODB SCHEMAS & MODELS (Unchanged) ---
 const adminSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
-    password: { type: String, required: true, select: false }, 
+    password: { type: String, required: true, select: false },
     role: { type: String, default: 'admin' }
 });
 const Admin = mongoose.models.Admin || mongoose.model('Admin', adminSchema);
 
 const ProductVariationSchema = new mongoose.Schema({
     variationIndex: { type: Number, required: true, min: 1, max: 4 },
-    imageUrl: { type: String, required: true },
+    imageUrl: { type: String, required: true }, // Stores the permanent, private B2 URL
     colorHex: { type: String, required: true, match: /^#([0-9A-F]{3}){1,2}$/i }
 }, { _id: false });
 
@@ -152,7 +207,7 @@ const WearsCollectionSchema = new mongoose.Schema({
         }
     },
     sizes: {
-        type: [String], 
+        type: [String],
         required: [true, 'Available sizes are required'],
         validate: {
             validator: function(v) { return Array.isArray(v) && v.length > 0; },
@@ -305,16 +360,26 @@ app.get('/api/admin/dashboard/stats', verifyToken, async (req, res) => {
 });
 
 // ------------------------------------------------------------------------------------------------
-// 🌟 NEW ROUTE: GET /api/admin/wearscollections/:id (Fetch Single Collection)
+// 🌟 MODIFIED ROUTE: GET /api/admin/wearscollections/:id (Fetch Single Collection)
+// Signs private image URLs before sending to client.
 // ------------------------------------------------------------------------------------------------
 
 app.get('/api/admin/wearscollections/:id', verifyToken, async (req, res) => {
     try {
-        const collection = await WearsCollection.findById(req.params.id);
+        const collection = await WearsCollection.findById(req.params.id).lean(); // Use .lean() for easier modification
         
         if (!collection) {
             return res.status(404).json({ message: 'Collection not found.' });
         }
+
+        // --- SIGN URLS HERE ---
+        const signedVariations = await Promise.all(collection.variations.map(async (v) => ({
+            ...v,
+            imageUrl: await generateSignedUrl(v.imageUrl) || v.imageUrl // Replace with signed URL or keep original on failure
+        })));
+        
+        collection.variations = signedVariations;
+        // -----------------------
 
         res.status(200).json(collection);
     } catch (error) {
@@ -324,7 +389,7 @@ app.get('/api/admin/wearscollections/:id', verifyToken, async (req, res) => {
 });
 
 // ------------------------------------------------------------------------------------------------
-// 🌟 ROUTE: POST /api/admin/wearscollections (Create New Collection)
+// 🌟 ROUTE: POST /api/admin/wearscollections (Create New Collection) - Unchanged Logic
 // ------------------------------------------------------------------------------------------------
 
 app.post(
@@ -352,13 +417,13 @@ app.post(
                 if (uploadedFileArray && uploadedFileArray[0]) {
                     const uploadedFile = uploadedFileArray[0];
 
-                    // 1. Upload the file to Backblaze B2
+                    // 1. Upload the file to Backblaze B2 (stores the permanent private URL)
                     const uploadPromise = uploadFileToPermanentStorage(uploadedFile).then(imageUrl => {
                         // 2. Create the final variation object
                         finalVariations.push({
                             variationIndex: variation.variationIndex,
                             colorHex: variation.colorHex,
-                            imageUrl: imageUrl, // Use the public URL returned by Backblaze B2
+                            imageUrl: imageUrl, // Store the permanent, private URL
                         });
                     });
                     uploadPromises.push(uploadPromise);
@@ -406,7 +471,7 @@ app.post(
 );
 
 // ------------------------------------------------------------------------------------------------
-// 🌟 NEW ROUTE: PUT /api/admin/wearscollections/:id (Update Existing Collection)
+// 🌟 ROUTE: PUT /api/admin/wearscollections/:id (Update Existing Collection) - Unchanged Logic
 // ------------------------------------------------------------------------------------------------
 
 app.put(
@@ -455,7 +520,7 @@ app.put(
                     });
                     uploadPromises.push(uploadPromise);
                 } else {
-                    // 2. No new file: Use the existing URL provided in the payload (or the existing document if needed)
+                    // 2. No new file: Use the existing permanent URL from the client's payload
                     updatedVariations.push({
                         variationIndex: incomingVariation.variationIndex,
                         colorHex: incomingVariation.colorHex,
@@ -502,19 +567,36 @@ app.put(
     }
 );
 
+// ------------------------------------------------------------------------------------------------
+// 🌟 MODIFIED ROUTE: GET /api/admin/wearscollections (Fetch All Collections)
+// Signs private image URLs before sending to client.
+// ------------------------------------------------------------------------------------------------
 app.get(
     '/api/admin/wearscollections',
     verifyToken,
     async (req, res) => {
         try {
-            // Fetch all collections, select only the necessary fields for the table, 
-            // and sort them (e.g., by creation date)
+            // Fetch all collections, use .lean() for performance and modification
             const collections = await WearsCollection.find({})
                 .select('_id name tag variations totalStock isActive')
-                .sort({ createdAt: -1 });
+                .sort({ createdAt: -1 })
+                .lean(); 
 
-            // Send the list of collections as a JSON array
-            res.status(200).json(collections);
+            // --- SIGN URLS FOR ALL COLLECTIONS HERE ---
+            const signedCollections = await Promise.all(collections.map(async (collection) => {
+                const signedVariations = await Promise.all(collection.variations.map(async (v) => ({
+                    ...v,
+                    imageUrl: await generateSignedUrl(v.imageUrl) || v.imageUrl // Sign each image URL
+                })));
+                return {
+                    ...collection,
+                    variations: signedVariations
+                };
+            }));
+            // ------------------------------------------
+
+            // Send the list of signed collections as a JSON array
+            res.status(200).json(signedCollections);
         } catch (error) {
             console.error('Error fetching wear collections:', error);
             // Ensure server always returns JSON on errors
@@ -529,5 +611,5 @@ module.exports = {
     app,
     mongoose,
     populateInitialData,
-    MONGO_URI
+    MONGODB_URI
 };

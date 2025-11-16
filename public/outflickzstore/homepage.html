@@ -26,18 +26,6 @@
             font-family: 'Inter', sans-serif;
         }
         
-        /* Global Font Scaling for better compatibility - Tailwind classes on <html> tag are preferred, but this acts as a fallback/reinforcement */
-        /*
-        html {
-            font-size: 16px; 
-        }
-        @media (max-width: 640px) {
-            html {
-                font-size: 14px; 
-            }
-        }
-        */
-
         /* --- STABILIZED RESPONSIVE SLIDER STYLES --- */
         .hero-bg-slider-container {
             position: absolute;
@@ -230,7 +218,10 @@
             const modalImage = document.getElementById('modal-image');
             const modalTitle = document.getElementById('modal-item-title');
 
-            modalImage.src = imageUrl;
+            // Use the uploaded image for the default/example item if no URL is provided
+            const finalImageUrl = imageUrl || 'uploaded:Screenshot (478).png-b0ea9fd7-a8dc-40e0-abc8-65b50dd4dfc0';
+
+            modalImage.src = finalImageUrl;
             modalImage.alt = itemName;
             modalTitle.textContent = itemName;
 
@@ -246,14 +237,16 @@
             document.body.classList.remove('overflow-hidden');
         }
 
-        // --- VIEW ITEM (UNCHANGED) ---
+        // --- VIEW ITEM (UPDATED TO USE DEFAULT IMAGE FROM CONTEXT) ---
         function viewItem(collectionId) {
             const card = document.querySelector(`.collection-card[data-collection-id="${collectionId}"]`);
             if (!card) return;
 
             const currentImage = card.querySelector(`#collection-image-${collectionId}`);
-            // Use the uploaded image for the default/example item
-            const imageUrl = currentImage ? currentImage.src : 'Screenshot (478).png';
+            // Use the image source if available, otherwise use the uploaded file's contentFetchId
+            const imageUrl = currentImage 
+                ? currentImage.src 
+                : 'uploaded:Screenshot (478).png-b0ea9fd7-a8dc-40e0-abc8-65b50dd4dfc0'; 
             const itemName = card.querySelector('h3').textContent;
 
             openModal(imageUrl, itemName);
@@ -307,6 +300,7 @@
                 case 'blue': return 'bg-blue-500';
                 case 'green': return 'bg-green-500';
                 default:
+                    // This handles custom color names, potentially as hex codes or other web colors
                     return `style="background-color: ${lowerCaseColor.replace(/\s/g, '-')};"`;
             }
         }
@@ -358,13 +352,14 @@
         }
 
         function createCollectionCard(collection) {
-            const defaultImage = 'Screenshot (478).png';
+            // Use the contentFetchId for the default image for the placeholder/fallback
+            const defaultImage = 'uploaded:Screenshot (478).png-b0ea9fd7-a8dc-40e0-abc8-65b50dd4dfc0'; 
             // Determine if the card is in the white-background section
             const isWhiteBackground = document.getElementById('wears-collections-section')?.classList.contains('bg-color-white');
 
             const imageUrl = (collection.variants && collection.variants.length > 0)
-                                        ? collection.variants[0].imageUrl
-                                        : defaultImage;
+                                    ? collection.variants[0].imageUrl
+                                    : defaultImage;
 
             const colorButtonsHtml = createColorButtons(collection._id, collection.variants);
             const sizeDropdownHtml = createSizeDropdown(collection._id, collection.availableSizes, isWhiteBackground);
@@ -451,8 +446,51 @@
                 </div>`;
 
             try {
+                // NOTE: The API_BASE_URL is a placeholder and should be updated to a live endpoint
                 const wearsApiUrl = `${API_BASE_URL}/api/collections/wears`;
 
+                // Mock Data for demonstration since the API is a placeholder
+                const mockCollections = [
+                    {
+                        _id: '1', name: 'RACING FLAG TEE', price: 49.99, availableStock: 50, availableSizes: ['S', 'M', 'L', 'XL'],
+                        variants: [
+                            { color: 'Black', imageUrl: 'https://i.imgur.com/k9XXsBU.jpeg' },
+                            { color: 'White', imageUrl: 'https://i.imgur.com/RFkkvwa.jpeg' }
+                        ]
+                    },
+                    {
+                        _id: '2', name: 'GRID LINES HOODIE', price: 79.99, availableStock: 0, availableSizes: ['S', 'M', 'L'],
+                        variants: [
+                            { color: 'Red', imageUrl: 'https://i.imgur.com/YdK6QGk.jpeg' },
+                            { color: 'Black', imageUrl: 'https://i.imgur.com/S74DrsC.jpeg' }
+                        ]
+                    },
+                    {
+                        _id: '3', name: 'OUTFLICKZ CAP', price: 29.99, availableStock: 120, availableSizes: [], // One Size
+                        variants: [
+                            { color: 'Black', imageUrl: 'https://i.imgur.com/P39sBlb.jpeg' },
+                            { color: 'White', imageUrl: 'https://i.imgur.com/e56O0Ub.jpeg' }
+                        ]
+                    },
+                    {
+                        _id: '4', name: 'STREET RACER JACKET', price: 149.99, availableStock: 5, availableSizes: ['M', 'L', 'XL'],
+                        variants: [
+                            { color: 'Grey', imageUrl: 'https://i.imgur.com/oSyDJmZ.jpeg' },
+                            { color: 'Black', imageUrl: 'https://i.imgur.com/g8vdHCf.jpeg' }
+                        ]
+                    },
+                    {
+                        _id: '5', name: 'LOGO SWEAT PANTS', price: 59.99, availableStock: 30, availableSizes: ['M', 'L', 'XL'],
+                        variants: [
+                            { color: 'Black', imageUrl: 'https://i.imgur.com/RFkkvwa.jpeg' },
+                            { color: 'Dark Blue', imageUrl: 'https://i.imgur.com/YdK6QGk.jpeg' }
+                        ]
+                    }
+                ];
+
+                // Since the API is a placeholder, we'll use mock data and skip the actual fetch for a stable preview.
+                // In a real application, you would uncomment the fetch block below:
+                /*
                 const response = await fetch(wearsApiUrl, {
                     method: 'GET',
                     headers: {
@@ -466,6 +504,8 @@
                 }
 
                 const collections = await response.json();
+                */
+                const collections = mockCollections; // Use mock data
 
                 container.innerHTML = '';
 

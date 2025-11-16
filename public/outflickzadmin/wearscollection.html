@@ -53,6 +53,12 @@
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.526.34.813.486 1.066-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                 Settings
             </a>
+             <div class="p-4 flex-shrink-0 border-t border-emerald-800">
+            <button id="btn-logout" onclick="logoutAdmin()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-red-600 hover:bg-red-700 text-white shadow-lg">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                Log Out
+            </button>
+        </div>
         </nav>
     </aside>
     <main class="flex-1 lg:ml-64 p-4 transition-all duration-300">
@@ -124,219 +130,236 @@
         </section>
         </main>
 
-    <script>
-        // --- JAVASCRIPT LOGIC ---
+   <script>
+    // --- JAVASCRIPT LOGIC ---
 
-        const sidebar = document.getElementById('sidebar');
-        const sidebarToggle = document.getElementById('sidebar-toggle');
-        const productSectionsContainer = document.getElementById('product-sections');
-        const addSectionBtn = document.getElementById('add-section-btn');
-        const submitBtn = document.getElementById('submit-btn');
-        let sectionCount = 0; // Initialize section counter
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const productSectionsContainer = document.getElementById('product-sections');
+    const addSectionBtn = document.getElementById('add-section-btn');
+    const submitBtn = document.getElementById('submit-btn');
+    let sectionCount = 0; // Initialize section counter
 
-        // Initialize the page on load
-        document.addEventListener('DOMContentLoaded', () => {
-            // Add the initial product section
-            addProductSection();
-            
-            // Toggle sidebar visibility on mobile
-            sidebarToggle.addEventListener('click', () => {
-                sidebar.classList.toggle('-translate-x-full');
-            });
+    // --- LOGOUT FUNCTIONALITY ---
+    /**
+     * Clears the admin token and redirects the user to the login page.
+     */
+    function logoutAdmin() {
+        console.log('Logging out admin...');
+        localStorage.removeItem('adminToken');
+        // Redirect to the login page (adjust the path as necessary for your setup)
+        window.location.href = '/admin-login'; 
+    }
+    // ----------------------------
 
-            // Add new section button listener
-            addSectionBtn.addEventListener('click', () => {
-                if (sectionCount < 4) {
-                    addProductSection();
-                } else {
-                    alert('You can only add a maximum of 4 product variations per collection.');
-                }
-            });
+    // Initialize the page on load
+    document.addEventListener('DOMContentLoaded', () => {
+        // Add the initial product section
+        addProductSection();
+        
+        // Toggle sidebar visibility on mobile
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('-translate-x-full');
         });
 
-        // Function to create a product section HTML structure
-        function createProductSection(index) {
-            const sectionNumber = index + 1;
-            const uniqueId = `section-${sectionNumber}`;
-            
-            // IMPORTANT: The input file name is changed to include '[]' to signal an array to the backend
-            return `
-                <div id="${uniqueId}" class="p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-inner relative">
-                    <h4 class="text-md font-bold text-gray-600 mb-3 flex justify-between items-center">
-                        Product Variation #${sectionNumber}
-                        ${sectionNumber > 1 ? `<button type="button" onclick="removeProductSection('${uniqueId}')" class="text-red-500 hover:text-red-700 transition duration-150 text-sm">Remove</button>` : ''}
-                    </h4>
+        // Add new section button listener
+        addSectionBtn.addEventListener('click', () => {
+            if (sectionCount < 4) {
+                addProductSection();
+            } else {
+                alert('You can only add a maximum of 4 product variations per collection.');
+            }
+        });
+    });
+
+    // Function to create a product section HTML structure
+    function createProductSection(index) {
+        const sectionNumber = index + 1;
+        const uniqueId = `section-${sectionNumber}`;
+        
+        // IMPORTANT: The input file name is changed to include '[]' to signal an array to the backend
+        return `
+            <div id="${uniqueId}" class="p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-inner relative">
+                <h4 class="text-md font-bold text-gray-600 mb-3 flex justify-between items-center">
+                    Product Variation #${sectionNumber}
+                    ${sectionNumber > 1 ? `<button type="button" onclick="removeProductSection('${uniqueId}')" class="text-red-500 hover:text-red-700 transition duration-150 text-sm">Remove</button>` : ''}
+                </h4>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="image-upload-${sectionNumber}" class="block text-sm font-medium text-gray-700">Upload Wears Image</label>
+                        <input type="file" name="images" id="image-upload-${sectionNumber}" accept="image/*" required class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
+                    </div>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label for="image-upload-${sectionNumber}" class="block text-sm font-medium text-gray-700">Upload Wears Image</label>
-                            <input type="file" name="images" id="image-upload-${sectionNumber}" accept="image/*" required class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
-                        </div>
-                        
-                        <div>
-                            <label for="color-input-${sectionNumber}" class="block text-sm font-medium text-gray-700">Color Input</label>
-                            <div class="flex items-center mt-1">
-                                <input type="color" id="color-input-${sectionNumber}" value="#10B981" required 
-                                       class="p-0 h-10 w-10 block rounded-full border-2 border-gray-300 cursor-pointer"
-                                       oninput="updateColorPreview(this.value, 'color-preview-${sectionNumber}')">
-                                <div id="color-preview-${sectionNumber}" class="color-preview ml-3 bg-emerald-600" style="background-color: #10B981;"></div>
-                                <span class="ml-3 text-sm text-gray-500">Pick a color</span>
-                            </div>
+                    <div>
+                        <label for="color-input-${sectionNumber}" class="block text-sm font-medium text-gray-700">Color Input</label>
+                        <div class="flex items-center mt-1">
+                            <input type="color" id="color-input-${sectionNumber}" value="#10B981" required 
+                                    class="p-0 h-10 w-10 block rounded-full border-2 border-gray-300 cursor-pointer"
+                                    oninput="updateColorPreview(this.value, 'color-preview-${sectionNumber}')">
+                            <div id="color-preview-${sectionNumber}" class="color-preview ml-3 bg-emerald-600" style="background-color: #10B981;"></div>
+                            <span class="ml-3 text-sm text-gray-500">Pick a color</span>
                         </div>
                     </div>
                 </div>
-            `;
-        }
-        
-        // Function to add a product section
-        function addProductSection() {
-            if (sectionCount < 4) {
-                const newSection = document.createElement('div');
-                // The new section's index is sectionCount
-                newSection.innerHTML = createProductSection(sectionCount).trim(); 
-                productSectionsContainer.appendChild(newSection.firstChild);
-                sectionCount++;
-                
-                // Disable button if max is reached
-                if (sectionCount >= 4) {
-                    addSectionBtn.disabled = true;
-                    addSectionBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                }
-            }
-        }
-        
-        // Function to remove a product section
-        function removeProductSection(id) {
-            const sectionToRemove = document.getElementById(id);
-            if (sectionToRemove) {
-                sectionToRemove.remove();
-                sectionCount--;
-                
-                // Re-enable button if it was disabled
-                if (sectionCount < 4) {
-                    addSectionBtn.disabled = false;
-                    addSectionBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                }
-                // NOTE: In a professional app, you'd re-index the IDs here.
-            }
-        }
-        
-        // Function to update the color circle preview
-        function updateColorPreview(colorValue, previewId) {
-            document.getElementById(previewId).style.backgroundColor = colorValue;
-        }
-
-        /**
-         * Handles the form submission, prepares data for the backend, and sends the authenticated request.
-         */
-        async function handleCollectionSubmit(event) {
-            event.preventDefault();
+            </div>
+        `;
+    }
+    
+    // Function to add a product section
+    function addProductSection() {
+        if (sectionCount < 4) {
+            const newSection = document.createElement('div');
+            // The new section's index is sectionCount
+            newSection.innerHTML = createProductSection(sectionCount).trim(); 
+            productSectionsContainer.appendChild(newSection.firstChild);
+            sectionCount++;
             
-            // Disable button and show loading state
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Submitting...';
-            submitBtn.classList.remove('hover:bg-emerald-700');
-            submitBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
-
-            const token = localStorage.getItem('adminToken');
-            if (!token) {
-                alert("Authentication required. Please log in.");
-                submitBtn.disabled = false;
-                // Redirect to login page in a real app
-                return;
+            // Disable button if max is reached
+            if (sectionCount >= 4) {
+                addSectionBtn.disabled = true;
+                addSectionBtn.classList.add('opacity-50', 'cursor-not-allowed');
             }
+        }
+    }
+    
+    // Function to remove a product section
+    function removeProductSection(id) {
+        const sectionToRemove = document.getElementById(id);
+        if (sectionToRemove) {
+            sectionToRemove.remove();
+            sectionCount--;
+            
+            // Re-enable button if it was disabled
+            if (sectionCount < 4) {
+                addSectionBtn.disabled = false;
+                addSectionBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                addSectionBtn.classList.add('hover:bg-emerald-700'); // Re-add hover class
+            }
+            // NOTE: In a professional app, you'd re-index the IDs here.
+        }
+    }
+    
+    // Function to update the color circle preview
+    function updateColorPreview(colorValue, previewId) {
+        document.getElementById(previewId).style.backgroundColor = colorValue;
+    }
 
-            // --- 1. Collect Variations and Files ---
-            const formData = new FormData();
-            let productVariationsMetadata = [];
-            let isValid = true;
+    /**
+     * Handles the form submission, prepares data for the backend, and sends the authenticated request.
+     */
+    async function handleCollectionSubmit(event) {
+        event.preventDefault();
+        
+        // Disable button and show loading state
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Submitting...';
+        submitBtn.classList.remove('hover:bg-emerald-700');
+        submitBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
 
-            // Iterate through the current sections (using the container's children)
-            Array.from(productSectionsContainer.children).forEach((section, index) => {
-                const sectionNumber = index + 1;
-                const imageInput = section.querySelector(`#image-upload-${sectionNumber}`);
-                const colorInput = section.querySelector(`#color-input-${sectionNumber}`);
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            alert("Authentication required. Please log in.");
+            submitBtn.disabled = false;
+            // Redirect to login page in a real app
+            window.location.href = '/admin-login';
+            return;
+        }
 
-                if (imageInput && colorInput) {
-                    const imageFile = imageInput.files[0];
-                    const color = colorInput.value;
+        // --- 1. Collect Variations and Files ---
+        const formData = new FormData();
+        let productVariationsMetadata = [];
+        let isValid = true;
 
-                    if (imageFile) {
-                        // Append the image file to FormData with a unique key
-                        formData.append(`image-${sectionNumber}`, imageFile); 
-                    } else {
+        // Iterate through the current sections (using the container's children)
+        Array.from(productSectionsContainer.children).forEach((section, index) => {
+            const sectionNumber = index + 1;
+            const imageInput = section.querySelector(`#image-upload-${sectionNumber}`);
+            const colorInput = section.querySelector(`#color-input-${sectionNumber}`);
+
+            if (imageInput && colorInput) {
+                const imageFile = imageInput.files[0];
+                const color = colorInput.value;
+
+                if (imageFile) {
+                    // Append the image file to FormData with a unique key
+                    formData.append(`image-${sectionNumber}`, imageFile); 
+                } else {
+                    // Only require image if it's the first section or if required in production
+                    if (sectionCount > 0) { // For simplicity, only check if sections exist
                         alert(`Image for Variation #${sectionNumber} is missing.`);
                         isValid = false;
                     }
-
-                    // Store metadata for this variation
-                    productVariationsMetadata.push({
-                        variationIndex: sectionNumber,
-                        colorHex: color,
-                        // The backend will generate the imageUrl using the file uploaded above
-                    });
                 }
+
+                // Store metadata for this variation
+                productVariationsMetadata.push({
+                    variationIndex: sectionNumber,
+                    colorHex: color,
+                    // The backend will generate the imageUrl using the file uploaded above
+                });
+            }
+        });
+
+        if (!isValid) {
+            // Re-enable button on error
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit Collection for Review';
+            submitBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+            submitBtn.classList.add('hover:bg-emerald-700');
+            return;
+        }
+
+        // --- 2. Collect General Form Data ---
+        const collectionData = {
+            name: document.getElementById('collection-name').value,
+            tag: document.getElementById('collection-description').value,
+            // Split, trim, convert to uppercase, and filter out empty strings
+            sizes: document.getElementById('available-sizes').value.split(',').map(s => s.trim().toUpperCase()).filter(s => s),
+            totalStock: parseInt(document.getElementById('available-stock').value),
+            variations: productVariationsMetadata // Attach the structured variation metadata
+        };
+
+        // --- 3. Append JSON Data to FormData ---
+        // The backend (Node.js/Express with Multer) must be configured to parse this JSON string.
+        formData.append('collectionData', JSON.stringify(collectionData));
+
+        // --- 4. Send the Data to the Backend ---
+        try {
+            const response = await fetch('/api/admin/wearscollections', {
+                method: 'POST',
+                headers: { 
+                    'Authorization': `Bearer ${token}` 
+                },
+                body: formData // Send the FormData object
             });
 
-            if (!isValid) {
-                // Re-enable button on error
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Submit Collection for Review';
-                submitBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
-                submitBtn.classList.add('hover:bg-emerald-700');
-                return;
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
             }
 
-            // --- 2. Collect General Form Data ---
-            const collectionData = {
-                name: document.getElementById('collection-name').value,
-                tag: document.getElementById('collection-description').value,
-                // Split, trim, convert to uppercase, and filter out empty strings
-                sizes: document.getElementById('available-sizes').value.split(',').map(s => s.trim().toUpperCase()).filter(s => s),
-                totalStock: parseInt(document.getElementById('available-stock').value),
-                variations: productVariationsMetadata // Attach the structured variation metadata
-            };
+            const result = await response.json();
+            
+            alert(`✅ Collection submitted successfully! ID: ${result.collectionId || 'N/A'}`);
+            
+            // Reset the form state
+            document.getElementById('wears-collection-form').reset();
+            sectionCount = 0; // Reset count
+            productSectionsContainer.innerHTML = ''; // Clear existing sections
+            addProductSection(); // Add back the initial section
 
-            // --- 3. Append JSON Data to FormData ---
-            // The backend (Node.js/Express with Multer) must be configured to parse this JSON string.
-            formData.append('collectionData', JSON.stringify(collectionData));
-
-            // --- 4. Send the Data to the Backend ---
-            try {
-        const response = await fetch('/api/admin/wearscollections', {
-                        method: 'POST',
-                    headers: { 
-                        // IMPORTANT: DO NOT set 'Content-Type': 'application/json' when sending FormData with files.
-                        // The browser sets the correct 'Content-Type': 'multipart/form-data' automatically.
-                        'Authorization': `Bearer ${token}` 
-                    },
-                    body: formData // Send the FormData object
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
-                }
-
-                const result = await response.json();
-                
-                alert(`✅ Collection submitted successfully! ID: ${result.collectionId || 'N/A'}`);
-                document.getElementById('wears-collection-form').reset();
-                sectionCount = 0; // Reset count
-                productSectionsContainer.innerHTML = ''; // Clear existing sections
-                addProductSection(); // Add back the initial section
-
-            } catch (error) {
-                console.error('Submission failed:', error);
-                alert(`❌ Error submitting collection: ${error.message}`);
-            } finally {
-                // Re-enable button and reset text
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Submit Collection for Review';
-                submitBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
-                submitBtn.classList.add('hover:bg-emerald-700');
-            }
+        } catch (error) {
+            console.error('Submission failed:', error);
+            alert(`❌ Error submitting collection: ${error.message}`);
+        } finally {
+            // Re-enable button and reset text
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit Collection for Review';
+            submitBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+            submitBtn.classList.add('hover:bg-emerald-700');
         }
-    </script>
+    }
+</script>
 </body>
 </html>

@@ -49,7 +49,6 @@ async function uploadFileToPermanentStorage(file) {
         Body: file.buffer,
         ContentType: file.mimetype,
         // Optional: Set access control if needed (e.g., 'public-read' for public images)
-        ACL: 'public-read', 
     };
 
     try {

@@ -368,104 +368,131 @@
 
 
     // --- REDESIGNED WEARS COLLECTION CARD JS (MATCHES IMAGE LAYOUT) ---
-    // UPDATED: Now includes two image elements and the toggle button.
-    function createCollectionCard(collection) {
-        const currencySymbol = '₦'; 
-        const defaultFrontImage = 'https://i.imgur.com/RFkkvwa.jpeg'; 
-        const defaultBackImage = 'https://i.imgur.com/S74DrsC.jpeg'; 
+// UPDATED: Now includes two image elements and the toggle button.
+function createCollectionCard(collection) {
+    const currencySymbol = '₦'; 
+    const defaultFrontImage = 'https://i.imgur.com/RFkkvwa.jpeg'; 
+    const defaultBackImage = 'https://i.imgur.com/S74DrsC.jpeg'; 
+    
+    const primaryVariant = collection.variants && collection.variants.length > 0 ? collection.variants[0] : null;
+    
+    // Initial image URLs are the first variant's URLs
+    const frontImageUrl = primaryVariant?.frontImageUrl || defaultFrontImage;
+    const backImageUrl = primaryVariant?.backImageUrl || defaultBackImage;
+    
+    const itemPrice = collection.price; 
+    const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
+
+    const sizeListHtml = createSizeList(collection._id, collection.availableSizes);
+    const colorListHtml = createColorList(collection._id, collection.variants); 
+    const maxStock = collection.availableStock > 0 ? collection.availableStock : 0; // Set maxStock to 0 if none/less than 1
+
+    // *** NEW LOGIC: Check Stock Status ***
+    const isOutOfStock = maxStock === 0 || collection.availableStock === 0;
+
+    // Get the description from the 'tag' field, or use a default
+    const description = collection.tag || 'Exclusive limited edition wear.';
+
+    // *** Define Buttons/Labels based on Stock Status ***
+    const stockBadge = isOutOfStock
+        ? '<span class="absolute top-2 left-2 bg-ash-red text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">OUT OF STOCK</span>'
+        : '';
         
-        const primaryVariant = collection.variants && collection.variants.length > 0 ? collection.variants[0] : null;
-        
-        // Initial image URLs are the first variant's URLs
-        const frontImageUrl = primaryVariant?.frontImageUrl || defaultFrontImage;
-        const backImageUrl = primaryVariant?.backImageUrl || defaultBackImage;
-        
-        const itemPrice = collection.price; 
-        const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
+    const cartButtonHtml = isOutOfStock
+        ? `
+            <button disabled class="flex-1 text-xs md:text-sm bg-gray-500 text-white h-7 md:h-8 rounded-sm font-semibold uppercase tracking-widest flex items-center justify-center cursor-not-allowed opacity-75">
+                Out Of Stock
+            </button>
+        `
+        : `
+            <button class="flex-1 text-xs md:text-sm bg-ash-dark text-white h-7 md:h-8 rounded-sm hover:bg-ash-red transition font-semibold uppercase tracking-widest flex items-center justify-center">
+                Add To Cart
+            </button>
+        `;
 
-        const sizeListHtml = createSizeList(collection._id, collection.availableSizes);
-        const colorListHtml = createColorList(collection._id, collection.variants); 
-        const maxStock = collection.availableStock > 0 ? collection.availableStock : 99;
-
-        // Get the description from the 'tag' field, or use a default
-        const description = collection.tag || 'Exclusive limited edition wear.';
-
-
-        return `
-            <div class="collection-card border border-gray-100 rounded-lg overflow-hidden bg-white hover:shadow-lg transition duration-300" data-collection-id="${collection._id}">
-                <div class="relative card-image-box">
-                    <div class="absolute inset-0 transition-opacity duration-300">
-                        <img
-                            class="w-full h-full object-cover bg-gray-50 absolute transition-opacity duration-300 active"
-                            id="front-image-${collection._id}"
-                            src="${frontImageUrl}"
-                            alt="${collection.name} (Front View)"
-                            onerror="this.onerror=null;this.src='${defaultFrontImage}';"
-                            style="opacity: 1;"
-                        >
-                        <img
-                            class="w-full h-full object-cover bg-gray-50 absolute transition-opacity duration-300"
-                            id="back-image-${collection._id}"
-                            src="${backImageUrl}"
-                            alt="${collection.name} (Back View)"
-                            onerror="this.onerror=null;this.src='${defaultBackImage}';"
-                            style="opacity: 0;"
-                        >
-                    </div>
-
-                    <div class="absolute inset-0 bg-black bg-opacity-10 opacity-0 hover:opacity-100 transition duration-300 flex items-end justify-center p-3">
-                        <button 
-                            id="image-toggle-btn-${collection._id}"
-                            onclick="toggleImage('${collection._id}')" 
-                            class="bg-color-white text-ash-dark text-xs font-semibold py-1 px-3 rounded-full shadow-md hover:bg-gray-200 transition"
-                            title="Show Back View"
-                        >
-                            <i class="fas fa-sync-alt"></i> Back View
-                        </button>
-                    </div>
-                </div>
-
-                <div class="p-2 md:p-3">
-                    <p class="text-[0.6rem] md:text-[0.6rem] text-gray-500 uppercase font-semibold">Outflickz</p>
-                    <h3 class="text-sm md:text-base font-semibold text-color-black truncate">${collection.name}</h3>
-                    
-                    <p class="text-xs text-gray-500 mt-0.5 mb-1 truncate">${description}</p>
-                    
-                    <p class="text-lg font-extrabold text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
-                    
-                    <div class="flex items-center gap-2 mt-2">
-                        <span class="text-xs font-medium text-gray-700">Color:</span>
-                        <div class="flex gap-1 text-gray-700">
-                            ${colorListHtml}
-                        </div>
-                    </div>
-
-                    <div class="flex flex-wrap items-center gap-1 mt-2 mb-3">
-                        <span class="text-xs font-medium text-gray-700">Size:</span>
-                        <div class="flex flex-wrap gap-1 text-gray-700">
-                            ${sizeListHtml}
-                        </div>
-                    </div>
-
-                    <div class="flex items-center space-x-2">
-                        <div class="flex items-center border border-gray-300 rounded-sm">
-                            <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="text-sm md:text-base text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-l-sm font-semibold">
-                                &minus;
-                            </button>
-                            <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock}" aria-label="Quantity" class="w-6 md:w-8 h-7 md:h-8 text-center text-xs md:text-sm border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
-                            <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="text-sm md:text-base text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-r-sm font-semibold">
-                                &plus;
-                            </button>
-                        </div>
-
-                        <button class="flex-1 text-xs md:text-sm bg-ash-dark text-white h-7 md:h-8 rounded-sm hover:bg-ash-red transition font-semibold uppercase tracking-widest flex items-center justify-center">
-                            Add To Cart
-                        </button>
-                    </div>
-                </div>
+    const quantityControlHtml = isOutOfStock
+        ? `<div class="w-20 md:w-24 h-7 md:h-8 border border-gray-300 rounded-sm flex items-center justify-center text-xs text-gray-500">N/A</div>`
+        : `
+            <div class="flex items-center border border-gray-300 rounded-sm">
+                <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="text-sm md:text-base text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-l-sm font-semibold">
+                    &minus;
+                </button>
+                <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock}" aria-label="Quantity" class="w-6 md:w-8 h-7 md:h-8 text-center text-xs md:text-sm border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
+                <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="text-sm md:text-base text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-r-sm font-semibold">
+                    &plus;
+                </button>
             </div>
         `;
-    }
+    // *** END NEW LOGIC ***
+
+
+    return `
+        <div class="collection-card border border-gray-100 rounded-lg overflow-hidden bg-white hover:shadow-lg transition duration-300" data-collection-id="${collection._id}">
+            <div class="relative card-image-box">
+                ${stockBadge}
+                
+                <div class="absolute inset-0 transition-opacity duration-300">
+                    <img
+                        class="w-full h-full object-cover bg-gray-50 absolute transition-opacity duration-300 active"
+                        id="front-image-${collection._id}"
+                        src="${frontImageUrl}"
+                        alt="${collection.name} (Front View)"
+                        onerror="this.onerror=null;this.src='${defaultFrontImage}';"
+                        style="opacity: 1;"
+                    >
+                    <img
+                        class="w-full h-full object-cover bg-gray-50 absolute transition-opacity duration-300"
+                        id="back-image-${collection._id}"
+                        src="${backImageUrl}"
+                        alt="${collection.name} (Back View)"
+                        onerror="this.onerror=null;this.src='${defaultBackImage}';"
+                        style="opacity: 0;"
+                    >
+                </div>
+
+                <div class="absolute inset-0 bg-black bg-opacity-10 opacity-0 hover:opacity-100 transition duration-300 flex items-end justify-center p-3">
+                    <button 
+                        id="image-toggle-btn-${collection._id}"
+                        onclick="toggleImage('${collection._id}')" 
+                        class="bg-color-white text-ash-dark text-xs font-semibold py-1 px-3 rounded-full shadow-md hover:bg-gray-200 transition"
+                        title="Show Back View"
+                    >
+                        <i class="fas fa-sync-alt"></i> Back View
+                    </button>
+                </div>
+            </div>
+
+            <div class="p-2 md:p-3">
+                <p class="text-[0.6rem] md:text-[0.6rem] text-gray-500 uppercase font-semibold">Outflickz</p>
+                <h3 class="text-sm md:text-base font-semibold text-color-black truncate">${collection.name}</h3>
+                
+                <p class="text-xs text-red-700 mt-0.5 mb-1 truncate">${description}</p>
+                
+                <p class="text-lg font-extrabold text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
+                
+                <div class="flex items-center gap-2 mt-2">
+                    <span class="text-xs font-medium text-gray-700">Color:</span>
+                    <div class="flex gap-1 text-gray-700">
+                        ${colorListHtml}
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-1 mt-2 mb-3">
+                    <span class="text-xs font-medium text-gray-700">Size:</span>
+                    <div class="flex flex-wrap gap-1 text-gray-700">
+                        ${sizeListHtml}
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    ${quantityControlHtml}
+
+                    ${cartButtonHtml}
+                </div>
+            </div>
+        </div>
+    `;
+}
 
     // --- FETCH AND RENDER COLLECTIONS ---
     async function fetchAndRenderWearsCollections() {

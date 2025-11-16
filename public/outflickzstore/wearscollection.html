@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outflickz - Wears Collections</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="https://i.imgur.com/ioWFyQB.png">
+    <style>
+        /* Load Inter (main font) and Playfair Display (for "OUTFLICKZ") */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+
+        /* Custom style for the large, stylized 'OUTFLICKZ' text */
+        .roulette-text {
+            font-family: 'Playfair Display', serif;
+            font-weight: 900;
+            line-height: 0.8;
+            letter-spacing: -0.05em;
+            text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.7);
+            word-break: break-word;
+        }
+
+        /* Using Inter as the main font */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* --- MODAL STYLES --- */
+        .modal {
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        /* --- CARD STYLES (Kept as is - they are responsive) --- */
+        .card-image-box {
+            aspect-ratio: 1/1.1;
+            overflow: hidden;
+        }
+        .card-image-box img {
+            object-fit: cover !important;
+        }
+        .racing-card-bg {
+            background-color: #222222;
+        }
+        .border-racing-silver {
+            border-color: #AAAAAA;
+        }
+    </style>
+    <script>
+        // Customizing Tailwind colors to match the theme
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'ash-dark': '#111111',
+                        'ash-red': '#a80000',
+                        'color-white': '#FFFFFF',
+                        'color-black': '#000000',
+                        'racing-grey': '#333333',
+                        'racing-silver': '#AAAAAA',
+                    }
+                }
+            }
+        }
+
+        // Simple JS for Toggling Mobile Menu
+        function toggleMenu() {
+            document.getElementById('mobile-menu').classList.toggle('hidden');
+        }
+
+        const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
+        const API_BASE_URL = 'https://outflickz.netlify.app'; // Placeholder for your actual public API server URL
+
+        // --- MODAL CONTROL FUNCTIONS (UNCHANGED) ---
+        function openModal(imageUrl, itemName) {
+            const modal = document.getElementById('image-modal');
+            const modalImage = document.getElementById('modal-image');
+            const modalTitle = document.getElementById('modal-item-title');
+
+            modalImage.src = imageUrl;
+            modalImage.alt = itemName;
+            modalTitle.textContent = itemName;
+
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.classList.add('opacity-100');
+            document.body.classList.add('overflow-hidden');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('image-modal');
+            modal.classList.remove('opacity-100');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            document.body.classList.remove('overflow-hidden');
+        }
+
+        // --- VIEW ITEM (UNCHANGED) ---
+        function viewItem(collectionId) {
+            const card = document.querySelector(`.collection-card[data-collection-id="${collectionId}"]`);
+            if (!card) return;
+
+            const currentImage = card.querySelector(`#collection-image-${collectionId}`);
+            // Use the uploaded image for the default/example item
+            const imageUrl = currentImage ? currentImage.src : 'Screenshot (478).png';
+            const itemName = card.querySelector('h3').textContent;
+
+            openModal(imageUrl, itemName);
+        }
+
+        // --- QUANTITY AND SIZE UTILITY FUNCTIONS (UNCHANGED) ---
+        function changeQuantity(collectionId, delta) {
+            const input = document.getElementById(`quantity-input-${collectionId}`);
+            let currentValue = parseInt(input.value) || 1;
+            let newValue = currentValue + delta;
+
+            if (newValue < 1) {
+                newValue = 1;
+            }
+
+            const maxStock = parseInt(input.max) || Infinity;
+            if (newValue > maxStock) {
+                newValue = maxStock;
+            }
+
+            input.value = newValue;
+        }
+
+        // --- WEARS COLLECTION JS (UNCHANGED LOGIC, HTML REMAINS THE SAME) ---
+        function swapImage(button) {
+            const collectionId = button.getAttribute('data-collection-id');
+            const newImageUrl = button.getAttribute('data-image-url');
+
+            const imageElement = document.getElementById(`collection-image-${collectionId}`);
+
+            if (imageElement) {
+                imageElement.src = newImageUrl;
+
+                const colorContainer = button.parentNode;
+                colorContainer.querySelectorAll('.color-button').forEach(btn => {
+                    btn.classList.remove('border-ash-red');
+                    btn.classList.add('border-racing-silver');
+                });
+
+                button.classList.remove('border-racing-silver');
+                button.classList.add('border-ash-red');
+            }
+        }
+
+        function getColorClass(colorName) {
+            const lowerCaseColor = colorName.toLowerCase();
+            switch (lowerCaseColor) {
+                case 'black': return 'bg-color-black';
+                case 'white': return 'bg-color-white';
+                case 'red': return 'bg-red-500';
+                case 'blue': return 'bg-blue-500';
+                case 'green': return 'bg-green-500';
+                default:
+                    return `style="background-color: ${lowerCaseColor.replace(/\s/g, '-')};"`;
+            }
+        }
+
+        function createColorButtons(collectionId, variants) {
+            let html = '';
+            if (variants && variants.length > 0) {
+                html = variants.map((variant, index) => {
+                    const borderClass = index === 0 ? 'border-ash-red color-button' : 'border-racing-silver color-button';
+                    const colorClassOrStyle = getColorClass(variant.color);
+
+                    return `
+                        <button
+                            class="h-4 w-4 sm:h-5 sm:w-5 rounded-full border-2 hover:border-ash-red transition-all duration-150 ${colorClassOrStyle.startsWith('bg-') ? colorClassOrStyle : ''} ${borderClass}"
+                            ${colorClassOrStyle.startsWith('style') ? colorClassOrStyle : ''}
+                            data-collection-id="${collectionId}"
+                            data-image-url="${variant.imageUrl}"
+                            data-variant-index="${index}"
+                            onclick="swapImage(this)"
+                            title="${variant.color}"
+                            aria-label="Select ${variant.color} color"
+                        ></button>
+                    `;
+                }).join('');
+            }
+            return html;
+        }
+
+        function createSizeDropdown(collectionId, sizes) {
+            if (!sizes || sizes.length === 0) {
+                return `<p class="text-xs sm:text-sm text-racing-silver py-1 sm:py-1.5 px-2 bg-racing-grey rounded-sm border border-racing-silver">One Size</p>`;
+            }
+
+            let optionsHtml = sizes.map(size => {
+                const selected = size === sizes[0] ? 'selected' : '';
+                return `<option value="${size}" ${selected}>${size}</option>`;
+            }).join('');
+
+            return `
+                <select id="size-select-${collectionId}" aria-label="Select Size" class="block w-full py-1 sm:py-1.5 px-2 border border-racing-silver bg-racing-grey rounded-sm text-xs sm:text-sm text-white focus:border-ash-red focus:ring-1 focus:ring-ash-red">
+                    ${optionsHtml}
+                </select>
+            `;
+        }
+
+        function createCollectionCard(collection) {
+            const defaultImage = 'Screenshot (478).png';
+
+            const imageUrl = (collection.variants && collection.variants.length > 0)
+                                    ? collection.variants[0].imageUrl
+                                    : defaultImage;
+
+            const colorButtonsHtml = createColorButtons(collection._id, collection.variants);
+            const sizeDropdownHtml = createSizeDropdown(collection._id, collection.availableSizes);
+            const maxStock = collection.availableStock > 0 ? collection.availableStock : 99;
+
+            // --- REDESIGNED CARD HTML START ---
+            return `
+                <div class="collection-card bg-ash-dark border border-racing-grey rounded-lg overflow-hidden shadow-2xl hover:shadow-[0_0_20px_rgba(168,0,0,0.5)] transform hover:scale-[1.03] transition duration-300" data-collection-id="${collection._id}">
+                    <div class="relative card-image-box">
+                        <img
+                            class="w-full h-full object-cover"
+                            id="collection-image-${collection._id}"
+                            src="${imageUrl}"
+                            alt="${collection.name} in ${collection.variants && collection.variants.length > 0 ? collection.variants[0].color : 'default'} color"
+                            onerror="this.onerror=null;this.src='${defaultImage}';"
+                        >
+                        <div class="absolute inset-0 bg-black bg-opacity-30"></div>
+                        <span class="absolute top-1 left-1 sm:top-2 sm:left-2 bg-ash-red text-white text-xs font-bold px-2 py-0.5 sm:px-3 sm:py-1 rounded-sm uppercase tracking-wider">
+                            ${collection.availableStock > 0 ? 'NEW' : 'PRE-ORDER'}
+                        </span>
+                    </div>
+
+                    <div class="p-3 sm:p-4 racing-card-bg">
+                        <h3 class="text-base sm:text-lg font-bold text-white uppercase truncate tracking-wider">${collection.name}</h3>
+
+                        <div class="flex items-start justify-between mt-3">
+                            <div class="w-1/2 pr-2">
+                                <label for="size-select-${collection._id}" class="block text-xs font-medium text-racing-silver mb-1 uppercase">Size</label>
+                                ${sizeDropdownHtml}
+                            </div>
+                            <div class="w-1/2 pl-2">
+                                <label class="block text-xs font-medium text-racing-silver mb-1 uppercase">Color</label>
+                                <div class="flex space-x-1 sm:space-x-1.5 mt-1">
+                                    ${colorButtonsHtml}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between mt-4">
+                            <span class="text-lg sm:text-xl font-extrabold text-ash-red">$${collection.price.toFixed(2)}</span>
+
+                            <div class="flex items-center space-x-0.5 sm:space-x-1">
+                                <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="text-xs sm:text-sm border border-racing-silver text-white w-6 sm:w-7 h-6 sm:h-7 rounded-sm hover:bg-racing-grey transition flex items-center justify-center">-</button>
+                                <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock}" aria-label="Quantity" class="w-8 sm:w-10 text-center text-xs sm:text-sm border-racing-silver rounded-sm text-black bg-white p-0.5 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
+                                <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="text-xs sm:text-sm border border-racing-silver text-white w-6 sm:w-7 h-6 sm:h-7 rounded-sm hover:bg-racing-grey transition flex items-center justify-center">+</button>
+                            </div>
+                        </div>
+
+                        <div class="flex space-x-2 mt-4">
+                            <button class="flex-1 text-[11px] sm:text-sm bg-ash-red text-white px-2 py-2 sm:px-3 sm:py-2.5 rounded-sm hover:bg-red-700 transition font-bold uppercase tracking-widest">
+                                Add To Cart
+                            </button>
+                            <button onclick="viewItem('${collection._id}')" class="flex-1 text-[11px] sm:text-sm border-2 border-racing-silver text-racing-silver px-2 py-2 sm:px-3 sm:py-2.5 rounded-sm hover:bg-racing-silver hover:text-ash-dark transition font-bold uppercase tracking-widest">
+                                View
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            // --- REDESIGNED CARD HTML END ---
+        }
+
+        // --- FETCH AND RENDER COLLECTIONS (FOR FULL COLLECTION PAGE) ---
+        async function fetchAndRenderWearsCollections() {
+            const container = document.getElementById('wears-collections-grid');
+            if (!container) return;
+
+            container.innerHTML = `
+                <div class="col-span-full text-center text-gray-600 py-10">
+                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-600 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Loading Wears Collections...
+                </div>`;
+
+            try {
+                const wearsApiUrl = `${API_BASE_URL}/api/collections/wears`;
+
+                const response = await fetch(wearsApiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${USER_AUTH_TOKEN}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to load collections from server. Status: ${response.status}`);
+                }
+
+                const collections = await response.json();
+
+                container.innerHTML = '';
+
+                if (collections && collections.length > 0) {
+                    collections.forEach(collection => {
+                        container.innerHTML += createCollectionCard(collection);
+                    });
+                } else {
+                    container.innerHTML = '<p class="col-span-full text-center text-gray-600 py-10">No Wears Collections are currently available.</p>';
+                }
+            } catch (error) {
+                console.error('Error fetching wears collections:', error);
+                container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10">Error loading wears collections. Please ensure the API server is running on the public domain.</p>';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', fetchAndRenderWearsCollections);
+        // --- END WEARS COLLECTION JS ---
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body class="bg-ash-dark text-white min-h-screen">
+
+    <header class="bg-ash-dark sticky top-0 z-50 shadow-lg border-b border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
+                <img src="https://i.imgur.com/ioWFyQB.png" alt="Outflickz Logo" class="w-auto h-6">
+            </a>
+
+            <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10" aria-label="Main Navigation">
+                <a href="#" class="text-sm font-medium hover:text-gray-400 transition">Pre Order</a>
+                <a href="#" class="text-sm font-medium hover:text-gray-400 transition">New Arrivals</a>
+                <a href="wearscollection.html" class="text-sm font-medium text-ash-red transition flex items-center border-b-2 border-ash-red pb-1">Wears Collections</a>
+                <a href="#" class="text-sm font-medium hover:text-gray-400 transition flex items-center">Cap Collections</a>
+            </nav>
+
+            <div class="flex items-center space-x-2 sm:space-x-4">
+                <button class="p-2 text-gray-300 hover:text-white transition rounded-full hidden md:block" aria-label="User Account">
+                    <i class="fas fa-user w-5 h-5"></i>
+                </button>
+                <button class="p-2 text-gray-300 hover:text-white transition rounded-full" aria-label="Shopping Bag">
+                    <i class="fas fa-shopping-bag w-5 h-5"></i>
+                </button>
+                <button class="md:hidden p-2 text-gray-300 hover:text-white transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
+                    <i class="fas fa-bars w-6 h-6"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div id="mobile-menu" class="hidden md:hidden bg-ash-dark border-b border-gray-800 absolute w-full z-40">
+        <div class="px-2 pt-2 pb-3 space-y-1">
+            <a href="#" class="block px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-800 rounded-md">Pre Order</a>
+            <a href="#" class="block px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-800 rounded-md">New Arrivals</a>
+            <a href="wearscollection.html" class="block px-3 py-2 text-base font-medium text-ash-red bg-gray-900 rounded-md">Wears Collection</a>
+            <a href="#" class="block px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-800 rounded-md">Cap Collection</a>
+            <a href="#" class="block px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-800 rounded-md">Account</a>
+        </div>
+    </div>
+
+    <section id="wears-collections-section" class="py-12 sm:py-16 bg-ash-dark min-h-[calc(100vh-4rem)]">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-center text-white mb-8 sm:mb-12 border-b-4 border-ash-red pb-4 mx-auto max-w-lg uppercase">
+                ALL <span class="text-ash-red">WEARS</span> COLLECTIONS
+            </h1>
+
+            <div id="wears-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-8">
+                </div>
+
+        </div>
+    </section>
+
+    <div id="image-modal" class="modal fixed inset-0 z-[100] bg-black bg-opacity-90 flex items-center justify-center opacity-0 pointer-events-none" onclick="closeModal()" role="dialog" aria-modal="true" aria-labelledby="modal-item-title">
+
+        <div class="relative max-w-sm sm:max-w-4xl w-full mx-4 p-2 sm:p-4 bg-white rounded-lg shadow-2xl" onclick="event.stopPropagation()">
+
+            <button onclick="closeModal()" class="absolute top-0 right-0 m-2 sm:m-4 text-gray-700 hover:text-ash-red transition z-50" aria-label="Close modal">
+                <i class="fas fa-times text-xl sm:text-2xl"></i>
+            </button>
+
+            <h3 id="modal-item-title" class="text-lg sm:text-xl font-bold text-center text-ash-dark pt-2 pb-2 sm:pb-4">
+                Item Name
+            </h3>
+
+            <div class="w-full max-h-[70vh] overflow-hidden">
+                <img id="modal-image" src="" alt="Full view of product" class="w-full h-full object-contain">
+            </div>
+
+        </div>
+    </div>
+</body>
+</html>

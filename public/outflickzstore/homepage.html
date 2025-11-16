@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="text-[90%] sm:text-[95%] md:text-[100%]">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,7 +14,8 @@
         .roulette-text {
             font-family: 'Playfair Display', serif;
             font-weight: 900;
-            line-height: 0.8;
+            /* Adjust line-height for better fit on small screens */
+            line-height: 0.9;
             letter-spacing: -0.05em;
             text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.7);
             word-break: break-word;
@@ -24,6 +25,18 @@
         body {
             font-family: 'Inter', sans-serif;
         }
+        
+        /* Global Font Scaling for better compatibility - Tailwind classes on <html> tag are preferred, but this acts as a fallback/reinforcement */
+        /*
+        html {
+            font-size: 16px; 
+        }
+        @media (max-width: 640px) {
+            html {
+                font-size: 14px; 
+            }
+        }
+        */
 
         /* --- STABILIZED RESPONSIVE SLIDER STYLES --- */
         .hero-bg-slider-container {
@@ -76,7 +89,7 @@
             transition: opacity 0.3s ease-in-out;
         }
 
-        /* --- NEW CARD STYLES (Kept as is - they are responsive) --- */
+        /* --- CARD STYLES --- */
         .card-image-box {
             aspect-ratio: 1/1.1;
             overflow: hidden;
@@ -87,8 +100,45 @@
         .racing-card-bg {
             background-color: #222222;
         }
+        /* Adjusted racing-card-bg for white section to maintain contrast */
+        .white-section .racing-card-bg {
+            background-color: #f0f0f0; /* Light grey background for card content in white section */
+        }
         .border-racing-silver {
             border-color: #AAAAAA;
+        }
+
+        /* Custom scroll behavior for mobile collection items */
+        @media (max-width: 767px) {
+            .mobile-scroll-container {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch; /* For smoother iOS scrolling */
+                padding-bottom: 1rem; /* Add some space below the scrollbar */
+                scroll-snap-type: x mandatory; /* Optional: Snap to cards */
+            }
+            .mobile-scroll-container > div.collection-card {
+                flex-shrink: 0;
+                width: 75%; /* Set a visible width for each card on mobile */
+                max-width: 300px;
+                scroll-snap-align: start;
+                /* Ensure all cards take up space within the flex container */
+            }
+            /* Override the md:grid classes for the mobile-scroll-container children on mobile */
+            .mobile-scroll-container > div {
+                margin-left: 0.5rem; /* Add a small gap to the left */
+                margin-right: 0.5rem; /* Add a small gap to the right */
+            }
+            .mobile-scroll-container > div:first-child {
+                margin-left: 1rem; /* Adjust the first item for padding */
+            }
+            .mobile-scroll-container > div:last-child {
+                padding-right: 1rem; /* Ensure last item has space to scroll completely */
+            }
+            
+            /* The grid container itself needs to behave like a flex container on mobile */
+            #wears-collections-grid {
+                display: flex;
+            }
         }
     </style>
     <script>
@@ -248,29 +298,30 @@
             }
         }
 
-        function createColorButtons(collectionId, variants) {
-            function getColorClass(colorName) {
-                const lowerCaseColor = colorName.toLowerCase();
-                switch (lowerCaseColor) {
-                    case 'black': return 'bg-color-black';
-                    case 'white': return 'bg-color-white';
-                    case 'red': return 'bg-red-500';
-                    case 'blue': return 'bg-blue-500';
-                    case 'green': return 'bg-green-500';
-                    default:
-                        return `style="background-color: ${lowerCaseColor.replace(/\s/g, '-')};"`;
-                }
+        function getColorClass(colorName) {
+            const lowerCaseColor = colorName.toLowerCase();
+            switch (lowerCaseColor) {
+                case 'black': return 'bg-color-black';
+                case 'white': return 'bg-color-white';
+                case 'red': return 'bg-red-500';
+                case 'blue': return 'bg-blue-500';
+                case 'green': return 'bg-green-500';
+                default:
+                    return `style="background-color: ${lowerCaseColor.replace(/\s/g, '-')};"`;
             }
+        }
 
+        function createColorButtons(collectionId, variants) {
             let html = '';
             if (variants && variants.length > 0) {
                 html = variants.map((variant, index) => {
                     const borderClass = index === 0 ? 'border-ash-red color-button' : 'border-racing-silver color-button';
                     const colorClassOrStyle = getColorClass(variant.color);
 
+                    // Reduced button size for better fit
                     return `
                         <button
-                            class="h-4 w-4 sm:h-5 sm:w-5 rounded-full border-2 hover:border-ash-red transition-all duration-150 ${colorClassOrStyle.startsWith('bg-') ? colorClassOrStyle : ''} ${borderClass}"
+                            class="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full border-2 hover:border-ash-red transition-all duration-150 ${colorClassOrStyle.startsWith('bg-') ? colorClassOrStyle : ''} ${borderClass}"
                             ${colorClassOrStyle.startsWith('style') ? colorClassOrStyle : ''}
                             data-collection-id="${collectionId}"
                             data-image-url="${variant.imageUrl}"
@@ -285,9 +336,12 @@
             return html;
         }
 
-        function createSizeDropdown(collectionId, sizes) {
+        function createSizeDropdown(collectionId, sizes, isWhiteBackground) {
+            const textColor = isWhiteBackground ? 'text-color-black' : 'text-white';
+            const bgColor = isWhiteBackground ? 'bg-white' : 'bg-racing-grey';
+
             if (!sizes || sizes.length === 0) {
-                return `<p class="text-xs sm:text-sm text-racing-silver py-1 sm:py-1.5 px-2 bg-racing-grey rounded-sm border border-racing-silver">One Size</p>`;
+                return `<p class="text-[0.7rem] sm:text-xs text-racing-silver py-1 px-2 ${bgColor} rounded-sm border border-racing-silver">One Size</p>`;
             }
 
             let optionsHtml = sizes.map(size => {
@@ -295,8 +349,9 @@
                 return `<option value="${size}" ${selected}>${size}</option>`;
             }).join('');
 
+            // Reduced text size to text-xs for mobile
             return `
-                <select id="size-select-${collectionId}" aria-label="Select Size" class="block w-full py-1 sm:py-1.5 px-2 border border-racing-silver bg-racing-grey rounded-sm text-xs sm:text-sm text-white focus:border-ash-red focus:ring-1 focus:ring-ash-red">
+                <select id="size-select-${collectionId}" aria-label="Select Size" class="block w-full py-1 px-2 border border-racing-silver ${bgColor} rounded-sm text-xs ${textColor} focus:border-ash-red focus:ring-1 focus:ring-ash-red">
                     ${optionsHtml}
                 </select>
             `;
@@ -304,18 +359,25 @@
 
         function createCollectionCard(collection) {
             const defaultImage = 'Screenshot (478).png';
+            // Determine if the card is in the white-background section
+            const isWhiteBackground = document.getElementById('wears-collections-section')?.classList.contains('bg-color-white');
 
             const imageUrl = (collection.variants && collection.variants.length > 0)
                                         ? collection.variants[0].imageUrl
                                         : defaultImage;
 
             const colorButtonsHtml = createColorButtons(collection._id, collection.variants);
-            const sizeDropdownHtml = createSizeDropdown(collection._id, collection.availableSizes);
+            const sizeDropdownHtml = createSizeDropdown(collection._id, collection.availableSizes, isWhiteBackground);
             const maxStock = collection.availableStock > 0 ? collection.availableStock : 99;
+            const cardBgClass = isWhiteBackground ? 'bg-white border-racing-grey' : 'bg-ash-dark border-racing-grey';
+            const itemTitleColor = isWhiteBackground ? 'text-color-black' : 'text-white';
+            const cardContentBgClass = isWhiteBackground ? 'bg-gray-100' : 'racing-card-bg';
+
 
             // --- REDESIGNED CARD HTML START ---
+            // Reduced overall padding, font sizes, and button sizes
             return `
-                <div class="collection-card bg-ash-dark border border-racing-grey rounded-lg overflow-hidden shadow-2xl hover:shadow-[0_0_20px_rgba(168,0,0,0.5)] transform hover:scale-[1.03] transition duration-300" data-collection-id="${collection._id}">
+                <div class="collection-card ${cardBgClass} border rounded-lg overflow-hidden shadow-2xl hover:shadow-[0_0_20px_rgba(168,0,0,0.5)] transform hover:scale-[1.03] transition duration-300" data-collection-id="${collection._id}">
                     <div class="relative card-image-box">
                         <img
                             class="w-full h-full object-cover"
@@ -325,42 +387,42 @@
                             onerror="this.onerror=null;this.src='${defaultImage}';"
                         >
                         <div class="absolute inset-0 bg-black bg-opacity-30"></div>
-                        <span class="absolute top-1 left-1 sm:top-2 sm:left-2 bg-ash-red text-white text-xs font-bold px-2 py-0.5 sm:px-3 sm:py-1 rounded-sm uppercase tracking-wider">
+                        <span class="absolute top-1 left-1 bg-ash-red text-white text-[0.65rem] font-bold px-2 py-0.5 rounded-sm uppercase tracking-wider">
                             ${collection.availableStock > 0 ? 'NEW' : 'PRE-ORDER'}
                         </span>
                     </div>
 
-                    <div class="p-3 sm:p-4 racing-card-bg">
-                        <h3 class="text-base sm:text-lg font-bold text-white uppercase truncate tracking-wider">${collection.name}</h3>
+                    <div class="p-3 ${cardContentBgClass}">
+                        <h3 class="text-sm font-bold ${itemTitleColor} uppercase truncate tracking-wider">${collection.name}</h3>
 
                         <div class="flex items-start justify-between mt-3">
                             <div class="w-1/2 pr-2">
-                                <label for="size-select-${collection._id}" class="block text-xs font-medium text-racing-silver mb-1 uppercase">Size</label>
+                                <label for="size-select-${collection._id}" class="block text-[0.6rem] font-medium text-racing-silver mb-1 uppercase">Size</label>
                                 ${sizeDropdownHtml}
                             </div>
                             <div class="w-1/2 pl-2">
-                                <label class="block text-xs font-medium text-racing-silver mb-1 uppercase">Color</label>
-                                <div class="flex space-x-1 sm:space-x-1.5 mt-1">
+                                <label class="block text-[0.6rem] font-medium text-racing-silver mb-1 uppercase">Color</label>
+                                <div class="flex space-x-1 mt-1">
                                     ${colorButtonsHtml}
                                 </div>
                             </div>
                         </div>
 
                         <div class="flex items-center justify-between mt-4">
-                            <span class="text-lg sm:text-xl font-extrabold text-ash-red">$${collection.price.toFixed(2)}</span>
+                            <span class="text-base font-extrabold text-ash-red">$${collection.price.toFixed(2)}</span>
 
-                            <div class="flex items-center space-x-0.5 sm:space-x-1">
-                                <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="text-xs sm:text-sm border border-racing-silver text-white w-6 sm:w-7 h-6 sm:h-7 rounded-sm hover:bg-racing-grey transition flex items-center justify-center">-</button>
-                                <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock}" aria-label="Quantity" class="w-8 sm:w-10 text-center text-xs sm:text-sm border-racing-silver rounded-sm text-black bg-white p-0.5 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
-                                <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="text-xs sm:text-sm border border-racing-silver text-white w-6 sm:w-7 h-6 sm:h-7 rounded-sm hover:bg-racing-grey transition flex items-center justify-center">+</button>
+                            <div class="flex items-center space-x-0.5">
+                                <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="text-xs border border-racing-silver ${isWhiteBackground ? 'text-black hover:bg-gray-200' : 'text-white hover:bg-racing-grey'} transition flex items-center justify-center w-5 h-5 rounded-sm">-</button>
+                                <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock}" aria-label="Quantity" class="w-7 text-center text-xs border-racing-silver rounded-sm text-black bg-white p-0.5 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
+                                <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="text-xs border border-racing-silver ${isWhiteBackground ? 'text-black hover:bg-gray-200' : 'text-white hover:bg-racing-grey'} transition flex items-center justify-center w-5 h-5 rounded-sm">+</button>
                             </div>
                         </div>
 
                         <div class="flex space-x-2 mt-4">
-                            <button class="flex-1 text-[11px] sm:text-sm bg-ash-red text-white px-2 py-2 sm:px-3 sm:py-2.5 rounded-sm hover:bg-red-700 transition font-bold uppercase tracking-widest">
+                            <button class="flex-1 text-[10px] bg-ash-red text-white px-2 py-2 rounded-sm hover:bg-red-700 transition font-bold uppercase tracking-widest">
                                 Add To Cart
                             </button>
-                            <button onclick="viewItem('${collection._id}')" class="flex-1 text-[11px] sm:text-sm border-2 border-racing-silver text-racing-silver px-2 py-2 sm:px-3 sm:py-2.5 rounded-sm hover:bg-racing-silver hover:text-ash-dark transition font-bold uppercase tracking-widest">
+                            <button onclick="viewItem('${collection._id}')" class="flex-1 text-[10px] border-2 border-racing-silver text-racing-silver px-2 py-2 rounded-sm hover:bg-racing-silver hover:text-ash-dark transition font-bold uppercase tracking-widest">
                                 View
                             </button>
                         </div>
@@ -370,14 +432,18 @@
             // --- REDESIGNED CARD HTML END ---
         }
 
-        // --- FETCH AND RENDER COLLECTIONS (UNCHANGED) ---
+        // --- FETCH AND RENDER COLLECTIONS (MODIFIED FOR HOMEPAGE LIMIT) ---
         async function fetchAndRenderWearsCollections() {
             const container = document.getElementById('wears-collections-grid');
             if (!container) return;
 
+            const isWhiteBackground = document.getElementById('wears-collections-section').classList.contains('bg-color-white');
+            const spinnerColor = isWhiteBackground ? 'text-gray-900' : 'text-gray-600';
+            const textColor = isWhiteBackground ? 'text-gray-900' : 'text-gray-600';
+
             container.innerHTML = `
-                <div class="col-span-full text-center text-gray-600 py-10">
-                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-600 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <div class="col-span-full text-center ${textColor} py-10 w-full">
+                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 ${spinnerColor} inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
@@ -404,15 +470,19 @@
                 container.innerHTML = '';
 
                 if (collections && collections.length > 0) {
-                    collections.forEach(collection => {
+                    // Limit to the first 5 collections for the homepage view
+                    const limitedCollections = collections.slice(0, 5);
+                    
+                    limitedCollections.forEach(collection => {
+                        // The `createCollectionCard` function is updated to handle the background change.
                         container.innerHTML += createCollectionCard(collection);
                     });
                 } else {
-                    container.innerHTML = '<p class="col-span-full text-center text-gray-600 py-10">No Wears Collections are currently available.</p>';
+                    container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Wears Collections are currently available.</p>`;
                 }
             } catch (error) {
                 console.error('Error fetching wears collections:', error);
-                container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10">Error loading wears collections. Please ensure the API server is running on the public domain.</p>';
+                container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full">Error loading wears collections. Please ensure the API server is running on the public domain.</p>';
             }
         }
 
@@ -424,43 +494,43 @@
 <body class="bg-ash-dark text-white min-h-screen">
 
     <header class="bg-ash-dark sticky top-0 z-50 shadow-lg border-b border-gray-800">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <a href="#" class="flex items-center" aria-label="Outflickz Home">
-                <img src="https://i.imgur.com/ioWFyQB.png" alt="Outflickz Logo" class="w-auto h-6">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
+            <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
+                <img src="https://i.imgur.com/ioWFyQB.png" alt="Outflickz Logo" class="w-auto h-5 sm:h-6">
             </a>
 
-            <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10" aria-label="Main Navigation">
-                <a href="#" class="text-sm font-medium hover:text-gray-400 transition">Pre Order</a>
-                <a href="#" class="text-sm font-medium hover:text-gray-400 transition">New Arrivals</a>
-                <a href="#" class="text-sm font-medium hover:text-gray-400 transition flex items-center">Wears Collections</a>
-                <a href="#" class="text-sm font-medium hover:text-gray-400 transition flex items-center">Cap Collections</a>
+            <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
+                <a href="#" class="font-medium hover:text-gray-400 transition">Pre Order</a>
+                <a href="#" class="font-medium hover:text-gray-400 transition">New Arrivals</a>
+                <a href="wearscollection.html" class="font-medium hover:text-gray-400 transition flex items-center">Wears Collections</a>
+                <a href="#" class="font-medium hover:text-gray-400 transition flex items-center">Cap Collections</a>
             </nav>
 
             <div class="flex items-center space-x-2 sm:space-x-4">
-                <button class="p-2 text-gray-300 hover:text-white transition rounded-full hidden md:block" aria-label="User Account">
-                    <i class="fas fa-user w-5 h-5"></i>
+                <button class="p-1 sm:p-2 text-gray-300 hover:text-white transition rounded-full hidden md:block" aria-label="User Account">
+                    <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
                 </button>
-                <button class="p-2 text-gray-300 hover:text-white transition rounded-full" aria-label="Shopping Bag">
-                    <i class="fas fa-shopping-bag w-5 h-5"></i>
+                <button class="p-1 sm:p-2 text-gray-300 hover:text-white transition rounded-full" aria-label="Shopping Bag">
+                    <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
                 </button>
-                <button class="md:hidden p-2 text-gray-300 hover:text-white transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
-                    <i class="fas fa-bars w-6 h-6"></i>
+                <button class="md:hidden p-1 sm:p-2 text-gray-300 hover:text-white transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
+                    <i class="fas fa-bars w-5 h-5 sm:w-6 sm:h-6"></i>
                 </button>
             </div>
         </div>
     </header>
 
     <div id="mobile-menu" class="hidden md:hidden bg-ash-dark border-b border-gray-800 absolute w-full z-40">
-        <div class="px-2 pt-2 pb-3 space-y-1">
-            <a href="#" class="block px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-800 rounded-md">Pre Order</a>
-            <a href="#" class="block px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-800 rounded-md">New Arrivals</a>
-            <a href="#" class="block px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-800 rounded-md">Wears Collection</a>
-            <a href="#" class="block px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-800 rounded-md">Cap Collection</a>
-            <a href="#" class="block px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-800 rounded-md">Account</a>
+        <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
+            <a href="#" class="block px-3 py-2 font-medium text-gray-300 hover:bg-gray-800 rounded-md">Pre Order</a>
+            <a href="#" class="block px-3 py-2 font-medium text-gray-300 hover:bg-gray-800 rounded-md">New Arrivals</a>
+            <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-300 hover:bg-gray-800 rounded-md">Wears Collection</a>
+            <a href="#" class="block px-3 py-2 font-medium text-gray-300 hover:bg-gray-800 rounded-md">Cap Collection</a>
+            <a href="#" class="block px-3 py-2 font-medium text-gray-300 hover:bg-gray-800 rounded-md">Account</a>
         </div>
     </div>
 
-    <main class="relative h-[70vh] md:h-[calc(100vh-4rem)] overflow-hidden">
+    <main class="relative h-[60vh] md:h-[calc(100vh-4rem)] overflow-hidden">
         <div class="hero-bg-slider-container">
             <div id="slider-cell-1" class="slider-cell slider-cell-1"></div>
             <div id="slider-cell-2" class="slider-cell slider-cell-2"></div>
@@ -468,44 +538,46 @@
         </div>
 
         <div class="absolute inset-0 z-30 flex flex-col items-center justify-center p-4">
-            <h1 class="text-white text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-extrabold roulette-text mb-4 uppercase text-center">
+            <h1 class="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-extrabold roulette-text mb-2 sm:mb-4 uppercase text-center">
                 OUTFLICKZ
             </h1>
-            <p class="text-ash-red text-sm md:text-base font-semibold uppercase tracking-widest mb-6 text-center">
+            <p class="text-xs sm:text-sm font-semibold uppercase tracking-widest mb-4 sm:mb-6 text-center">
                 TOP DEAL
             </p>
-            <button class="bg-white text-ash-dark hover:bg-gray-200 transition duration-300 font-semibold py-3 px-10 rounded-sm shadow-xl uppercase text-sm tracking-widest">
+            <button class="bg-white text-ash-dark hover:bg-gray-200 transition duration-300 font-semibold py-2.5 px-8 sm:py-3 sm:px-10 rounded-sm shadow-xl uppercase text-xs sm:text-sm tracking-widest">
                 Shop Now
             </button>
         </div>
     </main>
 
-    <section id="wears-collections-section" class="py-12 sm:py-16 bg-ash-white border-t border-racing-grey">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 class="text-2xl sm:text-2xl font-extrabold text-center text-white mb-8 sm:mb-10 border-b border-ash-red pb-3 mx-auto max-w-sm sm:max-w-md">
+    <section id="wears-collections-section" class="py-10 sm:py-12 bg-color-white text-color-black border-t border-racing-grey white-section">
+        <div class="max-w-7xl mx-auto px-0 sm:px-6 lg:px-8">
+            <h2 class="text-xl sm:text-2xl font-extrabold text-center text-color-black mb-6 sm:mb-8 border-b border-ash-red pb-2 mx-auto max-w-xs sm:max-w-md">
                 <span class="text-ash-red">WEARS</span> COLLECTIONS
             </h2>
 
-            <div id="wears-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-8">
-                </div>
+            <div class="mobile-scroll-container flex space-x-4 md:grid md:grid-cols-3 lg:grid-cols-4 md:gap-8">
+                <div id="wears-collections-grid" class="flex space-x-4 md:contents">
+                    </div>
+            </div>
 
-            <div class="text-center mt-8 sm:mt-12">
-                <button class="border-2 border-ash-red text-ash-red hover:bg-ash-red hover:text-white transition duration-300 font-bold py-2.5 px-8 sm:py-3 sm:px-10 rounded-sm uppercase text-xs sm:text-sm tracking-widest">
+            <div class="text-center mt-8 sm:mt-10">
+                <a href="wearscollection.html" class="border-2 border-ash-red text-ash-red hover:bg-ash-red hover:text-white transition duration-300 font-bold py-2 px-6 sm:py-2.5 sm:px-8 rounded-sm uppercase text-xs tracking-widest">
                     View All Wears
-                </button>
+                </a>
             </div>
         </div>
     </section>
 
     <div id="image-modal" class="modal fixed inset-0 z-[100] bg-black bg-opacity-90 flex items-center justify-center opacity-0 pointer-events-none" onclick="closeModal()" role="dialog" aria-modal="true" aria-labelledby="modal-item-title">
 
-        <div class="relative max-w-sm sm:max-w-4xl w-full mx-4 p-2 sm:p-4 bg-white rounded-lg shadow-2xl" onclick="event.stopPropagation()">
+        <div class="relative max-w-xs sm:max-w-4xl w-full mx-4 p-2 bg-white rounded-lg shadow-2xl" onclick="event.stopPropagation()">
 
-            <button onclick="closeModal()" class="absolute top-0 right-0 m-2 sm:m-4 text-gray-700 hover:text-ash-red transition z-50" aria-label="Close modal">
-                <i class="fas fa-times text-xl sm:text-2xl"></i>
+            <button onclick="closeModal()" class="absolute top-0 right-0 m-2 text-gray-700 hover:text-ash-red transition z-50" aria-label="Close modal">
+                <i class="fas fa-times text-xl"></i>
             </button>
 
-            <h3 id="modal-item-title" class="text-lg sm:text-xl font-bold text-center text-ash-dark pt-2 pb-2 sm:pb-4">
+            <h3 id="modal-item-title" class="text-base sm:text-xl font-bold text-center text-ash-dark pt-2 pb-2">
                 Item Name
             </h3>
 

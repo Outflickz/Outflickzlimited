@@ -335,7 +335,7 @@ app.post('/api/admin/login', async (req, res) => {
         const token = jwt.sign(
             { id: adminUser.id, email: adminUser.email, role: 'admin' }, 
             JWT_SECRET, 
-            { expiresIn: '1h' }
+            { expiresIn: '24h' }
         );
         
         res.status(200).json({ token, message: 'Login successful' });

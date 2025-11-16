@@ -9,13 +9,13 @@ const mongoose = require('mongoose');
 dotenv.config();
 
 // --- CONFIGURATION ---
-const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://outflickzlimited_db_user:Oladipupo0@cluster0.wu6bidy.mongodb.net/outflickz_db";
-const JWT_SECRET = process.env.JWT_SECRET || 'your_default_secret_key_for_dev';
+const MONGO_URI = process.env.MONGO_URI 
+const JWT_SECRET = process.env.JWT_SECRET 
 const BCRYPT_SALT_ROUNDS = 10; 
 
 // Default admin credentials for initial setup. Best practice is to use environment variables.
-const DEFAULT_ADMIN_EMAIL = process.env.DEFAULT_ADMIN_EMAIL || 'admin@example.com';
-const DEFAULT_ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD || 'password123';
+const DEFAULT_ADMIN_EMAIL = process.env.DEFAULT_ADMIN_EMAIL 
+const DEFAULT_ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD
 
 
 // --- MONGODB SCHEMAS & MODELS ---

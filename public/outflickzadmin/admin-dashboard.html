@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-commerce Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #34d399; /* emerald-400 */
+            border-radius: 4px;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem; /* Slightly reduced base font size */
+        }
+        .text-xl-reduced {
+            font-size: 1.5rem; /* Custom size for headings */
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex">
+
+    <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-emerald-900 text-white transform transition-transform duration-300 z-30 lg:translate-x-0 -translate-x-full shadow-2xl">
+        <div class="p-6">
+            <img src="https://i.imgur.com/Fz9w1BA.png" alt="E-commerce Logo" class="h-10 w-auto mb-6 rounded-lg shadow-md border border-emerald-700">
+            <h1 class="text-xl font-extrabold text-emerald-400 border-t border-emerald-800 pt-4">Commerce Hub</h1>
+        </div>
+        <nav class="space-y-2 px-4">
+            <button id="btn-dashboard" onclick="setActiveContent('dashboard')" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-emerald-600 hover:bg-emerald-700 active-link">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l-7-7-7 7m10 0v10a1 1 0 01-1 1h-3m-3 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-9 0h10"></path></svg>
+                Dashboard
+            </button>
+            <button id="btn-settings" onclick="setActiveContent('settings')" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.526.34.813.486 1.066-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                Settings
+            </button>
+        </nav>
+    </aside>
+
+    <main class="flex-1 lg:ml-64 p-4 transition-all duration-300">
+        <button id="sidebar-toggle" class="lg:hidden fixed top-4 left-4 z-40 p-2 bg-emerald-600 text-white rounded-lg shadow-lg hover:bg-emerald-700 transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        </button>
+
+        <section id="content-dashboard" class="content-section p-6 pt-16 lg:pt-6">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6">Real-time E-commerce Overview</h2>
+
+            <div id="loading-indicator" class="text-center p-10">
+                <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600 inline-block"></div>
+                <p class="mt-4 text-gray-600 text-sm">Fetching metrics...</p>
+            </div>
+
+            <div id="metric-cards" class="grid grid-cols-1 md:grid-cols-3 gap-6 hidden">
+                
+                <div class="bg-white p-5 rounded-xl shadow-md border-b-4 border-emerald-500 hover:shadow-xl transition duration-300">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-emerald-100 text-emerald-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 2v8m0 0v1m-3 0h6m-1-5a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-xs font-medium text-gray-500 uppercase">Total Sales (LTD)</p>
+                            <!-- Note: Initial $0 changed to ₦0, though script handles final display -->
+                            <p id="total-sales" class="text-2xl font-extrabold text-gray-900 mt-1">₦0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-xl shadow-md border-b-4 border-lime-500 hover:shadow-xl transition duration-300">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-lime-100 text-lime-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-xs font-medium text-gray-500 uppercase">Active Products</p>
+                            <p id="total-products" class="text-2xl font-extrabold text-gray-900 mt-1">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-xl shadow-md border-b-4 border-amber-500 hover:shadow-xl transition duration-300">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-amber-100 text-amber-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-xs font-medium text-gray-500 uppercase">Registered Users</p>
+                            <p id="registered-users" class="text-2xl font-extrabold text-gray-900 mt-1">0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-8 bg-white p-6 rounded-xl shadow-lg border-t-2 border-gray-200">
+                <h3 class="text-xl font-semibold mb-4 text-gray-700">Recent Activity Log</h3>
+                <p class="text-gray-500 text-sm mb-4">Latest actions requiring Node.js/MongoDB interaction.</p>
+                <ul class="mt-4 space-y-2 text-sm text-gray-600">
+                    <li class="p-3 bg-emerald-50 border-l-4 border-emerald-400 rounded-md flex justify-between">
+                        <span>Order **#801** completed by User ID: ABC-1234</span>
+                        <span class="text-xs text-gray-400">2 min ago</span>
+                    </li>
+                    <li class="p-3 border-l-4 border-gray-200 rounded-md flex justify-between">
+                        <span>New product **'Ultra Widget Pro'** added to inventory.</span>
+                        <span class="text-xs text-gray-400">1 hour ago</span>
+                    </li>
+                    <li class="p-3 border-l-4 border-gray-200 rounded-md flex justify-between">
+                        <span>User **'jane.doe@example.com'** registered.</span>
+                        <span class="text-xs text-gray-400">3 hours ago</span>
+                    </li>
+                </ul>
+            </div>
+
+        </section>
+
+        <section id="content-settings" class="content-section p-6 pt-16 lg:pt-6 hidden">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6">Application Settings</h2>
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <p class="text-gray-700 text-sm">Manage core configurations and system parameters for the e-commerce platform.</p>
+                <div class="mt-6 space-y-4">
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                        <label for="maintenance-mode" class="text-gray-600 text-sm">Enable Maintenance Mode</label>
+                        <input type="checkbox" id="maintenance-mode" class="h-4 w-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500">
+                    </div>
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                        <label for="max-users" class="text-gray-600 text-sm">Max Registered Users Limit</label>
+                        <input type="number" id="max-users" value="1000" class="w-24 border border-gray-300 rounded-md p-1 text-center text-sm focus:border-emerald-500 focus:ring-emerald-500">
+                    </div>
+                </div>
+                <button class="mt-6 w-full py-2 px-4 bg-emerald-600 text-white font-medium rounded-lg shadow-md hover:bg-emerald-700 transition duration-200">
+                    Save Settings
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // --- JAVASCRIPT LOGIC ---
+
+        const totalSalesElement = document.getElementById('total-sales');
+        const totalProductsElement = document.getElementById('total-products');
+        const registeredUsersElement = document.getElementById('registered-users');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const metricCards = document.getElementById('metric-cards');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const contentSections = document.querySelectorAll('.content-section');
+        const navButtons = document.querySelectorAll('nav button');
+
+        // Initial setup to show the Dashboard
+        document.addEventListener('DOMContentLoaded', () => {
+            setActiveContent('dashboard');
+            loadDashboardData();
+            
+            // Toggle sidebar visibility on mobile
+            sidebarToggle.addEventListener('click', () => {
+                // Toggle the -translate-x-full class
+                sidebar.classList.toggle('-translate-x-full');
+            });
+        });
+
+        // Function to switch between Dashboard and Settings content
+        function setActiveContent(contentId) {
+            contentSections.forEach(section => {
+                section.classList.add('hidden');
+            });
+            document.getElementById(`content-${contentId}`).classList.remove('hidden');
+
+            navButtons.forEach(button => {
+                // Reset inactive styles
+                button.classList.remove('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
+                button.classList.add('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
+            });
+
+            const activeBtn = document.getElementById(`btn-${contentId}`);
+            // Set active styles
+            activeBtn.classList.remove('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
+            activeBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
+
+            // Hide sidebar on small screens after selection
+            if (window.innerWidth < 1024) {
+                sidebar.classList.add('-translate-x-full');
+            }
+        }
+
+        /**
+         * Fetches real-time dashboard statistics from the Node.js/MongoDB API.
+         * Assumes the admin user has a JWT stored in local storage under the key 'adminToken'.
+         */
+        async function fetchDashboardData() {
+            const token = localStorage.getItem('adminToken');
+            if (!token) {
+                console.error("No token found. Redirecting to login.");
+                // In a real app, you would redirect to /admin-login.html here
+                return null;
+            }
+
+            try {
+                const response = await fetch('/api/admin/dashboard/stats', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` // Use the token for authentication
+                    }
+                });
+
+                if (!response.ok) {
+                    // Handle 401 Unauthorized or other HTTP errors
+                    if (response.status === 401) {
+                        console.error('Unauthorized access. Token expired or invalid.');
+                        // In a real app, clear token and redirect to login
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                return {
+                    totalSales: data.totalSales || 0, // Fallback to 0 if null
+                    totalProducts: data.totalProducts || 0,
+                    registeredUsers: data.userCount || 0 // Assuming userCount is the field name from the Node.js/Express file
+                };
+
+            } catch (error) {
+                console.error('Error fetching dashboard data:', error);
+                return null;
+            }
+        }
+
+        // Function to load and display data
+        async function loadDashboardData() {
+            loadingIndicator.classList.remove('hidden');
+            metricCards.classList.add('hidden');
+
+            const data = await fetchDashboardData();
+
+            loadingIndicator.classList.add('hidden');
+
+            if (data) {
+                // Format Sales as Nigerian Naira (NGN)
+                const salesFormatted = new Intl.NumberFormat('en-NG', {
+                    style: 'currency',
+                    currency: 'NGN',
+                }).format(data.totalSales);
+
+                totalSalesElement.textContent = salesFormatted;
+                totalProductsElement.textContent = data.totalProducts.toLocaleString();
+                registeredUsersElement.textContent = data.registeredUsers.toLocaleString();
+                metricCards.classList.remove('hidden');
+            } else {
+                // Display error state if data fetching fails
+                metricCards.innerHTML = '<div class="md:col-span-3 text-center p-8 bg-red-100 text-red-700 rounded-xl shadow-lg">Failed to load data. Please check the API connection or your login token.</div>';
+                metricCards.classList.remove('hidden');
+            }
+        }
+    </script>
+</body>
+</html>

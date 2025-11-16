@@ -101,8 +101,17 @@
             document.getElementById('mobile-menu').classList.toggle('hidden');
         }
 
+        // --- TOKEN RETRIEVAL AND CONFIGURATION ---
+        const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
+
+        if (USER_AUTH_TOKEN) {
+            console.log(`[AUTH] Successfully retrieved token: ${USER_AUTH_TOKEN.substring(0, 10)}...`);
+        } else {
+            console.warn('[AUTH ERROR] No token found in localStorage. User may not be authenticated.');
+        }
+
         // Configuration (Must match the API server's config)
-        const API_BASE_URL = 'https://outflickz.netlify.app'; 
+        const API_BASE_URL = 'https://outflickz-api-backend.com'; // Placeholder for your actual public API server URL
 
         // --- HERO SLIDER JS ---
         document.addEventListener('DOMContentLoaded', () => {
@@ -163,8 +172,67 @@
         });
         // --- END HERO SLIDER JS ---
 
+        // --- NEW FUNCTION: VIEW ITEM ---
+        /**
+         * Simulates viewing a specific item by logging its details,
+         * including the currently selected color and size.
+         * @param {string} collectionId
+         */
+        function viewItem(collectionId) {
+            // 1. Get the card container
+            const card = document.querySelector(`.collection-card[data-collection-id="${collectionId}"]`);
+            if (!card) return;
 
-        // --- WEARS COLLECTION JS (Restored and Modified) ---
+            // 2. Get the currently active color
+            const activeColorButton = card.querySelector('.color-button.border-ash-red');
+            const selectedColor = activeColorButton ? activeColorButton.getAttribute('title') : 'Default Color';
+
+            // 3. Get the selected size from the dropdown
+            const sizeSelect = card.querySelector(`#size-select-${collectionId}`);
+            const selectedSize = sizeSelect ? sizeSelect.value : 'No Size Selected';
+
+            // 4. Get the quantity from the input
+            const quantityInput = card.querySelector(`#quantity-input-${collectionId}`);
+            const quantity = quantityInput ? quantityInput.value : 1;
+
+            // 5. Get the current image URL
+            const imageUrl = card.querySelector(`#collection-image-${collectionId}`).src;
+            
+            // In a real application, you would redirect the user to a product page
+            // and pass the selected variants (color, size, quantity) as URL parameters
+            
+            console.log('--- VIEW ITEM DETAILS ---');
+            console.log(`Collection ID: ${collectionId}`);
+            console.log(`Selected Color: ${selectedColor}`);
+            console.log(`Selected Size: ${selectedSize}`);
+            console.log(`Quantity: ${quantity}`);
+            console.log(`Current Image URL: ${imageUrl}`);
+            
+            alert(`Viewing Item: ${card.querySelector('h3').textContent}\nColor: ${selectedColor}\nSize: ${selectedSize}\nQuantity: ${quantity}`);
+        }
+
+        // --- QUANTITY AND SIZE UTILITY FUNCTIONS (For completeness) ---
+        function changeQuantity(collectionId, delta) {
+            const input = document.getElementById(`quantity-input-${collectionId}`);
+            let currentValue = parseInt(input.value) || 1;
+            let newValue = currentValue + delta;
+            
+            // Ensure quantity is at least 1
+            if (newValue < 1) {
+                newValue = 1;
+            }
+
+            // Ensure quantity doesn't exceed available stock (if max is set)
+            const maxStock = parseInt(input.max) || Infinity;
+            if (newValue > maxStock) {
+                newValue = maxStock;
+            }
+
+            input.value = newValue;
+        }
+
+
+        // --- WEARS COLLECTION JS (Modified) ---
 
         /**
          * Swaps the main image of a collection card when a color button is clicked.
@@ -183,7 +251,8 @@
 
                 // 1. Remove border from all buttons in this card
                 const colorContainer = button.parentNode;
-                colorContainer.querySelectorAll('button').forEach(btn => {
+                // NOTE: Use the specific class 'color-button' for targeted removal
+                colorContainer.querySelectorAll('.color-button').forEach(btn => {
                     btn.classList.remove('border-ash-red');
                     btn.classList.add('border-transparent');
                 });
@@ -196,6 +265,7 @@
         
         /**
          * Creates the HTML structure for the color selection buttons.
+         * **CORRECTION**: Added `color-button` class for `viewItem` function compatibility.
          * @param {string} collectionId 
          * @param {Array<object>} variants 
          * @returns {string} HTML string
@@ -208,11 +278,12 @@
                     // NOTE: Assumes 'color' field can be used as a CSS background color.
                     
                     // The first variant is the default, so it gets the active border initially
-                    const borderClass = index === 0 ? 'border-ash-red' : 'border-transparent';
+                    // Added 'color-button' class here.
+                    const borderClass = index === 0 ? 'border-ash-red color-button' : 'border-transparent color-button';
 
                     return `
                         <button 
-                            class="h-6 w-6 rounded-full border-2 hover:border-ash-red transition-all duration-150 ${borderClass}" 
+                            class="h-5 w-5 rounded-full border-2 hover:border-ash-red transition-all duration-150 ${borderClass}" 
                             style="background-color: ${variant.color.toLowerCase().replace(/\s/g, '-')};" 
                             data-collection-id="${collectionId}"
                             data-image-url="${variant.imageUrl}"
@@ -227,34 +298,62 @@
         }
 
         /**
-        * Creates the HTML structure for a single collection card, including color swatches.
-        * @param {object} collection 
-        * @returns {string} HTML string
-        */
+         * Creates the HTML structure for the size selection dropdown.
+         * @param {string} collectionId
+         * @param {Array<string>} sizes
+         * @returns {string} HTML string
+         */
+        function createSizeDropdown(collectionId, sizes) {
+            if (!sizes || sizes.length === 0) {
+                // Return a static element for "One Size" if no sizes are provided
+                return `<p class="text-sm text-gray-500 py-1.5 px-2 bg-gray-50 rounded-sm border border-gray-300">One Size</p>`;
+            }
+            
+            let optionsHtml = sizes.map(size => {
+                // Automatically select the first size as default
+                const selected = size === sizes[0] ? 'selected' : '';
+                return `<option value="${size}" ${selected}>${size}</option>`;
+            }).join('');
+
+            return `
+                <select id="size-select-${collectionId}" class="block w-full py-1.5 px-2 border border-gray-300 bg-white rounded-sm text-sm text-black focus:border-ash-red focus:ring-ash-red">
+                    ${optionsHtml}
+                </select>
+            `;
+        }
+
+
+        /**
+         * Creates the HTML structure for a single collection card, including color swatches, size, and quantity.
+         * @param {object} collection
+         * @returns {string} HTML string
+         */
         function createCollectionCard(collection) {
             // Fallback image in case the collection image fails to load
-            const defaultImage = 'https://i.imgur.com/k9XXsBU.jpeg'; 
-            
+            const defaultImage = 'https://i.imgur.com/k9XXsBU.jpeg';
+
             // Get the image URL for the first variant (default view)
-            const imageUrl = (collection.variants && collection.variants.length > 0) 
-                                ? collection.variants[0].imageUrl 
-                                : defaultImage;
-            
-            const sizesText = (collection.availableSizes && collection.availableSizes.length > 0) 
-                                 ? collection.availableSizes.join(' / ') 
-                                 : 'One Size';
+            const imageUrl = (collection.variants && collection.variants.length > 0)
+                                       ? collection.variants[0].imageUrl
+                                       : defaultImage;
 
             // Generate the color buttons HTML
             const colorButtonsHtml = createColorButtons(collection._id, collection.variants);
 
+            // Generate the size dropdown HTML
+            const sizeDropdownHtml = createSizeDropdown(collection._id, collection.availableSizes);
+            
+            // Set max quantity based on stock, default to a high number if no stock data
+            const maxStock = collection.availableStock > 0 ? collection.availableStock : 99;
+
             return `
                 <div class="collection-card bg-white border border-gray-200 rounded-lg overflow-hidden shadow-xl hover:shadow-2xl transform hover:scale-[1.02] transition duration-300" data-collection-id="${collection._id}">
-                    <div class="relative h-72">
-                        <img 
-                            class="w-full h-full object-cover" 
-                            id="collection-image-${collection._id}" 
-                            src="${imageUrl}" 
-                            alt="${collection.name}" 
+                    <div class="relative h-60">
+                        <img
+                            class="w-full h-full object-cover"
+                            id="collection-image-${collection._id}"
+                            src="${imageUrl}"
+                            alt="${collection.name}"
                             onerror="this.onerror=null;this.src='${defaultImage}';"
                         >
                         <div class="absolute inset-0 bg-black bg-opacity-10"></div>
@@ -262,16 +361,39 @@
                             ${collection.availableStock > 0 ? 'In Stock' : 'Pre-Order'}
                         </span>
                     </div>
-                    <div class="p-4">
-                        <h3 class="text-lg font-semibold text-black truncate">${collection.name}</h3>
-                        <p class="text-gray-600 text-sm mt-1">${sizesText}</p> 
+
+                    <div class="p-3">
+                        <h3 class="text-base font-semibold text-black truncate">${collection.name}</h3>
                         
-                        <div class="flex space-x-2 mt-3 mb-4">
-                            ${colorButtonsHtml}
+                        <div class="flex items-start justify-between mt-2">
+                            <div class="w-1/2 pr-2">
+                                <label for="size-select-${collection._id}" class="block text-xs font-medium text-gray-700 mb-1">Size:</label>
+                                ${sizeDropdownHtml}
+                            </div>
+                            <div class="w-1/2 pl-2">
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Color:</label>
+                                <div class="flex space-x-1.5 mt-1">
+                                    ${colorButtonsHtml}
+                                </div>
+                            </div>
                         </div>
-                        <div class="flex items-center justify-between mt-3">
-                            <span class="text-xl font-bold text-ash-red">$${collection.price.toFixed(2)}</span>
-                            <button class="text-sm bg-ash-red text-white px-4 py-2 rounded-sm hover:bg-red-700 transition font-medium">
+
+                        <div class="flex items-center justify-between mt-4">
+                            <span class="text-lg font-bold text-ash-red">$${collection.price.toFixed(2)}</span>
+                            
+                            <div class="flex items-center space-x-1">
+                                <label class="text-xs font-medium text-gray-700 mr-1 hidden sm:block">Qty:</label>
+                                <button onclick="changeQuantity('${collection._id}', -1)" class="text-sm border border-gray-300 text-black px-2 py-0.5 rounded-sm hover:bg-gray-100 transition">-</button>
+                                <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock}" class="w-10 text-center text-sm border-gray-300 rounded-sm text-black p-0.5" />
+                                <button onclick="changeQuantity('${collection._id}', 1)" class="text-sm border border-gray-300 text-black px-2 py-0.5 rounded-sm hover:bg-gray-100 transition">+</button>
+                            </div>
+                        </div>
+
+                        <div class="flex space-x-2 mt-4">
+                            <button class="flex-1 text-xs bg-ash-red text-white px-3 py-2 rounded-sm hover:bg-red-700 transition font-medium uppercase tracking-wider">
+                                Buy Now
+                            </button>
+                            <button onclick="viewItem('${collection._id}')" class="flex-1 text-xs border border-ash-red text-ash-red px-3 py-2 rounded-sm hover:bg-ash-red hover:text-white transition font-medium uppercase tracking-wider">
                                 View Item
                             </button>
                         </div>
@@ -294,8 +416,15 @@
                 // Fetching from the specific 'wears' endpoint
                 const wearsApiUrl = `${API_BASE_URL}/api/collections/wears`;
                 console.log(`[DEBUG] Attempting to fetch wears collections from: ${wearsApiUrl}`);
-
-                const response = await fetch(wearsApiUrl);
+                
+                // Add Authorization header using the retrieved token
+                const response = await fetch(wearsApiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${USER_AUTH_TOKEN}`
+                    }
+                });
                 
                 if (!response.ok) {
                     console.error(`[FETCH ERROR] Server responded with error status ${response.status}.`);
@@ -320,16 +449,15 @@
                 }
             } catch (error) {
                 console.error('--- FRONTEND FATAL ERROR ---');
-                console.error('Error fetching wears collections. Please ensure the API server is running on localhost:3000.', error);
+                console.error('Error fetching wears collections. Please ensure the API server is running.', error);
                 console.error('----------------------------');
 
-                container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10">Error loading wears collections. Please ensure the API server is running on localhost:3000.</p>';
+                container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10">Error loading wears collections. Please ensure the API server is running on the public domain.</p>';
             }
         }
 
         // Execute the fetch function after the DOM is fully loaded
         document.addEventListener('DOMContentLoaded', fetchAndRenderWearsCollections);
-        
         // --- END WEARS COLLECTION JS ---
     </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">

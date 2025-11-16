@@ -12,7 +12,7 @@
             width: 8px;
         }
         ::-webkit-scrollbar-thumb {
-            background-color: #34d399; /* emerald-400 */
+            background-color: #05744b; /* emerald-400 */
             border-radius: 4px;
         }
         body {
@@ -101,8 +101,8 @@
                             </div>
 
                             <div>
-                                <label for="collection-price" class="block text-sm font-medium text-gray-700">Collection Price (USD)</label>
-                                <input type="number" id="collection-price" min="0.01" step="0.01" value="49.99" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
+                                <label for="collection-price" class="block text-sm font-medium text-gray-700">Collection Price (NGN)</label>
+                                <input type="number" id="collection-price" min="0.01" step="0.01" value="00.00" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
                                 <p class="mt-1 text-xs text-gray-500">Base price for items in this collection.</p>
                             </div>
                             </div>
@@ -179,7 +179,7 @@
         </section>
 
     </main>
-<script>
+    <script>
 // --- JAVASCRIPT LOGIC ---
 
 const sidebar = document.getElementById('sidebar');
@@ -343,7 +343,9 @@ function renderCollectionsTable(collections) {
         // CRITICAL UPDATE: Extract the FIRST variation's imageUrl (which is now a Signed URL)
         const firstImageUrl = collection.variations[0]?.imageUrl || 'https://via.placeholder.com/64?text=N/A';
         const imagePreview = `<img src="${firstImageUrl}" alt="Preview" class="w-10 h-10 object-cover rounded-full inline mr-2 shadow-sm">`;
-        const formattedPrice = `$${(collection.price || 0).toFixed(2)}`;
+        
+        // --- UPDATED PRICE FORMAT TO NAIRA (₦) ---
+        const formattedPrice = `₦${(collection.price || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 
         // --- NEW LOGIC FOR RESTOCK/ACTIVATE BUTTON ---
         // Show restock button only if inactive AND stock is zero.
@@ -426,7 +428,7 @@ async function editCollection(collectionId) {
         // 2. Populate basic details
         document.getElementById('collection-name').value = collection.name;
         document.getElementById('collection-description').value = collection.tag;
-        document.getElementById('collection-price').value = collection.price; // NEW FIELD
+        document.getElementById('collection-price').value = collection.price; // NEW FIELD (Value remains the number)
         document.getElementById('available-sizes').value = collection.sizes.join(', ');
         document.getElementById('available-stock').value = collection.totalStock;
         document.getElementById('is-active').checked = collection.isActive;
@@ -511,12 +513,15 @@ async function deleteCollection(collectionId) {
 async function quickRestockAndActivate(collectionId, collectionName, currentPrice) {
     const token = getAuthToken();
     if (!token) return;
+    
+    // --- Format price for the prompt ---
+    const formattedPrice = `₦${(currentPrice || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 
     // --- PROMPT FOR STOCK ---
     let newStock;
     while (true) {
         // Use a placeholder for a modal that takes a number input
-        const stockInput = prompt(`📦 Restock Collection: ${collectionName} (Price: $${currentPrice})\nEnter the NEW total stock quantity (number > 0) to activate this collection:`);
+        const stockInput = prompt(`📦 Restock Collection: ${collectionName} (Price: ${formattedPrice})\nEnter the NEW total stock quantity (number > 0) to activate this collection:`);
 
         if (stockInput === null) { // User clicked Cancel
             return;
@@ -802,7 +807,7 @@ async function handleCollectionSubmit(event) {
     const collectionData = {
         name: document.getElementById('collection-name').value,
         tag: document.getElementById('collection-description').value,
-        price: parseFloat(document.getElementById('collection-price').value), // NEW FIELD
+        price: parseFloat(document.getElementById('collection-price').value), // Value remains the number
         // Split, trim, convert to uppercase, and filter out empty strings
         sizes: document.getElementById('available-sizes').value.split(',').map(s => s.trim().toUpperCase()).filter(s => s),
         totalStock: parseInt(document.getElementById('available-stock').value),

@@ -196,10 +196,10 @@ const WearsCollectionSchema = new mongoose.Schema({
         required: [true, 'Collection tag is required'],
         enum: ['Top Deal', 'Hot Deal', 'New', 'Seasonal', 'Clearance']
     },
-    price: { // <--- NEW PRICE FIELD
+   price: { // <--- UPDATED COMMENT/MESSAGE FOR NAIRA
         type: Number,
-        required: [true, 'Price is required'],
-        min: [0.01, 'Price must be greater than zero']
+        required: [true, 'Price (in NGN) is required'],
+        min: [0.01, 'Price (in NGN) must be greater than zero']
     },
     variations: {
         type: [ProductVariationSchema],

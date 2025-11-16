@@ -95,311 +95,369 @@
         }
     </style>
     <script>
-        // Customizing Tailwind colors to match the theme
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'ash-dark': '#111111',
-                        'ash-red': '#a80000',
-                        'color-white': '#FFFFFF',
-                        'color-black': '#000000',
-                        'racing-grey': '#333333',
-                        'racing-silver': '#AAAAAA',
-                    }
+    // Customizing Tailwind colors to match the theme
+    tailwind.config = {
+        theme: {
+            extend: {
+                colors: {
+                    'ash-dark': '#111111',
+                    'ash-red': '#a80000',
+                    'color-white': '#FFFFFF',
+                    'color-black': '#000000',
+                    'racing-grey': '#333333',
+                    'racing-silver': '#AAAAAA',
                 }
             }
         }
+    }
 
-        // Simple JS for Toggling Mobile Menu
-        function toggleMenu() {
-            document.getElementById('mobile-menu').classList.toggle('hidden');
+    // Simple JS for Toggling Mobile Menu
+    function toggleMenu() {
+        document.getElementById('mobile-menu').classList.toggle('hidden');
+    }
+
+    const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
+    // Using an empty string for API_BASE_URL is safer if the frontend is served on the same domain
+    // If the API is on a different domain, use the actual URL like 'https://your-api.com'
+    const API_BASE_URL = ''; 
+
+    // --- HERO SLIDER JS (SIMPLIFIED FOR STABILITY) ---
+    document.addEventListener('DOMContentLoaded', () => {
+        const imageLinks = [
+            'https://i.imgur.com/RFkkvwa.jpeg',
+            'https://i.imgur.com/YdK6QGk.jpeg',
+            'https://i.imgur.com/S74DrsC.jpeg',
+            'https://i.imgur.com/k9XXsBU.jpeg',
+            'https://i.imgur.com/P39sBlb.jpeg',
+            'https://i.imgur.com/e56O0Ub.jpeg',
+            'https://i.imgur.com/oSyDJmZ.jpeg',
+            'https://i.imgur.com/g8vdHCf.jpeg'
+        ];
+
+        const cell1 = document.getElementById('slider-cell-1');
+        const cell2 = document.getElementById('slider-cell-2');
+        const totalImages = imageLinks.length;
+        const imagesPerSlide = 2;
+        const totalSlides = totalImages / imagesPerSlide;
+        let currentSlideIndex = 0;
+        const slideInterval = 10000;
+
+        function updateSlider() {
+            const startIndex = currentSlideIndex * imagesPerSlide;
+            const url1 = imageLinks[startIndex];
+            const url2 = imageLinks[(startIndex + 1) % totalImages];
+
+            // Preload images to prevent flicker
+            const img1 = new Image();
+            img1.src = url1;
+            const img2 = new Image();
+            img2.src = url2;
+
+            // 1. Start fade-out (remove active class)
+            cell1.classList.remove('active');
+            cell2.classList.remove('active');
+
+            // 2. Wait for a moment, then set new images and fade in (add active class)
+            setTimeout(() => {
+                // Update images
+                cell1.style.backgroundImage = `url('${url1}')`;
+                cell2.style.backgroundImage = `url('${url2}')`;
+
+                // Apply active class to fade back in
+                cell1.classList.add('active');
+                if (window.innerWidth >= 768) {
+                    cell2.classList.add('active');
+                }
+            }, 50); // Small delay to ensure fade-out starts before content is changed
+
+            currentSlideIndex = (currentSlideIndex + 1) % totalSlides;
         }
 
-        const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
-        const API_BASE_URL = 'https://outflickz.netlify.app'; // Placeholder for your actual public API server URL
+        // Initial call and Interval setup
+        updateSlider();
+        setInterval(updateSlider, slideInterval);
+    });
+    // --- END HERO SLIDER JS ---
 
-        // --- HERO SLIDER JS (SIMPLIFIED FOR STABILITY) ---
-        document.addEventListener('DOMContentLoaded', () => {
-            const imageLinks = [
-                'https://i.imgur.com/RFkkvwa.jpeg',
-                'https://i.imgur.com/YdK6QGk.jpeg',
-                'https://i.imgur.com/S74DrsC.jpeg',
-                'https://i.imgur.com/k9XXsBU.jpeg',
-                'https://i.imgur.com/P39sBlb.jpeg',
-                'https://i.imgur.com/e56O0Ub.jpeg',
-                'https://i.imgur.com/oSyDJmZ.jpeg',
-                'https://i.imgur.com/g8vdHCf.jpeg'
-            ];
+    // --- MODAL CONTROL FUNCTIONS ---
+    function openModal(imageUrl, itemName) {
+        const modal = document.getElementById('image-modal');
+        const modalImage = document.getElementById('modal-image');
+        const modalTitle = document.getElementById('modal-item-title');
 
-            const cell1 = document.getElementById('slider-cell-1');
-            const cell2 = document.getElementById('slider-cell-2');
-            const totalImages = imageLinks.length;
-            const imagesPerSlide = 2;
-            const totalSlides = totalImages / imagesPerSlide;
-            let currentSlideIndex = 0;
-            const slideInterval = 10000;
+        modalImage.src = imageUrl;
+        modalImage.alt = itemName;
+        modalTitle.textContent = itemName;
 
-            function updateSlider() {
-                const startIndex = currentSlideIndex * imagesPerSlide;
-                const url1 = imageLinks[startIndex];
-                const url2 = imageLinks[(startIndex + 1) % totalImages];
+        modal.classList.remove('opacity-0', 'pointer-events-none');
+        modal.classList.add('opacity-100');
+        document.body.classList.add('overflow-hidden');
+    }
 
-                // Preload images to prevent flicker
-                const img1 = new Image();
-                img1.src = url1;
-                const img2 = new Image();
-                img2.src = url2;
+    function closeModal() {
+        const modal = document.getElementById('image-modal');
+        modal.classList.remove('opacity-100');
+        modal.classList.add('opacity-0', 'pointer-events-none');
+        document.body.classList.remove('overflow-hidden');
+    }
 
-                // 1. Start fade-out (remove active class)
-                cell1.classList.remove('active');
-                cell2.classList.remove('active');
+    // --- VIEW ITEM ---
+    function viewItem(collectionId) {
+        const card = document.querySelector(`.collection-card[data-collection-id="${collectionId}"]`);
+        if (!card) return;
 
-                // 2. Wait for a moment, then set new images and fade in (add active class)
-                setTimeout(() => {
-                    // Update images
-                    cell1.style.backgroundImage = `url('${url1}')`;
-                    cell2.style.backgroundImage = `url('${url2}')`;
+        const currentImage = card.querySelector(`#collection-image-${collectionId}`);
+        // Use a placeholder if the image element is not found
+        const imageUrl = currentImage ? currentImage.src : 'https://i.imgur.com/RFkkvwa.jpeg'; 
+        const itemName = card.querySelector('h3').textContent;
 
-                    // Apply active class to fade back in
-                    cell1.classList.add('active');
-                    if (window.innerWidth >= 768) {
-                        cell2.classList.add('active');
-                    }
-                }, 50); // Small delay to ensure fade-out starts before content is changed
+        openModal(imageUrl, itemName);
+    }
 
-                currentSlideIndex = (currentSlideIndex + 1) % totalSlides;
-            }
+    // --- QUANTITY AND SIZE UTILITY FUNCTIONS ---
+    function changeQuantity(collectionId, delta) {
+        const input = document.getElementById(`quantity-input-${collectionId}`);
+        let currentValue = parseInt(input.value) || 1;
+        let newValue = currentValue + delta;
 
-            // Initial call and Interval setup
-            updateSlider();
-            setInterval(updateSlider, slideInterval);
-        });
-        // --- END HERO SLIDER JS ---
-
-        // --- MODAL CONTROL FUNCTIONS ---
-        function openModal(imageUrl, itemName) {
-            const modal = document.getElementById('image-modal');
-            const modalImage = document.getElementById('modal-image');
-            const modalTitle = document.getElementById('modal-item-title');
-
-            modalImage.src = imageUrl;
-            modalImage.alt = itemName;
-            modalTitle.textContent = itemName;
-
-            modal.classList.remove('opacity-0', 'pointer-events-none');
-            modal.classList.add('opacity-100');
-            document.body.classList.add('overflow-hidden');
+        if (newValue < 1) {
+            newValue = 1;
         }
 
-        function closeModal() {
-            const modal = document.getElementById('image-modal');
-            modal.classList.remove('opacity-100');
-            modal.classList.add('opacity-0', 'pointer-events-none');
-            document.body.classList.remove('overflow-hidden');
+        const maxStock = parseInt(input.max) || Infinity;
+        if (newValue > maxStock) {
+            newValue = maxStock;
         }
 
-        // --- VIEW ITEM ---
-        function viewItem(collectionId) {
-            const card = document.querySelector(`.collection-card[data-collection-id="${collectionId}"]`);
-            if (!card) return;
-
-            const currentImage = card.querySelector(`#collection-image-${collectionId}`);
-            // Use a placeholder if the image element is not found
-            const imageUrl = currentImage ? currentImage.src : 'https://i.imgur.com/RFkkvwa.jpeg'; 
-            const itemName = card.querySelector('h3').textContent;
-
-            openModal(imageUrl, itemName);
+        input.value = newValue;
+    }
+    
+    // --- UTILITY FOR SIZE LIST (MATCHING IMAGE DESIGN) ---
+    function createSizeList(collectionId, sizes) {
+        // Default sizes if none are provided
+        if (!sizes || sizes.length === 0) {
+            sizes = ['S', 'M', 'L', 'XL'];
         }
 
-        // --- QUANTITY AND SIZE UTILITY FUNCTIONS ---
-        function changeQuantity(collectionId, delta) {
-            const input = document.getElementById(`quantity-input-${collectionId}`);
-            let currentValue = parseInt(input.value) || 1;
-            let newValue = currentValue + delta;
+        // Adjusted classes for smaller mobile size buttons
+        return sizes.map(size => `
+            <label for="size-${collectionId}-${size}" class="size-label text-xs border border-gray-300 px-2 py-0.5 md:px-2 md:py-1 cursor-pointer hover:border-ash-dark transition-all rounded-sm">
+                <input type="radio" id="size-${collectionId}-${size}" name="size-${collectionId}" value="${size}" class="hidden" ${size === sizes[0] ? 'checked' : ''}>
+                <span>${size}</span>
+            </label>
+        `).join('');
+    }
 
-            if (newValue < 1) {
-                newValue = 1;
-            }
+    // --- NEW FUNCTION TO HANDLE IMAGE SWITCHING (Uses Color Hex/Code as Identifier) ---
+    function changeVariantImage(collectionId, colorHex) {
+        const card = document.querySelector(`.collection-card[data-collection-id="${collectionId}"]`);
+        if (!card) return;
 
-            const maxStock = parseInt(input.max) || Infinity;
-            if (newValue > maxStock) {
-                newValue = maxStock;
-            }
-
-            input.value = newValue;
-        }
+        const colorMapContainer = card.querySelector(`#color-map-${collectionId}`);
+        if (!colorMapContainer) return;
         
-        // --- UTILITY FOR SIZE LIST (MATCHING IMAGE DESIGN) ---
-        function createSizeList(collectionId, sizes) {
-            // Default sizes if none are provided
-            if (!sizes || sizes.length === 0) {
-                sizes = ['S', 'M', 'L', 'XL'];
+        // Parse the stored map from the data attribute
+        const colorMap = JSON.parse(colorMapContainer.getAttribute('data-color-map'));
+        // Use the colorHex (which is the key in the map) to get the new URL
+        const newImageUrl = colorMap[colorHex];
+
+        if (newImageUrl) {
+            const imageElement = card.querySelector(`#collection-image-${collectionId}`);
+            if (imageElement) {
+                imageElement.src = newImageUrl;
+                // If you want a quick fade-out/in effect:
+                // imageElement.style.opacity = '0.5';
+                // setTimeout(() => { imageElement.style.opacity = '1'; }, 100);
             }
-
-            // Adjusted classes for smaller mobile size buttons
-            return sizes.map(size => `
-                <label for="size-${collectionId}-${size}" class="size-label text-xs border border-gray-300 px-2 py-0.5 md:px-2 md:py-1 cursor-pointer hover:border-ash-dark transition-all rounded-sm">
-                    <input type="radio" id="size-${collectionId}-${size}" name="size-${collectionId}" value="${size}" class="hidden" ${size === sizes[0] ? 'checked' : ''}>
-                    <span>${size}</span>
-                </label>
-            `).join('');
         }
+    }
 
-        // --- UTILITY FOR COLOR LIST ---
-        function createColorList(collectionId) {
-            const colors = [
-                { name: 'Black', code: 'bg-black' },
-                { name: 'White', code: 'bg-white border-gray-300' },
-                { name: 'Red', code: 'bg-ash-red' }
-            ];
+    // --- UTILITY FOR COLOR LIST (UPDATED to use API data) ---
+    function createColorList(collectionId, variants) {
+        if (!variants || variants.length === 0) return '';
+        
+        // 1. Create a map for the image switching logic: { colorHex: imageUrl }
+        const colorMap = variants.reduce((acc, v) => {
+            acc[v.color] = v.imageUrl;
+            return acc;
+        }, {});
 
-            return colors.map((color, index) => `
-                <label for="color-${collectionId}-${color.name}" class="color-label cursor-pointer p-[1px] rounded-full border border-transparent hover:border-ash-red transition-all">
-                    <input type="radio" id="color-${collectionId}-${color.name}" name="color-${collectionId}" value="${color.name}" class="hidden" ${index === 0 ? 'checked' : ''}>
-                    <span class="block w-4 h-4 rounded-full ${color.code} border border-gray-200"></span>
-                </label>
-            `).join('');
-        }
+        // 2. Store the map in the DOM for easy access by changeVariantImage
+        const mapHtml = `<div id="color-map-${collectionId}" data-color-map='${JSON.stringify(colorMap)}' class="hidden"></div>`;
 
-
-        // --- REDESIGNED WEARS COLLECTION CARD JS (MATCHES IMAGE LAYOUT) ---
-        function createCollectionCard(collection) {
-            const currencySymbol = '₦'; 
-            const defaultImage = 'https://i.imgur.com/RFkkvwa.jpeg'; 
+        // 3. Generate the color swatch buttons
+        const buttonsHtml = variants.map((variant, index) => {
+            const colorHex = variant.color; // e.g., #FFFFFF or #000000
             
-            // Get the image and price from the first variant if available, otherwise use defaults
-            const primaryVariant = collection.variants && collection.variants.length > 0 ? collection.variants[0] : null;
-            const imageUrl = primaryVariant && primaryVariant.imageUrl ? primaryVariant.imageUrl : defaultImage;
-            // Use collection price as fallback if variant price is missing
-            const itemPrice = primaryVariant && primaryVariant.price ? primaryVariant.price : collection.price; 
-
-            // Format price with commas
-            const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
-
-            const sizeListHtml = createSizeList(collection._id, collection.availableSizes);
-            const colorListHtml = createColorList(collection._id);
-            const maxStock = collection.availableStock > 0 ? collection.availableStock : 99;
-
+            // Determine Tailwind CSS classes for the swatch background.
+            // Using inline style for the color code is the most reliable way 
+            // to support any hex value from the API.
+            const style = `background-color: ${colorHex};`;
+            
+            // Add a border if the color is very light (like white) for visibility
+            const extraClass = (colorHex.toUpperCase() === '#FFFFFF' || colorHex.toUpperCase() === '#FFF') ? 'border-gray-400' : 'border-gray-200';
+            
             return `
-                <div class="collection-card border border-gray-100 rounded-lg overflow-hidden bg-white hover:shadow-lg transition duration-300" data-collection-id="${collection._id}">
-                    <div class="relative card-image-box cursor-pointer" onclick="viewItem('${collection._id}')">
-                        <img
-                            class="w-full h-full object-cover bg-gray-50"
-                            id="collection-image-${collection._id}"
-                            src="${imageUrl}"
-                            alt="${collection.name}"
-                            onerror="this.onerror=null;this.src='${defaultImage}';"
-                        >
+                <label for="color-${collectionId}-${colorHex}" class="color-label cursor-pointer p-[1px] rounded-full border border-transparent hover:border-ash-red transition-all">
+                    <input 
+                        type="radio" 
+                        id="color-${collectionId}-${colorHex}" 
+                        name="color-${collectionId}" 
+                        value="${colorHex}" 
+                        class="hidden" 
+                        onchange="changeVariantImage('${collectionId}', this.value)" 
+                        ${index === 0 ? 'checked' : ''}
+                    >
+                    <span class="block w-4 h-4 rounded-full border ${extraClass}" style="${style}"></span>
+                </label>
+            `;
+        }).join('');
+
+        return mapHtml + buttonsHtml;
+    }
+
+
+    // --- REDESIGNED WEARS COLLECTION CARD JS (MATCHES IMAGE LAYOUT) ---
+    function createCollectionCard(collection) {
+        const currencySymbol = '₦'; 
+        const defaultImage = 'https://i.imgur.com/RFkkvwa.jpeg'; 
+        
+        // Get the image and price from the first variant if available, otherwise use defaults
+        const primaryVariant = collection.variants && collection.variants.length > 0 ? collection.variants[0] : null;
+        
+        // Initial image URL is the first variant's URL
+        const imageUrl = primaryVariant && primaryVariant.imageUrl ? primaryVariant.imageUrl : defaultImage;
+        
+        // Use collection price (which your API now includes)
+        const itemPrice = collection.price; 
+
+        // Format price with commas
+        const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
+
+        const sizeListHtml = createSizeList(collection._id, collection.availableSizes);
+        // PASS THE ACTUAL VARIANTS ARRAY TO CREATE THE COLOR LIST
+        const colorListHtml = createColorList(collection._id, collection.variants); 
+        const maxStock = collection.availableStock > 0 ? collection.availableStock : 99;
+
+        return `
+            <div class="collection-card border border-gray-100 rounded-lg overflow-hidden bg-white hover:shadow-lg transition duration-300" data-collection-id="${collection._id}">
+                <div class="relative card-image-box cursor-pointer" onclick="viewItem('${collection._id}')">
+                    <img
+                        class="w-full h-full object-cover bg-gray-50"
+                        id="collection-image-${collection._id}"
+                        src="${imageUrl}"
+                        alt="${collection.name}"
+                        onerror="this.onerror=null;this.src='${defaultImage}';"
+                    >
+                </div>
+
+                <div class="p-2 md:p-3">
+                    <p class="text-[0.6rem] md:text-[0.6rem] text-gray-500 uppercase font-semibold">Outflickz</p>
+                    <h3 class="text-sm md:text-base font-semibold text-color-black truncate">${collection.name}</h3>
+                    
+                    <p class="text-lg font-extrabold text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
+                    
+                    <div class="flex items-center gap-2 mt-2">
+                        <span class="text-xs font-medium text-gray-700">Color:</span>
+                        <div class="flex gap-1 text-gray-700">
+                            ${colorListHtml}
+                        </div>
                     </div>
 
-                    <div class="p-2 md:p-3">
-                        <p class="text-[0.6rem] md:text-[0.6rem] text-gray-500 uppercase font-semibold">Outflickz</p>
-                        <h3 class="text-sm md:text-base font-semibold text-color-black truncate">${collection.name}</h3>
-                        
-                        <p class="text-lg font-extrabold text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
-                        
-                        <div class="flex items-center gap-2 mt-2">
-                            <span class="text-xs font-medium text-gray-700">Color:</span>
-                            <div class="flex gap-1 text-gray-700">
-                                ${colorListHtml}
-                            </div>
+                    <div class="flex flex-wrap items-center gap-1 mt-2 mb-3">
+                        <span class="text-xs font-medium text-gray-700">Size:</span>
+                        <div class="flex flex-wrap gap-1 text-gray-700">
+                            ${sizeListHtml}
                         </div>
+                    </div>
 
-                        <div class="flex flex-wrap items-center gap-1 mt-2 mb-3">
-                            <span class="text-xs font-medium text-gray-700">Size:</span>
-                            <div class="flex flex-wrap gap-1 text-gray-700">
-                                ${sizeListHtml}
-                            </div>
-                        </div>
-
-                        <div class="flex items-center space-x-2">
-                            <div class="flex items-center border border-gray-300 rounded-sm">
-                                <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="text-sm md:text-base text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-l-sm font-semibold">
-                                    &minus;
-                                </button>
-                                <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock}" aria-label="Quantity" class="w-6 md:w-8 h-7 md:h-8 text-center text-xs md:text-sm border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
-                                <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="text-sm md:text-base text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-r-sm font-semibold">
-                                    &plus;
-                                </button>
-                            </div>
-
-                            <button class="flex-1 text-xs md:text-sm bg-ash-dark text-white h-7 md:h-8 rounded-sm hover:bg-ash-red transition font-semibold uppercase tracking-widest flex items-center justify-center">
-                                Add To Cart
+                    <div class="flex items-center space-x-2">
+                        <div class="flex items-center border border-gray-300 rounded-sm">
+                            <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="text-sm md:text-base text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-l-sm font-semibold">
+                                &minus;
+                            </button>
+                            <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock}" aria-label="Quantity" class="w-6 md:w-8 h-7 md:h-8 text-center text-xs md:text-sm border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
+                            <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="text-sm md:text-base text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-r-sm font-semibold">
+                                &plus;
                             </button>
                         </div>
+
+                        <button class="flex-1 text-xs md:text-sm bg-ash-dark text-white h-7 md:h-8 rounded-sm hover:bg-ash-red transition font-semibold uppercase tracking-widest flex items-center justify-center">
+                            Add To Cart
+                        </button>
                     </div>
                 </div>
-            `;
-        }
+            </div>
+        `;
+    }
 
-        // --- FETCH AND RENDER COLLECTIONS ---
-        async function fetchAndRenderWearsCollections() {
-            const container = document.getElementById('wears-collections-grid');
-            if (!container) return;
+    // --- FETCH AND RENDER COLLECTIONS ---
+    async function fetchAndRenderWearsCollections() {
+        const container = document.getElementById('wears-collections-grid');
+        if (!container) return;
 
-            const spinnerColor = 'text-gray-900';
-            const textColor = 'text-gray-700';
+        const spinnerColor = 'text-gray-900';
+        const textColor = 'text-gray-700';
 
-            container.innerHTML = `
-                <div class="col-span-full text-center ${textColor} py-10 w-full">
-                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 ${spinnerColor} inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Loading Wears Collections...
-                </div>`;
+        container.innerHTML = `
+            <div class="col-span-full text-center ${textColor} py-10 w-full">
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 ${spinnerColor} inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Loading Wears Collections...
+            </div>`;
 
-            try {
-                const wearsApiUrl = `${API_BASE_URL}/api/collections/wears`;
+        try {
+            // Use the API_BASE_URL prefix
+            const wearsApiUrl = `${API_BASE_URL}/api/collections/wears`; 
 
-                const response = await fetch(wearsApiUrl, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${USER_AUTH_TOKEN}`
+            const response = await fetch(wearsApiUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    // Note: Your public endpoint might not need this header.
+                    // If it's a truly public route, you might remove the Authorization header.
+                    'Authorization': `Bearer ${USER_AUTH_TOKEN}` 
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to load collections from server. Status: ${response.status}`);
+            }
+
+            const collections = await response.json();
+
+            container.innerHTML = '';
+
+            if (collections && collections.length > 0) {
+                // Limit to the first 4 collections for the homepage view, matching the image example
+                const limitedCollections = collections.slice(0, 4);
+                
+                limitedCollections.forEach(collection => {
+                    // Your API now correctly includes price on the collection object, 
+                    // so the old fallback logic is no longer necessary.
+                    if (collection.price !== undefined && collection.price !== null) {
+                        container.innerHTML += createCollectionCard(collection);
                     }
                 });
 
-                if (!response.ok) {
-                    throw new Error(`Failed to load collections from server. Status: ${response.status}`);
+                // If no items were rendered (e.g., due to missing price)
+                if (container.innerHTML === '') {
+                       container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Wears Collections are currently available.</p>`;
                 }
-
-                const collections = await response.json();
-
-                container.innerHTML = '';
-
-                if (collections && collections.length > 0) {
-                    // Limit to the first 4 collections for the homepage view, matching the image example
-                    const limitedCollections = collections.slice(0, 4);
-                    
-                    limitedCollections.forEach(collection => {
-                        // Use the price from the collection object or the first variant's price
-                        if (!collection.price && collection.variants && collection.variants.length > 0) {
-                            collection.price = collection.variants[0].price;
-                        }
-
-                        if (collection.price !== undefined && collection.price !== null) {
-                            container.innerHTML += createCollectionCard(collection);
-                        }
-                    });
-
-                    // If no items were rendered (e.g., due to missing price)
-                    if (container.innerHTML === '') {
-                         container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Wears Collections are currently available.</p>`;
-                    }
-                } else {
-                    container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Wears Collections are currently available.</p>`;
-                }
-            } catch (error) {
-                console.error('Error fetching wears collections:', error);
-                container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full">Error loading wears collections. Please ensure the API server is running on the public domain.</p>';
+            } else {
+                container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Wears Collections are currently available.</p>`;
             }
+        } catch (error) {
+            console.error('Error fetching wears collections:', error);
+            container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full">Error loading wears collections. Please ensure the API server is running and accessible.</p>';
         }
+    }
 
-        document.addEventListener('DOMContentLoaded', fetchAndRenderWearsCollections);
-        // --- END WEARS COLLECTION JS ---
-    </script>
+    document.addEventListener('DOMContentLoaded', fetchAndRenderWearsCollections);
+    // --- END WEARS COLLECTION JS ---
+</script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body class="bg-color-white text-color-black min-h-screen">
@@ -407,7 +465,7 @@
     <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
             <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
-                <img src="https://i.imgur.com/ioWFyQB.png" alt="Outflickz Logo" class="w-auto h-12 sm:h-10 lg:h-12">
+                <img src="https://i.imgur.com/2ru3bcA.jpeg" alt="Outflickz Logo" class="w-auto h-15 sm:h-15 lg:h-15">
             </a>
 
             <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">

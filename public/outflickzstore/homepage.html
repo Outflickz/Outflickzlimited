@@ -161,6 +161,175 @@
             window.addEventListener('resize', updateSlider);
         });
         // --- END HERO SLIDER JS ---
+
+
+        // --- WEARS COLLECTION JS (Restored and Modified) ---
+
+        /**
+         * Swaps the main image of a collection card when a color button is clicked.
+         * @param {HTMLElement} button - The color button that was clicked.
+         */
+        function swapImage(button) {
+            const collectionId = button.getAttribute('data-collection-id');
+            const newImageUrl = button.getAttribute('data-image-url');
+            
+            // Find the image element associated with this collection card
+            const imageElement = document.getElementById(`collection-image-${collectionId}`);
+
+            if (imageElement) {
+                // Update the image source
+                imageElement.src = newImageUrl;
+
+                // 1. Remove border from all buttons in this card
+                const colorContainer = button.parentNode;
+                colorContainer.querySelectorAll('button').forEach(btn => {
+                    btn.classList.remove('border-ash-red');
+                    btn.classList.add('border-transparent');
+                });
+
+                // 2. Add border to the currently active button
+                button.classList.remove('border-transparent');
+                button.classList.add('border-ash-red');
+            }
+        }
+        
+        /**
+         * Creates the HTML structure for the color selection buttons.
+         * @param {string} collectionId 
+         * @param {Array<object>} variants 
+         * @returns {string} HTML string
+         */
+        function createColorButtons(collectionId, variants) {
+            let html = '';
+            // Only proceed if there are variants to display
+            if (variants && variants.length > 0) {
+                html = variants.map((variant, index) => {
+                    // NOTE: Assumes 'color' field can be used as a CSS background color.
+                    
+                    // The first variant is the default, so it gets the active border initially
+                    const borderClass = index === 0 ? 'border-ash-red' : 'border-transparent';
+
+                    return `
+                        <button 
+                            class="h-6 w-6 rounded-full border-2 hover:border-ash-red transition-all duration-150 ${borderClass}" 
+                            style="background-color: ${variant.color.toLowerCase().replace(/\s/g, '-')};" 
+                            data-collection-id="${collectionId}"
+                            data-image-url="${variant.imageUrl}"
+                            data-variant-index="${index}"
+                            onclick="swapImage(this)"
+                            title="${variant.color}"
+                        ></button>
+                    `;
+                }).join('');
+            }
+            return html;
+        }
+
+        /**
+        * Creates the HTML structure for a single collection card, including color swatches.
+        * @param {object} collection 
+        * @returns {string} HTML string
+        */
+        function createCollectionCard(collection) {
+            // Fallback image in case the collection image fails to load
+            const defaultImage = 'https://i.imgur.com/k9XXsBU.jpeg'; 
+            
+            // Get the image URL for the first variant (default view)
+            const imageUrl = (collection.variants && collection.variants.length > 0) 
+                                ? collection.variants[0].imageUrl 
+                                : defaultImage;
+            
+            const sizesText = (collection.availableSizes && collection.availableSizes.length > 0) 
+                                 ? collection.availableSizes.join(' / ') 
+                                 : 'One Size';
+
+            // Generate the color buttons HTML
+            const colorButtonsHtml = createColorButtons(collection._id, collection.variants);
+
+            return `
+                <div class="collection-card bg-white border border-gray-200 rounded-lg overflow-hidden shadow-xl hover:shadow-2xl transform hover:scale-[1.02] transition duration-300" data-collection-id="${collection._id}">
+                    <div class="relative h-72">
+                        <img 
+                            class="w-full h-full object-cover" 
+                            id="collection-image-${collection._id}" 
+                            src="${imageUrl}" 
+                            alt="${collection.name}" 
+                            onerror="this.onerror=null;this.src='${defaultImage}';"
+                        >
+                        <div class="absolute inset-0 bg-black bg-opacity-10"></div>
+                        <span class="absolute top-2 right-2 bg-ash-red text-white text-xs font-bold px-3 py-1 rounded-full uppercase">
+                            ${collection.availableStock > 0 ? 'In Stock' : 'Pre-Order'}
+                        </span>
+                    </div>
+                    <div class="p-4">
+                        <h3 class="text-lg font-semibold text-black truncate">${collection.name}</h3>
+                        <p class="text-gray-600 text-sm mt-1">${sizesText}</p> 
+                        
+                        <div class="flex space-x-2 mt-3 mb-4">
+                            ${colorButtonsHtml}
+                        </div>
+                        <div class="flex items-center justify-between mt-3">
+                            <span class="text-xl font-bold text-ash-red">$${collection.price.toFixed(2)}</span>
+                            <button class="text-sm bg-ash-red text-white px-4 py-2 rounded-sm hover:bg-red-700 transition font-medium">
+                                View Item
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        /**
+         * Fetches active WEARS collections and renders them to the main page.
+         */
+        async function fetchAndRenderWearsCollections() {
+            const container = document.getElementById('wears-collections-grid');
+            if (!container) return;
+            
+            // Show loading state
+            container.innerHTML = '<p class="col-span-full text-center text-gray-600 py-10"><i class="fas fa-spinner fa-spin mr-2"></i> Loading Wears Collections...</p>';
+
+            try {
+                // Fetching from the specific 'wears' endpoint
+                const wearsApiUrl = `${API_BASE_URL}/api/collections/wears`;
+                console.log(`[DEBUG] Attempting to fetch wears collections from: ${wearsApiUrl}`);
+
+                const response = await fetch(wearsApiUrl);
+                
+                if (!response.ok) {
+                    console.error(`[FETCH ERROR] Server responded with error status ${response.status}.`);
+                    throw new Error(`Failed to load collections from server. Status: ${response.status}`);
+                }
+                
+                const collections = await response.json();
+                
+                console.log(`[SUCCESS] Successfully received ${collections.length} wears collections.`);
+
+                container.innerHTML = ''; // Clear loading state
+
+                if (collections && collections.length > 0) {
+                    // Render all received collections
+                    collections.forEach(collection => {
+                        container.innerHTML += createCollectionCard(collection);
+                    });
+                    console.log(`[RENDER] Successfully rendered ${collections.length} wears collections.`);
+                } else {
+                    console.log('[INFO] API returned successfully, but the wears collections array is empty.');
+                    container.innerHTML = '<p class="col-span-full text-center text-gray-600 py-10">No Wears Collections are currently available.</p>';
+                }
+            } catch (error) {
+                console.error('--- FRONTEND FATAL ERROR ---');
+                console.error('Error fetching wears collections. Please ensure the API server is running on localhost:3000.', error);
+                console.error('----------------------------');
+
+                container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10">Error loading wears collections. Please ensure the API server is running on localhost:3000.</p>';
+            }
+        }
+
+        // Execute the fetch function after the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', fetchAndRenderWearsCollections);
+        
+        // --- END WEARS COLLECTION JS ---
     </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
@@ -235,6 +404,23 @@
         </div>
         
     </main>
+
+    <section id="wears-collections-section" class="py-16 bg-white border-t border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="text-4xl font-extrabold text-center text-black mb-10 border-b border-ash-red pb-3 mx-auto max-w-md">
+                WEARS COLLECTIONS
+            </h2>
+            
+            <div id="wears-collections-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                </div>
+            
+            <div class="text-center mt-12">
+                <button class="border border-ash-red text-ash-red hover:bg-ash-red hover:text-white transition duration-300 font-semibold py-3 px-10 rounded-sm uppercase text-sm tracking-widest">
+                    View All Wears
+                </button>
+            </div>
+        </div>
+    </section>
 
 </body>
 </html>

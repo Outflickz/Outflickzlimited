@@ -14,13 +14,11 @@
         .roulette-text {
             font-family: 'Playfair Display', serif;
             font-weight: 900;
-            /* Adjust line-height for better fit on small screens */
             line-height: 0.9;
             letter-spacing: -0.05em;
-            /* Text shadow remains for visibility over hero images */
             text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.7);
             word-break: break-word;
-            color: #FFFFFF; /* Ensure hero text is white for contrast */
+            color: #FFFFFF;
         }
 
         /* Using Inter as the main font */
@@ -87,7 +85,14 @@
         .card-image-box img {
             object-fit: cover !important;
         }
-        /* Removed custom card scrolling logic as we are using a responsive grid now */
+
+        /* Custom style for active size/color selection */
+        .size-label input:checked + span,
+        .color-label input:checked + span {
+            border-color: #a80000; /* ash-red */
+            color: #a80000;
+            font-weight: 600;
+        }
     </style>
     <script>
         // Customizing Tailwind colors to match the theme
@@ -229,14 +234,30 @@
         function createSizeList(collectionId, sizes) {
             // Default sizes if none are provided
             if (!sizes || sizes.length === 0) {
-                sizes = ['S', 'M', 'L', 'XL', '2XL', '3XL'];
+                sizes = ['S', 'M', 'L', 'XL'];
             }
 
-            // This creates the list of size buttons as seen in the screenshot
+            // Adjusted classes for smaller mobile size buttons
             return sizes.map(size => `
-                <label for="size-${collectionId}-${size}" class="text-xs border border-gray-300 px-2 py-1 cursor-pointer hover:border-ash-dark transition-all">
+                <label for="size-${collectionId}-${size}" class="size-label text-xs border border-gray-300 px-2 py-0.5 md:px-2 md:py-1 cursor-pointer hover:border-ash-dark transition-all rounded-sm">
                     <input type="radio" id="size-${collectionId}-${size}" name="size-${collectionId}" value="${size}" class="hidden" ${size === sizes[0] ? 'checked' : ''}>
-                    ${size}
+                    <span>${size}</span>
+                </label>
+            `).join('');
+        }
+
+        // --- UTILITY FOR COLOR LIST ---
+        function createColorList(collectionId) {
+            const colors = [
+                { name: 'Black', code: 'bg-black' },
+                { name: 'White', code: 'bg-white border-gray-300' },
+                { name: 'Red', code: 'bg-ash-red' }
+            ];
+
+            return colors.map((color, index) => `
+                <label for="color-${collectionId}-${color.name}" class="color-label cursor-pointer p-[1px] rounded-full border border-transparent hover:border-ash-red transition-all">
+                    <input type="radio" id="color-${collectionId}-${color.name}" name="color-${collectionId}" value="${color.name}" class="hidden" ${index === 0 ? 'checked' : ''}>
+                    <span class="block w-4 h-4 rounded-full ${color.code} border border-gray-200"></span>
                 </label>
             `).join('');
         }
@@ -257,6 +278,7 @@
             const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
 
             const sizeListHtml = createSizeList(collection._id, collection.availableSizes);
+            const colorListHtml = createColorList(collection._id);
             const maxStock = collection.availableStock > 0 ? collection.availableStock : 99;
 
             return `
@@ -271,31 +293,38 @@
                         >
                     </div>
 
-                    <div class="p-3">
-                        <p class="text-[0.6rem] text-gray-500 uppercase font-semibold">Outflickz</p>
-                        <h3 class="text-sm font-semibold text-color-black truncate">${collection.name}</h3>
+                    <div class="p-2 md:p-3">
+                        <p class="text-[0.6rem] md:text-[0.6rem] text-gray-500 uppercase font-semibold">Outflickz</p>
+                        <h3 class="text-sm md:text-base font-semibold text-color-black truncate">${collection.name}</h3>
                         
                         <p class="text-lg font-extrabold text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
                         
+                        <div class="flex items-center gap-2 mt-2">
+                            <span class="text-xs font-medium text-gray-700">Color:</span>
+                            <div class="flex gap-1 text-gray-700">
+                                ${colorListHtml}
+                            </div>
+                        </div>
+
                         <div class="flex flex-wrap items-center gap-1 mt-2 mb-3">
                             <span class="text-xs font-medium text-gray-700">Size:</span>
-                            <div class="flex gap-1 text-gray-700">
+                            <div class="flex flex-wrap gap-1 text-gray-700">
                                 ${sizeListHtml}
                             </div>
                         </div>
 
                         <div class="flex items-center space-x-2">
                             <div class="flex items-center border border-gray-300 rounded-sm">
-                                <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="text-base text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-8 h-8 rounded-l-sm font-semibold">
+                                <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="text-sm md:text-base text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-l-sm font-semibold">
                                     &minus;
                                 </button>
-                                <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock}" aria-label="Quantity" class="w-8 h-8 text-center text-sm border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
-                                <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="text-base text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-8 h-8 rounded-r-sm font-semibold">
+                                <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock}" aria-label="Quantity" class="w-6 md:w-8 h-7 md:h-8 text-center text-xs md:text-sm border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
+                                <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="text-sm md:text-base text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-r-sm font-semibold">
                                     &plus;
                                 </button>
                             </div>
 
-                            <button class="flex-1 text-sm bg-ash-dark text-white h-8 rounded-sm hover:bg-ash-red transition font-semibold uppercase tracking-widest flex items-center justify-center">
+                            <button class="flex-1 text-xs md:text-sm bg-ash-dark text-white h-7 md:h-8 rounded-sm hover:bg-ash-red transition font-semibold uppercase tracking-widest flex items-center justify-center">
                                 Add To Cart
                             </button>
                         </div>
@@ -378,7 +407,7 @@
     <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
             <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
-                <img src="https://i.imgur.com/2ru3bcA.jpeg" alt="Outflickz Logo" class="w-auto h-6 sm:h-8 lg:h-9">
+                <img src="https://i.imgur.com/ioWFyQB.png" alt="Outflickz Logo" class="w-auto h-12 sm:h-10 lg:h-12">
             </a>
 
             <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
@@ -434,10 +463,14 @@
 
     <section id="wears-collections-section" class="py-10 sm:py-12 bg-color-white text-color-black border-t border-racing-grey white-section">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 class="text-xl sm:text-2xl font-extrabold text-center text-color-black mb-6 sm:mb-8 border-b border-ash-red pb-2 mx-auto max-w-xs sm:max-w-md">
-                <span class="text-ash-red">WEARS</span> COLLECTIONS
-            </h2>
-
+            <div class="mb-6 sm:mb-8 text-left">
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-color-black uppercase mb-1">
+                    New In
+                </h2>
+                <p class="text-lg sm:text-xl font-medium text-gray-700">
+                    Explore our new collection
+                </p>
+            </div>
             <div id="wears-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
                 </div>
 

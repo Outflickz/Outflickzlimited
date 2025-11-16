@@ -25,18 +25,18 @@
 </head>
 <body class="bg-gray-50 min-h-screen flex">
 
-    <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-emerald-900 text-white transform transition-transform duration-300 z-30 lg:translate-x-0 -translate-x-full shadow-2xl">
-        <div class="p-6">
+    <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-emerald-900 text-white transform transition-transform duration-300 z-30 lg:translate-x-0 -translate-x-full shadow-2xl flex flex-col">
+        <div class="p-6 flex-shrink-0">
             <img src="https://placehold.co/100x40/10b981/ffffff?text=Logo" alt="E-commerce Logo" class="h-10 w-auto mb-6 rounded-lg shadow-md border border-emerald-700">
             <h1 class="text-xl font-extrabold text-emerald-400 border-t border-emerald-800 pt-4">Commerce Hub</h1>
         </div>
-        <nav class="space-y-2 px-4">
+        
+        <nav class="space-y-2 px-4 flex-grow overflow-y-auto">
             <button id="btn-dashboard" onclick="setActiveContent('dashboard')" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-emerald-600 hover:bg-emerald-700 active-link">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l-7-7-7 7m10 0v10a1 1 0 01-1 1h-3m-3 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-9 0h10"></path></svg>
                 Dashboard
             </button>
             
-            <!-- NEW NAVIGATION BUTTON -->
             <button id="btn-wearscollection" onclick="navigateToWearsCollection()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
                 Wears Collection
@@ -47,6 +47,13 @@
                 Settings
             </button>
         </nav>
+        
+        <div class="p-4 flex-shrink-0 border-t border-emerald-800">
+            <button id="btn-logout" onclick="logoutAdmin()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-red-600 hover:bg-red-700 text-white shadow-lg">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                Log Out
+            </button>
+        </div>
     </aside>
 
     <main class="flex-1 lg:ml-64 p-4 transition-all duration-300">
@@ -55,7 +62,7 @@
         </button>
 
         <section id="content-dashboard" class="content-section p-6 pt-16 lg:pt-6">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-6">Real-time E-commerce Overview</h2>
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6">Real-time E-commerce Overview 📈</h2>
 
             <div id="loading-indicator" class="text-center p-10">
                 <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600 inline-block"></div>
@@ -102,7 +109,7 @@
             </div>
             
             <div class="mt-8 bg-white p-6 rounded-xl shadow-lg border-t-2 border-gray-200">
-                <h3 class="text-xl font-semibold mb-4 text-gray-700">Recent Activity Log</h3>
+                <h3 class="text-xl font-semibold mb-4 text-gray-700">Recent Activity Log 🔔</h3>
                 <p class="text-gray-500 text-sm mb-4">Latest actions requiring Node.js/MongoDB interaction.</p>
                 <ul class="mt-4 space-y-2 text-sm text-gray-600">
                     <li class="p-3 bg-emerald-50 border-l-4 border-emerald-400 rounded-md flex justify-between">
@@ -123,7 +130,7 @@
         </section>
 
         <section id="content-settings" class="content-section p-6 pt-16 lg:pt-6 hidden">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-6">Application Settings</h2>
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6">Application Settings ⚙️</h2>
             <div class="bg-white p-6 rounded-xl shadow-lg">
                 <p class="text-gray-700 text-sm">Manage core configurations and system parameters for the e-commerce platform.</p>
                 <div class="mt-6 space-y-4">
@@ -162,6 +169,20 @@
         function navigateToWearsCollection() {
             // Redirects the browser to the specified file path
             window.location.href = './wearscollection.html';
+        }
+        
+        /**
+         * Handles the admin logout process.
+         * 1. Clears local data (e.g., adminToken).
+         * 2. Redirects to the login page.
+         */
+        function logoutAdmin() {
+            // 1. Clear authentication data
+            console.log("Logging out... Clearing admin token.");
+            localStorage.removeItem('adminToken');
+            
+            // 2. Redirect to the admin login page
+            window.location.href = './admin-login.html'; 
         }
 
         // Initial setup to show the Dashboard
@@ -207,24 +228,17 @@
 
         /**
          * Fetches real-time dashboard statistics from the Node.js/MongoDB API.
-         * Assumes the admin user has a JWT stored in local storage under the key 'adminToken'.
+         * The 'fetch' block is the only one used now that we're using a real application context.
          */
         async function fetchDashboardData() {
-            // Note: Since this is an external API call simulation, the token is mock
-            const token = "mock-admin-token-12345"; // localStorage.getItem('adminToken');
-            
-            // Fallback for demonstration if a real API is not hooked up
-            if (typeof fetch === 'undefined') {
-                await new Promise(r => setTimeout(r, 800)); // Simulate latency
-                return {
-                    totalSales: 8729103.55,
-                    totalProducts: 450,
-                    registeredUsers: 1245
-                };
-            }
+            const token = localStorage.getItem('adminToken'); // Get the actual token
 
+            // NOTE: We are removing the mock data fallback as requested to use a 'real application' approach.
+            
             if (!token) {
-                console.error("No token found. Redirecting to login.");
+                console.error("No adminToken found. Redirecting to login for authentication.");
+                // Redirect user to login page immediately if no token is found
+                window.location.href = './admin-login.html'; 
                 return null;
             }
 
@@ -239,8 +253,10 @@
                 });
 
                 if (!response.ok) {
-                    if (response.status === 401) {
-                        console.error('Unauthorized access. Token expired or invalid.');
+                    if (response.status === 401 || response.status === 403) {
+                        console.error('Unauthorized access. Token expired or invalid. Logging out.');
+                        logoutAdmin(); // Log out and redirect on Auth failure
+                        return null;
                     }
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -254,6 +270,7 @@
 
             } catch (error) {
                 console.error('Error fetching dashboard data:', error);
+                // In a real application, you might show a generic error message on the dashboard
                 return null;
             }
         }
@@ -282,7 +299,7 @@
                 metricCards.classList.remove('hidden');
             } else {
                 // Display error state if data fetching fails
-                metricCards.innerHTML = '<div class="md:col-span-3 text-center p-8 bg-red-100 text-red-700 rounded-xl shadow-lg">Failed to load data. Please check the API connection or your login token.</div>';
+                metricCards.innerHTML = '<div class="md:col-span-3 text-center p-8 bg-red-100 text-red-700 rounded-xl shadow-lg">Failed to load dashboard data. Please check the API connection.</div>';
                 metricCards.classList.remove('hidden');
             }
         }

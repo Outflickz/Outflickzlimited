@@ -773,8 +773,9 @@ app.get(
 // ------------------------------------------------------------------------------------------------
 app.get('/api/collections/wears', async (req, res) => {
     try {
-        // 1. Fetch only ACTIVE collections that have stock, ensuring 'price' is selected
-        const collections = await WearsCollection.find({ isActive: true, totalStock: { $gt: 0 } })
+        // 1. Fetch only ACTIVE collections. Remove the check for totalStock > 0
+        // to allow out-of-stock items to be sent to the frontend for display.
+        const collections = await WearsCollection.find({ isActive: true }) // <-- MODIFIED QUERY
             .select('_id name tag price variations sizes totalStock') 
             .sort({ createdAt: -1 })
             .lean(); 
@@ -799,7 +800,8 @@ app.get('/api/collections/wears', async (req, res) => {
                 tag: collection.tag,
                 price: collection.price, 
                 availableSizes: collection.sizes,
-                availableStock: collection.totalStock,
+                // The totalStock field is now passed to the frontend to check if it's 0
+                availableStock: collection.totalStock, 
                 variants: variants
             };
         }));
@@ -810,7 +812,6 @@ app.get('/api/collections/wears', async (req, res) => {
         res.status(500).json({ message: 'Server error while fetching collections for homepage.', details: error.message });
     }
 });
-// ------------------------------------------------------------------------------------------------
 
 // --- NETLIFY EXPORTS for api.js wrapper ---
 module.exports = {

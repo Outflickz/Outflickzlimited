@@ -234,8 +234,8 @@
         const card = document.querySelector(`.collection-card[data-collection-id="${collectionId}"]`);
         if (!card) return;
 
-        const currentImage = card.querySelector(`#collection-image-${collectionId}`);
-        // Use a placeholder if the image element is not found
+        // The image to view in the modal is always the currently displayed front image
+        const currentImage = card.querySelector(`#front-image-${collectionId}`);
         const imageUrl = currentImage ? currentImage.src : 'https://i.imgur.com/RFkkvwa.jpeg'; 
         const itemName = card.querySelector('h3').textContent;
 
@@ -277,6 +277,7 @@
     }
 
     // --- NEW FUNCTION TO HANDLE IMAGE SWITCHING (Uses Color Hex/Code as Identifier) ---
+    // UPDATED: Now switches BOTH front and back images based on color.
     function changeVariantImage(collectionId, colorHex) {
         const card = document.querySelector(`.collection-card[data-collection-id="${collectionId}"]`);
         if (!card) return;
@@ -284,29 +285,56 @@
         const colorMapContainer = card.querySelector(`#color-map-${collectionId}`);
         if (!colorMapContainer) return;
         
-        // Parse the stored map from the data attribute
+        // Parse the stored map from the data attribute. This map now stores an object {frontImageUrl, backImageUrl}
         const colorMap = JSON.parse(colorMapContainer.getAttribute('data-color-map'));
-        // Use the colorHex (which is the key in the map) to get the new URL
-        const newImageUrl = colorMap[colorHex];
+        const newImageUrls = colorMap[colorHex];
 
-        if (newImageUrl) {
-            const imageElement = card.querySelector(`#collection-image-${collectionId}`);
-            if (imageElement) {
-                imageElement.src = newImageUrl;
-                // If you want a quick fade-out/in effect:
-                // imageElement.style.opacity = '0.5';
-                // setTimeout(() => { imageElement.style.opacity = '1'; }, 100);
+        if (newImageUrls) {
+            const frontImageElement = card.querySelector(`#front-image-${collectionId}`);
+            const backImageElement = card.querySelector(`#back-image-${collectionId}`);
+
+            // Update Front Image
+            if (frontImageElement) {
+                frontImageElement.src = newImageUrls.frontImageUrl;
+            }
+             // Update Back Image
+            if (backImageElement) {
+                backImageElement.src = newImageUrls.backImageUrl;
             }
         }
     }
 
-    // --- UTILITY FOR COLOR LIST (UPDATED to use API data) ---
+    // --- NEW FUNCTION TO TOGGLE BETWEEN FRONT AND BACK IMAGE VIEWS ---
+    function toggleImage(collectionId) {
+        const frontImage = document.getElementById(`front-image-${collectionId}`);
+        const backImage = document.getElementById(`back-image-${collectionId}`);
+        const toggleButton = document.getElementById(`image-toggle-btn-${collectionId}`);
+
+        if (frontImage.classList.contains('active')) {
+            frontImage.classList.remove('active');
+            frontImage.style.opacity = '0';
+            backImage.classList.add('active');
+            backImage.style.opacity = '1';
+            toggleButton.innerHTML = `<i class="fas fa-undo"></i> Front View`;
+            toggleButton.title = "Show Front View";
+        } else {
+            backImage.classList.remove('active');
+            backImage.style.opacity = '0';
+            frontImage.classList.add('active');
+            frontImage.style.opacity = '1';
+            toggleButton.innerHTML = `<i class="fas fa-sync-alt"></i> Back View`;
+            toggleButton.title = "Show Back View";
+        }
+    }
+
+
+    // --- UTILITY FOR COLOR LIST (UPDATED to use API data and new image data structure) ---
     function createColorList(collectionId, variants) {
         if (!variants || variants.length === 0) return '';
         
-        // 1. Create a map for the image switching logic: { colorHex: imageUrl }
+        // 1. Create a map for the image switching logic: { colorHex: {frontImageUrl, backImageUrl} }
         const colorMap = variants.reduce((acc, v) => {
-            acc[v.color] = v.imageUrl;
+            acc[v.color] = { frontImageUrl: v.frontImageUrl, backImageUrl: v.backImageUrl };
             return acc;
         }, {});
 
@@ -315,14 +343,8 @@
 
         // 3. Generate the color swatch buttons
         const buttonsHtml = variants.map((variant, index) => {
-            const colorHex = variant.color; // e.g., #FFFFFF or #000000
-            
-            // Determine Tailwind CSS classes for the swatch background.
-            // Using inline style for the color code is the most reliable way 
-            // to support any hex value from the API.
+            const colorHex = variant.color; 
             const style = `background-color: ${colorHex};`;
-            
-            // Add a border if the color is very light (like white) for visibility
             const extraClass = (colorHex.toUpperCase() === '#FFFFFF' || colorHex.toUpperCase() === '#FFF') ? 'border-gray-400' : 'border-gray-200';
             
             return `
@@ -346,42 +368,68 @@
 
 
     // --- REDESIGNED WEARS COLLECTION CARD JS (MATCHES IMAGE LAYOUT) ---
+    // UPDATED: Now includes two image elements and the toggle button.
     function createCollectionCard(collection) {
         const currencySymbol = '₦'; 
-        const defaultImage = 'https://i.imgur.com/RFkkvwa.jpeg'; 
+        const defaultFrontImage = 'https://i.imgur.com/RFkkvwa.jpeg'; 
+        const defaultBackImage = 'https://i.imgur.com/S74DrsC.jpeg'; 
         
-        // Get the image and price from the first variant if available, otherwise use defaults
         const primaryVariant = collection.variants && collection.variants.length > 0 ? collection.variants[0] : null;
         
-        // Initial image URL is the first variant's URL
-        const imageUrl = primaryVariant && primaryVariant.imageUrl ? primaryVariant.imageUrl : defaultImage;
+        // Initial image URLs are the first variant's URLs
+        const frontImageUrl = primaryVariant?.frontImageUrl || defaultFrontImage;
+        const backImageUrl = primaryVariant?.backImageUrl || defaultBackImage;
         
-        // Use collection price (which your API now includes)
         const itemPrice = collection.price; 
-
-        // Format price with commas
         const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
 
         const sizeListHtml = createSizeList(collection._id, collection.availableSizes);
-        // PASS THE ACTUAL VARIANTS ARRAY TO CREATE THE COLOR LIST
         const colorListHtml = createColorList(collection._id, collection.variants); 
         const maxStock = collection.availableStock > 0 ? collection.availableStock : 99;
 
+        // Get the description from the 'tag' field, or use a default
+        const description = collection.tag || 'Exclusive limited edition wear.';
+
+
         return `
             <div class="collection-card border border-gray-100 rounded-lg overflow-hidden bg-white hover:shadow-lg transition duration-300" data-collection-id="${collection._id}">
-                <div class="relative card-image-box cursor-pointer" onclick="viewItem('${collection._id}')">
-                    <img
-                        class="w-full h-full object-cover bg-gray-50"
-                        id="collection-image-${collection._id}"
-                        src="${imageUrl}"
-                        alt="${collection.name}"
-                        onerror="this.onerror=null;this.src='${defaultImage}';"
-                    >
+                <div class="relative card-image-box">
+                    <div class="absolute inset-0 transition-opacity duration-300">
+                        <img
+                            class="w-full h-full object-cover bg-gray-50 absolute transition-opacity duration-300 active"
+                            id="front-image-${collection._id}"
+                            src="${frontImageUrl}"
+                            alt="${collection.name} (Front View)"
+                            onerror="this.onerror=null;this.src='${defaultFrontImage}';"
+                            style="opacity: 1;"
+                        >
+                        <img
+                            class="w-full h-full object-cover bg-gray-50 absolute transition-opacity duration-300"
+                            id="back-image-${collection._id}"
+                            src="${backImageUrl}"
+                            alt="${collection.name} (Back View)"
+                            onerror="this.onerror=null;this.src='${defaultBackImage}';"
+                            style="opacity: 0;"
+                        >
+                    </div>
+
+                    <div class="absolute inset-0 bg-black bg-opacity-10 opacity-0 hover:opacity-100 transition duration-300 flex items-end justify-center p-3">
+                        <button 
+                            id="image-toggle-btn-${collection._id}"
+                            onclick="toggleImage('${collection._id}')" 
+                            class="bg-color-white text-ash-dark text-xs font-semibold py-1 px-3 rounded-full shadow-md hover:bg-gray-200 transition"
+                            title="Show Back View"
+                        >
+                            <i class="fas fa-sync-alt"></i> Back View
+                        </button>
+                    </div>
                 </div>
 
                 <div class="p-2 md:p-3">
                     <p class="text-[0.6rem] md:text-[0.6rem] text-gray-500 uppercase font-semibold">Outflickz</p>
                     <h3 class="text-sm md:text-base font-semibold text-color-black truncate">${collection.name}</h3>
+                    
+                    <p class="text-xs text-gray-500 mt-0.5 mb-1 truncate">${description}</p>
                     
                     <p class="text-lg font-extrabold text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
                     
@@ -445,8 +493,7 @@
                 headers: {
                     'Content-Type': 'application/json',
                     // Note: Your public endpoint might not need this header.
-                    // If it's a truly public route, you might remove the Authorization header.
-                    'Authorization': `Bearer ${USER_AUTH_TOKEN}` 
+                    // 'Authorization': `Bearer ${USER_AUTH_TOKEN}` 
                 }
             });
 
@@ -463,8 +510,6 @@
                 const limitedCollections = collections.slice(0, 4);
                 
                 limitedCollections.forEach(collection => {
-                    // Your API now correctly includes price on the collection object, 
-                    // so the old fallback logic is no longer necessary.
                     if (collection.price !== undefined && collection.price !== null) {
                         container.innerHTML += createCollectionCard(collection);
                     }

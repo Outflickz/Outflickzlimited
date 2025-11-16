@@ -356,75 +356,93 @@
         }
 
 
-        /**
-         * Creates the HTML structure for a single collection card.
-         */
-        function createCollectionCard(collection) {
-            const defaultImage = 'https://i.imgur.com/k9XXsBU.jpeg';
+/**
+ * Creates the HTML structure for a single collection card.
+ */
+function createCollectionCard(collection) {
+    const defaultImage = 'https://i.imgur.com/k9XXsBU.jpeg';
 
-            const imageUrl = (collection.variants && collection.variants.length > 0)
-                                    ? collection.variants[0].imageUrl
-                                    : defaultImage;
+    const imageUrl = (collection.variants && collection.variants.length > 0)
+                                 ? collection.variants[0].imageUrl
+                                 : defaultImage;
 
-            const colorButtonsHtml = createColorButtons(collection._id, collection.variants);
-            const sizeDropdownHtml = createSizeDropdown(collection._id, collection.availableSizes);
-            const maxStock = collection.availableStock > 0 ? collection.availableStock : 99;
+    const colorButtonsHtml = createColorButtons(collection._id, collection.variants);
+    const sizeDropdownHtml = createSizeDropdown(collection._id, collection.availableSizes);
+    const maxStock = collection.availableStock > 0 ? collection.availableStock : 99;
 
-            return `
-                <div class="collection-card bg-white border border-gray-200 rounded-lg overflow-hidden shadow-xl hover:shadow-2xl transform hover:scale-[1.02] transition duration-300" data-collection-id="${collection._id}">
-                    <div class="relative h-48 sm:h-60"> 
-                        <img
-                            class="w-full h-full object-cover"
-                            id="collection-image-${collection._id}"
-                            src="${imageUrl}"
-                            alt="${collection.name} in ${collection.variants && collection.variants.length > 0 ? collection.variants[0].color : 'default'} color"
-                            onerror="this.onerror=null;this.src='${defaultImage}';"
-                        >
-                        <div class="absolute inset-0 bg-black bg-opacity-10"></div>
-                        <span class="absolute top-1 right-1 sm:top-2 sm:right-2 bg-ash-red text-white text-xs font-bold px-2 py-0.5 sm:px-3 sm:py-1 rounded-full uppercase"> 
-                            ${collection.availableStock > 0 ? 'In Stock' : 'Pre-Order'}
-                        </span>
+    // --- UPDATED STOCK LOGIC ---
+    let stockStatus = '';
+    let stockClass = 'bg-ash-red'; // Default to red (ash-red)
+
+    if (!collection.isActive) {
+        // Condition 1: Admin has unchecked the "Collection is Active" box
+        stockStatus = 'Out of Stock';
+    } else if (collection.availableStock > 0) {
+        // Condition 2: Active and has stock
+        stockStatus = 'In Stock';
+        stockClass = 'bg-green-600'; // Using a clear green for IN STOCK
+    } else {
+        // Condition 3: Active but no stock (e.g., Pre-Order or Out of Stock by quantity)
+        stockStatus = 'Pre-Order'; 
+        stockClass = 'bg-yellow-600'; // Using a clear yellow for Pre-Order
+    }
+    // ---------------------------
+
+    return `
+        <div class="collection-card bg-white border border-gray-200 rounded-lg overflow-hidden shadow-xl hover:shadow-2xl transform hover:scale-[1.02] transition duration-300" data-collection-id="${collection._id}">
+            <div class="relative h-48 sm:h-60"> 
+                <img
+                    class="w-full h-full object-cover"
+                    id="collection-image-${collection._id}"
+                    src="${imageUrl}"
+                    alt="${collection.name} in ${collection.variants && collection.variants.length > 0 ? collection.variants[0].color : 'default'} color"
+                    onerror="this.onerror=null;this.src='${defaultImage}';"
+                >
+                <div class="absolute inset-0 bg-black bg-opacity-10"></div>
+                <span class="absolute top-1 right-1 sm:top-2 sm:right-2 ${stockClass} text-white text-xs font-bold px-2 py-0.5 sm:px-3 sm:py-1 rounded-full uppercase"> 
+                    ${stockStatus}
+                </span>
+            </div>
+
+            <div class="p-2 sm:p-3"> 
+                <h3 class="text-sm sm:text-base font-semibold text-black truncate">${collection.name}</h3> 
+                
+                <div class="flex items-start justify-between mt-2">
+                    <div class="w-1/2 pr-1 sm:pr-2"> 
+                        <label for="size-select-${collection._id}" class="block text-xs font-medium text-gray-700 mb-1">Size:</label>
+                        ${sizeDropdownHtml}
                     </div>
-
-                    <div class="p-2 sm:p-3"> 
-                        <h3 class="text-sm sm:text-base font-semibold text-black truncate">${collection.name}</h3> 
-                        
-                        <div class="flex items-start justify-between mt-2">
-                            <div class="w-1/2 pr-1 sm:pr-2"> 
-                                <label for="size-select-${collection._id}" class="block text-xs font-medium text-gray-700 mb-1">Size:</label>
-                                ${sizeDropdownHtml}
-                            </div>
-                            <div class="w-1/2 pl-1 sm:pl-2"> 
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Color:</label>
-                                <div class="flex space-x-1 sm:space-x-1.5 mt-1"> 
-                                    ${colorButtonsHtml}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="flex items-center justify-between mt-3 sm:mt-4"> 
-                            <span class="text-base sm:text-lg font-bold text-ash-red">$${collection.price.toFixed(2)}</span> 
-                            
-                            <div class="flex items-center space-x-0.5 sm:space-x-1"> 
-                                <label class="text-xs font-medium text-gray-700 mr-1 hidden sm:block">Qty:</label>
-                                <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="text-xs sm:text-sm border border-gray-300 text-black w-6 sm:w-7 h-6 sm:h-7 rounded-sm hover:bg-gray-100 transition flex items-center justify-center">-</button> 
-                                <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock}" aria-label="Quantity" class="w-8 sm:w-10 text-center text-xs sm:text-sm border-gray-300 rounded-sm text-black p-0.5 focus:border-ash-red focus:ring-1 focus:ring-ash-red" /> 
-                                <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="text-xs sm:text-sm border border-gray-300 text-black w-6 sm:w-7 h-6 sm:h-7 rounded-sm hover:bg-gray-100 transition flex items-center justify-center">+</button> 
-                            </div>
-                        </div>
-
-                        <div class="flex space-x-1 sm:space-x-2 mt-3 sm:mt-4"> 
-                            <button class="flex-1 text-[10px] sm:text-xs bg-ash-red text-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-sm hover:bg-red-700 transition font-medium uppercase tracking-wider">
-                                Buy Now
-                            </button>
-                            <button onclick="viewItem('${collection._id}')" class="flex-1 text-[10px] sm:text-xs border border-ash-red text-ash-red px-2 py-1.5 sm:px-3 sm:py-2 rounded-sm hover:bg-ash-red hover:text-white transition font-medium uppercase tracking-wider">
-                                View Item
-                            </button>
+                    <div class="w-1/2 pl-1 sm:pl-2"> 
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Color:</label>
+                        <div class="flex space-x-1 sm:space-x-1.5 mt-1"> 
+                            ${colorButtonsHtml}
                         </div>
                     </div>
                 </div>
-            `;
-        }
+
+                <div class="flex items-center justify-between mt-3 sm:mt-4"> 
+                    <span class="text-base sm:text-lg font-bold text-ash-red">$${collection.price.toFixed(2)}</span> 
+                    
+                    <div class="flex items-center space-x-0.5 sm:space-x-1"> 
+                        <label class="text-xs font-medium text-gray-700 mr-1 hidden sm:block">Qty:</label>
+                        <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="text-xs sm:text-sm border border-gray-300 text-black w-6 sm:w-7 h-6 sm:h-7 rounded-sm hover:bg-gray-100 transition flex items-center justify-center">-</button> 
+                        <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock}" aria-label="Quantity" class="w-8 sm:w-10 text-center text-xs sm:text-sm border-gray-300 rounded-sm text-black p-0.5 focus:border-ash-red focus:ring-1 focus:ring-ash-red" /> 
+                        <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="text-xs sm:text-sm border border-gray-300 text-black w-6 sm:w-7 h-6 sm:h-7 rounded-sm hover:bg-gray-100 transition flex items-center justify-center">+</button> 
+                    </div>
+                </div>
+
+                <div class="flex space-x-1 sm:space-x-2 mt-3 sm:mt-4"> 
+                    <button class="flex-1 text-[10px] sm:text-xs bg-ash-red text-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-sm hover:bg-red-700 transition font-medium uppercase tracking-wider">
+                        Buy Now
+                    </button>
+                    <button onclick="viewItem('${collection._id}')" class="flex-1 text-[10px] sm:text-xs border border-ash-red text-ash-red px-2 py-1.5 sm:px-3 sm:py-2 rounded-sm hover:bg-ash-red hover:text-white transition font-medium uppercase tracking-wider">
+                        View Item
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+}
 
         /**
          * Fetches active WEARS collections and renders them to the main page.

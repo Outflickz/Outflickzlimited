@@ -115,10 +115,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // --- 2. Frontend Routes ---
 app.get('/', (req, res) => {
-    res.redirect('/store/homepage.html'); 
+    res.redirect('/outflickzstore/homepage.html'); 
 });
 app.get('/admin', (req, res) => {
-    res.redirect('/admin/admin-login.html');
+    res.redirect('/outflickzadmin/admin-login.html');
 });
 
 // --- 3. Authentication Middleware ---

@@ -177,12 +177,39 @@ const adminSchema = new mongoose.Schema({
     role: { type: String, default: 'admin' }
 });
 const Admin = mongoose.models.Admin || mongoose.model('Admin', adminSchema);
+// --- 1. Define the Updated Product Variation Sub-Schema (Supporting Dual Images) ---
 
 const ProductVariationSchema = new mongoose.Schema({
-    variationIndex: { type: Number, required: true, min: 1, max: 4 },
-    imageUrl: { type: String, required: true }, // Stores the permanent, private B2 URL
-    colorHex: { type: String, required: true, match: /^#([0-9A-F]{3}){1,2}$/i }
+    variationIndex: { 
+        type: Number, 
+        required: true, 
+        min: 1, 
+        max: 4 
+    },
+    
+    // --- UPDATED FOR DUAL IMAGES ---
+    frontImageUrl: { 
+        type: String, 
+        required: [true, 'Front view image URL is required'], // Stores the permanent B2 URL
+        trim: true 
+    }, 
+    backImageUrl: { 
+        type: String, 
+        required: [true, 'Back view image URL is required'], // Stores the permanent B2 URL
+        trim: true 
+    }, 
+    // --- END OF DUAL IMAGE UPDATE ---
+    
+    colorHex: { 
+        type: String, 
+        required: [true, 'Color Hex code is required'], 
+        // Standard full hex code validation
+        match: [/^#[0-9A-F]{6}$/i, 'Color must be a valid hex code (e.g., #RRGGBB)'] 
+    }
 }, { _id: false });
+
+
+// --- 2. Define the Main Wears Collection Schema ---
 
 const WearsCollectionSchema = new mongoose.Schema({
     name: {
@@ -196,11 +223,12 @@ const WearsCollectionSchema = new mongoose.Schema({
         required: [true, 'Collection tag is required'],
         enum: ['Top Deal', 'Hot Deal', 'New', 'Seasonal', 'Clearance']
     },
-   price: { // <--- UPDATED COMMENT/MESSAGE FOR NAIRA
+    price: { 
         type: Number,
         required: [true, 'Price (in NGN) is required'],
         min: [0.01, 'Price (in NGN) must be greater than zero']
     },
+    // Reference the updated ProductVariationSchema
     variations: {
         type: [ProductVariationSchema],
         required: [true, 'At least one product variation is required'],
@@ -228,8 +256,17 @@ const WearsCollectionSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now }
 });
 
+
+// --- 3. Pre-Save Middleware (Updated to sync stock and active status) ---
+
 WearsCollectionSchema.pre('save', function(next) {
     this.updatedAt = Date.now();
+    
+    // Logic to sync with frontend: If the collection is marked inactive, force stock to 0.
+    if (this.isActive === false) {
+        this.totalStock = 0;
+    }
+    
     next();
 });
 
@@ -363,10 +400,15 @@ app.get('/api/admin/dashboard/stats', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Failed to retrieve dashboard stats.' });
     }
 });
+// Assume the following are available in scope:
+// const WearsCollection = require('./models/WearsCollection'); // Mongoose Model
+// const verifyToken = require('./middleware/auth'); // Auth Middleware
+// const upload = require('./middleware/multer'); // Multer config
+// const { generateSignedUrl, uploadFileToPermanentStorage, deleteFileFromPermanentStorage } = require('./services/backblaze'); // B2 service functions
 
-// ------------------------------------------------------------------------------------------------
-// MODIFIED ROUTE: GET /api/admin/wearscollections/:id (Fetch Single Collection)
+// --- 1. MODIFIED ROUTE: GET /api/admin/wearscollections/:id (Fetch Single Collection) ---
 // Signs private image URLs before sending to client.
+// UPDATED: Signs both frontImageUrl and backImageUrl.
 // ------------------------------------------------------------------------------------------------
 
 app.get('/api/admin/wearscollections/:id', verifyToken, async (req, res) => {
@@ -380,7 +422,10 @@ app.get('/api/admin/wearscollections/:id', verifyToken, async (req, res) => {
         // --- SIGN URLS HERE ---
         const signedVariations = await Promise.all(collection.variations.map(async (v) => ({
             ...v,
-            imageUrl: await generateSignedUrl(v.imageUrl) || v.imageUrl // Replace with signed URL or keep original on failure
+            // Sign the front image URL
+            frontImageUrl: await generateSignedUrl(v.frontImageUrl) || v.frontImageUrl, 
+            // Sign the back image URL
+            backImageUrl: await generateSignedUrl(v.backImageUrl) || v.backImageUrl 
         })));
         
         collection.variations = signedVariations;
@@ -394,13 +439,20 @@ app.get('/api/admin/wearscollections/:id', verifyToken, async (req, res) => {
 });
 
 // ------------------------------------------------------------------------------------------------
-// ROUTE: POST /api/admin/wearscollections (Create New Collection) - UPDATED LOGIC FOR PRICE
+// 2. MODIFIED ROUTE: POST /api/admin/wearscollections (Create New Collection) 
+// UPDATED: Handles front-view and back-view file uploads for each variation.
 // ------------------------------------------------------------------------------------------------
+
+// Define the expected file fields dynamically (e.g., front-view-upload-1, back-view-upload-1, up to index 4)
+const uploadFields = Array.from({ length: 4 }, (_, i) => [
+    { name: `front-view-upload-${i + 1}`, maxCount: 1 },
+    { name: `back-view-upload-${i + 1}`, maxCount: 1 }
+]).flat();
 
 app.post(
     '/api/admin/wearscollections',
     verifyToken, 
-    upload.fields(Array.from({ length: 4 }, (_, i) => ({ name: `image-${i + 1}`, maxCount: 1 }))), 
+    upload.fields(uploadFields), 
     async (req, res) => {
         try {
             // --- A. Extract JSON Metadata ---
@@ -416,50 +468,54 @@ app.post(
             
             // Loop through the variations metadata from the client
             for (const variation of collectionData.variations) {
-                const fileKey = `image-${variation.variationIndex}`;
-                const uploadedFileArray = files[fileKey];
+                const index = variation.variationIndex;
+                const frontFileKey = `front-view-upload-${index}`;
+                const backFileKey = `back-view-upload-${index}`;
+                
+                const frontFileArray = files[frontFileKey];
+                const backFileArray = files[backFileKey];
 
-                if (uploadedFileArray && uploadedFileArray[0]) {
-                    const uploadedFile = uploadedFileArray[0];
+                const frontFile = frontFileArray && frontFileArray[0];
+                const backFile = backFileArray && backFileArray[0];
 
-                    // 1. Upload the file to Backblaze B2 (stores the permanent private URL)
-                    const uploadPromise = uploadFileToPermanentStorage(uploadedFile).then(imageUrl => {
-                        // 2. Create the final variation object
+                if (!frontFile || !backFile) {
+                    throw new Error(`Missing BOTH front and back image files for Variation #${index}.`);
+                }
+
+                const uploadFrontPromise = uploadFileToPermanentStorage(frontFile);
+                const uploadBackPromise = uploadFileToPermanentStorage(backFile);
+                
+                // Wait for both files for this variation to upload
+                const combinedUploadPromise = Promise.all([uploadFrontPromise, uploadBackPromise])
+                    .then(([frontImageUrl, backImageUrl]) => {
                         finalVariations.push({
                             variationIndex: variation.variationIndex,
                             colorHex: variation.colorHex,
-                            imageUrl: imageUrl, // Store the permanent, private URL
+                            frontImageUrl: frontImageUrl, // Store the permanent, private URL
+                            backImageUrl: backImageUrl,   // Store the permanent, private URL
                         });
                     });
-                    uploadPromises.push(uploadPromise);
-                } else {
-                    // This handles cases where a file is required but not present during creation.
-                    console.warn(`File missing for variation index ${variation.variationIndex}`);
-                    if (!files || !files[fileKey]) {
-                         throw new Error(`Missing image for Variation #${variation.variationIndex}.`);
-                    }
-                }
+                    
+                uploadPromises.push(combinedUploadPromise);
             }
             
             // Wait for all Backblaze B2 uploads to complete
             await Promise.all(uploadPromises);
 
             if (finalVariations.length === 0) {
-                 return res.status(400).json({ message: "No valid product images and metadata were received after upload processing." });
+                return res.status(400).json({ message: "No valid product images and metadata were received after upload processing." });
             }
 
             // --- C. Create the Final Collection Object ---
             const newCollection = new WearsCollection({
                 name: collectionData.name,
                 tag: collectionData.tag,
-                price: collectionData.price, // <--- PRICE INCLUDED
+                price: collectionData.price, 
                 sizes: collectionData.sizes,
                 totalStock: collectionData.totalStock,
+                isActive: collectionData.isActive, // Use the client's explicit isActive status
                 variations: finalVariations, 
             });
-            // Set isActive based on totalStock for creation
-            newCollection.isActive = collectionData.totalStock > 0;
-
 
             // --- D. Save to Database ---
             const savedCollection = await newCollection.save();
@@ -475,7 +531,9 @@ app.post(
             console.error('Error creating wear collection:', error); 
             // Handle Mongoose validation errors
             if (error.name === 'ValidationError') {
-                return res.status(400).json({ message: error.message, errors: error.errors }); 
+                // Better validation message extraction for client
+                const messages = Object.values(error.errors).map(err => err.message).join(', ');
+                return res.status(400).json({ message: `Validation Error: ${messages}`, errors: error.errors }); 
             }
             // Generic error
             res.status(500).json({ message: 'Server error during collection creation or file upload.', details: error.message });
@@ -484,152 +542,169 @@ app.post(
 );
 
 // ------------------------------------------------------------------------------------------------
-// 🌟 MODIFIED ROUTE: PUT /api/admin/wearscollections/:id (Handle Full Form Update OR Quick Restock JSON) - UPDATED LOGIC FOR PRICE
+// 3. MODIFIED ROUTE: PUT /api/admin/wearscollections/:id (Update Collection)
+// UPDATED: Handles new file uploads for front/back views and retains existing URLs if no new file is uploaded.
 // ------------------------------------------------------------------------------------------------
 app.put(
-    '/api/admin/wearscollections/:id',
-    verifyToken, 
-    // Use optional file parsing. If no files are sent, req.files will be {}
-    upload.fields(Array.from({ length: 4 }, (_, i) => ({ name: `image-${i + 1}`, maxCount: 1 }))), 
-    async (req, res) => {
-        const collectionId = req.params.id;
-        let existingCollection;
-        
-        try {
-            existingCollection = await WearsCollection.findById(collectionId);
-            if (!existingCollection) {
-                return res.status(404).json({ message: 'Collection not found for update.' });
-            }
+    '/api/admin/wearscollections/:id',
+    verifyToken, 
+    upload.fields(uploadFields), // Use the updated dual-image field names
+    async (req, res) => {
+        const collectionId = req.params.id;
+        let existingCollection;
+        
+        try {
+            existingCollection = await WearsCollection.findById(collectionId);
+            if (!existingCollection) {
+                return res.status(404).json({ message: 'Collection not found for update.' });
+            }
 
-            // Check if the request is a simple JSON update (Quick Restock) or a full form update (multipart/form-data).
-            const isQuickRestock = req.get('Content-Type')?.includes('application/json');
-            const hasFiles = req.files && Object.keys(req.files).length > 0;
-            
-            // --- A. HANDLE QUICK RESTOCK (Simple JSON Body, No Files/collectionData wrapper) ---
-            if (isQuickRestock && !hasFiles && !req.body.collectionData) {
-                const { totalStock, isActive } = req.body;
+            const isQuickRestock = req.get('Content-Type')?.includes('application/json');
+            
+            // --- A. HANDLE QUICK RESTOCK (Simple JSON Body, No Files/collectionData wrapper) ---
+            if (isQuickRestock && !req.body.collectionData) {
+                const { totalStock, isActive } = req.body;
 
-                if (totalStock === undefined || isActive === undefined) {
-                    return res.status(400).json({ message: "Missing 'totalStock' or 'isActive' in simple update payload." });
-                }
+                if (totalStock === undefined || isActive === undefined) {
+                    return res.status(400).json({ message: "Missing 'totalStock' or 'isActive' in simple update payload." });
+                }
+                
+                // If the user attempts to restock but sets stock <= 0, prevent it.
+                if (isActive === true && totalStock <= 0) {
+                     return res.status(400).json({ message: "Total stock must be greater than zero to activate/restock." });
+                }
 
-                if (totalStock <= 0) {
-                     return res.status(400).json({ message: "Total stock must be greater than zero for Quick Restock/Activate." });
-                }
-                
-                // Perform simple update
-                existingCollection.totalStock = totalStock;
-                // Force active state if stock is > 0, as per the quick restock requirement
-                existingCollection.isActive = true; 
+                // Perform simple update
+                existingCollection.totalStock = totalStock;
+                existingCollection.isActive = isActive; 
 
-                const updatedCollection = await existingCollection.save();
-                return res.status(200).json({ 
-                    message: `Collection quick-restocked to ${updatedCollection.totalStock} and activated.`,
-                    collectionId: updatedCollection._id
-                });
-            }
+                const updatedCollection = await existingCollection.save();
+                return res.status(200).json({ 
+                    message: `Collection quick-updated. Stock: ${updatedCollection.totalStock}, Active: ${updatedCollection.isActive}.`,
+                    collectionId: updatedCollection._id
+                });
+            }
 
-            // --- B. HANDLE FULL FORM SUBMISSION (multipart/form-data with collectionData JSON and optional Files) ---
+            // --- B. HANDLE FULL FORM SUBMISSION (multipart/form-data with collectionData JSON and optional Files) ---
 
-            if (!req.body.collectionData) {
-                return res.status(400).json({ message: "Missing collection data payload for full update." });
-            }
+            if (!req.body.collectionData) {
+                return res.status(400).json({ message: "Missing collection data payload for full update." });
+            }
 
-            const collectionData = JSON.parse(req.body.collectionData);
-            
-            const files = req.files; 
-            const updatedVariations = [];
-            const uploadPromises = [];
-            const oldImagesToDelete = [];
+            const collectionData = JSON.parse(req.body.collectionData);
+            const files = req.files; 
+            const updatedVariations = [];
+            const uploadPromises = [];
+            const oldImagesToDelete = [];
 
-            // Iterate through the variations submitted from the frontend (collectionData)
-            for (const incomingVariation of collectionData.variations) {
-                const fileKey = `image-${incomingVariation.variationIndex}`;
-                const uploadedFileArray = files[fileKey];
-                
-                // Find the existing permanent URL for this variation (using the permanent URL stored in DB)
-                const existingPermanentVariation = existingCollection.variations.find(v => v.variationIndex === incomingVariation.variationIndex);
-                
-                let newImageUrl = existingPermanentVariation?.imageUrl || null; // Start with the DB's permanent URL
+            // Iterate through the variations submitted from the frontend (collectionData)
+            for (const incomingVariation of collectionData.variations) {
+                const index = incomingVariation.variationIndex;
+                const existingPermanentVariation = existingCollection.variations.find(v => v.variationIndex === index);
 
-                if (uploadedFileArray && uploadedFileArray[0]) {
-                    // 1. New file uploaded: Schedule upload and mark old permanent URL for deletion
-                    const uploadedFile = uploadedFileArray[0];
-                    if (existingPermanentVariation && existingPermanentVariation.imageUrl) {
-                        oldImagesToDelete.push(existingPermanentVariation.imageUrl);
-                    }
-                    
-                    const uploadPromise = uploadFileToPermanentStorage(uploadedFile).then(imageUrl => {
-                        // Note: Directly modifying newImageUrl here won't work reliably inside the loop.
-                        // The promise chain must push the final result to updatedVariations.
-                        updatedVariations.push({
-                            variationIndex: incomingVariation.variationIndex,
-                            colorHex: incomingVariation.colorHex,
-                            imageUrl: imageUrl, // Store the NEW permanent URL
-                        });
-                    });
-                    uploadPromises.push(uploadPromise);
-                } else {
-                    // 2. No new file: Use the existing permanent URL found in the database
-                    
-                    // CRITICAL FIX: Use the permanent URL from the DB. 
-                    // The incomingVariation.imageUrl from the client is the temporary Signed URL.
-                    let permanentImageUrlToKeep = existingPermanentVariation?.imageUrl || null;
-                    
-                    if (permanentImageUrlToKeep) {
-                        updatedVariations.push({
-                            variationIndex: incomingVariation.variationIndex,
-                            colorHex: incomingVariation.colorHex,
-                            imageUrl: permanentImageUrlToKeep, // Use the permanent URL
-                        });
-                    }
-                }
-            }
-            
-            // Wait for all Backblaze B2 uploads to complete. 
-            // NOTE: This will only wait for upload promises if any files were uploaded.
-            await Promise.all(uploadPromises);
+                // Initialize with existing permanent URLs from DB
+                let finalFrontUrl = existingPermanentVariation?.frontImageUrl || null;
+                let finalBackUrl = existingPermanentVariation?.backImageUrl || null;
 
-            if (updatedVariations.length === 0) {
-                // This means no files were uploaded AND no existing permanent variations were found.
-                 return res.status(400).json({ message: "No valid variations were processed for update. Check if images were present and successfully carried over." });
-            }
-            
-            // --- Update the Document Fields ---
-            existingCollection.name = collectionData.name;
-            existingCollection.tag = collectionData.tag;
-            existingCollection.price = collectionData.price; // <--- PRICE INCLUDED
-            existingCollection.sizes = collectionData.sizes;
-            existingCollection.totalStock = collectionData.totalStock;
-            existingCollection.variations = updatedVariations;
-            // Only update isActive if explicitly sent (otherwise it stays whatever the stock/manual value is)
-            existingCollection.isActive = collectionData.isActive !== undefined ? collectionData.isActive : existingCollection.isActive;
-            
-            // --- Save to Database ---
-            const updatedCollection = await existingCollection.save();
+                // --- Process FRONT Image ---
+                const frontFileKey = `front-view-upload-${index}`;
+                const frontFileArray = files[frontFileKey];
+                const newFrontFile = frontFileArray && frontFileArray[0];
 
-            // --- Delete old images in the background (fire and forget) ---
-            oldImagesToDelete.forEach(url => deleteFileFromPermanentStorage(url));
+                if (newFrontFile) {
+                    // New file uploaded: Schedule upload and mark old URL for deletion
+                    if (existingPermanentVariation?.frontImageUrl) {
+                        oldImagesToDelete.push(existingPermanentVariation.frontImageUrl);
+                    }
+                    const frontUploadPromise = uploadFileToPermanentStorage(newFrontFile).then(url => {
+                        finalFrontUrl = url;
+                    });
+                    uploadPromises.push(frontUploadPromise);
+                } else if (!finalFrontUrl) {
+                    // Critical: No new file, and no existing URL (shouldn't happen on update if created correctly)
+                    throw new Error(`Front image missing for Variation #${index} and no existing image found.`);
+                }
+                
+                // --- Process BACK Image ---
+                const backFileKey = `back-view-upload-${index}`;
+                const backFileArray = files[backFileKey];
+                const newBackFile = backFileArray && backFileArray[0];
 
-            // Success Response
-            res.status(200).json({ 
-                message: 'Wears Collection updated and images handled successfully.',
-                collectionId: updatedCollection._id,
-                name: updatedCollection.name
-            });
+                if (newBackFile) {
+                    // New file uploaded: Schedule upload and mark old URL for deletion
+                    if (existingPermanentVariation?.backImageUrl) {
+                        oldImagesToDelete.push(existingPermanentVariation.backImageUrl);
+                    }
+                    const backUploadPromise = uploadFileToPermanentStorage(newBackFile).then(url => {
+                        finalBackUrl = url;
+                    });
+                    uploadPromises.push(backUploadPromise);
+                } else if (!finalBackUrl) {
+                    // Critical: No new file, and no existing URL
+                    throw new Error(`Back image missing for Variation #${index} and no existing image found.`);
+                }
+                
+                // After upload promises resolve (in Promise.all below), the `final*Url` variables will hold the correct values.
+                // For now, prepare the structure to be built after waiting for uploads.
+                updatedVariations.push({
+                    variationIndex: index,
+                    colorHex: incomingVariation.colorHex,
+                    // Use the permanent URLs (either existing or new after upload)
+                    get frontImageUrl() { return finalFrontUrl; }, 
+                    get backImageUrl() { return finalBackUrl; }, 
+                });
+            }
+            
+            // Wait for all Backblaze B2 uploads to complete.
+            await Promise.all(uploadPromises);
 
-        } catch (error) {
-            console.error('Error updating wear collection:', error); 
-            if (error.name === 'ValidationError') {
-                return res.status(400).json({ message: error.message, errors: error.errors }); 
-            }
-            res.status(500).json({ message: 'Server error during collection update or file upload.', details: error.message });
-        }
-    }
+            if (updatedVariations.length === 0) {
+                return res.status(400).json({ message: "No valid variations were processed for update." });
+            }
+            
+            // --- Update the Document Fields ---
+            existingCollection.name = collectionData.name;
+            existingCollection.tag = collectionData.tag;
+            existingCollection.price = collectionData.price;
+            existingCollection.sizes = collectionData.sizes;
+            existingCollection.totalStock = collectionData.totalStock;
+            existingCollection.isActive = collectionData.isActive;
+            
+            // Map final variations without the getters before saving
+            existingCollection.variations = updatedVariations.map(v => ({
+                 variationIndex: v.variationIndex,
+                 colorHex: v.colorHex,
+                 frontImageUrl: v.frontImageUrl, 
+                 backImageUrl: v.backImageUrl, 
+            }));
+            
+            // --- Save to Database ---
+            const updatedCollection = await existingCollection.save();
+
+            // --- Delete old images in the background (fire and forget) ---
+            oldImagesToDelete.forEach(url => deleteFileFromPermanentStorage(url));
+
+            // Success Response
+            res.status(200).json({ 
+                message: 'Wears Collection updated and images handled successfully.',
+                collectionId: updatedCollection._id,
+                name: updatedCollection.name
+            });
+
+        } catch (error) {
+            console.error('Error updating wear collection:', error); 
+            if (error.name === 'ValidationError') {
+                const messages = Object.values(error.errors).map(err => err.message).join(', ');
+                return res.status(400).json({ message: `Validation Error: ${messages}`, errors: error.errors }); 
+            }
+            res.status(500).json({ message: 'Server error during collection update or file upload.', details: error.message });
+        }
+    }
 );
 
 // ------------------------------------------------------------------------------------------------
-// ROUTE: DELETE /api/admin/wearscollections/:id (Delete Collection) - Unchanged Logic
+// 4. MODIFIED ROUTE: DELETE /api/admin/wearscollections/:id (Delete Collection) 
+// UPDATED: Deletes both frontImageUrl and backImageUrl.
 // ------------------------------------------------------------------------------------------------
 app.delete('/api/admin/wearscollections/:id', verifyToken, async (req, res) => {
     try {
@@ -642,7 +717,8 @@ app.delete('/api/admin/wearscollections/:id', verifyToken, async (req, res) => {
 
         // Delete associated images from Backblaze B2 (fire and forget)
         deletedCollection.variations.forEach(v => {
-            deleteFileFromPermanentStorage(v.imageUrl);
+            if (v.frontImageUrl) deleteFileFromPermanentStorage(v.frontImageUrl);
+            if (v.backImageUrl) deleteFileFromPermanentStorage(v.backImageUrl);
         });
 
         res.status(200).json({ message: `Collection ${collectionId} and associated images deleted successfully.` });
@@ -654,17 +730,17 @@ app.delete('/api/admin/wearscollections/:id', verifyToken, async (req, res) => {
 
 
 // ------------------------------------------------------------------------------------------------
-// MODIFIED ROUTE: GET /api/admin/wearscollections (Fetch All Collections) - UPDATED LOGIC FOR PRICE
-// Signs private image URLs before sending to client.
+// 5. MODIFIED ROUTE: GET /api/admin/wearscollections (Fetch All Collections) 
+// UPDATED: Signs both frontImageUrl and backImageUrl for each variation in the list.
 // ------------------------------------------------------------------------------------------------
 app.get(
     '/api/admin/wearscollections',
     verifyToken,
     async (req, res) => {
         try {
-            // Fetch all collections, ensuring 'price' is selected
+            // Fetch all collections
             const collections = await WearsCollection.find({})
-                .select('_id name tag price variations totalStock isActive') // <--- PRICE INCLUDED
+                .select('_id name tag price variations totalStock isActive')
                 .sort({ createdAt: -1 })
                 .lean(); 
 
@@ -672,7 +748,9 @@ app.get(
             const signedCollections = await Promise.all(collections.map(async (collection) => {
                 const signedVariations = await Promise.all(collection.variations.map(async (v) => ({
                     ...v,
-                    imageUrl: await generateSignedUrl(v.imageUrl) || v.imageUrl // Sign each image URL
+                    // Sign both image URLs
+                    frontImageUrl: await generateSignedUrl(v.frontImageUrl) || v.frontImageUrl,
+                    backImageUrl: await generateSignedUrl(v.backImageUrl) || v.backImageUrl
                 })));
                 return {
                     ...collection,
@@ -685,38 +763,41 @@ app.get(
             res.status(200).json(signedCollections);
         } catch (error) {
             console.error('Error fetching wear collections:', error);
-            // Ensure server always returns JSON on errors
             res.status(500).json({ message: 'Server error while fetching collections.', details: error.message });
         }
     }
 );
-
 // ------------------------------------------------------------------------------------------------
-// 🌟 NEW PUBLIC ROUTE: GET /api/collections/wears (For Homepage Display) - UPDATED LOGIC FOR PRICE
-// Fetches active collections, signs URLs, and sends simplified data.
+// MODIFIED PUBLIC ROUTE: GET /api/collections/wears (For Homepage Display)
+// Fetches active collections, signs BOTH front and back image URLs, and sends simplified data.
 // ------------------------------------------------------------------------------------------------
 app.get('/api/collections/wears', async (req, res) => {
     try {
         // 1. Fetch only ACTIVE collections that have stock, ensuring 'price' is selected
         const collections = await WearsCollection.find({ isActive: true, totalStock: { $gt: 0 } })
-            .select('_id name tag price variations sizes totalStock') // <--- PRICE INCLUDED
+            .select('_id name tag price variations sizes totalStock') 
             .sort({ createdAt: -1 })
             .lean(); 
 
         // 2. Prepare the data for the public frontend
         const publicCollections = await Promise.all(collections.map(async (collection) => {
+            
             // Map Mongoose variation to a simpler public variant object
             const variants = await Promise.all(collection.variations.map(async (v) => ({
                 color: v.colorHex,
-                // CRITICAL: Sign the permanent image URL for temporary public access
-                imageUrl: await generateSignedUrl(v.imageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Image+Error' 
+                
+                // CRITICAL UPDATE: Sign the permanent URL for the front view
+                frontImageUrl: await generateSignedUrl(v.frontImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Front+View+Error',
+                
+                // CRITICAL UPDATE: Sign the permanent URL for the back view
+                backImageUrl: await generateSignedUrl(v.backImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Back+View+Error'
             })));
 
             return {
                 _id: collection._id,
                 name: collection.name,
                 tag: collection.tag,
-                price: collection.price, // <--- PRICE INCLUDED (No longer placeholder)
+                price: collection.price, 
                 availableSizes: collection.sizes,
                 availableStock: collection.totalStock,
                 variants: variants
@@ -730,7 +811,6 @@ app.get('/api/collections/wears', async (req, res) => {
     }
 });
 // ------------------------------------------------------------------------------------------------
-
 
 // --- NETLIFY EXPORTS for api.js wrapper ---
 module.exports = {

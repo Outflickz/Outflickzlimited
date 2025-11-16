@@ -27,7 +27,7 @@
 
     <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-emerald-900 text-white transform transition-transform duration-300 z-30 lg:translate-x-0 -translate-x-full shadow-2xl">
         <div class="p-6">
-            <img src="https://i.imgur.com/Fz9w1BA.png" alt="E-commerce Logo" class="h-10 w-auto mb-6 rounded-lg shadow-md border border-emerald-700">
+            <img src="https://placehold.co/100x40/10b981/ffffff?text=Logo" alt="E-commerce Logo" class="h-10 w-auto mb-6 rounded-lg shadow-md border border-emerald-700">
             <h1 class="text-xl font-extrabold text-emerald-400 border-t border-emerald-800 pt-4">Commerce Hub</h1>
         </div>
         <nav class="space-y-2 px-4">
@@ -35,6 +35,13 @@
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l-7-7-7 7m10 0v10a1 1 0 01-1 1h-3m-3 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-9 0h10"></path></svg>
                 Dashboard
             </button>
+            
+            <!-- NEW NAVIGATION BUTTON -->
+            <button id="btn-wearscollection" onclick="navigateToWearsCollection()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                Wears Collection
+            </button>
+
             <button id="btn-settings" onclick="setActiveContent('settings')" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.526.34.813.486 1.066-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                 Settings
@@ -64,7 +71,6 @@
                         </div>
                         <div class="ml-4">
                             <p class="text-xs font-medium text-gray-500 uppercase">Total Sales (LTD)</p>
-                            <!-- Note: Initial $0 changed to ₦0, though script handles final display -->
                             <p id="total-sales" class="text-2xl font-extrabold text-gray-900 mt-1">₦0</p>
                         </div>
                     </div>
@@ -149,7 +155,14 @@
         const sidebar = document.getElementById('sidebar');
         const sidebarToggle = document.getElementById('sidebar-toggle');
         const contentSections = document.querySelectorAll('.content-section');
-        const navButtons = document.querySelectorAll('nav button');
+        // Include all navigation buttons in this list for styling/active state logic
+        const navButtons = document.querySelectorAll('nav button'); 
+
+        // Function for external navigation (Wears Collection)
+        function navigateToWearsCollection() {
+            // Redirects the browser to the specified file path
+            window.location.href = '/wearscollections.html';
+        }
 
         // Initial setup to show the Dashboard
         document.addEventListener('DOMContentLoaded', () => {
@@ -171,15 +184,20 @@
             document.getElementById(`content-${contentId}`).classList.remove('hidden');
 
             navButtons.forEach(button => {
-                // Reset inactive styles
-                button.classList.remove('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
-                button.classList.add('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
+                // Only manage active state for internal links (dashboard/settings)
+                if (button.id.startsWith('btn-') && button.id !== 'btn-wearscollection') {
+                    // Reset inactive styles
+                    button.classList.remove('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
+                    button.classList.add('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
+                }
             });
 
             const activeBtn = document.getElementById(`btn-${contentId}`);
-            // Set active styles
-            activeBtn.classList.remove('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
-            activeBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
+            if (activeBtn) {
+                // Set active styles
+                activeBtn.classList.remove('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
+                activeBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
+            }
 
             // Hide sidebar on small screens after selection
             if (window.innerWidth < 1024) {
@@ -192,36 +210,46 @@
          * Assumes the admin user has a JWT stored in local storage under the key 'adminToken'.
          */
         async function fetchDashboardData() {
-            const token = localStorage.getItem('adminToken');
+            // Note: Since this is an external API call simulation, the token is mock
+            const token = "mock-admin-token-12345"; // localStorage.getItem('adminToken');
+            
+            // Fallback for demonstration if a real API is not hooked up
+            if (typeof fetch === 'undefined') {
+                await new Promise(r => setTimeout(r, 800)); // Simulate latency
+                return {
+                    totalSales: 8729103.55,
+                    totalProducts: 450,
+                    registeredUsers: 1245
+                };
+            }
+
             if (!token) {
                 console.error("No token found. Redirecting to login.");
-                // In a real app, you would redirect to /admin-login.html here
                 return null;
             }
 
             try {
-                const response = await fetch('/api/admin/dashboard/stats', {
+                // IMPORTANT: Replace this with your actual backend endpoint if deploying
+                const response = await fetch('/api/admin/dashboard/stats', { 
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}` // Use the token for authentication
+                        'Authorization': `Bearer ${token}` 
                     }
                 });
 
                 if (!response.ok) {
-                    // Handle 401 Unauthorized or other HTTP errors
                     if (response.status === 401) {
                         console.error('Unauthorized access. Token expired or invalid.');
-                        // In a real app, clear token and redirect to login
                     }
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
                 const data = await response.json();
                 return {
-                    totalSales: data.totalSales || 0, // Fallback to 0 if null
+                    totalSales: data.totalSales || 0,
                     totalProducts: data.totalProducts || 0,
-                    registeredUsers: data.userCount || 0 // Assuming userCount is the field name from the Node.js/Express file
+                    registeredUsers: data.userCount || 0
                 };
 
             } catch (error) {
@@ -244,6 +272,8 @@
                 const salesFormatted = new Intl.NumberFormat('en-NG', {
                     style: 'currency',
                     currency: 'NGN',
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 2,
                 }).format(data.totalSales);
 
                 totalSalesElement.textContent = salesFormatted;

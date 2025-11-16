@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wears Collection Management - Commerce Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #34d399; /* emerald-400 */
+            border-radius: 4px;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem; /* Slightly reduced base font size */
+        }
+        /* Custom styles for the color input preview */
+        .color-preview {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid #e5e7eb; /* gray-200 */
+            transition: all 0.2s;
+        }
+        .color-preview:hover {
+            border-color: #059669; /* emerald-600 */
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex">
+
+    <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-emerald-900 text-white transform transition-transform duration-300 z-30 lg:translate-x-0 -translate-x-full shadow-2xl">
+        <div class="p-6">
+            <img src="https://i.imgur.com/Fz9w1BA.png" alt="E-commerce Logo" class="h-10 w-auto mb-6 rounded-lg shadow-md border border-emerald-700">
+            <h1 class="text-xl font-extrabold text-emerald-400 border-t border-emerald-800 pt-4">Commerce Hub</h1>
+        </div>
+        <nav class="space-y-2 px-4">
+            <a href="index.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l-7-7-7 7m10 0v10a1 1 0 01-1 1h-3m-3 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-9 0h10"></path></svg>
+                Dashboard
+            </a>
+            
+            <a href="wearscollection.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-emerald-600 hover:bg-emerald-700 active-link">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14v12a2 2 0 01-2 2H7a2 2 0 01-2-2V9z"></path></svg>
+                Wears Collection
+            </a>
+
+            <a href="settings.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.526.34.813.486 1.066-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                Settings
+            </a>
+        </nav>
+    </aside>
+    <main class="flex-1 lg:ml-64 p-4 transition-all duration-300">
+        <button id="sidebar-toggle" class="lg:hidden fixed top-4 left-4 z-40 p-2 bg-emerald-600 text-white rounded-lg shadow-lg hover:bg-emerald-700 transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        </button>
+        <section id="content-wearscollection" class="content-section p-6 pt-16 lg:pt-6">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6">🛍️ Create New Wears Collection</h2>
+            
+            <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-emerald-500">
+                <form id="wears-collection-form" onsubmit="handleCollectionSubmit(event)">
+                    
+                    <h3 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">Collection Details</h3>
+                    
+                    <div class="space-y-4 mb-8">
+                        <div>
+                            <label for="collection-name" class="block text-sm font-medium text-gray-700">Collection Name</label>
+                            <input type="text" id="collection-name" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
+                        </div>
+                        
+                        <div>
+                            <label for="collection-description" class="block text-sm font-medium text-gray-700">Description/Tag</label>
+                            <select id="collection-description" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
+                                <option value="" disabled selected>Select a collection tag</option>
+                                <option value="Top Deal">Top Deal</option>
+                                <option value="Hot Deal">Hot Deal</option>
+                                <option value="New">New</option>
+                                <option value="Seasonal">Seasonal</option>
+                                <option value="Clearance">Clearance</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <h3 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">Product Variations (Max 4)</h3>
+                    <p class="text-sm text-gray-500 mb-6">Define the four available product options (e.g., different styles or images) for this collection.</p>
+
+                    <div id="product-sections" class="space-y-6">
+                        </div>
+
+                    <button type="button" id="add-section-btn" class="mt-4 px-4 py-2 text-sm font-medium rounded-lg text-emerald-600 border border-emerald-600 hover:bg-emerald-50 transition duration-200">
+                        + Add Product Variation
+                    </button>
+                    
+                    <hr class="my-8 border-gray-200">
+
+                    <h3 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">Global Attributes</h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <div>
+                            <label for="available-sizes" class="block text-sm font-medium text-gray-700">Available Sizes (Comma Separated)</label>
+                            <input type="text" id="available-sizes" placeholder="S, M, L, XL, XXL" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
+                            <p class="mt-1 text-xs text-gray-500">E.g., S, M, L, XL or 32, 34, 36</p>
+                        </div>
+
+                        <div>
+                            <label for="available-stock" class="block text-sm font-medium text-gray-700">Total Available Stock Number</label>
+                            <input type="number" id="available-stock" min="1" value="100" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
+                            <p class="mt-1 text-xs text-gray-500">This is the total stock quantity for the entire collection.</p>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="submit-btn" class="w-full py-3 px-4 bg-emerald-600 text-white font-semibold text-lg rounded-lg shadow-md hover:bg-emerald-700 transition duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">
+                        Submit Collection for Review
+                    </button>
+                    
+                </form>
+            </div>
+
+        </section>
+        </main>
+
+    <script>
+        // --- JAVASCRIPT LOGIC ---
+
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const productSectionsContainer = document.getElementById('product-sections');
+        const addSectionBtn = document.getElementById('add-section-btn');
+        const submitBtn = document.getElementById('submit-btn');
+        let sectionCount = 0; // Initialize section counter
+
+        // Initialize the page on load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Add the initial product section
+            addProductSection();
+            
+            // Toggle sidebar visibility on mobile
+            sidebarToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('-translate-x-full');
+            });
+
+            // Add new section button listener
+            addSectionBtn.addEventListener('click', () => {
+                if (sectionCount < 4) {
+                    addProductSection();
+                } else {
+                    alert('You can only add a maximum of 4 product variations per collection.');
+                }
+            });
+        });
+
+        // Function to create a product section HTML structure
+        function createProductSection(index) {
+            const sectionNumber = index + 1;
+            const uniqueId = `section-${sectionNumber}`;
+            
+            // IMPORTANT: The input file name is changed to include '[]' to signal an array to the backend
+            return `
+                <div id="${uniqueId}" class="p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-inner relative">
+                    <h4 class="text-md font-bold text-gray-600 mb-3 flex justify-between items-center">
+                        Product Variation #${sectionNumber}
+                        ${sectionNumber > 1 ? `<button type="button" onclick="removeProductSection('${uniqueId}')" class="text-red-500 hover:text-red-700 transition duration-150 text-sm">Remove</button>` : ''}
+                    </h4>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="image-upload-${sectionNumber}" class="block text-sm font-medium text-gray-700">Upload Wears Image</label>
+                            <input type="file" name="images" id="image-upload-${sectionNumber}" accept="image/*" required class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
+                        </div>
+                        
+                        <div>
+                            <label for="color-input-${sectionNumber}" class="block text-sm font-medium text-gray-700">Color Input</label>
+                            <div class="flex items-center mt-1">
+                                <input type="color" id="color-input-${sectionNumber}" value="#10B981" required 
+                                       class="p-0 h-10 w-10 block rounded-full border-2 border-gray-300 cursor-pointer"
+                                       oninput="updateColorPreview(this.value, 'color-preview-${sectionNumber}')">
+                                <div id="color-preview-${sectionNumber}" class="color-preview ml-3 bg-emerald-600" style="background-color: #10B981;"></div>
+                                <span class="ml-3 text-sm text-gray-500">Pick a color</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Function to add a product section
+        function addProductSection() {
+            if (sectionCount < 4) {
+                const newSection = document.createElement('div');
+                // The new section's index is sectionCount
+                newSection.innerHTML = createProductSection(sectionCount).trim(); 
+                productSectionsContainer.appendChild(newSection.firstChild);
+                sectionCount++;
+                
+                // Disable button if max is reached
+                if (sectionCount >= 4) {
+                    addSectionBtn.disabled = true;
+                    addSectionBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                }
+            }
+        }
+        
+        // Function to remove a product section
+        function removeProductSection(id) {
+            const sectionToRemove = document.getElementById(id);
+            if (sectionToRemove) {
+                sectionToRemove.remove();
+                sectionCount--;
+                
+                // Re-enable button if it was disabled
+                if (sectionCount < 4) {
+                    addSectionBtn.disabled = false;
+                    addSectionBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+                // NOTE: In a professional app, you'd re-index the IDs here.
+            }
+        }
+        
+        // Function to update the color circle preview
+        function updateColorPreview(colorValue, previewId) {
+            document.getElementById(previewId).style.backgroundColor = colorValue;
+        }
+
+        /**
+         * Handles the form submission, prepares data for the backend, and sends the authenticated request.
+         */
+        async function handleCollectionSubmit(event) {
+            event.preventDefault();
+            
+            // Disable button and show loading state
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting...';
+            submitBtn.classList.remove('hover:bg-emerald-700');
+            submitBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+
+            const token = localStorage.getItem('adminToken');
+            if (!token) {
+                alert("Authentication required. Please log in.");
+                submitBtn.disabled = false;
+                // Redirect to login page in a real app
+                return;
+            }
+
+            // --- 1. Collect Variations and Files ---
+            const formData = new FormData();
+            let productVariationsMetadata = [];
+            let isValid = true;
+
+            // Iterate through the current sections (using the container's children)
+            Array.from(productSectionsContainer.children).forEach((section, index) => {
+                const sectionNumber = index + 1;
+                const imageInput = section.querySelector(`#image-upload-${sectionNumber}`);
+                const colorInput = section.querySelector(`#color-input-${sectionNumber}`);
+
+                if (imageInput && colorInput) {
+                    const imageFile = imageInput.files[0];
+                    const color = colorInput.value;
+
+                    if (imageFile) {
+                        // Append the image file to FormData with a unique key
+                        formData.append(`image-${sectionNumber}`, imageFile); 
+                    } else {
+                        alert(`Image for Variation #${sectionNumber} is missing.`);
+                        isValid = false;
+                    }
+
+                    // Store metadata for this variation
+                    productVariationsMetadata.push({
+                        variationIndex: sectionNumber,
+                        colorHex: color,
+                        // The backend will generate the imageUrl using the file uploaded above
+                    });
+                }
+            });
+
+            if (!isValid) {
+                // Re-enable button on error
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Collection for Review';
+                submitBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                submitBtn.classList.add('hover:bg-emerald-700');
+                return;
+            }
+
+            // --- 2. Collect General Form Data ---
+            const collectionData = {
+                name: document.getElementById('collection-name').value,
+                tag: document.getElementById('collection-description').value,
+                // Split, trim, convert to uppercase, and filter out empty strings
+                sizes: document.getElementById('available-sizes').value.split(',').map(s => s.trim().toUpperCase()).filter(s => s),
+                totalStock: parseInt(document.getElementById('available-stock').value),
+                variations: productVariationsMetadata // Attach the structured variation metadata
+            };
+
+            // --- 3. Append JSON Data to FormData ---
+            // The backend (Node.js/Express with Multer) must be configured to parse this JSON string.
+            formData.append('collectionData', JSON.stringify(collectionData));
+
+            // --- 4. Send the Data to the Backend ---
+            try {
+        const response = await fetch('/api/admin/wearscollections', {
+                        method: 'POST',
+                    headers: { 
+                        // IMPORTANT: DO NOT set 'Content-Type': 'application/json' when sending FormData with files.
+                        // The browser sets the correct 'Content-Type': 'multipart/form-data' automatically.
+                        'Authorization': `Bearer ${token}` 
+                    },
+                    body: formData // Send the FormData object
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                
+                alert(`✅ Collection submitted successfully! ID: ${result.collectionId || 'N/A'}`);
+                document.getElementById('wears-collection-form').reset();
+                sectionCount = 0; // Reset count
+                productSectionsContainer.innerHTML = ''; // Clear existing sections
+                addProductSection(); // Add back the initial section
+
+            } catch (error) {
+                console.error('Submission failed:', error);
+                alert(`❌ Error submitting collection: ${error.message}`);
+            } finally {
+                // Re-enable button and reset text
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Collection for Review';
+                submitBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                submitBtn.classList.add('hover:bg-emerald-700');
+            }
+        }
+    </script>
+</body>
+</html>

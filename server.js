@@ -437,7 +437,6 @@ app.get('/api/admin/wearscollections/:id', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Server error fetching collection.' });
     }
 });
-
 // ------------------------------------------------------------------------------------------------
 // 2. MODIFIED ROUTE: POST /api/admin/wearscollections (Create New Collection) 
 // UPDATED: Handles front-view and back-view file uploads for each variation.
@@ -492,7 +491,7 @@ app.post(
                             variationIndex: variation.variationIndex,
                             colorHex: variation.colorHex,
                             frontImageUrl: frontImageUrl, // Store the permanent, private URL
-                            backImageUrl: backImageUrl,   // Store the permanent, private URL
+                            backImageUrl: backImageUrl,   // Store the permanent, private URL
                         });
                     });
                     
@@ -543,7 +542,7 @@ app.post(
 
 // ------------------------------------------------------------------------------------------------
 // 3. MODIFIED ROUTE: PUT /api/admin/wearscollections/:id (Update Collection)
-// UPDATED: Handles new file uploads for front/back views and retains existing URLs if no new file is uploaded.
+// UPDATED: Removed stock validation in quick restock to allow 'isActive: true' with 'totalStock: 0'.
 // ------------------------------------------------------------------------------------------------
 app.put(
     '/api/admin/wearscollections/:id',
@@ -569,10 +568,16 @@ app.put(
                     return res.status(400).json({ message: "Missing 'totalStock' or 'isActive' in simple update payload." });
                 }
                 
-                // If the user attempts to restock but sets stock <= 0, prevent it.
-                if (isActive === true && totalStock <= 0) {
-                     return res.status(400).json({ message: "Total stock must be greater than zero to activate/restock." });
-                }
+                // --- MODIFICATION START ---
+                // We are removing the validation that required totalStock > 0 to set isActive: true.
+                // This allows the admin to keep an item active (visible) even with 0 stock, 
+                // enabling the frontend to display the "Out of Stock" label.
+                
+                // Original commented out validation:
+                // if (isActive === true && totalStock <= 0) {
+                //      return res.status(400).json({ message: "Total stock must be greater than zero to activate/restock." });
+                // }
+                // --- MODIFICATION END ---
 
                 // Perform simple update
                 existingCollection.totalStock = totalStock;
@@ -672,10 +677,10 @@ app.put(
             
             // Map final variations without the getters before saving
             existingCollection.variations = updatedVariations.map(v => ({
-                 variationIndex: v.variationIndex,
-                 colorHex: v.colorHex,
-                 frontImageUrl: v.frontImageUrl, 
-                 backImageUrl: v.backImageUrl, 
+                variationIndex: v.variationIndex,
+                colorHex: v.colorHex,
+                frontImageUrl: v.frontImageUrl, 
+                backImageUrl: v.backImageUrl, 
             }));
             
             // --- Save to Database ---
@@ -727,7 +732,6 @@ app.delete('/api/admin/wearscollections/:id', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Server error during collection deletion.' });
     }
 });
-
 
 // ------------------------------------------------------------------------------------------------
 // 5. MODIFIED ROUTE: GET /api/admin/wearscollections (Fetch All Collections) 

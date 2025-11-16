@@ -98,6 +98,29 @@
             border-width: 2px; /* Thicker border for selected state */
             border-color: #a80000; /* ash-red */
         }
+
+        /* --- NEW MOBILE SLIDER STYLE FOR COLLECTIONS --- */
+        /* Only apply flex/scroll to the grid container on screens smaller than md (768px) */
+        @media (max-width: 767px) {
+            #wears-collections-grid {
+                display: flex;
+                overflow-x: scroll;
+                scroll-snap-type: x mandatory;
+                padding-bottom: 1rem; /* Space for shadow/scroll bar */
+            }
+            #wears-collections-grid .collection-card {
+                flex-shrink: 0; /* Cards won't shrink */
+                width: 70vw; /* Card width on mobile */
+                max-width: 300px; /* Optional max width */
+                scroll-snap-align: start;
+                margin-right: 1rem;
+            }
+            /* Remove the gap utility from Tailwind's grid class in this context */
+            #wears-collections-grid > div:last-child {
+                margin-right: 0;
+            }
+        }
+        /* --- END NEW MOBILE SLIDER STYLE --- */
     </style>
     <script>
     // Customizing Tailwind colors to match the theme
@@ -470,7 +493,7 @@
     <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
             <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
-                <img src="https://i.imgur.com/2ru3bcA.jpeg" alt="Outflickz Logo" class="w-auto h-12 sm:h-10 lg:h-12">
+                <img src="https://i.imgur.com/2ru3bcA.jpeg" alt="Outflickz Logo" class="w-auto h-12 sm:h-14 lg:h-12">
             </a>
 
             <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">

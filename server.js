@@ -163,7 +163,7 @@ async function deleteFileFromPermanentStorage(fileUrl) {
 
 
 // --- CONFIGURATION ---
-const MONGO_URI = process.env.MONGO_URI
+const MONGODB_URI = process.env.MONGODB_URI
 const JWT_SECRET = process.env.JWT_SECRET
 const BCRYPT_SALT_ROUNDS = 10;
 

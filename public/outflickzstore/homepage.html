@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outflickz</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Load Inter (main font) and Playfair Display (for "ROULETTE") */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+
+        /* Custom style for the large, stylized 'OUTFLICKZ' text */
+        .roulette-text {
+            font-family: 'Playfair Display', serif;
+            font-weight: 900;
+            line-height: 0.8;
+            letter-spacing: -0.05em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            word-break: break-word;
+        }
+
+        /* Using Inter as the main font */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* --- RESPONSIVE SLIDER STYLES --- */
+        /* Container for the sliding images */
+        .hero-bg-slider-container {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden; 
+        }
+
+        /* Styles for the individual image cells */
+        .slider-cell {
+            width: 100%; /* Default to 100% width on mobile (one per slide) */
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            opacity: 0; /* Hidden by default */
+            transition: opacity 1.5s ease-in-out; 
+            position: absolute; /* Absolute positioning to layer images for fading */
+            inset: 0;
+        }
+        
+        /* Mobile: Only the first cell is ever visible, covering 100% of the area */
+        .slider-cell-1 {
+            display: block;
+            z-index: 10;
+        }
+        
+        /* Desktop: The second cell is also displayed side-by-side */
+        @media (min-width: 768px) {
+            .slider-cell {
+                width: 50%; /* Half width for side-by-side */
+                height: 100%;
+            }
+
+            .slider-cell-1 {
+                left: 0;
+            }
+
+            .slider-cell-2 {
+                display: block; /* Show the second cell */
+                left: 50%;
+                z-index: 10;
+            }
+        }
+
+        /* Active class to show the image */
+        .slider-cell.active {
+            opacity: 1;
+        }
+
+        /* Overlay style for content visibility */
+        .image-overlay {
+            background-color: rgba(0, 0, 0, 0.4); /* Darker overlay for text legibility */
+        }
+        /* --- END SLIDER STYLES --- */
+    </style>
+    <script>
+        // Customizing Tailwind colors to match the theme
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'ash-dark': '#111111', /* Very dark background */
+                        'ash-red': '#a80000', /* Deep red color */
+                    }
+                }
+            }
+        }
+
+        // Simple JS for Toggling Mobile Menu
+        function toggleMenu() {
+            document.getElementById('mobile-menu').classList.toggle('hidden');
+        }
+
+        // Configuration (Must match the API server's config)
+        const API_BASE_URL = 'http://localhost:3000'; 
+
+        // --- HERO SLIDER JS ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // All 8 image links
+            const imageLinks = [
+                'https://i.imgur.com/RFkkvwa.jpeg', 
+                'https://i.imgur.com/YdK6QGk.jpeg', 
+                'https://i.imgur.com/S74DrsC.jpeg', 
+                'https://i.imgur.com/k9XXsBU.jpeg', 
+                'https://i.imgur.com/P39sBlb.jpeg', 
+                'https://i.imgur.com/e56O0Ub.jpeg', 
+                'https://i.imgur.com/oSyDJmZ.jpeg', 
+                'https://i.imgur.com/g8vdHCf.jpeg'
+            ];
+            
+            const cell1 = document.getElementById('slider-cell-1');
+            const cell2 = document.getElementById('slider-cell-2');
+            const totalImages = imageLinks.length;
+            const imagesPerSlide = 2; // Desktop shows 2 images
+            const totalSlides = totalImages / imagesPerSlide; // 4 slides needed
+            let currentSlideIndex = 0;
+            const slideInterval = 10000; // 10 seconds
+
+            function updateSlider() {
+                // Determine the starting index in the imageLinks array
+                const startIndex = currentSlideIndex * imagesPerSlide;
+                
+                // Get the URLs for the current slide
+                const url1 = imageLinks[startIndex];
+                // Mobile only shows the first image, Desktop shows the first two
+                const url2 = imageLinks[(startIndex + 1) % totalImages]; 
+
+                // 1. Update Cell 1 (Always visible, full width on mobile)
+                cell1.style.backgroundImage = `url('${url1}')`;
+                cell1.classList.add('active'); // Ensure the current one is visible
+
+                // 2. Update Cell 2 (Visible only on desktop, side-by-side)
+                if (window.innerWidth >= 768) {
+                    cell2.style.backgroundImage = `url('${url2}')`;
+                    cell2.classList.add('active'); 
+                } else {
+                    // On mobile, keep the second cell active but it will be hidden by CSS
+                    cell2.classList.remove('active'); 
+                }
+
+                // 3. Advance to the next slide group
+                currentSlideIndex = (currentSlideIndex + 1) % totalSlides;
+            }
+
+            // Set the initial state
+            updateSlider();
+
+            // Set up the interval for automatic sliding (10 seconds)
+            setInterval(updateSlider, slideInterval);
+
+            // Handle window resize to ensure cell2 visibility is correctly applied
+            window.addEventListener('resize', updateSlider);
+        });
+        // --- END HERO SLIDER JS ---
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body class="bg-ash-dark text-white min-h-screen">
+
+    <header class="bg-ash-dark sticky top-0 z-50 shadow-lg border-b border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            
+            <a href="#" class="flex items-center">
+                <img src="https://placehold.co/100x24/111111/FFFFFF?text=OUTFLICKZ" alt="Outflickz Logo" class="w-24 h-6">
+            </a>
+
+            <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10">
+                <a href="#" class="text-sm font-medium hover:text-gray-400 transition">Pre Order</a>
+                <a href="#" class="text-sm font-medium hover:text-gray-400 transition">New Arrivals</a>
+                
+                <a href="#" class="text-sm font-medium hover:text-gray-400 transition flex items-center">Wears Collections</a>
+                <a href="#" class="text-sm font-medium hover:text-gray-400 transition flex items-center">Cap Collections</a>
+            </nav>
+
+            <div class="flex items-center space-x-2 sm:space-x-4">
+                
+                <button class="p-2 text-gray-300 hover:text-white transition rounded-full hidden md:block">
+                    <i class="fas fa-user w-5 h-5"></i>
+                </button>
+                
+                <button class="p-2 text-gray-300 hover:text-white transition rounded-full">
+                    <i class="fas fa-heart w-5 h-5"></i>
+                </button>
+                <button class="p-2 text-gray-300 hover:text-white transition rounded-full">
+                    <i class="fas fa-shopping-bag w-5 h-5"></i>
+                </button>
+
+                <button class="md:hidden p-2 text-gray-300 hover:text-white transition rounded-full" onclick="toggleMenu()">
+                    <i class="fas fa-bars w-6 h-6"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div id="mobile-menu" class="hidden md:hidden bg-ash-dark border-b border-gray-800 absolute w-full z-40">
+        <div class="px-2 pt-2 pb-3 space-y-1">
+            <a href="#" class="block px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-800 rounded-md">Pre Order</a>
+            <a href="#" class="block px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-800 rounded-md">New Arrivals</a>
+            <a href="#" class="block px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-800 rounded-md">Wears Collection</a>
+            <a href="#" class="block px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-800 rounded-md">Cap Collection</a>
+        </div>
+    </div>
+
+    <main class="relative h-[calc(100vh-4rem)] md:h-[calc(100vh-4rem)] overflow-hidden">
+        
+        <div class="hero-bg-slider-container">
+            <div id="slider-cell-1" class="slider-cell slider-cell-1"></div> 
+
+            <div id="slider-cell-2" class="slider-cell slider-cell-2"></div>
+            
+            <div class="absolute inset-0 image-overlay z-20"></div>
+        </div>
+        
+        <div class="absolute inset-0 z-30 flex flex-col items-center justify-center p-4">
+            <h1 class="text-white text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-extrabold roulette-text mb-4 uppercase">
+                OUTFLICKZ
+            </h1>
+            
+            <p class="text-ash-red text-sm md:text-base font-semibold uppercase tracking-widest mb-6">
+                TOP DEAL
+            </p>
+
+            <button class="bg-white text-ash-dark hover:bg-gray-200 transition duration-300 font-semibold py-3 px-10 rounded-sm shadow-xl uppercase text-sm tracking-widest">
+                Shop Now
+            </button>
+        </div>
+        
+    </main>
+
+</body>
+</html>

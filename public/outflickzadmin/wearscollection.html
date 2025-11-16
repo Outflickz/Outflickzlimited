@@ -33,33 +33,37 @@
 </head>
 <body class="bg-gray-50 min-h-screen flex">
 
-    <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-emerald-900 text-white transform transition-transform duration-300 z-30 lg:translate-x-0 -translate-x-full shadow-2xl">
+    <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-emerald-900 text-white transform transition-transform duration-300 z-30 lg:translate-x-0 -translate-x-full shadow-2xl **flex flex-col**">
         <div class="p-6">
             <img src="https://i.imgur.com/Fz9w1BA.png" alt="E-commerce Logo" class="h-10 w-auto mb-6 rounded-lg shadow-md border border-emerald-700">
-            <h1 class="text-xl font-extrabold text-emerald-400 border-t border-emerald-800 pt-4">Commerce Hub</h1>
+            <h1 class="text-xl font-extrabold text-emerald-400 **pb-4**">Commerce Hub</h1>
         </div>
-        <nav class="space-y-2 px-4">
-            <a href="admin-dashboard.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l-7-7-7 7m10 0v10a1 1 0 01-1 1h-3m-3 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-9 0h10"></path></svg>
-                Dashboard
-            </a>
-            
-            <a href="wearscollection.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-emerald-600 hover:bg-emerald-700 active-link">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14v12a2 2 0 01-2 2H7a2 2 0 01-2-2V9z"></path></svg>
-                Wears Collection
-            </a>
+        
+        <div class="**flex-grow overflow-y-auto**">
+            <nav class="space-y-2 px-4">
+                <a href="admin-dashboard.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l-7-7-7 7m10 0v10a1 1 0 01-1 1h-3m-3 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-9 0h10"></path></svg>
+                    Dashboard
+                </a>
+                
+                <a href="wearscollection.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-emerald-600 hover:bg-emerald-700 active-link">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14v12a2 2 0 01-2 2H7a2 2 0 01-2-2V9z"></path></svg>
+                    Wears Collection
+                </a>
 
-            <a href="settings.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.526.34.813.486 1.066-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                Settings
-            </a>
-             <div class="p-4 flex-shrink-0 border-t border-emerald-800">
+                <a href="settings.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.526.34.813.486 1.066-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    Settings
+                </a>
+            </nav>
+        </div>
+
+        <div class="p-4 flex-shrink-0 border-t border-emerald-800">
             <button id="btn-logout" onclick="logoutAdmin()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-red-600 hover:bg-red-700 text-white shadow-lg">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                 Log Out
             </button>
         </div>
-        </nav>
     </aside>
     <main class="flex-1 lg:ml-64 p-4 transition-all duration-300">
         <button id="sidebar-toggle" class="lg:hidden fixed top-4 left-4 z-40 p-2 bg-emerald-600 text-white rounded-lg shadow-lg hover:bg-emerald-700 transition">
@@ -130,7 +134,7 @@
         </section>
         </main>
 
-   <script>
+    <script>
     // --- JAVASCRIPT LOGIC ---
 
     const sidebar = document.getElementById('sidebar');
@@ -148,7 +152,7 @@
         console.log('Logging out admin...');
         localStorage.removeItem('adminToken');
         // Redirect to the login page (adjust the path as necessary for your setup)
-        window.location.href = '/admin-login'; 
+        window.location.href = './admin-login-html'; 
     }
     // ----------------------------
 
@@ -262,7 +266,7 @@
             alert("Authentication required. Please log in.");
             submitBtn.disabled = false;
             // Redirect to login page in a real app
-            window.location.href = '/admin-login';
+            window.location.href = './admin-login-html';
             return;
         }
 

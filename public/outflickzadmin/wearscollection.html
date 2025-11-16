@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wears Collection Management - Commerce Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
     <style>
         /* Custom scrollbar for a cleaner look */
         ::-webkit-scrollbar {
@@ -33,13 +34,13 @@
 </head>
 <body class="bg-gray-50 min-h-screen flex">
 
-    <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-emerald-900 text-white transform transition-transform duration-300 z-30 lg:translate-x-0 -translate-x-full shadow-2xl **flex flex-col**">
-        <div class="p-6">
+    <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-emerald-900 text-white transform transition-transform duration-300 z-30 lg:translate-x-0 -translate-x-full shadow-2xl flex flex-col">
+        <div class="p-6 flex-shrink-0">
             <img src="https://i.imgur.com/Fz9w1BA.png" alt="E-commerce Logo" class="h-10 w-auto mb-6 rounded-lg shadow-md border border-emerald-700">
-            <h1 class="text-xl font-extrabold text-emerald-400 **pb-4**">Commerce Hub</h1>
+            <h1 class="text-xl font-extrabold text-emerald-400 pb-4">Commerce Hub</h1>
         </div>
         
-        <div class="**flex-grow overflow-y-auto**">
+        <div class="flex-grow overflow-y-auto">
             <nav class="space-y-2 px-4">
                 <a href="admin-dashboard.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l-7-7-7 7m10 0v10a1 1 0 01-1 1h-3m-3 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-9 0h10"></path></svg>
@@ -69,13 +70,16 @@
         <button id="sidebar-toggle" class="lg:hidden fixed top-4 left-4 z-40 p-2 bg-emerald-600 text-white rounded-lg shadow-lg hover:bg-emerald-700 transition">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
         </button>
+        
         <section id="content-wearscollection" class="content-section p-6 pt-16 lg:pt-6">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-6">🛍️ Create New Wears Collection</h2>
+            <h2 class="text-3xl font-bold text-gray-800 mb-8 border-b pb-2">🛍️ Wears Collection Management</h2>
+            
+            <h3 id="form-title" class="text-2xl font-semibold text-gray-800 mb-6 mt-10">➕ Create New Collection</h3>
             
             <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-emerald-500">
                 <form id="wears-collection-form" onsubmit="handleCollectionSubmit(event)">
                     
-                    <h3 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">Collection Details</h3>
+                    <h4 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">Collection Details</h4>
                     
                     <div class="space-y-4 mb-8">
                         <div>
@@ -94,21 +98,30 @@
                                 <option value="Clearance">Clearance</option>
                             </select>
                         </div>
+
+                        <div class="flex items-center space-x-4">
+                            <input type="checkbox" id="is-active" class="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500">
+                            <label for="is-active" class="text-sm font-medium text-gray-700">Collection is Active</label>
+                        </div>
                     </div>
                     
-                    <h3 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">Product Variations (Max 4)</h3>
+                    <h4 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">Product Variations (Max 4)</h4>
                     <p class="text-sm text-gray-500 mb-6">Define the four available product options (e.g., different styles or images) for this collection.</p>
 
                     <div id="product-sections" class="space-y-6">
-                        </div>
+                    </div>
 
                     <button type="button" id="add-section-btn" class="mt-4 px-4 py-2 text-sm font-medium rounded-lg text-emerald-600 border border-emerald-600 hover:bg-emerald-50 transition duration-200">
                         + Add Product Variation
                     </button>
                     
+                    <button type="button" id="reset-form-btn" onclick="resetForm()" class="mt-4 ml-3 px-4 py-2 text-sm font-medium rounded-lg text-gray-600 border border-gray-300 hover:bg-gray-100 transition duration-200 hidden">
+                        Cancel Edit
+                    </button>
+                    
                     <hr class="my-8 border-gray-200">
 
-                    <h3 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">Global Attributes</h3>
+                    <h4 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">Global Attributes</h4>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                         <div>
@@ -125,14 +138,40 @@
                     </div>
 
                     <button type="submit" id="submit-btn" class="w-full py-3 px-4 bg-emerald-600 text-white font-semibold text-lg rounded-lg shadow-md hover:bg-emerald-700 transition duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">
-                        Submit Collection for Review
+                        Submit Collection
                     </button>
                     
                 </form>
             </div>
-
         </section>
-        </main>
+        
+        <hr class="my-12 border-gray-300">
+
+        <section id="content-managecollection" class="content-section p-6">
+            <h3 class="text-2xl font-semibold text-gray-800 mb-6">📋 Manage Existing Collections</h3>
+            <div id="loading-indicator" class="text-center p-8 text-gray-500 hidden">Loading collections...</div>
+            <div id="collections-error" class="text-center p-8 text-red-500 hidden">Error loading collections.</div>
+
+            <div class="bg-white p-6 rounded-xl shadow-lg overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tag</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Variations</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="collections-table-body" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
 
     <script>
     // --- JAVASCRIPT LOGIC ---
@@ -142,48 +181,274 @@
     const productSectionsContainer = document.getElementById('product-sections');
     const addSectionBtn = document.getElementById('add-section-btn');
     const submitBtn = document.getElementById('submit-btn');
-    let sectionCount = 0; // Initialize section counter
+    const formTitle = document.getElementById('form-title');
+    const resetFormBtn = document.getElementById('reset-form-btn');
+    const collectionsTableBody = document.getElementById('collections-table-body');
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const collectionsError = document.getElementById('collections-error');
+
+    let sectionCount = 0; // Tracks the number of variations currently in the form
+    let collectionIdToUpdate = null; // Stores the ID of the collection being edited (null for creation)
+    
+    const API_BASE_URL = '/api/admin/wearscollections'; // Consistent API endpoint
+    const MAX_VARIATIONS = 4;
+
+    // --- UTILITY FUNCTIONS ---
+    function getAuthToken() {
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            alert("Authentication required. Please log in.");
+            window.location.href = './admin-login.html';
+            return null;
+        }
+        return token;
+    }
 
     // --- LOGOUT FUNCTIONALITY ---
-    /**
-     * Clears the admin token and redirects the user to the login page.
-     */
     function logoutAdmin() {
         console.log('Logging out admin...');
         localStorage.removeItem('adminToken');
-        // Redirect to the login page (adjust the path as necessary for your setup)
-        window.location.href = './admin-login-html'; 
+        window.location.href = './admin-login.html'; 
     }
     // ----------------------------
+    
+    // --- COLLECTION MANAGEMENT (FRONTEND) ---
 
-    // Initialize the page on load
-    document.addEventListener('DOMContentLoaded', () => {
-        // Add the initial product section
-        addProductSection();
+    /**
+     * Resets the form to "Create New Collection" mode.
+     */
+    function resetForm() {
+        document.getElementById('wears-collection-form').reset();
+        collectionIdToUpdate = null;
+        formTitle.textContent = '➕ Create New Collection';
+        submitBtn.textContent = 'Submit Collection';
+        submitBtn.classList.remove('bg-yellow-600', 'hover:bg-yellow-700');
+        submitBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+        resetFormBtn.classList.add('hidden');
         
-        // Toggle sidebar visibility on mobile
-        sidebarToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('-translate-x-full');
+        // Clear and re-initialize product sections
+        productSectionsContainer.innerHTML = ''; 
+        sectionCount = 0; 
+        addProductSection(); 
+        
+        // Reset image inputs to be 'required' for new creation
+        Array.from(productSectionsContainer.querySelectorAll('input[type="file"]')).forEach(input => {
+            input.required = true;
         });
+        
+        // Scroll to the form
+        document.getElementById('content-wearscollection').scrollIntoView({ behavior: 'smooth' });
+    }
 
-        // Add new section button listener
-        addSectionBtn.addEventListener('click', () => {
-            if (sectionCount < 4) {
-                addProductSection();
-            } else {
-                alert('You can only add a maximum of 4 product variations per collection.');
+    /**
+     * Fetches all collections and renders them to the table.
+     */
+    async function fetchCollections() {
+        const token = getAuthToken();
+        if (!token) return;
+
+        collectionsTableBody.innerHTML = ''; // Clear existing
+        loadingIndicator.classList.remove('hidden');
+        collectionsError.classList.add('hidden');
+
+        try {
+            const response = await fetch(API_BASE_URL, {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
             }
-        });
-    });
 
-    // Function to create a product section HTML structure
-    function createProductSection(index) {
+            const collections = await response.json();
+            renderCollectionsTable(collections);
+
+        } catch (error) {
+            console.error('Error fetching collections:', error);
+            collectionsError.textContent = `Error: ${error.message}. Please check console for details.`;
+            collectionsError.classList.remove('hidden');
+        } finally {
+            loadingIndicator.classList.add('hidden');
+        }
+    }
+
+    /**
+     * Renders the fetched collections data into the HTML table.
+     */
+    function renderCollectionsTable(collections) {
+        collectionsTableBody.innerHTML = '';
+        if (collections.length === 0) {
+            collectionsTableBody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">No collections found.</td></tr>';
+            return;
+        }
+
+        collections.forEach(collection => {
+            const tagClass = getTagClass(collection.tag);
+            const statusClass = collection.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+
+            const row = `
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${collection._id.slice(-6)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${collection.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${tagClass}">${collection.tag}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${collection.variations.length}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${collection.totalStock}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
+                            ${collection.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button onclick="editCollection('${collection._id}')" class="text-indigo-600 hover:text-indigo-900 transition duration-150 mr-3">Edit</button>
+                        <button onclick="deleteCollection('${collection._id}')" class="text-red-600 hover:text-red-900 transition duration-150">Delete</button>
+                    </td>
+                </tr>
+            `;
+            collectionsTableBody.insertAdjacentHTML('beforeend', row);
+        });
+    }
+
+    /**
+     * Determines the appropriate Tailwind class for a given tag.
+     */
+    function getTagClass(tag) {
+        switch (tag) {
+            case 'Top Deal': return 'bg-emerald-100 text-emerald-800';
+            case 'Hot Deal': return 'bg-red-100 text-red-800';
+            case 'New': return 'bg-blue-100 text-blue-800';
+            case 'Seasonal': return 'bg-yellow-100 text-yellow-800';
+            case 'Clearance': return 'bg-pink-100 text-pink-800';
+            default: return 'bg-gray-100 text-gray-800';
+        }
+    }
+
+    /**
+     * Fetches data for a specific collection and populates the form for editing.
+     */
+    async function editCollection(collectionId) {
+        const token = getAuthToken();
+        if (!token) return;
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/${collectionId}`, {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
+            }
+
+            const collection = await response.json();
+            
+            // 1. Set form mode
+            collectionIdToUpdate = collectionId;
+            formTitle.textContent = `✏️ Edit Collection: ${collection.name}`;
+            submitBtn.textContent = 'Update Collection';
+            submitBtn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
+            submitBtn.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
+            resetFormBtn.classList.remove('hidden');
+
+            // 2. Populate basic details
+            document.getElementById('collection-name').value = collection.name;
+            document.getElementById('collection-description').value = collection.tag;
+            document.getElementById('available-sizes').value = collection.sizes.join(', ');
+            document.getElementById('available-stock').value = collection.totalStock;
+            document.getElementById('is-active').checked = collection.isActive;
+
+            // 3. Populate variations
+            productSectionsContainer.innerHTML = '';
+            sectionCount = 0;
+
+            collection.variations.forEach(variation => {
+                // We use the existing variationIndex (1 to 4) for the index
+                const sectionNumber = variation.variationIndex; 
+                
+                const newSection = document.createElement('div');
+                // Pass a temporary index (which is variationIndex - 1) to createProductSection 
+                // to get the correct sectionNumber (index + 1)
+                newSection.innerHTML = createProductSection(sectionNumber - 1, variation.imageUrl).trim(); 
+                productSectionsContainer.appendChild(newSection.firstChild);
+                sectionCount++;
+                
+                // Populate color and image preview/info
+                const colorInput = document.getElementById(`color-input-${sectionNumber}`);
+                if (colorInput) {
+                    colorInput.value = variation.colorHex;
+                    updateColorPreview(variation.colorHex, `color-preview-${sectionNumber}`);
+                }
+            });
+            
+            // 4. Update the add button state
+            updateAddSectionButtonState();
+            
+            // 5. Scroll to the form
+            document.getElementById('content-wearscollection').scrollIntoView({ behavior: 'smooth' });
+
+        } catch (error) {
+            console.error('Error fetching collection for edit:', error);
+            alert(`❌ Error fetching collection data: ${error.message}`);
+        }
+    }
+
+    /**
+     * Sends a DELETE request to remove a collection.
+     */
+    async function deleteCollection(collectionId) {
+        const token = getAuthToken();
+        if (!token) return;
+
+        if (!confirm(`Are you sure you want to permanently delete collection ${collectionId}? This action cannot be undone.`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/${collectionId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
+            }
+
+            // Collection deleted successfully
+            alert(`✅ Collection ${collectionId} deleted successfully.`);
+            fetchCollections(); // Refresh the table
+
+        } catch (error) {
+            console.error('Deletion failed:', error);
+            alert(`❌ Error deleting collection: ${error.message}`);
+        }
+    }
+
+    // --- FORM SECTION MANAGEMENT ---
+
+    /**
+     * Function to create a product section HTML structure.
+     * @param {number} index - The zero-based index for the section (0 to 3).
+     * @param {string} [imageUrl=null] - Optional existing image URL for edit mode.
+     */
+    function createProductSection(index, imageUrl = null) {
         const sectionNumber = index + 1;
         const uniqueId = `section-${sectionNumber}`;
+        const isEditing = imageUrl !== null;
         
-        // IMPORTANT: The input file name is changed to include '[]' to signal an array to the backend
+        // If editing, the file input is not required, and we show the existing image.
+        const fileRequiredAttribute = isEditing ? '' : 'required';
+        const imageInfo = isEditing ? 
+            `<p class="mt-2 text-xs text-gray-500">Existing Image: <a href="${imageUrl}" target="_blank" class="text-blue-500 hover:underline">View Image</a>. Uploading a new file will replace it.</p>
+             <input type="hidden" id="existing-image-url-${sectionNumber}" value="${imageUrl}">` : 
+            `<p class="mt-2 text-xs text-gray-500">Upload a new image for this variation.</p>`;
+
         return `
-            <div id="${uniqueId}" class="p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-inner relative">
+            <div id="${uniqueId}" data-variation-index="${sectionNumber}" class="p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-inner relative">
                 <h4 class="text-md font-bold text-gray-600 mb-3 flex justify-between items-center">
                     Product Variation #${sectionNumber}
                     ${sectionNumber > 1 ? `<button type="button" onclick="removeProductSection('${uniqueId}')" class="text-red-500 hover:text-red-700 transition duration-150 text-sm">Remove</button>` : ''}
@@ -192,15 +457,16 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label for="image-upload-${sectionNumber}" class="block text-sm font-medium text-gray-700">Upload Wears Image</label>
-                        <input type="file" name="images" id="image-upload-${sectionNumber}" accept="image/*" required class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
+                        <input type="file" name="image-${sectionNumber}" id="image-upload-${sectionNumber}" accept="image/*" ${fileRequiredAttribute} class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
+                        ${imageInfo}
                     </div>
                     
                     <div>
                         <label for="color-input-${sectionNumber}" class="block text-sm font-medium text-gray-700">Color Input</label>
                         <div class="flex items-center mt-1">
                             <input type="color" id="color-input-${sectionNumber}" value="#10B981" required 
-                                    class="p-0 h-10 w-10 block rounded-full border-2 border-gray-300 cursor-pointer"
-                                    oninput="updateColorPreview(this.value, 'color-preview-${sectionNumber}')">
+                                            class="p-0 h-10 w-10 block rounded-full border-2 border-gray-300 cursor-pointer"
+                                            oninput="updateColorPreview(this.value, 'color-preview-${sectionNumber}')">
                             <div id="color-preview-${sectionNumber}" class="color-preview ml-3 bg-emerald-600" style="background-color: #10B981;"></div>
                             <span class="ml-3 text-sm text-gray-500">Pick a color</span>
                         </div>
@@ -210,37 +476,72 @@
         `;
     }
     
-    // Function to add a product section
+    /**
+     * Function to add a product section
+     */
     function addProductSection() {
-        if (sectionCount < 4) {
+        if (sectionCount < MAX_VARIATIONS) {
             const newSection = document.createElement('div');
-            // The new section's index is sectionCount
             newSection.innerHTML = createProductSection(sectionCount).trim(); 
             productSectionsContainer.appendChild(newSection.firstChild);
             sectionCount++;
             
-            // Disable button if max is reached
-            if (sectionCount >= 4) {
-                addSectionBtn.disabled = true;
-                addSectionBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            }
+            updateAddSectionButtonState();
         }
     }
     
-    // Function to remove a product section
+    /**
+     * Function to remove a product section
+     */
     function removeProductSection(id) {
         const sectionToRemove = document.getElementById(id);
         if (sectionToRemove) {
             sectionToRemove.remove();
-            sectionCount--;
             
-            // Re-enable button if it was disabled
-            if (sectionCount < 4) {
-                addSectionBtn.disabled = false;
-                addSectionBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                addSectionBtn.classList.add('hover:bg-emerald-700'); // Re-add hover class
-            }
-            // NOTE: In a professional app, you'd re-index the IDs here.
+            // Re-index all remaining sections to maintain sequential `variationIndex`
+            reindexProductSections();
+            
+            updateAddSectionButtonState();
+        }
+    }
+
+    /**
+     * Re-indexes sections after one is removed to ensure keys are sequential (1, 2, 3, 4).
+     */
+    function reindexProductSections() {
+        sectionCount = 0;
+        Array.from(productSectionsContainer.children).forEach((section, index) => {
+            const oldSectionNumber = parseInt(section.getAttribute('data-variation-index'));
+            const newSectionNumber = index + 1;
+            
+            // Update the index in the DOM (IDs, labels, data attributes)
+            section.id = `section-${newSectionNumber}`;
+            section.setAttribute('data-variation-index', newSectionNumber);
+            
+            // Update labels and inputs (This is complex in a simple DOM structure, 
+            // but for file uploads and colors, we focus on the data capture logic 
+            // relying on the index being correct when the form is submitted).
+            // NOTE: For simplicity in this demo, we rely on the final loop in handleCollectionSubmit 
+            // to re-read the state based on the current children order.
+            
+            // Re-render inner HTML to update IDs, names, and button logic
+            section.outerHTML = createProductSection(index, section.querySelector(`#existing-image-url-${oldSectionNumber}`)?.value || null);
+            sectionCount++;
+        });
+    }
+
+    /**
+     * Updates the state of the "Add Product Variation" button.
+     */
+    function updateAddSectionButtonState() {
+        if (sectionCount >= MAX_VARIATIONS) {
+            addSectionBtn.disabled = true;
+            addSectionBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            addSectionBtn.classList.remove('hover:bg-emerald-50');
+        } else {
+            addSectionBtn.disabled = false;
+            addSectionBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            addSectionBtn.classList.add('hover:bg-emerald-50');
         }
     }
     
@@ -250,67 +551,81 @@
     }
 
     /**
-     * Handles the form submission, prepares data for the backend, and sends the authenticated request.
+     * Handles the form submission (CREATE or UPDATE).
      */
     async function handleCollectionSubmit(event) {
         event.preventDefault();
         
-        // Disable button and show loading state
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Submitting...';
-        submitBtn.classList.remove('hover:bg-emerald-700');
-        submitBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+        // Determine if this is a POST (Create) or PUT (Update) operation
+        const isUpdate = collectionIdToUpdate !== null;
+        const method = isUpdate ? 'PUT' : 'POST';
+        const url = isUpdate ? `${API_BASE_URL}/${collectionIdToUpdate}` : API_BASE_URL;
 
-        const token = localStorage.getItem('adminToken');
-        if (!token) {
-            alert("Authentication required. Please log in.");
-            submitBtn.disabled = false;
-            // Redirect to login page in a real app
-            window.location.href = './admin-login-html';
+        // Form validation: ensure at least one section exists
+        if (productSectionsContainer.children.length === 0) {
+            alert("Please add at least one product variation.");
             return;
         }
+
+        // Disable button and show loading state
+        submitBtn.disabled = true;
+        submitBtn.textContent = isUpdate ? 'Updating...' : 'Submitting...';
+        submitBtn.classList.remove('hover:bg-emerald-700', 'hover:bg-yellow-700');
+        submitBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+
+        const token = getAuthToken();
+        if (!token) return;
 
         // --- 1. Collect Variations and Files ---
         const formData = new FormData();
         let productVariationsMetadata = [];
         let isValid = true;
 
-        // Iterate through the current sections (using the container's children)
         Array.from(productSectionsContainer.children).forEach((section, index) => {
-            const sectionNumber = index + 1;
+            const sectionNumber = index + 1; // 1-based index
             const imageInput = section.querySelector(`#image-upload-${sectionNumber}`);
             const colorInput = section.querySelector(`#color-input-${sectionNumber}`);
+            const existingImageUrlInput = section.querySelector(`#existing-image-url-${sectionNumber}`);
 
             if (imageInput && colorInput) {
                 const imageFile = imageInput.files[0];
                 const color = colorInput.value;
+                const existingImageUrl = existingImageUrlInput ? existingImageUrlInput.value : null;
 
+                let imageUrlForMetadata = existingImageUrl;
+                
+                // If a new file is uploaded, append it to FormData.
                 if (imageFile) {
-                    // Append the image file to FormData with a unique key
+                    // The key MUST match the Multer configuration in the backend: `image-1`, `image-2`, etc.
                     formData.append(`image-${sectionNumber}`, imageFile); 
-                } else {
-                    // Only require image if it's the first section or if required in production
-                    if (sectionCount > 0) { // For simplicity, only check if sections exist
-                        alert(`Image for Variation #${sectionNumber} is missing.`);
-                        isValid = false;
-                    }
+                    // Set image URL to null/placeholder for new upload, 
+                    // the backend will replace it with the final URL.
+                    imageUrlForMetadata = null; 
+                } else if (isUpdate && existingImageUrl) {
+                    // If updating and NO new file is uploaded, retain the existing URL.
+                    imageUrlForMetadata = existingImageUrl;
+                } else if (!isUpdate && !imageFile) {
+                    // Creating and no image provided (should be caught by required attribute, but as a fallback)
+                    alert(`Image for Variation #${sectionNumber} is missing.`);
+                    isValid = false;
+                    return; 
                 }
 
                 // Store metadata for this variation
                 productVariationsMetadata.push({
                     variationIndex: sectionNumber,
                     colorHex: color,
-                    // The backend will generate the imageUrl using the file uploaded above
+                    // If a new file is uploaded (imageFile is present), imageUrl is null/placeholder.
+                    // If updating and no new file, imageUrl is the existing URL.
+                    // The backend logic handles setting the final URL based on the file and the existing data.
+                    imageUrl: imageUrlForMetadata, 
                 });
             }
         });
 
         if (!isValid) {
             // Re-enable button on error
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Submit Collection for Review';
-            submitBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
-            submitBtn.classList.add('hover:bg-emerald-700');
+            resetFormSubmitButtonState(isUpdate);
             return;
         }
 
@@ -321,17 +636,18 @@
             // Split, trim, convert to uppercase, and filter out empty strings
             sizes: document.getElementById('available-sizes').value.split(',').map(s => s.trim().toUpperCase()).filter(s => s),
             totalStock: parseInt(document.getElementById('available-stock').value),
+            isActive: document.getElementById('is-active').checked,
             variations: productVariationsMetadata // Attach the structured variation metadata
         };
 
         // --- 3. Append JSON Data to FormData ---
-        // The backend (Node.js/Express with Multer) must be configured to parse this JSON string.
+        // The backend expects the JSON payload under the 'collectionData' key.
         formData.append('collectionData', JSON.stringify(collectionData));
 
         // --- 4. Send the Data to the Backend ---
         try {
-            const response = await fetch('/api/admin/wearscollections', {
-                method: 'POST',
+            const response = await fetch(url, {
+                method: method,
                 headers: { 
                     'Authorization': `Bearer ${token}` 
                 },
@@ -339,31 +655,72 @@
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
+                const errorText = await response.text();
+                // Attempt to parse JSON error, fall back to text
+                try {
+                    const errorData = JSON.parse(errorText);
+                    throw new Error(errorData.message || `Server error during ${method}.`);
+                } catch (e) {
+                    throw new Error(errorText || `HTTP error! Status: ${response.status}`);
+                }
             }
 
             const result = await response.json();
             
-            alert(`✅ Collection submitted successfully! ID: ${result.collectionId || 'N/A'}`);
+            alert(`✅ Collection ${isUpdate ? 'updated' : 'created'} successfully! ID: ${result.collectionId || 'N/A'}`);
             
-            // Reset the form state
-            document.getElementById('wears-collection-form').reset();
-            sectionCount = 0; // Reset count
-            productSectionsContainer.innerHTML = ''; // Clear existing sections
-            addProductSection(); // Add back the initial section
+            // Refresh table and reset form
+            fetchCollections();
+            resetForm();
 
         } catch (error) {
             console.error('Submission failed:', error);
             alert(`❌ Error submitting collection: ${error.message}`);
         } finally {
-            // Re-enable button and reset text
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Submit Collection for Review';
-            submitBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
-            submitBtn.classList.add('hover:bg-emerald-700');
+            // Re-enable button
+            resetFormSubmitButtonState(isUpdate);
         }
     }
-</script>
+    
+    /**
+     * Helper to reset the submit button state.
+     * @param {boolean} isUpdate - True if the form was in update mode.
+     */
+    function resetFormSubmitButtonState(isUpdate) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = isUpdate ? 'Update Collection' : 'Submit Collection';
+        submitBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+        if (isUpdate) {
+            submitBtn.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
+        } else {
+            submitBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+        }
+    }
+
+    // Initialize the page on load
+    document.addEventListener('DOMContentLoaded', () => {
+        // Add the initial product section for the creation form
+        if (productSectionsContainer.children.length === 0) {
+             addProductSection();
+        }
+        
+        // Toggle sidebar visibility on mobile
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('-translate-x-full');
+        });
+
+        // Add new section button listener
+        addSectionBtn.addEventListener('click', () => {
+            if (sectionCount < MAX_VARIATIONS) {
+                addProductSection();
+            } else {
+                alert(`You can only add a maximum of ${MAX_VARIATIONS} product variations per collection.`);
+            }
+        });
+
+        // Load existing collections on page load
+        fetchCollections();
+    });
+    </script>
 </body>
 </html>

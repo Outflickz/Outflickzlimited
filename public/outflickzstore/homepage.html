@@ -87,43 +87,7 @@
         .card-image-box img {
             object-fit: cover !important;
         }
-        /* Custom background for card content in the white section */
-        .white-section .racing-card-bg {
-            background-color: #f0f0f0; 
-        }
-        .border-racing-silver {
-            border-color: #AAAAAA;
-        }
-
-        /* Custom scroll behavior for mobile collection items */
-        @media (max-width: 767px) {
-            .mobile-scroll-container {
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch; 
-                padding-bottom: 1rem; 
-                scroll-snap-type: x mandatory; 
-            }
-            .mobile-scroll-container > div.collection-card {
-                flex-shrink: 0;
-                width: 75%; 
-                max-width: 300px;
-                scroll-snap-align: start;
-            }
-            .mobile-scroll-container > div {
-                margin-left: 0.5rem; 
-                margin-right: 0.5rem; 
-            }
-            .mobile-scroll-container > div:first-child {
-                margin-left: 1rem; 
-            }
-            .mobile-scroll-container > div:last-child {
-                padding-right: 1rem; 
-            }
-            
-            #wears-collections-grid {
-                display: flex;
-            }
-        }
+        /* Removed custom card scrolling logic as we are using a responsive grid now */
     </style>
     <script>
         // Customizing Tailwind colors to match the theme
@@ -237,7 +201,7 @@
 
             const currentImage = card.querySelector(`#collection-image-${collectionId}`);
             // Use a placeholder if the image element is not found
-            const imageUrl = currentImage ? currentImage.src : 'Screenshot (478).png'; 
+            const imageUrl = currentImage ? currentImage.src : 'https://i.imgur.com/RFkkvwa.jpeg'; 
             const itemName = card.querySelector('h3').textContent;
 
             openModal(imageUrl, itemName);
@@ -260,165 +224,91 @@
 
             input.value = newValue;
         }
-
-        // --- WEARS COLLECTION JS ---
-        function swapImage(button) {
-            const collectionId = button.getAttribute('data-collection-id');
-            const newImageUrl = button.getAttribute('data-image-url');
-
-            const imageElement = document.getElementById(`collection-image-${collectionId}`);
-
-            if (imageElement) {
-                imageElement.src = newImageUrl;
-
-                const colorContainer = button.parentNode;
-                colorContainer.querySelectorAll('.color-button').forEach(btn => {
-                    btn.classList.remove('border-ash-red');
-                    btn.classList.add('border-racing-silver');
-                });
-
-                button.classList.remove('border-racing-silver');
-                button.classList.add('border-ash-red');
-            }
-        }
-
-        function getColorClass(colorName) {
-            const lowerCaseColor = colorName.toLowerCase();
-            switch (lowerCaseColor) {
-                case 'black': return 'bg-color-black';
-                case 'white': return 'bg-color-white';
-                case 'red': return 'bg-red-500';
-                case 'blue': return 'bg-blue-500';
-                case 'green': return 'bg-green-500';
-                default:
-                    return `style="background-color: ${lowerCaseColor.replace(/\s/g, '-')};"`;
-            }
-        }
-
-        function createColorButtons(collectionId, variants) {
-            let html = '';
-            if (variants && variants.length > 0) {
-                html = variants.map((variant, index) => {
-                    const borderClass = index === 0 ? 'border-ash-red color-button' : 'border-racing-silver color-button';
-                    const colorClassOrStyle = getColorClass(variant.color);
-
-                    return `
-                        <button
-                            class="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full border-2 hover:border-ash-red transition-all duration-150 ${colorClassOrStyle.startsWith('bg-') ? colorClassOrStyle : ''} ${borderClass}"
-                            ${colorClassOrStyle.startsWith('style') ? colorClassOrStyle : ''}
-                            data-collection-id="${collectionId}"
-                            data-image-url="${variant.imageUrl}"
-                            data-variant-index="${index}"
-                            onclick="swapImage(this)"
-                            title="${variant.color}"
-                            aria-label="Select ${variant.color} color"
-                        ></button>
-                    `;
-                }).join('');
-            }
-            return html;
-        }
-
-        function createSizeDropdown(collectionId, sizes, isWhiteBackground) {
-            const textColor = isWhiteBackground ? 'text-color-black' : 'text-white';
-            const bgColor = isWhiteBackground ? 'bg-white' : 'bg-racing-grey';
-
+        
+        // --- UTILITY FOR SIZE LIST (MATCHING IMAGE DESIGN) ---
+        function createSizeList(collectionId, sizes) {
+            // Default sizes if none are provided
             if (!sizes || sizes.length === 0) {
-                return `<p class="text-[0.7rem] sm:text-xs text-racing-silver py-1 px-2 ${bgColor} rounded-sm border border-racing-silver">One Size</p>`;
+                sizes = ['S', 'M', 'L', 'XL', '2XL', '3XL'];
             }
 
-            let optionsHtml = sizes.map(size => {
-                const selected = size === sizes[0] ? 'selected' : '';
-                return `<option value="${size}" ${selected}>${size}</option>`;
-            }).join('');
-
-            return `
-                <select id="size-select-${collectionId}" aria-label="Select Size" class="block w-full py-1 px-2 border border-racing-silver ${bgColor} rounded-sm text-xs ${textColor} focus:border-ash-red focus:ring-1 focus:ring-ash-red">
-                    ${optionsHtml}
-                </select>
-            `;
+            // This creates the list of size buttons as seen in the screenshot
+            return sizes.map(size => `
+                <label for="size-${collectionId}-${size}" class="text-xs border border-gray-300 px-2 py-1 cursor-pointer hover:border-ash-dark transition-all">
+                    <input type="radio" id="size-${collectionId}-${size}" name="size-${collectionId}" value="${size}" class="hidden" ${size === sizes[0] ? 'checked' : ''}>
+                    ${size}
+                </label>
+            `).join('');
         }
 
+
+        // --- REDESIGNED WEARS COLLECTION CARD JS (MATCHES IMAGE LAYOUT) ---
         function createCollectionCard(collection) {
-            const defaultImage = 'Screenshot (478).png';
-            // Determine if the card is in the white-background section (which it is now)
-            const isWhiteBackground = true; // Hardcode to true since the section is bg-color-white
+            const currencySymbol = '₦'; 
+            const defaultImage = 'https://i.imgur.com/RFkkvwa.jpeg'; 
+            
+            // Get the image and price from the first variant if available, otherwise use defaults
+            const primaryVariant = collection.variants && collection.variants.length > 0 ? collection.variants[0] : null;
+            const imageUrl = primaryVariant && primaryVariant.imageUrl ? primaryVariant.imageUrl : defaultImage;
+            // Use collection price as fallback if variant price is missing
+            const itemPrice = primaryVariant && primaryVariant.price ? primaryVariant.price : collection.price; 
 
-            const imageUrl = (collection.variants && collection.variants.length > 0)
-                                    ? collection.variants[0].imageUrl
-                                    : defaultImage;
+            // Format price with commas
+            const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
 
-            const colorButtonsHtml = createColorButtons(collection._id, collection.variants);
-            const sizeDropdownHtml = createSizeDropdown(collection._id, collection.availableSizes, isWhiteBackground);
+            const sizeListHtml = createSizeList(collection._id, collection.availableSizes);
             const maxStock = collection.availableStock > 0 ? collection.availableStock : 99;
-            // Use white-section classes
-            const cardBgClass = 'bg-white border-racing-grey';
-            const itemTitleColor = 'text-color-black';
-            const cardContentBgClass = 'bg-gray-100'; // Light grey background for card info
 
-            // --- REDESIGNED CARD HTML START ---
             return `
-                <div class="collection-card ${cardBgClass} border rounded-lg overflow-hidden shadow-2xl hover:shadow-[0_0_20px_rgba(168,0,0,0.5)] transform hover:scale-[1.03] transition duration-300" data-collection-id="${collection._id}">
-                    <div class="relative card-image-box">
+                <div class="collection-card border border-gray-100 rounded-lg overflow-hidden bg-white hover:shadow-lg transition duration-300" data-collection-id="${collection._id}">
+                    <div class="relative card-image-box cursor-pointer" onclick="viewItem('${collection._id}')">
                         <img
-                            class="w-full h-full object-cover"
+                            class="w-full h-full object-cover bg-gray-50"
                             id="collection-image-${collection._id}"
                             src="${imageUrl}"
-                            alt="${collection.name} in ${collection.variants && collection.variants.length > 0 ? collection.variants[0].color : 'default'} color"
+                            alt="${collection.name}"
                             onerror="this.onerror=null;this.src='${defaultImage}';"
                         >
-                        <div class="absolute inset-0 bg-black bg-opacity-30"></div>
-                        <span class="absolute top-1 left-1 bg-ash-red text-white text-[0.65rem] font-bold px-2 py-0.5 rounded-sm uppercase tracking-wider">
-                            ${collection.availableStock > 0 ? 'NEW' : 'PRE-ORDER'}
-                        </span>
                     </div>
 
-                    <div class="p-3 ${cardContentBgClass}">
-                        <h3 class="text-sm font-bold ${itemTitleColor} uppercase truncate tracking-wider">${collection.name}</h3>
-
-                        <div class="flex items-start justify-between mt-3">
-                            <div class="w-1/2 pr-2">
-                                <label for="size-select-${collection._id}" class="block text-[0.6rem] font-medium text-racing-grey mb-1 uppercase">Size</label>
-                                ${sizeDropdownHtml}
-                            </div>
-                            <div class="w-1/2 pl-2">
-                                <label class="block text-[0.6rem] font-medium text-racing-grey mb-1 uppercase">Color</label>
-                                <div class="flex space-x-1 mt-1">
-                                    ${colorButtonsHtml}
-                                </div>
+                    <div class="p-3">
+                        <p class="text-[0.6rem] text-gray-500 uppercase font-semibold">Outflickz</p>
+                        <h3 class="text-sm font-semibold text-color-black truncate">${collection.name}</h3>
+                        
+                        <p class="text-lg font-extrabold text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
+                        
+                        <div class="flex flex-wrap items-center gap-1 mt-2 mb-3">
+                            <span class="text-xs font-medium text-gray-700">Size:</span>
+                            <div class="flex gap-1 text-gray-700">
+                                ${sizeListHtml}
                             </div>
                         </div>
 
-                        <div class="flex items-center justify-between mt-4">
-                            <span class="text-base font-extrabold text-ash-red">$${collection.price.toFixed(2)}</span>
-
-                            <div class="flex items-center space-x-0.5">
-                                <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="text-xs border border-racing-silver text-black hover:bg-gray-200 transition flex items-center justify-center w-5 h-5 rounded-sm">-</button>
-                                <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock}" aria-label="Quantity" class="w-7 text-center text-xs border-racing-silver rounded-sm text-black bg-white p-0.5 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
-                                <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="text-xs border border-racing-silver text-black hover:bg-gray-200 transition flex items-center justify-center w-5 h-5 rounded-sm">+</button>
+                        <div class="flex items-center space-x-2">
+                            <div class="flex items-center border border-gray-300 rounded-sm">
+                                <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="text-base text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-8 h-8 rounded-l-sm font-semibold">
+                                    &minus;
+                                </button>
+                                <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock}" aria-label="Quantity" class="w-8 h-8 text-center text-sm border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
+                                <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="text-base text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-8 h-8 rounded-r-sm font-semibold">
+                                    &plus;
+                                </button>
                             </div>
-                        </div>
 
-                        <div class="flex space-x-2 mt-4">
-                            <button class="flex-1 text-[10px] bg-ash-red text-white px-2 py-2 rounded-sm hover:bg-red-700 transition font-bold uppercase tracking-widest">
+                            <button class="flex-1 text-sm bg-ash-dark text-white h-8 rounded-sm hover:bg-ash-red transition font-semibold uppercase tracking-widest flex items-center justify-center">
                                 Add To Cart
-                            </button>
-                            <button onclick="viewItem('${collection._id}')" class="flex-1 text-[10px] border-2 border-racing-silver text-racing-grey px-2 py-2 rounded-sm hover:bg-racing-silver hover:text-ash-dark transition font-bold uppercase tracking-widest">
-                                View
                             </button>
                         </div>
                     </div>
                 </div>
             `;
-            // --- REDESIGNED CARD HTML END ---
         }
 
-        // --- FETCH AND RENDER COLLECTIONS (MODIFIED FOR HOMEPAGE LIMIT) ---
+        // --- FETCH AND RENDER COLLECTIONS ---
         async function fetchAndRenderWearsCollections() {
             const container = document.getElementById('wears-collections-grid');
             if (!container) return;
 
-            // Since the section is bg-color-white, the spinner/text should be black/dark grey
             const spinnerColor = 'text-gray-900';
             const textColor = 'text-gray-700';
 
@@ -432,7 +322,6 @@
                 </div>`;
 
             try {
-                // IMPORTANT: The homepage collection grid needs the `md:contents` class removed from the `wears-collections-grid` container for mobile scrolling to work correctly. The HTML below handles this correctly by having the outer `mobile-scroll-container` as flex and the inner `wears-collections-grid` as `flex` on mobile and `contents` on desktop.
                 const wearsApiUrl = `${API_BASE_URL}/api/collections/wears`;
 
                 const response = await fetch(wearsApiUrl, {
@@ -452,12 +341,24 @@
                 container.innerHTML = '';
 
                 if (collections && collections.length > 0) {
-                    // Limit to the first 5 collections for the homepage view
-                    const limitedCollections = collections.slice(0, 5);
+                    // Limit to the first 4 collections for the homepage view, matching the image example
+                    const limitedCollections = collections.slice(0, 4);
                     
                     limitedCollections.forEach(collection => {
-                        container.innerHTML += createCollectionCard(collection);
+                        // Use the price from the collection object or the first variant's price
+                        if (!collection.price && collection.variants && collection.variants.length > 0) {
+                            collection.price = collection.variants[0].price;
+                        }
+
+                        if (collection.price !== undefined && collection.price !== null) {
+                            container.innerHTML += createCollectionCard(collection);
+                        }
                     });
+
+                    // If no items were rendered (e.g., due to missing price)
+                    if (container.innerHTML === '') {
+                         container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Wears Collections are currently available.</p>`;
+                    }
                 } else {
                     container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Wears Collections are currently available.</p>`;
                 }
@@ -477,7 +378,7 @@
     <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
             <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
-                <img src="https://i.imgur.com/ioWFyQB.png" alt="Outflickz Logo" class="w-auto h-5 sm:h-6">
+                <img src="https://i.imgur.com/2ru3bcA.jpeg" alt="Outflickz Logo" class="w-auto h-6 sm:h-8 lg:h-9">
             </a>
 
             <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
@@ -532,15 +433,13 @@
     </main>
 
     <section id="wears-collections-section" class="py-10 sm:py-12 bg-color-white text-color-black border-t border-racing-grey white-section">
-        <div class="max-w-7xl mx-auto px-0 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 class="text-xl sm:text-2xl font-extrabold text-center text-color-black mb-6 sm:mb-8 border-b border-ash-red pb-2 mx-auto max-w-xs sm:max-w-md">
                 <span class="text-ash-red">WEARS</span> COLLECTIONS
             </h2>
 
-            <div class="mobile-scroll-container">
-                <div id="wears-collections-grid" class="flex space-x-4 md:grid md:grid-cols-3 lg:grid-cols-4 md:gap-8">
-                    </div>
-            </div>
+            <div id="wears-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+                </div>
 
             <div class="text-center mt-8 sm:mt-10">
                 <a href="wearscollection.html" class="border-2 border-ash-red text-ash-red hover:bg-ash-red hover:text-white transition duration-300 font-bold py-2 px-6 sm:py-2.5 sm:px-8 rounded-sm uppercase text-xs tracking-widest">

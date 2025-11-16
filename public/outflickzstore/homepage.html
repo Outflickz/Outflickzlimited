@@ -87,11 +87,16 @@
         }
 
         /* Custom style for active size/color selection */
-        .size-label input:checked + span,
-        .color-label input:checked + span {
+        .size-label input:checked + span {
             border-color: #a80000; /* ash-red */
             color: #a80000;
             font-weight: 600;
+        }
+
+        /* NEW/MODIFIED RULE: Apply thick border to the color swatch (the <span>) when its radio button is checked */
+        .color-label input:checked + span {
+            border-width: 2px; /* Thicker border for selected state */
+            border-color: #a80000; /* ash-red */
         }
     </style>
     <script>
@@ -444,7 +449,7 @@
 
                 // If no items were rendered (e.g., due to missing price)
                 if (container.innerHTML === '') {
-                       container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Wears Collections are currently available.</p>`;
+                        container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Wears Collections are currently available.</p>`;
                 }
             } else {
                 container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Wears Collections are currently available.</p>`;

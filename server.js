@@ -502,6 +502,27 @@ app.put(
     }
 );
 
+app.get(
+    '/api/admin/wearscollections',
+    verifyToken,
+    async (req, res) => {
+        try {
+            // Fetch all collections, select only the necessary fields for the table, 
+            // and sort them (e.g., by creation date)
+            const collections = await WearsCollection.find({})
+                .select('_id name tag variations totalStock isActive')
+                .sort({ createdAt: -1 });
+
+            // Send the list of collections as a JSON array
+            res.status(200).json(collections);
+        } catch (error) {
+            console.error('Error fetching wear collections:', error);
+            // Ensure server always returns JSON on errors
+            res.status(500).json({ message: 'Server error while fetching collections.', details: error.message });
+        }
+    }
+);
+
 
 // --- NETLIFY EXPORTS for api.js wrapper ---
 module.exports = {

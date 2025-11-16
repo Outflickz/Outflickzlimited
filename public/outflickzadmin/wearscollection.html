@@ -193,6 +193,14 @@
     const API_BASE_URL = '/api/admin/wearscollections'; // Consistent API endpoint
     const MAX_VARIATIONS = 4;
 
+    // --- GLOBAL FUNCTIONS REQUIRED FOR INLINE HTML HANDLERS ---
+    // Making these functions globally accessible for the onclick handlers in the HTML table.
+    window.updateColorPreview = updateColorPreview;
+    window.editCollection = editCollection;
+    window.deleteCollection = deleteCollection;
+    window.removeProductSection = removeProductSection;
+    // ---------------------------------------------------------
+    
     // --- UTILITY FUNCTIONS ---
     function getAuthToken() {
         const token = localStorage.getItem('adminToken');
@@ -258,8 +266,21 @@
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
+                // Robust error handling to catch non-JSON responses (like HTML 404/500 pages)
+                const errorText = await response.text(); 
+                let errorMessage = `HTTP error! Status: ${response.status}.`;
+                
+                try {
+                    const errorData = JSON.parse(errorText);
+                    errorMessage = errorData.message || errorMessage;
+                } catch (e) {
+                    // Non-JSON response (e.g., HTML page from Netlify 404 or backend server)
+                    console.error('Raw non-JSON error response (likely 404 or 500 HTML page):', errorText);
+                    // Use a more helpful message for the user
+                    errorMessage = `${errorMessage} The server returned an invalid response. (See console for raw data).`;
+                }
+                
+                throw new Error(errorMessage);
             }
 
             const collections = await response.json();
@@ -267,7 +288,7 @@
 
         } catch (error) {
             console.error('Error fetching collections:', error);
-            collectionsError.textContent = `Error: ${error.message}. Please check console for details.`;
+            collectionsError.textContent = `Error fetching collections: ${error.message}`;
             collectionsError.classList.remove('hidden');
         } finally {
             loadingIndicator.classList.add('hidden');
@@ -366,12 +387,11 @@
             sectionCount = 0;
 
             collection.variations.forEach(variation => {
-                // We use the existing variationIndex (1 to 4) for the index
+                // Use the variationIndex as the 1-based index directly
                 const sectionNumber = variation.variationIndex; 
                 
                 const newSection = document.createElement('div');
-                // Pass a temporary index (which is variationIndex - 1) to createProductSection 
-                // to get the correct sectionNumber (index + 1)
+                // Pass the index (which is sectionNumber - 1) to createProductSection 
                 newSection.innerHTML = createProductSection(sectionNumber - 1, variation.imageUrl).trim(); 
                 productSectionsContainer.appendChild(newSection.firstChild);
                 sectionCount++;
@@ -441,6 +461,9 @@
         const isEditing = imageUrl !== null;
         
         // If editing, the file input is not required, and we show the existing image.
+        // NOTE: Even in edit mode, if a section is removed, the subsequent re-rendering
+        // will not pass an imageUrl, making the file input required again, which is correct
+        // for maintaining a full variation set.
         const fileRequiredAttribute = isEditing ? '' : 'required';
         const imageInfo = isEditing ? 
             `<p class="mt-2 text-xs text-gray-500">Existing Image: <a href="${imageUrl}" target="_blank" class="text-blue-500 hover:underline">View Image</a>. Uploading a new file will replace it.</p>
@@ -465,8 +488,8 @@
                         <label for="color-input-${sectionNumber}" class="block text-sm font-medium text-gray-700">Color Input</label>
                         <div class="flex items-center mt-1">
                             <input type="color" id="color-input-${sectionNumber}" value="#10B981" required 
-                                            class="p-0 h-10 w-10 block rounded-full border-2 border-gray-300 cursor-pointer"
-                                            oninput="updateColorPreview(this.value, 'color-preview-${sectionNumber}')">
+                                             class="p-0 h-10 w-10 block rounded-full border-2 border-gray-300 cursor-pointer"
+                                             oninput="updateColorPreview(this.value, 'color-preview-${sectionNumber}')">
                             <div id="color-preview-${sectionNumber}" class="color-preview ml-3 bg-emerald-600" style="background-color: #10B981;"></div>
                             <span class="ml-3 text-sm text-gray-500">Pick a color</span>
                         </div>
@@ -482,6 +505,7 @@
     function addProductSection() {
         if (sectionCount < MAX_VARIATIONS) {
             const newSection = document.createElement('div');
+            // We pass the current sectionCount as the index (0-based)
             newSection.innerHTML = createProductSection(sectionCount).trim(); 
             productSectionsContainer.appendChild(newSection.firstChild);
             sectionCount++;
@@ -498,6 +522,9 @@
         if (sectionToRemove) {
             sectionToRemove.remove();
             
+            // Decrement the section count
+            sectionCount--;
+            
             // Re-index all remaining sections to maintain sequential `variationIndex`
             reindexProductSections();
             
@@ -507,27 +534,27 @@
 
     /**
      * Re-indexes sections after one is removed to ensure keys are sequential (1, 2, 3, 4).
+     * This is the crucial, updated function.
      */
     function reindexProductSections() {
-        sectionCount = 0;
         Array.from(productSectionsContainer.children).forEach((section, index) => {
-            const oldSectionNumber = parseInt(section.getAttribute('data-variation-index'));
-            const newSectionNumber = index + 1;
+            const newSectionNumber = index + 1; // New 1-based index (1, 2, 3...)
             
-            // Update the index in the DOM (IDs, labels, data attributes)
-            section.id = `section-${newSectionNumber}`;
-            section.setAttribute('data-variation-index', newSectionNumber);
-            
-            // Update labels and inputs (This is complex in a simple DOM structure, 
-            // but for file uploads and colors, we focus on the data capture logic 
-            // relying on the index being correct when the form is submitted).
-            // NOTE: For simplicity in this demo, we rely on the final loop in handleCollectionSubmit 
-            // to re-read the state based on the current children order.
-            
-            // Re-render inner HTML to update IDs, names, and button logic
-            section.outerHTML = createProductSection(index, section.querySelector(`#existing-image-url-${oldSectionNumber}`)?.value || null);
-            sectionCount++;
+            // Find the existing image URL to pass to the recreation function
+            const existingImageUrl = section.querySelector('[id^="existing-image-url-"]')?.value || null;
+
+            // Recreate the section's HTML with the correct new index
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = createProductSection(index, existingImageUrl).trim();
+            const newSectionElement = tempDiv.firstChild;
+
+            // Replace the old section element with the new, correctly indexed one
+            // This is safer than using .outerHTML which can lose event listeners or references
+            section.replaceWith(newSectionElement);
         });
+        
+        // After re-indexing, the sectionCount is equal to the number of children
+        sectionCount = productSectionsContainer.children.length;
     }
 
     /**
@@ -545,7 +572,10 @@
         }
     }
     
-    // Function to update the color circle preview
+    /** * Function to update the color circle preview
+     * @param {string} colorValue - The hex color value.
+     * @param {string} previewId - The ID of the color preview element.
+     */
     function updateColorPreview(colorValue, previewId) {
         document.getElementById(previewId).style.backgroundColor = colorValue;
     }
@@ -570,11 +600,14 @@
         // Disable button and show loading state
         submitBtn.disabled = true;
         submitBtn.textContent = isUpdate ? 'Updating...' : 'Submitting...';
-        submitBtn.classList.remove('hover:bg-emerald-700', 'hover:bg-yellow-700');
+        submitBtn.classList.remove('hover:bg-emerald-700', 'hover:bg-yellow-700', 'bg-emerald-600', 'bg-yellow-600');
         submitBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
 
         const token = getAuthToken();
-        if (!token) return;
+        if (!token) {
+             resetFormSubmitButtonState(isUpdate);
+             return;
+        }
 
         // --- 1. Collect Variations and Files ---
         const formData = new FormData();
@@ -582,7 +615,7 @@
         let isValid = true;
 
         Array.from(productSectionsContainer.children).forEach((section, index) => {
-            const sectionNumber = index + 1; // 1-based index
+            const sectionNumber = index + 1; // 1-based index (corresponds to image-1, image-2...)
             const imageInput = section.querySelector(`#image-upload-${sectionNumber}`);
             const colorInput = section.querySelector(`#color-input-${sectionNumber}`);
             const existingImageUrlInput = section.querySelector(`#existing-image-url-${sectionNumber}`);
@@ -605,7 +638,7 @@
                     // If updating and NO new file is uploaded, retain the existing URL.
                     imageUrlForMetadata = existingImageUrl;
                 } else if (!isUpdate && !imageFile) {
-                    // Creating and no image provided (should be caught by required attribute, but as a fallback)
+                    // Creating and no image provided 
                     alert(`Image for Variation #${sectionNumber} is missing.`);
                     isValid = false;
                     return; 
@@ -615,10 +648,7 @@
                 productVariationsMetadata.push({
                     variationIndex: sectionNumber,
                     colorHex: color,
-                    // If a new file is uploaded (imageFile is present), imageUrl is null/placeholder.
-                    // If updating and no new file, imageUrl is the existing URL.
-                    // The backend logic handles setting the final URL based on the file and the existing data.
-                    imageUrl: imageUrlForMetadata, 
+                    imageUrl: imageUrlForMetadata, // The backend uses this to know what to update/delete
                 });
             }
         });
@@ -661,6 +691,7 @@
                     const errorData = JSON.parse(errorText);
                     throw new Error(errorData.message || `Server error during ${method}.`);
                 } catch (e) {
+                    // Non-JSON error (e.g., HTML response from server/proxy)
                     throw new Error(errorText || `HTTP error! Status: ${response.status}`);
                 }
             }
@@ -701,9 +732,12 @@
     document.addEventListener('DOMContentLoaded', () => {
         // Add the initial product section for the creation form
         if (productSectionsContainer.children.length === 0) {
-             addProductSection();
+              addProductSection();
         }
         
+        // Attach the form submit handler
+        document.getElementById('wears-collection-form').addEventListener('submit', handleCollectionSubmit);
+
         // Toggle sidebar visibility on mobile
         sidebarToggle.addEventListener('click', () => {
             sidebar.classList.toggle('-translate-x-full');

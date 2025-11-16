@@ -220,6 +220,8 @@ window.updateColorPreview = updateColorPreview;
 window.editCollection = editCollection;
 window.deleteCollection = deleteCollection;
 window.removeProductSection = removeProductSection;
+// ADDED NEW FUNCTION FOR QUICK RESTOCK
+window.quickRestockAndActivate = quickRestockAndActivate;
 // ---------------------------------------------------------
 
 // --- UTILITY FUNCTIONS ---
@@ -335,6 +337,12 @@ function renderCollectionsTable(collections) {
         const firstImageUrl = collection.variations[0]?.imageUrl || 'https://via.placeholder.com/64?text=N/A';
         const imagePreview = `<img src="${firstImageUrl}" alt="Preview" class="w-10 h-10 object-cover rounded-full inline mr-2 shadow-sm">`;
 
+        // --- NEW LOGIC FOR RESTOCK/ACTIVATE BUTTON ---
+        const restockButton = collection.isActive || collection.totalStock > 0
+            ? '' // Do nothing if active or stock > 0
+            : `<button onclick="quickRestockAndActivate('${collection._id}', '${collection.name.replace(/'/g, "\\'")}')" class="text-emerald-600 hover:text-emerald-900 transition duration-150 mr-3">Restock/Activate</button>`;
+        // ---------------------------------------------
+
         const row = `
             <tr>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${collection._id.slice(-6)}</td>
@@ -352,6 +360,7 @@ function renderCollectionsTable(collections) {
                     </span>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    ${restockButton}
                     <button onclick="editCollection('${collection._id}')" class="text-indigo-600 hover:text-indigo-900 transition duration-150 mr-3">Edit</button>
                     <button onclick="deleteCollection('${collection._id}')" class="text-red-600 hover:text-red-900 transition duration-150">Delete</button>
                 </td>
@@ -479,6 +488,73 @@ async function deleteCollection(collectionId) {
     }
 }
 
+/**
+ * Prompts admin for new stock and updates totalStock and isActive status.
+ * THIS NEW FUNCTION ADDRESSES THE USER REQUEST FOR QUICK STOCK UPDATE.
+ * @param {string} collectionId - The ID of the collection.
+ * @param {string} collectionName - The name of the collection.
+ */
+async function quickRestockAndActivate(collectionId, collectionName) {
+    const token = getAuthToken();
+    if (!token) return;
+
+    // --- PROMPT FOR STOCK ---
+    let newStock;
+    while (true) {
+        // Use a placeholder for a modal that takes a number input
+        const stockInput = prompt(`📦 Restock Collection: ${collectionName}\nEnter the NEW total stock quantity (number > 0) to activate this collection:`);
+
+        if (stockInput === null) { // User clicked Cancel
+            return;
+        }
+
+        newStock = parseInt(stockInput);
+
+        if (!isNaN(newStock) && newStock > 0) {
+            break;
+        } else {
+            alert("Please enter a valid number greater than 0.");
+        }
+    }
+    // ---------------------------------------------
+
+    try {
+        // Prepare the payload. Sending only the fields to be changed.
+        const updatePayload = {
+            totalStock: newStock,
+            isActive: true, // Explicitly set to true on restock
+        };
+
+        const response = await fetch(`${API_BASE_URL}/${collectionId}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updatePayload)
+        });
+
+        if (!response.ok) {
+            // Check for JSON error response
+            const errorText = await response.text();
+            try {
+                const errorData = JSON.parse(errorText);
+                throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
+            } catch (e) {
+                 // Non-JSON error
+                 throw new Error(errorText || `HTTP error! Status: ${response.status}`);
+            }
+        }
+
+        showSuccessModal(`Collection **${collectionName}** successfully restocked to **${newStock}** and activated!`);
+        fetchCollections(); // Refresh the table
+
+    } catch (error) {
+        console.error('Restock failed:', error);
+        showErrorModal(`Error restocking collection: ${error.message}`);
+    }
+}
+
 // --- FORM SECTION MANAGEMENT ---
 
 /**
@@ -502,9 +578,6 @@ function createProductSection(index, imageUrl = null) {
             <img src="${imageUrl}" alt="Current product image preview" class="max-w-full h-auto rounded-lg shadow-md max-h-32 object-contain" />
         </div>` : '';
     // ----------------------------------------
-
-    // The logic below regarding SIGNED vs PERMANENT URL is kept as per your comments,
-    // assuming the backend handles the signed URL for re-submission during update.
 
     const imageInfo = isEditing ?
         `<p class="mt-2 text-xs text-gray-500">Existing Image: <a href="${imageUrl}" target="_blank" class="text-blue-500 hover:underline">View Full Image (Signed URL)</a>. Uploading a new file will replace it.</p>

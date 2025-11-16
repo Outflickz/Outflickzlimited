@@ -285,6 +285,8 @@ async function populateInitialData() {
 
 // --- EXPRESS CONFIGURATION AND MIDDLEWARE (Unchanged) ---
 const app = express();
+// Ensure express.json() is used BEFORE the update route, but after the full form route
+// To allow both JSON and multipart/form-data parsing
 app.use(express.json()); 
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -360,7 +362,7 @@ app.get('/api/admin/dashboard/stats', verifyToken, async (req, res) => {
 });
 
 // ------------------------------------------------------------------------------------------------
-// 🌟 MODIFIED ROUTE: GET /api/admin/wearscollections/:id (Fetch Single Collection)
+// MODIFIED ROUTE: GET /api/admin/wearscollections/:id (Fetch Single Collection)
 // Signs private image URLs before sending to client.
 // ------------------------------------------------------------------------------------------------
 
@@ -389,7 +391,7 @@ app.get('/api/admin/wearscollections/:id', verifyToken, async (req, res) => {
 });
 
 // ------------------------------------------------------------------------------------------------
-// 🌟 ROUTE: POST /api/admin/wearscollections (Create New Collection) - Unchanged Logic
+// ROUTE: POST /api/admin/wearscollections (Create New Collection) - Unchanged Logic
 // ------------------------------------------------------------------------------------------------
 
 app.post(
@@ -428,7 +430,12 @@ app.post(
                     });
                     uploadPromises.push(uploadPromise);
                 } else {
+                    // This handles cases where a file is required but not present during creation.
+                    // The client side should generally prevent this, but this is a final safety net.
                     console.warn(`File missing for variation index ${variation.variationIndex}`);
+                    if (!files || !files[fileKey]) {
+                         throw new Error(`Missing image for Variation #${variation.variationIndex}.`);
+                    }
                 }
             }
             
@@ -447,6 +454,9 @@ app.post(
                 totalStock: collectionData.totalStock,
                 variations: finalVariations, 
             });
+            // Set isActive based on totalStock for creation
+            newCollection.isActive = collectionData.totalStock > 0;
+
 
             // --- D. Save to Database ---
             const savedCollection = await newCollection.save();
@@ -471,26 +481,60 @@ app.post(
 );
 
 // ------------------------------------------------------------------------------------------------
-// 🌟 ROUTE: PUT /api/admin/wearscollections/:id (Update Existing Collection) - Unchanged Logic
+// 🌟 MODIFIED ROUTE: PUT /api/admin/wearscollections/:id (Handle Full Form Update OR Quick Restock JSON)
 // ------------------------------------------------------------------------------------------------
 
 app.put(
     '/api/admin/wearscollections/:id',
     verifyToken, 
+    // Use optional file parsing. If no files are sent, req.files will be {}
     upload.fields(Array.from({ length: 4 }, (_, i) => ({ name: `image-${i + 1}`, maxCount: 1 }))), 
     async (req, res) => {
         const collectionId = req.params.id;
+        let existingCollection;
+        
         try {
-            if (!req.body.collectionData) {
-                return res.status(400).json({ message: "Missing collection data payload." });
-            }
-            const collectionData = JSON.parse(req.body.collectionData);
-            const existingCollection = await WearsCollection.findById(collectionId);
-
+            existingCollection = await WearsCollection.findById(collectionId);
             if (!existingCollection) {
                 return res.status(404).json({ message: 'Collection not found for update.' });
             }
 
+            // Check if the request is a simple JSON update (Quick Restock) or a full form update (multipart/form-data).
+            const isQuickRestock = req.get('Content-Type')?.includes('application/json');
+            const hasFiles = req.files && Object.keys(req.files).length > 0;
+            
+            // --- A. HANDLE QUICK RESTOCK (Simple JSON Body, No Files/collectionData wrapper) ---
+            if (isQuickRestock && !hasFiles && !req.body.collectionData) {
+                const { totalStock, isActive } = req.body;
+
+                if (totalStock === undefined || isActive === undefined) {
+                    return res.status(400).json({ message: "Missing 'totalStock' or 'isActive' in simple update payload." });
+                }
+
+                if (totalStock <= 0) {
+                     return res.status(400).json({ message: "Total stock must be greater than zero for Quick Restock/Activate." });
+                }
+                
+                // Perform simple update
+                existingCollection.totalStock = totalStock;
+                // Force active state if stock is > 0, as per the quick restock requirement
+                existingCollection.isActive = true; 
+
+                const updatedCollection = await existingCollection.save();
+                return res.status(200).json({ 
+                    message: `Collection quick-restocked to ${updatedCollection.totalStock} and activated.`,
+                    collectionId: updatedCollection._id
+                });
+            }
+
+            // --- B. HANDLE FULL FORM SUBMISSION (multipart/form-data with collectionData JSON and optional Files) ---
+
+            if (!req.body.collectionData) {
+                return res.status(400).json({ message: "Missing collection data payload for full update." });
+            }
+
+            const collectionData = JSON.parse(req.body.collectionData);
+            
             const files = req.files; 
             const updatedVariations = [];
             const uploadPromises = [];
@@ -500,14 +544,17 @@ app.put(
             for (const incomingVariation of collectionData.variations) {
                 const fileKey = `image-${incomingVariation.variationIndex}`;
                 const uploadedFileArray = files[fileKey];
-                const existingVariation = existingCollection.variations.find(v => v.variationIndex === incomingVariation.variationIndex);
-                let newImageUrl = incomingVariation.imageUrl; // Default to the URL sent from the client (which could be the old one)
+                
+                // Find the existing permanent URL for this variation (using the permanent URL stored in DB)
+                const existingPermanentVariation = existingCollection.variations.find(v => v.variationIndex === incomingVariation.variationIndex);
+                
+                let newImageUrl = existingPermanentVariation?.imageUrl || null; // Start with the DB's permanent URL
 
                 if (uploadedFileArray && uploadedFileArray[0]) {
-                    // 1. New file uploaded: Schedule upload and mark old image for deletion
+                    // 1. New file uploaded: Schedule upload and mark old permanent URL for deletion
                     const uploadedFile = uploadedFileArray[0];
-                    if (existingVariation && existingVariation.imageUrl) {
-                        oldImagesToDelete.push(existingVariation.imageUrl);
+                    if (existingPermanentVariation && existingPermanentVariation.imageUrl) {
+                        oldImagesToDelete.push(existingPermanentVariation.imageUrl);
                     }
                     
                     const uploadPromise = uploadFileToPermanentStorage(uploadedFile).then(imageUrl => {
@@ -515,17 +562,36 @@ app.put(
                         updatedVariations.push({
                             variationIndex: incomingVariation.variationIndex,
                             colorHex: incomingVariation.colorHex,
-                            imageUrl: newImageUrl, 
+                            imageUrl: newImageUrl, // Store the NEW permanent URL
                         });
                     });
                     uploadPromises.push(uploadPromise);
                 } else {
-                    // 2. No new file: Use the existing permanent URL from the client's payload
-                    updatedVariations.push({
-                        variationIndex: incomingVariation.variationIndex,
-                        colorHex: incomingVariation.colorHex,
-                        imageUrl: newImageUrl, // Must be the existing URL from the client's payload
-                    });
+                    // 2. No new file: Use the existing permanent URL found in the database (or the one passed if a new variation)
+                    // NOTE: The incomingVariation.imageUrl from the client is the *Signed URL* if no file was uploaded. 
+                    // We must rely on the existingPermanentVariation.imageUrl from the database if we are retaining the old image.
+                    
+                    // If this is a re-indexed variation, it might be an issue, but since the client now sends the Signed URL 
+                    // in `incomingVariation.imageUrl`, and we know the DB stores the permanent one, we must use the DB's permanent URL 
+                    // if it exists, or the incoming value if the variation is brand new (which shouldn't happen on update unless deleting others).
+                    if (existingPermanentVariation && existingPermanentVariation.imageUrl) {
+                         newImageUrl = existingPermanentVariation.imageUrl;
+                    } else if (incomingVariation.imageUrl) {
+                        // FALLBACK: If a variation was removed and re-added but we want to retain the image, the client 
+                        // sends the signed URL. For simplicity, we assume if we are not uploading a file, we want to 
+                        // keep the *original* image from the DB entry that matches the variation index. 
+                        // If no match in DB, this is complex. Sticking to the safer logic:
+                        // IF no new file AND existing variation exists -> use existing permanent URL
+                        newImageUrl = existingPermanentVariation ? existingPermanentVariation.imageUrl : incomingVariation.imageUrl;
+                    }
+                    
+                    if (newImageUrl) {
+                         updatedVariations.push({
+                             variationIndex: incomingVariation.variationIndex,
+                             colorHex: incomingVariation.colorHex,
+                             imageUrl: newImageUrl, 
+                         });
+                    }
                 }
             }
             
@@ -542,6 +608,7 @@ app.put(
             existingCollection.sizes = collectionData.sizes;
             existingCollection.totalStock = collectionData.totalStock;
             existingCollection.variations = updatedVariations;
+            // Only update isActive if explicitly sent (otherwise it stays whatever the stock/manual value is)
             existingCollection.isActive = collectionData.isActive !== undefined ? collectionData.isActive : existingCollection.isActive;
             
             // --- Save to Database ---
@@ -568,7 +635,32 @@ app.put(
 );
 
 // ------------------------------------------------------------------------------------------------
-// 🌟 MODIFIED ROUTE: GET /api/admin/wearscollections (Fetch All Collections)
+// ROUTE: DELETE /api/admin/wearscollections/:id (Delete Collection) - Unchanged Logic
+// ------------------------------------------------------------------------------------------------
+app.delete('/api/admin/wearscollections/:id', verifyToken, async (req, res) => {
+    try {
+        const collectionId = req.params.id;
+        const deletedCollection = await WearsCollection.findByIdAndDelete(collectionId);
+
+        if (!deletedCollection) {
+            return res.status(404).json({ message: 'Collection not found for deletion.' });
+        }
+
+        // Delete associated images from Backblaze B2 (fire and forget)
+        deletedCollection.variations.forEach(v => {
+            deleteFileFromPermanentStorage(v.imageUrl);
+        });
+
+        res.status(200).json({ message: `Collection ${collectionId} and associated images deleted successfully.` });
+    } catch (error) {
+        console.error('Error deleting wear collection:', error);
+        res.status(500).json({ message: 'Server error during collection deletion.' });
+    }
+});
+
+
+// ------------------------------------------------------------------------------------------------
+// MODIFIED ROUTE: GET /api/admin/wearscollections (Fetch All Collections)
 // Signs private image URLs before sending to client.
 // ------------------------------------------------------------------------------------------------
 app.get(

@@ -16,7 +16,7 @@
             font-weight: 900;
             line-height: 0.8;
             letter-spacing: -0.05em;
-            text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.7); /* Darker shadow for better contrast */
+            text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.7);
             word-break: break-word;
         }
 
@@ -25,41 +25,40 @@
             font-family: 'Inter', sans-serif;
         }
 
-        /* --- RESPONSIVE SLIDER STYLES --- */
+        /* --- STABILIZED RESPONSIVE SLIDER STYLES --- */
         .hero-bg-slider-container {
             position: absolute;
             inset: 0;
             width: 100%;
             height: 100%;
-            overflow: hidden; 
+            overflow: hidden;
         }
         .slider-cell {
-            width: 100%;
+            position: absolute;
+            top: 0;
             height: 100%;
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
             opacity: 0;
-            transition: opacity 1.5s ease-in-out; 
-            position: absolute;
-            inset: 0;
+            transition: opacity 1.5s ease-in-out;
         }
-        /* Mobile: Only cell-1 is displayed (full width) */
+        /* Mobile Default: Cell 1 takes full width, Cell 2 is hidden */
         .slider-cell-1 {
-            display: block;
+            width: 100%;
+            left: 0;
             z-index: 10;
         }
-        /* Desktop: cell-2 is displayed next to cell-1 (50% width each) */
+        .slider-cell-2 {
+            display: none; /* Hide cell 2 completely on mobile */
+        }
+        /* Tablet/Desktop: Cell 2 is displayed next to Cell 1 (50% width each) */
         @media (min-width: 768px) {
             .slider-cell {
-                width: 50%;
-                height: 100%;
-            }
-            .slider-cell-1 {
-                left: 0;
+                width: 50%; /* Each cell takes half the width */
             }
             .slider-cell-2 {
-                display: block;
+                display: block; /* Show cell 2 */
                 left: 50%;
                 z-index: 10;
             }
@@ -68,14 +67,28 @@
             opacity: 1;
         }
         .image-overlay {
-            /* Slightly lighter overlay for better text contrast */
-            background-color: rgba(0, 0, 0, 0.5); 
+            background-color: rgba(0, 0, 0, 0.5);
         }
         /* --- END SLIDER STYLES --- */
 
         /* --- MODAL STYLES --- */
         .modal {
             transition: opacity 0.3s ease-in-out;
+        }
+
+        /* --- NEW CARD STYLES (Kept as is - they are responsive) --- */
+        .card-image-box {
+            aspect-ratio: 1/1.1;
+            overflow: hidden;
+        }
+        .card-image-box img {
+            object-fit: cover !important;
+        }
+        .racing-card-bg {
+            background-color: #222222;
+        }
+        .border-racing-silver {
+            border-color: #AAAAAA;
         }
     </style>
     <script>
@@ -84,11 +97,12 @@
             theme: {
                 extend: {
                     colors: {
-                        'ash-dark': '#111111', /* Very dark background */
-                        'ash-red': '#a80000', /* Deep red color */
+                        'ash-dark': '#111111',
+                        'ash-red': '#a80000',
                         'color-white': '#FFFFFF',
                         'color-black': '#000000',
-                        // You can add more specific colors here if they appear in your data
+                        'racing-grey': '#333333',
+                        'racing-silver': '#AAAAAA',
                     }
                 }
             }
@@ -99,32 +113,22 @@
             document.getElementById('mobile-menu').classList.toggle('hidden');
         }
 
-        // --- TOKEN RETRIEVAL AND CONFIGURATION ---
         const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
-
-        if (USER_AUTH_TOKEN) {
-            console.log(`[AUTH] Successfully retrieved token: ${USER_AUTH_TOKEN.substring(0, 10)}...`);
-        } else {
-            console.warn('[AUTH ERROR] No token found in localStorage. User may not be authenticated.');
-        }
-
-        // Configuration (Must match the API server's config)
         const API_BASE_URL = 'https://outflickz.netlify.app'; // Placeholder for your actual public API server URL
 
-        // --- HERO SLIDER JS ---
+        // --- HERO SLIDER JS (SIMPLIFIED FOR STABILITY) ---
         document.addEventListener('DOMContentLoaded', () => {
-            // All 8 image links
             const imageLinks = [
-                'https://i.imgur.com/RFkkvwa.jpeg', 
-                'https://i.imgur.com/YdK6QGk.jpeg', 
-                'https://i.imgur.com/S74DrsC.jpeg', 
-                'https://i.imgur.com/k9XXsBU.jpeg', 
-                'https://i.imgur.com/P39sBlb.jpeg', 
-                'https://i.imgur.com/e56O0Ub.jpeg', 
-                'https://i.imgur.com/oSyDJmZ.jpeg', 
+                'https://i.imgur.com/RFkkvwa.jpeg',
+                'https://i.imgur.com/YdK6QGk.jpeg',
+                'https://i.imgur.com/S74DrsC.jpeg',
+                'https://i.imgur.com/k9XXsBU.jpeg',
+                'https://i.imgur.com/P39sBlb.jpeg',
+                'https://i.imgur.com/e56O0Ub.jpeg',
+                'https://i.imgur.com/oSyDJmZ.jpeg',
                 'https://i.imgur.com/g8vdHCf.jpeg'
             ];
-            
+
             const cell1 = document.getElementById('slider-cell-1');
             const cell2 = document.getElementById('slider-cell-2');
             const totalImages = imageLinks.length;
@@ -136,59 +140,41 @@
             function updateSlider() {
                 const startIndex = currentSlideIndex * imagesPerSlide;
                 const url1 = imageLinks[startIndex];
-                const url2 = imageLinks[(startIndex + 1) % totalImages]; 
-                
+                const url2 = imageLinks[(startIndex + 1) % totalImages];
+
                 // Preload images to prevent flicker
                 const img1 = new Image();
                 img1.src = url1;
                 const img2 = new Image();
                 img2.src = url2;
 
+                // 1. Start fade-out (remove active class)
                 cell1.classList.remove('active');
-                if (window.innerWidth >= 768) {
-                    cell2.classList.remove('active');
-                }
+                cell2.classList.remove('active');
 
-                // Use a short timeout to allow the fade-out transition to start
+                // 2. Wait for a moment, then set new images and fade in (add active class)
                 setTimeout(() => {
+                    // Update images
                     cell1.style.backgroundImage = `url('${url1}')`;
-                    
-                    if (window.innerWidth >= 768) {
-                        cell2.style.backgroundImage = `url('${url2}')`;
-                        cell2.classList.add('active'); 
-                    } else {
-                        // Ensure cell2 is fully hidden on mobile
-                        cell2.style.backgroundImage = 'none';
-                        cell2.classList.remove('active'); 
-                    }
+                    cell2.style.backgroundImage = `url('${url2}')`;
 
+                    // Apply active class to fade back in
                     cell1.classList.add('active');
-                }, 10); // Very short delay before setting new image and adding 'active'
+                    if (window.innerWidth >= 768) {
+                        cell2.classList.add('active');
+                    }
+                }, 50); // Small delay to ensure fade-out starts before content is changed
 
                 currentSlideIndex = (currentSlideIndex + 1) % totalSlides;
             }
 
-            // Initial call
+            // Initial call and Interval setup (no complex resize listeners needed)
             updateSlider();
-            
-            // Set up interval and resize listener
-            let sliderIntervalID = setInterval(updateSlider, slideInterval);
-            
-            // Debounced resize handler for performance
-            let resizeTimeout;
-            window.addEventListener('resize', () => {
-                clearTimeout(resizeTimeout);
-                // Clear and restart the slider interval when changing breakpoint
-                clearInterval(sliderIntervalID);
-                resizeTimeout = setTimeout(() => {
-                    updateSlider();
-                    sliderIntervalID = setInterval(updateSlider, slideInterval);
-                }, 250); // 250ms debounce
-            });
+            setInterval(updateSlider, slideInterval);
         });
         // --- END HERO SLIDER JS ---
 
-        // --- MODAL CONTROL FUNCTIONS ---
+        // --- MODAL CONTROL FUNCTIONS (UNCHANGED) ---
         function openModal(imageUrl, itemName) {
             const modal = document.getElementById('image-modal');
             const modalImage = document.getElementById('modal-image');
@@ -200,7 +186,7 @@
 
             modal.classList.remove('opacity-0', 'pointer-events-none');
             modal.classList.add('opacity-100');
-            document.body.classList.add('overflow-hidden'); // Prevent background scrolling
+            document.body.classList.add('overflow-hidden');
         }
 
         function closeModal() {
@@ -210,47 +196,25 @@
             document.body.classList.remove('overflow-hidden');
         }
 
-
-        // --- NEW FUNCTION: VIEW ITEM (MODIFIED) ---
-        /**
-         * Simulates viewing a specific item and opens a modal with the current image.
-         * @param {string} collectionId
-         */
+        // --- VIEW ITEM (UNCHANGED) ---
         function viewItem(collectionId) {
-            // 1. Get the card container
             const card = document.querySelector(`.collection-card[data-collection-id="${collectionId}"]`);
             if (!card) return;
 
-            // 2. Get the currently active image URL and item name
             const currentImage = card.querySelector(`#collection-image-${collectionId}`);
-            const imageUrl = currentImage ? currentImage.src : 'https://i.imgur.com/k9XXsBU.jpeg';
+            // Use the uploaded image for the default/example item
+            const imageUrl = currentImage ? currentImage.src : 'Screenshot (478).png';
             const itemName = card.querySelector('h3').textContent;
 
-            // 3. Optional: Log other details for console review
-            const activeColorButton = card.querySelector('.color-button.border-ash-red');
-            const selectedColor = activeColorButton ? activeColorButton.getAttribute('title') : 'Default Color';
-            const sizeSelect = card.querySelector(`#size-select-${collectionId}`);
-            const selectedSize = sizeSelect ? sizeSelect.value : 'No Size Selected';
-            const quantityInput = card.querySelector(`#quantity-input-${collectionId}`);
-            const quantity = quantityInput ? quantityInput.value : 1;
-            
-            console.log('--- VIEW ITEM DETAILS ---');
-            console.log(`Collection ID: ${collectionId}`);
-            console.log(`Selected Color: ${selectedColor}`);
-            console.log(`Selected Size: ${selectedSize}`);
-            console.log(`Quantity: ${quantity}`);
-            console.log(`Current Image URL: ${imageUrl}`);
-
-            // 4. Open the modal with the selected image
             openModal(imageUrl, itemName);
         }
 
-        // --- QUANTITY AND SIZE UTILITY FUNCTIONS (Original) ---
+        // --- QUANTITY AND SIZE UTILITY FUNCTIONS (UNCHANGED) ---
         function changeQuantity(collectionId, delta) {
             const input = document.getElementById(`quantity-input-${collectionId}`);
             let currentValue = parseInt(input.value) || 1;
             let newValue = currentValue + delta;
-            
+
             if (newValue < 1) {
                 newValue = 1;
             }
@@ -263,17 +227,11 @@
             input.value = newValue;
         }
 
-
-        // --- WEARS COLLECTION JS (Original Rendering Logic) ---
-
-        /**
-         * Swaps the main image of a collection card when a color button is clicked.
-         * @param {HTMLElement} button - The color button that was clicked.
-         */
+        // --- WEARS COLLECTION JS (UNCHANGED LOGIC, HTML REMAINS THE SAME) ---
         function swapImage(button) {
             const collectionId = button.getAttribute('data-collection-id');
             const newImageUrl = button.getAttribute('data-image-url');
-            
+
             const imageElement = document.getElementById(`collection-image-${collectionId}`);
 
             if (imageElement) {
@@ -282,22 +240,15 @@
                 const colorContainer = button.parentNode;
                 colorContainer.querySelectorAll('.color-button').forEach(btn => {
                     btn.classList.remove('border-ash-red');
-                    btn.classList.add('border-transparent');
+                    btn.classList.add('border-racing-silver');
                 });
 
-                button.classList.remove('border-transparent');
+                button.classList.remove('border-racing-silver');
                 button.classList.add('border-ash-red');
             }
         }
-        
-        /**
-         * Creates the HTML structure for the color selection buttons.
-         * @param {string} collectionId 
-         * @param {Array<object>} variants 
-         * @returns {string} HTML string
-         */
+
         function createColorButtons(collectionId, variants) {
-            // Helper to get Tailwind color class from color name, falling back to inline style
             function getColorClass(colorName) {
                 const lowerCaseColor = colorName.toLowerCase();
                 switch (lowerCaseColor) {
@@ -306,8 +257,7 @@
                     case 'red': return 'bg-red-500';
                     case 'blue': return 'bg-blue-500';
                     case 'green': return 'bg-green-500';
-                    default: 
-                        // Return the inline style for custom or dynamic colors
+                    default:
                         return `style="background-color: ${lowerCaseColor.replace(/\s/g, '-')};"`;
                 }
             }
@@ -315,12 +265,12 @@
             let html = '';
             if (variants && variants.length > 0) {
                 html = variants.map((variant, index) => {
-                    const borderClass = index === 0 ? 'border-ash-red color-button' : 'border-transparent color-button';
+                    const borderClass = index === 0 ? 'border-ash-red color-button' : 'border-racing-silver color-button';
                     const colorClassOrStyle = getColorClass(variant.color);
 
                     return `
-                        <button 
-                            class="h-4 w-4 sm:h-5 sm:w-5 rounded-full border-2 hover:border-ash-red transition-all duration-150 ${borderClass} ${colorClassOrStyle.startsWith('bg-') ? colorClassOrStyle : ''}" 
+                        <button
+                            class="h-4 w-4 sm:h-5 sm:w-5 rounded-full border-2 hover:border-ash-red transition-all duration-150 ${colorClassOrStyle.startsWith('bg-') ? colorClassOrStyle : ''} ${borderClass}"
                             ${colorClassOrStyle.startsWith('style') ? colorClassOrStyle : ''}
                             data-collection-id="${collectionId}"
                             data-image-url="${variant.imageUrl}"
@@ -335,135 +285,108 @@
             return html;
         }
 
-        /**
-         * Creates the HTML structure for the size selection dropdown.
-         */
         function createSizeDropdown(collectionId, sizes) {
             if (!sizes || sizes.length === 0) {
-                return `<p class="text-xs sm:text-sm text-gray-500 py-1 sm:py-1.5 px-2 bg-gray-50 rounded-sm border border-gray-300">One Size</p>`;
+                return `<p class="text-xs sm:text-sm text-racing-silver py-1 sm:py-1.5 px-2 bg-racing-grey rounded-sm border border-racing-silver">One Size</p>`;
             }
-            
+
             let optionsHtml = sizes.map(size => {
                 const selected = size === sizes[0] ? 'selected' : '';
                 return `<option value="${size}" ${selected}>${size}</option>`;
             }).join('');
 
             return `
-                <select id="size-select-${collectionId}" aria-label="Select Size" class="block w-full py-1 sm:py-1.5 px-2 border border-gray-300 bg-white rounded-sm text-xs sm:text-sm text-black focus:border-ash-red focus:ring-1 focus:ring-ash-red">
+                <select id="size-select-${collectionId}" aria-label="Select Size" class="block w-full py-1 sm:py-1.5 px-2 border border-racing-silver bg-racing-grey rounded-sm text-xs sm:text-sm text-white focus:border-ash-red focus:ring-1 focus:ring-ash-red">
                     ${optionsHtml}
                 </select>
             `;
         }
 
+        function createCollectionCard(collection) {
+            const defaultImage = 'Screenshot (478).png';
 
-/**
- * Creates the HTML structure for a single collection card.
- */
-function createCollectionCard(collection) {
-    const defaultImage = 'https://i.imgur.com/k9XXsBU.jpeg';
+            const imageUrl = (collection.variants && collection.variants.length > 0)
+                                        ? collection.variants[0].imageUrl
+                                        : defaultImage;
 
-    const imageUrl = (collection.variants && collection.variants.length > 0)
-                                 ? collection.variants[0].imageUrl
-                                 : defaultImage;
+            const colorButtonsHtml = createColorButtons(collection._id, collection.variants);
+            const sizeDropdownHtml = createSizeDropdown(collection._id, collection.availableSizes);
+            const maxStock = collection.availableStock > 0 ? collection.availableStock : 99;
 
-    const colorButtonsHtml = createColorButtons(collection._id, collection.variants);
-    const sizeDropdownHtml = createSizeDropdown(collection._id, collection.availableSizes);
-    const maxStock = collection.availableStock > 0 ? collection.availableStock : 99;
-
-    // --- UPDATED STOCK LOGIC ---
-    let stockStatus = '';
-    let stockClass = 'bg-ash-red'; // Default to red (ash-red)
-
-    if (!collection.isActive) {
-        // Condition 1: Admin has unchecked the "Collection is Active" box
-        stockStatus = 'Out of Stock';
-    } else if (collection.availableStock > 0) {
-        // Condition 2: Active and has stock
-        stockStatus = 'In Stock';
-        stockClass = 'bg-green-600'; // Using a clear green for IN STOCK
-    } else {
-        // Condition 3: Active but no stock (e.g., Pre-Order or Out of Stock by quantity)
-        stockStatus = 'Pre-Order'; 
-        stockClass = 'bg-yellow-600'; // Using a clear yellow for Pre-Order
-    }
-    // ---------------------------
-
-    return `
-        <div class="collection-card bg-white border border-gray-200 rounded-lg overflow-hidden shadow-xl hover:shadow-2xl transform hover:scale-[1.02] transition duration-300" data-collection-id="${collection._id}">
-            <div class="relative h-48 sm:h-60"> 
-                <img
-                    class="w-full h-full object-cover"
-                    id="collection-image-${collection._id}"
-                    src="${imageUrl}"
-                    alt="${collection.name} in ${collection.variants && collection.variants.length > 0 ? collection.variants[0].color : 'default'} color"
-                    onerror="this.onerror=null;this.src='${defaultImage}';"
-                >
-                <div class="absolute inset-0 bg-black bg-opacity-10"></div>
-                <span class="absolute top-1 right-1 sm:top-2 sm:right-2 ${stockClass} text-white text-xs font-bold px-2 py-0.5 sm:px-3 sm:py-1 rounded-full uppercase"> 
-                    ${stockStatus}
-                </span>
-            </div>
-
-            <div class="p-2 sm:p-3"> 
-                <h3 class="text-sm sm:text-base font-semibold text-black truncate">${collection.name}</h3> 
-                
-                <div class="flex items-start justify-between mt-2">
-                    <div class="w-1/2 pr-1 sm:pr-2"> 
-                        <label for="size-select-${collection._id}" class="block text-xs font-medium text-gray-700 mb-1">Size:</label>
-                        ${sizeDropdownHtml}
+            // --- REDESIGNED CARD HTML START ---
+            return `
+                <div class="collection-card bg-ash-dark border border-racing-grey rounded-lg overflow-hidden shadow-2xl hover:shadow-[0_0_20px_rgba(168,0,0,0.5)] transform hover:scale-[1.03] transition duration-300" data-collection-id="${collection._id}">
+                    <div class="relative card-image-box">
+                        <img
+                            class="w-full h-full object-cover"
+                            id="collection-image-${collection._id}"
+                            src="${imageUrl}"
+                            alt="${collection.name} in ${collection.variants && collection.variants.length > 0 ? collection.variants[0].color : 'default'} color"
+                            onerror="this.onerror=null;this.src='${defaultImage}';"
+                        >
+                        <div class="absolute inset-0 bg-black bg-opacity-30"></div>
+                        <span class="absolute top-1 left-1 sm:top-2 sm:left-2 bg-ash-red text-white text-xs font-bold px-2 py-0.5 sm:px-3 sm:py-1 rounded-sm uppercase tracking-wider">
+                            ${collection.availableStock > 0 ? 'NEW' : 'PRE-ORDER'}
+                        </span>
                     </div>
-                    <div class="w-1/2 pl-1 sm:pl-2"> 
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Color:</label>
-                        <div class="flex space-x-1 sm:space-x-1.5 mt-1"> 
-                            ${colorButtonsHtml}
+
+                    <div class="p-3 sm:p-4 racing-card-bg">
+                        <h3 class="text-base sm:text-lg font-bold text-white uppercase truncate tracking-wider">${collection.name}</h3>
+
+                        <div class="flex items-start justify-between mt-3">
+                            <div class="w-1/2 pr-2">
+                                <label for="size-select-${collection._id}" class="block text-xs font-medium text-racing-silver mb-1 uppercase">Size</label>
+                                ${sizeDropdownHtml}
+                            </div>
+                            <div class="w-1/2 pl-2">
+                                <label class="block text-xs font-medium text-racing-silver mb-1 uppercase">Color</label>
+                                <div class="flex space-x-1 sm:space-x-1.5 mt-1">
+                                    ${colorButtonsHtml}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between mt-4">
+                            <span class="text-lg sm:text-xl font-extrabold text-ash-red">$${collection.price.toFixed(2)}</span>
+
+                            <div class="flex items-center space-x-0.5 sm:space-x-1">
+                                <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="text-xs sm:text-sm border border-racing-silver text-white w-6 sm:w-7 h-6 sm:h-7 rounded-sm hover:bg-racing-grey transition flex items-center justify-center">-</button>
+                                <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock}" aria-label="Quantity" class="w-8 sm:w-10 text-center text-xs sm:text-sm border-racing-silver rounded-sm text-black bg-white p-0.5 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
+                                <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="text-xs sm:text-sm border border-racing-silver text-white w-6 sm:w-7 h-6 sm:h-7 rounded-sm hover:bg-racing-grey transition flex items-center justify-center">+</button>
+                            </div>
+                        </div>
+
+                        <div class="flex space-x-2 mt-4">
+                            <button class="flex-1 text-[11px] sm:text-sm bg-ash-red text-white px-2 py-2 sm:px-3 sm:py-2.5 rounded-sm hover:bg-red-700 transition font-bold uppercase tracking-widest">
+                                Add To Cart
+                            </button>
+                            <button onclick="viewItem('${collection._id}')" class="flex-1 text-[11px] sm:text-sm border-2 border-racing-silver text-racing-silver px-2 py-2 sm:px-3 sm:py-2.5 rounded-sm hover:bg-racing-silver hover:text-ash-dark transition font-bold uppercase tracking-widest">
+                                View
+                            </button>
                         </div>
                     </div>
                 </div>
+            `;
+            // --- REDESIGNED CARD HTML END ---
+        }
 
-                <div class="flex items-center justify-between mt-3 sm:mt-4"> 
-                    <span class="text-base sm:text-lg font-bold text-ash-red">$${collection.price.toFixed(2)}</span> 
-                    
-                    <div class="flex items-center space-x-0.5 sm:space-x-1"> 
-                        <label class="text-xs font-medium text-gray-700 mr-1 hidden sm:block">Qty:</label>
-                        <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="text-xs sm:text-sm border border-gray-300 text-black w-6 sm:w-7 h-6 sm:h-7 rounded-sm hover:bg-gray-100 transition flex items-center justify-center">-</button> 
-                        <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock}" aria-label="Quantity" class="w-8 sm:w-10 text-center text-xs sm:text-sm border-gray-300 rounded-sm text-black p-0.5 focus:border-ash-red focus:ring-1 focus:ring-ash-red" /> 
-                        <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="text-xs sm:text-sm border border-gray-300 text-black w-6 sm:w-7 h-6 sm:h-7 rounded-sm hover:bg-gray-100 transition flex items-center justify-center">+</button> 
-                    </div>
-                </div>
-
-                <div class="flex space-x-1 sm:space-x-2 mt-3 sm:mt-4"> 
-                    <button class="flex-1 text-[10px] sm:text-xs bg-ash-red text-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-sm hover:bg-red-700 transition font-medium uppercase tracking-wider">
-                        Buy Now
-                    </button>
-                    <button onclick="viewItem('${collection._id}')" class="flex-1 text-[10px] sm:text-xs border border-ash-red text-ash-red px-2 py-1.5 sm:px-3 sm:py-2 rounded-sm hover:bg-ash-red hover:text-white transition font-medium uppercase tracking-wider">
-                        View Item
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-        /**
-         * Fetches active WEARS collections and renders them to the main page.
-         */
+        // --- FETCH AND RENDER COLLECTIONS (UNCHANGED) ---
         async function fetchAndRenderWearsCollections() {
             const container = document.getElementById('wears-collections-grid');
             if (!container) return;
-            
-            // Replaced font-awesome with a native spinner for lighter load
+
             container.innerHTML = `
                 <div class="col-span-full text-center text-gray-600 py-10">
                     <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-600 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg> 
+                    </svg>
                     Loading Wears Collections...
                 </div>`;
 
             try {
                 const wearsApiUrl = `${API_BASE_URL}/api/collections/wears`;
-                
+
                 const response = await fetch(wearsApiUrl, {
                     method: 'GET',
                     headers: {
@@ -471,13 +394,13 @@ function createCollectionCard(collection) {
                         'Authorization': `Bearer ${USER_AUTH_TOKEN}`
                     }
                 });
-                
+
                 if (!response.ok) {
                     throw new Error(`Failed to load collections from server. Status: ${response.status}`);
                 }
-                
+
                 const collections = await response.json();
-                
+
                 container.innerHTML = '';
 
                 if (collections && collections.length > 0) {
@@ -493,7 +416,6 @@ function createCollectionCard(collection) {
             }
         }
 
-        // Execute the fetch function after the DOM is fully loaded
         document.addEventListener('DOMContentLoaded', fetchAndRenderWearsCollections);
         // --- END WEARS COLLECTION JS ---
     </script>
@@ -518,9 +440,6 @@ function createCollectionCard(collection) {
                 <button class="p-2 text-gray-300 hover:text-white transition rounded-full hidden md:block" aria-label="User Account">
                     <i class="fas fa-user w-5 h-5"></i>
                 </button>
-                <button class="p-2 text-gray-300 hover:text-white transition rounded-full" aria-label="Wishlist">
-                    <i class="fas fa-heart w-5 h-5"></i>
-                </button>
                 <button class="p-2 text-gray-300 hover:text-white transition rounded-full" aria-label="Shopping Bag">
                     <i class="fas fa-shopping-bag w-5 h-5"></i>
                 </button>
@@ -537,15 +456,17 @@ function createCollectionCard(collection) {
             <a href="#" class="block px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-800 rounded-md">New Arrivals</a>
             <a href="#" class="block px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-800 rounded-md">Wears Collection</a>
             <a href="#" class="block px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-800 rounded-md">Cap Collection</a>
+            <a href="#" class="block px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-800 rounded-md">Account</a>
         </div>
     </div>
 
-    <main class="relative min-h-[70vh] h-auto md:h-[calc(100vh-4rem)] overflow-hidden">
+    <main class="relative h-[70vh] md:h-[calc(100vh-4rem)] overflow-hidden">
         <div class="hero-bg-slider-container">
-            <div id="slider-cell-1" class="slider-cell slider-cell-1"></div> 
-            <div id="slider-cell-2" class="slider-cell slider-cell-2 hidden md:block"></div> <div class="absolute inset-0 image-overlay z-20"></div>
+            <div id="slider-cell-1" class="slider-cell slider-cell-1"></div>
+            <div id="slider-cell-2" class="slider-cell slider-cell-2"></div>
+            <div class="absolute inset-0 image-overlay z-20"></div>
         </div>
-        
+
         <div class="absolute inset-0 z-30 flex flex-col items-center justify-center p-4">
             <h1 class="text-white text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-extrabold roulette-text mb-4 uppercase text-center">
                 OUTFLICKZ
@@ -558,17 +479,18 @@ function createCollectionCard(collection) {
             </button>
         </div>
     </main>
-    <section id="wears-collections-section" class="py-12 sm:py-16 bg-white border-t border-gray-200">       
+
+    <section id="wears-collections-section" class="py-12 sm:py-16 bg-ash-dark border-t border-racing-grey">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 class="text-3xl sm:text-4xl font-extrabold text-center text-black mb-8 sm:mb-10 border-b border-ash-red pb-3 mx-auto max-w-sm sm:max-w-md">           
-                WEARS COLLECTIONS
+            <h2 class="text-3xl sm:text-4xl font-extrabold text-center text-white mb-8 sm:mb-10 border-b border-ash-red pb-3 mx-auto max-w-sm sm:max-w-md">
+                <span class="text-ash-red">WEARS</span> COLLECTIONS
             </h2>
-            
+
             <div id="wears-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-8">
-            </div>
-            
-            <div class="text-center mt-8 sm:mt-12">            
-                <button class="border border-ash-red text-ash-red hover:bg-ash-red hover:text-white transition duration-300 font-semibold py-2.5 px-8 sm:py-3 sm:px-10 rounded-sm uppercase text-xs sm:text-sm tracking-widest">            
+                </div>
+
+            <div class="text-center mt-8 sm:mt-12">
+                <button class="border-2 border-ash-red text-ash-red hover:bg-ash-red hover:text-white transition duration-300 font-bold py-2.5 px-8 sm:py-3 sm:px-10 rounded-sm uppercase text-xs sm:text-sm tracking-widest">
                     View All Wears
                 </button>
             </div>
@@ -576,9 +498,9 @@ function createCollectionCard(collection) {
     </section>
 
     <div id="image-modal" class="modal fixed inset-0 z-[100] bg-black bg-opacity-90 flex items-center justify-center opacity-0 pointer-events-none" onclick="closeModal()" role="dialog" aria-modal="true" aria-labelledby="modal-item-title">
-        
+
         <div class="relative max-w-sm sm:max-w-4xl w-full mx-4 p-2 sm:p-4 bg-white rounded-lg shadow-2xl" onclick="event.stopPropagation()">
-            
+
             <button onclick="closeModal()" class="absolute top-0 right-0 m-2 sm:m-4 text-gray-700 hover:text-ash-red transition z-50" aria-label="Close modal">
                 <i class="fas fa-times text-xl sm:text-2xl"></i>
             </button>

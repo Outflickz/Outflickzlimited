@@ -162,7 +162,7 @@
 
 <script>
     // --- Configuration and Global Variables ---
-    const API_BASE_URL = '/api/v1/products'; 
+    const API_BASE_URL = '/api/admin/newarrivals'; 
     const MAX_VARIATIONS = 4;
 
     let productIdToUpdate = null; 
@@ -185,44 +185,176 @@
     const restockConfirmBtn = document.getElementById('restockConfirmBtn');
     const restockCancelBtn = document.getElementById('restockCancelBtn');
 
-    // --- Utility Functions (Placeholders) ---
+    // --- Utility & Authentication Functions (Crucial Updates) ---
+
     function getAuthToken() {
-        console.warn('getAuthToken called - placeholder logic used.');
-        return 'fake-admin-token-123'; 
+        // Retrieve the token from localStorage
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            console.error('Authentication token not found. Redirecting to login.');
+            // In a real application, you would redirect the user here:
+            // window.location.href = '/admin-login.html'; 
+            return null;
+        }
+        return token;
     }
     
     function showSuccessModal(message) {
+        // Simple console log for placeholder, replace with actual modal logic
         console.log("Success:", message.replace(/<mark>|<\/mark>/g, ''));
-        // In a real app, this would show a modal/toast
+        alert(`Success: ${message.replace(/<mark>|<\/mark>/g, '')}`);
     }
     function showErrorModal(message) {
+        // Simple console log for placeholder, replace with actual modal logic
         console.error("Error:", message.replace(/<mark>|<\/mark>/g, ''));
-        // In a real app, this would show an error modal/toast
+        alert(`Error: ${message.replace(/<mark>|<\/mark>/g, '')}`);
     }
     function showConfirmationModal(message) {
         console.warn("Confirmation required:", message.replace(/<mark>|<\/mark>/g, ''));
         return Promise.resolve(confirm(message.replace(/<mark>|<\/mark>/g, '')));
     }
     
-    // Placeholder navigation functions to match the sidebar buttons
-    function navigateToWearsCollection() {
-        console.log("Navigating to collections.html");
-        // window.location.href = 'collections.html';
-    }
-    function navigateToNewArrivals() {
-        console.log("Navigating to newarrivals.html");
-        // window.location.href = 'newarrivals.html';
-    }
     function logoutAdmin() {
-        console.log("Admin logged out");
-        // Redirect to login page
+        console.log("Admin logged out and token removed.");
+        // Clear the token and redirect to the login page
+        localStorage.removeItem('adminToken');
+        // window.location.href = '/admin-login.html'; // Actual redirect
     }
-    function setActiveContent(contentId) {
-        console.log("Setting active content:", contentId);
-        // Logic for single-page dashboard content switching
+    
+    function updateColorPreview(colorValue, previewId) {
+        const previewElement = document.getElementById(previewId);
+        if (previewElement) {
+            previewElement.style.backgroundColor = colorValue;
+        }
+    }
+    
+    // --- Product Variation Section Management ---
+
+    function renderImageInput(viewType, imageUrl, requiredAttr, viewLabel, index) {
+        // Function now accepts the index explicitly for consistent ID generation
+        const viewId = `${viewType}-upload-${index}`;
+        const existingUrlId = `existing-${viewType}-url-${index}`;
+        
+        const imageInfo = imageUrl ?
+            `<p class="mt-2 text-xs text-gray-500">Existing ${viewLabel}: <a href="${imageUrl}" target="_blank" class="text-blue-500 hover:underline">View Image</a>. Uploading a new file will replace it.</p>
+             <input type="hidden" id="${existingUrlId}" name="${existingUrlId}" value="${imageUrl}">` :
+            `<p class="mt-2 text-xs text-gray-500">Upload the ${viewLabel} image for this variation.</p>`;
+        
+        const imagePreviewHtml = imageUrl ?
+            `<div class="mt-3">
+                <p class="text-sm font-medium text-gray-700 mb-2">Current ${viewLabel} Preview:</p>
+                <img src="${imageUrl}" alt="Current ${viewLabel} preview" class="max-w-full h-auto rounded-lg shadow-md max-h-32 object-contain" />
+            </div>` : '';
+
+        return `
+            <div>
+                <label for="${viewId}" class="block text-sm font-medium text-gray-700">${viewLabel} Image</label>
+                <input type="file" name="${viewId}" id="${viewId}" accept="image/*" ${requiredAttr} class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
+                ${imageInfo}
+                ${imagePreviewHtml}
+            </div>
+        `;
     }
 
-    // --- Core Functions ---
+    function createProductSection(index, frontImageUrl = null, backImageUrl = null, colorHex = '#10B981') {
+        const uniqueId = `section-${index}`;
+        const sectionNumber = index + 1; 
+        const isEditing = frontImageUrl !== null || backImageUrl !== null;
+        // Require a file only if we are creating a new product OR if we are editing AND no existing image URL is present.
+        const fileRequiredAttribute = (productIdToUpdate === null && index === 0) || (productIdToUpdate !== null && !frontImageUrl) ? 'required' : '';
+
+
+        return `
+            <div id="${uniqueId}" data-variation-index="${index}" class="p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-inner relative">
+                <h4 class="text-md font-bold text-gray-600 mb-3 flex justify-between items-center">
+                    Product Variation #${sectionNumber}
+                    ${sectionNumber > 1 || isEditing ? `<button type="button" onclick="removeProductSection('${uniqueId}')" class="text-red-500 hover:text-red-700 transition duration-150 text-sm">Remove</button>` : ''}
+                </h4>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    ${renderImageInput('front-view', frontImageUrl, fileRequiredAttribute, 'Front View', index)}
+                    ${renderImageInput('back-view', backImageUrl, '', 'Back View (Optional)', index)}
+                    
+                    <div>
+                        <label for="color-input-${index}" class="block text-sm font-medium text-gray-700">Color/Hex Code</label>
+                        <div class="flex items-center mt-1">
+                            <input type="color" id="color-input-${index}" value="${colorHex}" required
+                                class="p-0 h-10 w-10 block rounded-full border-2 border-gray-300 cursor-pointer"
+                                oninput="updateColorPreview(this.value, 'color-preview-${index}')">
+                            <div id="color-preview-${index}" class="color-preview ml-3" style="background-color: ${colorHex};"></div>
+                            <span class="ml-3 text-sm text-gray-500">Pick a color</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function addProductSection() {
+        if (sectionCount < MAX_VARIATIONS) {
+            const newSection = document.createElement('div');
+            // Use the correct function signature for initial creation
+            newSection.innerHTML = createProductSection(sectionCount, null, null, '#10B981').trim(); 
+            productSectionsContainer.appendChild(newSection.firstChild);
+            sectionCount++;
+
+            updateAddSectionButtonState();
+        } else {
+             showErrorModal(`You can only add a maximum of <mark>${MAX_VARIATIONS}</mark> product variations.`);
+        }
+    }
+
+    function removeProductSection(id) {
+        const sectionToRemove = document.getElementById(id);
+        if (sectionToRemove) {
+            if (productIdToUpdate === null && productSectionsContainer.children.length === 1) {
+                showErrorModal("You must have at least one product variation.");
+                return;
+            }
+            sectionToRemove.remove();
+            reindexProductSections(); // Re-index after removal
+            updateAddSectionButtonState();
+        }
+    }
+
+    function reindexProductSections() {
+        const sections = Array.from(productSectionsContainer.children);
+        let currentSectionCount = 0;
+
+        sections.forEach((section, index) => {
+            const newIndex = index; 
+
+            // Extract current data before replacement
+            const existingFrontUrl = section.querySelector(`[id^="existing-front-view-url-"]`)?.value || null;
+            const existingBackUrl = section.querySelector(`[id^="existing-back-view-url-"]`)?.value || null;
+            const existingColor = section.querySelector(`[id^="color-input-"]`)?.value || '#10B981';
+
+            const tempDiv = document.createElement('div');
+            // Re-render the section with the new index and preserved data
+            tempDiv.innerHTML = createProductSection(newIndex, existingFrontUrl, existingBackUrl, existingColor).trim();
+            const newSectionElement = tempDiv.firstChild;
+
+            section.replaceWith(newSectionElement);
+            currentSectionCount++;
+        });
+
+        sectionCount = currentSectionCount;
+    }
+
+    function updateAddSectionButtonState() {
+        if (sectionCount >= MAX_VARIATIONS) {
+            addSectionBtn.disabled = true;
+            addSectionBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            addSectionBtn.classList.remove('hover:bg-emerald-50');
+        } else {
+            addSectionBtn.disabled = false;
+            addSectionBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            addSectionBtn.classList.add('hover:bg-emerald-50');
+        }
+    }
+
+
+    // --- Core Functions (CRUD & Display) ---
 
     function resetForm() {
         document.getElementById('new-arrival-form').reset();
@@ -282,23 +414,22 @@
             } else if (product.isActive && product.totalStock === 0) {
                 statusText = 'Out of Stock (Active)';
                 statusClass = 'bg-red-100 text-red-800';
-            } else if (!product.isActive || product.totalStock === 0) {
+            } else if (!product.isActive) { // product.isActive is false
                 if (product.totalStock === 0) {
                     statusText = 'Out of Stock (Inactive)';
                     statusClass = 'bg-red-100 text-red-800';
-                    restockButton = `<button onclick="quickRestockAndActivate('${product._id}', '${product.name}', ${product.price})" class="text-green-600 hover:text-green-900 transition duration-150 mr-3">Restock/Activate</button>`;
-                } else if (!product.isActive && product.totalStock > 0) {
-                     statusText = 'Active (Hidden)';
-                     statusClass = 'bg-yellow-100 text-yellow-800';
+                } else if (product.totalStock > 0) {
+                    statusText = 'Inactive (Hidden)';
+                    statusClass = 'bg-yellow-100 text-yellow-800';
                 }
+                // Only show restock/activate button if it's inactive/out of stock
+                restockButton = `<button onclick="quickRestockAndActivate('${product._id}', '${product.name}', ${product.price})" class="text-green-600 hover:text-green-900 transition duration-150 mr-3">Restock/Activate</button>`;
             }
 
             // Image Preview logic - assuming the first variation's front image is used
             const firstVariation = product.variations && product.variations.length > 0 ? product.variations[0] : null;
-            const imageUrl = firstVariation ? firstVariation.frontImageUrl : null;
-            const imagePreview = imageUrl 
-                ? `<img src="${imageUrl}" alt="Preview" class="w-8 h-8 rounded-md inline-block mr-2 object-cover">`
-                : '';
+            const imageUrl = firstVariation ? firstVariation.frontImageUrl : 'https://placehold.co/32x32/ccc/000?text=No';
+            const imagePreview = `<img src="${imageUrl}" alt="Preview" class="w-8 h-8 rounded-md inline-block mr-2 object-cover">`;
 
             const row = `
                 <tr>
@@ -329,12 +460,12 @@
     }
 
     function getTagClass(tag) { 
-        switch (tag) {
-            case 'Top Deal': return 'bg-emerald-100 text-emerald-800';
-            case 'Hot Deal': return 'bg-red-100 text-red-800';
-            case 'New': return 'bg-blue-100 text-blue-800';
-            case 'Seasonal': return 'bg-yellow-100 text-yellow-800';
-            case 'Clearance': return 'bg-pink-100 text-pink-800';
+        switch (tag.toLowerCase()) {
+            case 'top deal': return 'bg-emerald-100 text-emerald-800';
+            case 'hot deal': return 'bg-red-100 text-red-800';
+            case 'new': return 'bg-blue-100 text-blue-800';
+            case 'seasonal': return 'bg-yellow-100 text-yellow-800';
+            case 'clearance': return 'bg-pink-100 text-pink-800';
             default: return 'bg-gray-100 text-gray-800';
         }
     }
@@ -376,26 +507,18 @@
             sectionCount = 0;
 
             product.variations.forEach((variation, index) => {
-                const sectionNumber = index; 
                 const frontUrl = variation.frontImageUrl || null;
                 const backUrl = variation.backImageUrl || null;
+                const colorHex = variation.colorHex || '#10B981'; 
 
                 const newSection = document.createElement('div');
-                newSection.innerHTML = createProductSection(sectionNumber, frontUrl, backUrl).trim();
+                // Use the new signature with existing data
+                newSection.innerHTML = createProductSection(index, frontUrl, backUrl, colorHex).trim();
                 productSectionsContainer.appendChild(newSection.firstChild);
-                sectionCount++;
-
-                // Populate color
-                const colorInput = document.getElementById(`color-input-${index}`);
-                if (colorInput) {
-                    colorInput.value = variation.colorHex;
-                    updateColorPreview(variation.colorHex, `color-preview-${index}`);
-                }
             });
 
-            // Re-index section IDs to be 1-based (Fix for consistency)
-            reindexProductSections();
-
+            sectionCount = product.variations.length; 
+            reindexProductSections(); // Ensure consistent indexing
 
             // 4. Update the add button state
             updateAddSectionButtonState();
@@ -489,12 +612,14 @@
         }
 
         try {
+            // Note: This only sets the total stock and updates isActive, it assumes 
+            // the stock is distributed across variations based on server logic.
             const updatePayload = {
                 totalStock: newStock,
                 isActive: true, 
             };
 
-            const response = await fetch(`${API_BASE_URL}/${productId}`, { 
+            const response = await fetch(`${API_BASE_URL}/${productId}/stock`, { // Assuming a dedicated stock update endpoint
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -522,167 +647,6 @@
         }
     }
 
-
-    // --- FORM SECTION MANAGEMENT (same as before) ---
-
-    function renderImageInput(viewType, imageUrl, requiredAttr, viewLabel) {
-        // This function is still used by createProductSection, relying on sectionCount during initial add
-        const viewId = `${viewType}-upload-${sectionCount}`;
-        const existingUrlId = `existing-${viewType}-url-${sectionCount}`;
-        
-        const imageInfo = imageUrl ?
-            `<p class="mt-2 text-xs text-gray-500">Existing ${viewLabel}: <a href="${imageUrl}" target="_blank" class="text-blue-500 hover:underline">View Image</a>. Uploading a new file will replace it.</p>
-             <input type="hidden" id="${existingUrlId}" name="${existingUrlId}" value="${imageUrl}">` :
-            `<p class="mt-2 text-xs text-gray-500">Upload the ${viewLabel} image for this variation.</p>`;
-        
-        const imagePreviewHtml = imageUrl ?
-            `<div class="mt-3">
-                <p class="text-sm font-medium text-gray-700 mb-2">Current ${viewLabel} Preview:</p>
-                <img src="${imageUrl}" alt="Current ${viewLabel} preview" class="max-w-full h-auto rounded-lg shadow-md max-h-32 object-contain" />
-            </div>` : '';
-
-        return `
-            <div>
-                <label for="${viewId}" class="block text-sm font-medium text-gray-700">${viewLabel} Image</label>
-                <input type="file" name="${viewId}" id="${viewId}" accept="image/*" ${requiredAttr} class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
-                ${imageInfo}
-                ${imagePreviewHtml}
-            </div>
-        `;
-    }
-
-    function createProductSection(index, frontImageUrl = null, backImageUrl = null) {
-        const uniqueId = `section-${index}`;
-        const sectionNumber = index + 1; 
-        const isEditing = frontImageUrl !== null || backImageUrl !== null;
-        const fileRequiredAttribute = isEditing ? '' : 'required';
-
-        const renderImageInputCorrected = (viewType, imageUrl, requiredAttr, viewLabel) => {
-            const viewId = `${viewType}-upload-${index}`;
-            const existingUrlId = `existing-${viewType}-url-${index}`;
-            
-            const imageInfo = imageUrl ?
-                `<p class="mt-2 text-xs text-gray-500">Existing ${viewLabel}: <a href="${imageUrl}" target="_blank" class="text-blue-500 hover:underline">View Image</a>. Uploading a new file will replace it.</p>
-                 <input type="hidden" id="${existingUrlId}" name="${existingUrlId}" value="${imageUrl}">` :
-                `<p class="mt-2 text-xs text-gray-500">Upload the ${viewLabel} image for this variation.</p>`;
-            
-            const imagePreviewHtml = imageUrl ?
-                `<div class="mt-3">
-                    <p class="text-sm font-medium text-gray-700 mb-2">Current ${viewLabel} Preview:</p>
-                    <img src="${imageUrl}" alt="Current ${viewLabel} preview" class="max-w-full h-auto rounded-lg shadow-md max-h-32 object-contain" />
-                </div>` : '';
-
-            return `
-                <div>
-                    <label for="${viewId}" class="block text-sm font-medium text-gray-700">${viewLabel} Image</label>
-                    <input type="file" name="${viewId}" id="${viewId}" accept="image/*" ${requiredAttr} class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
-                    ${imageInfo}
-                    ${imagePreviewHtml}
-                </div>
-            `;
-        };
-
-
-        return `
-            <div id="${uniqueId}" data-variation-index="${index}" class="p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-inner relative">
-                <h4 class="text-md font-bold text-gray-600 mb-3 flex justify-between items-center">
-                    Product Variation #${sectionNumber}
-                    ${sectionNumber > 1 || isEditing ? `<button type="button" onclick="removeProductSection('${uniqueId}')" class="text-red-500 hover:text-red-700 transition duration-150 text-sm">Remove</button>` : ''}
-                </h4>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    ${renderImageInputCorrected('front-view', frontImageUrl, fileRequiredAttribute, 'Front View')}
-                    ${renderImageInputCorrected('back-view', backImageUrl, '', 'Back View (Optional)')}
-                    
-                    <div>
-                        <label for="color-input-${index}" class="block text-sm font-medium text-gray-700">Color/Hex Code</label>
-                        <div class="flex items-center mt-1">
-                            <input type="color" id="color-input-${index}" value="#10B981" required
-                                class="p-0 h-10 w-10 block rounded-full border-2 border-gray-300 cursor-pointer"
-                                oninput="updateColorPreview(this.value, 'color-preview-${index}')">
-                            <div id="color-preview-${index}" class="color-preview ml-3 bg-emerald-600" style="background-color: #10B981;"></div>
-                            <span class="ml-3 text-sm text-gray-500">Pick a color</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    function addProductSection() {
-        if (sectionCount < MAX_VARIATIONS) {
-            const newSection = document.createElement('div');
-            newSection.innerHTML = createProductSection(sectionCount).trim(); 
-            productSectionsContainer.appendChild(newSection.firstChild);
-            sectionCount++;
-
-            updateAddSectionButtonState();
-        } else {
-             showErrorModal(`You can only add a maximum of <mark>${MAX_VARIATIONS}</mark> product variations.`);
-        }
-    }
-
-    function removeProductSection(id) {
-        const sectionToRemove = document.getElementById(id);
-        if (sectionToRemove) {
-            if (productIdToUpdate === null && sectionCount === 1) {
-                showErrorModal("You must have at least one product variation.");
-                return;
-            }
-            sectionToRemove.remove();
-            sectionCount--;
-            reindexProductSections();
-            updateAddSectionButtonState();
-        }
-    }
-
-    function reindexProductSections() {
-        Array.from(productSectionsContainer.children).forEach((section, index) => {
-            const newIndex = index; 
-            const newSectionNumber = index + 1; 
-
-            const existingFrontUrl = section.querySelector(`[id^="existing-front-view-url-"]`)?.value || null;
-            const existingBackUrl = section.querySelector(`[id^="existing-back-view-url-"]`)?.value || null;
-            const existingColor = section.querySelector(`[id^="color-input-"]`)?.value || '#10B981';
-
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = createProductSection(newIndex, existingFrontUrl, existingBackUrl).trim();
-            const newSectionElement = tempDiv.firstChild;
-
-            const newColorInput = newSectionElement.querySelector(`#color-input-${newIndex}`);
-            if (newColorInput) {
-                newColorInput.value = existingColor;
-                const colorPreview = newSectionElement.querySelector(`#color-preview-${newIndex}`);
-                if (colorPreview) {
-                     colorPreview.style.backgroundColor = existingColor;
-                }
-            }
-
-            section.replaceWith(newSectionElement);
-        });
-
-        sectionCount = productSectionsContainer.children.length;
-    }
-
-    function updateAddSectionButtonState() {
-        if (sectionCount >= MAX_VARIATIONS) {
-            addSectionBtn.disabled = true;
-            addSectionBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            addSectionBtn.classList.remove('hover:bg-emerald-50');
-        } else {
-            addSectionBtn.disabled = false;
-            addSectionBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-            addSectionBtn.classList.add('hover:bg-emerald-50');
-        }
-    }
-
-    function updateColorPreview(colorValue, previewId) {
-        const previewElement = document.getElementById(previewId);
-        if (previewElement) {
-            previewElement.style.backgroundColor = colorValue;
-        }
-    }
-    
     async function handleCollectionSubmit(event) { 
         event.preventDefault();
 
@@ -709,8 +673,11 @@
         const formData = new FormData();
         let productVariationsMetadata = [];
         let isValid = true;
+        let totalFiles = 0; // Tracking files for file uploads check
 
         Array.from(productSectionsContainer.children).forEach((section, index) => {
+            if (!isValid) return; 
+            
             const sectionNumber = index; 
             const displaySectionNumber = index + 1; 
             
@@ -735,8 +702,9 @@
                 if (frontImageFile) {
                     formData.append(`front-view-upload-${displaySectionNumber}`, frontImageFile); 
                     frontUrlForMetadata = 'UPLOAD_NEW'; 
+                    totalFiles++;
                 } else if (!existingFrontUrl) { 
-                    showErrorModal(`Front View Image for Variation <mark>#${displaySectionNumber}</mark> is missing.`); 
+                    showErrorModal(`Front View Image for Variation <mark>#${displaySectionNumber}</mark> is missing and is required.`); 
                     isValid = false;
                     return;
                 }
@@ -744,12 +712,14 @@
                 if (backImageFile) {
                     formData.append(`back-view-upload-${displaySectionNumber}`, backImageFile); 
                     backUrlForMetadata = 'UPLOAD_NEW'; 
+                    totalFiles++;
                 } 
 
                 productVariationsMetadata.push({
                     variationIndex: displaySectionNumber,
                     colorHex: color,
-                    frontImageUrl: frontUrlForMetadata,
+                    // If frontImageUrl is null, it means there's a file upload (UPLOAD_NEW) or existing URL
+                    frontImageUrl: frontUrlForMetadata, 
                     backImageUrl: backUrlForMetadata,
                 });
             }
@@ -759,20 +729,33 @@
             resetFormSubmitButtonState(isUpdate);
             return;
         }
+        
+        // --- Basic Validation ---
+        const productName = document.getElementById('product-name').value.trim();
+        const productTag = document.getElementById('product-tag').value.trim();
+        const productPrice = parseFloat(document.getElementById('product-price').value);
+        const availableSizes = document.getElementById('available-sizes').value.split(',').map(s => s.trim().toUpperCase()).filter(s => s);
+        
+        if (!productName || !productTag || isNaN(productPrice) || productPrice <= 0 || availableSizes.length === 0) {
+            showErrorModal("Please fill in all required product details (Name, Tag, Price > 0, and Sizes).");
+            resetFormSubmitButtonState(isUpdate);
+            return;
+        }
 
         const isActive = document.getElementById('is-active').checked;
         let totalStock = isActive ? 1 : 0; 
 
         const productData = { 
-            name: document.getElementById('product-name').value, 
-            tag: document.getElementById('product-tag').value, 
-            price: parseFloat(document.getElementById('product-price').value), 
-            sizes: document.getElementById('available-sizes').value.split(',').map(s => s.trim().toUpperCase()).filter(s => s),
+            name: productName, 
+            tag: productTag, 
+            price: productPrice, 
+            sizes: availableSizes,
             totalStock: isActive ? totalStock : 0, 
             isActive: isActive,
             variations: productVariationsMetadata
         };
 
+        // Append non-file data as JSON string for the backend to parse
         formData.append('productData', JSON.stringify(productData)); 
 
         try {
@@ -780,6 +763,7 @@
                 method: method,
                 headers: {
                     'Authorization': `Bearer ${token}`
+                    // NOTE: Do NOT set Content-Type to 'application/json' when sending FormData
                 },
                 body: formData 
             });
@@ -833,15 +817,14 @@
 
         document.getElementById('new-arrival-form').addEventListener('submit', handleCollectionSubmit); 
 
-        // Toggle sidebar visibility on mobile (using the new sidebar ID)
+        // Toggle sidebar visibility on mobile
         sidebarToggle.addEventListener('click', () => {
-            // Toggles between -translate-x-full and translate-x-0
             sidebar.classList.toggle('-translate-x-full'); 
             sidebar.classList.toggle('translate-x-0'); 
         });
 
         addSectionBtn.addEventListener('click', () => {
-             addProductSection();
+            addProductSection();
         });
 
         fetchProducts(); 

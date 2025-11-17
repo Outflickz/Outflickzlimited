@@ -213,9 +213,36 @@
 
             return mapHtml + buttonsHtml;
         }
+        
+        // --- NEW: Placeholder for Add To Cart Logic ---
+        function addToCartItem(collectionId) {
+            const quantityInput = document.getElementById(`quantity-input-${collectionId}`);
+            if (quantityInput.disabled) {
+                console.log('Item is out of stock.');
+                return;
+            }
+            const quantity = quantityInput.value;
+            // In a real app: Gather selected size/color (radio inputs), validate, and make API call to add to cart.
+            console.log(`Adding Collection ${collectionId} (Qty: ${quantity}) to cart.`);
+            alert(`Added ${quantity} item(s) to cart.`);
+        }
+
+        // --- NEW: Placeholder for Quick Buy Logic ---
+        function quickBuyItem(collectionId) {
+            const quantityInput = document.getElementById(`quantity-input-${collectionId}`);
+            if (quantityInput.disabled) {
+                console.log('Item is out of stock.');
+                return;
+            }
+            const quantity = quantityInput.value;
+            // In a real app: Gather selected size/color, validate, make API call for express checkout, and redirect to payment.
+            console.log(`Initiating Quick Buy for Collection ${collectionId} (Qty: ${quantity}).`);
+            alert(`Initiating Quick Buy for ${quantity} item(s). Redirecting to checkout...`);
+            // Example redirect: window.location.href = `/checkout?collection=${collectionId}&qty=${quantity}`;
+        }
 
 
-        // --- REDESIGNED WEARS COLLECTION CARD JS (MODIFIED FOR OUT OF STOCK) ---
+        // --- REDESIGNED WEARS COLLECTION CARD JS (MODIFIED FOR OUT OF STOCK AND QUICK BUY) ---
         function createCollectionCard(collection) {
             const currencySymbol = '$'; // Assuming currency is USD based on the original use of $
             const defaultImage = 'https://i.imgur.com/RFkkvwa.jpeg';
@@ -236,10 +263,14 @@
 
             // Button state
             const buttonDisabled = isOutOfStock ? 'disabled' : '';
-            const buttonText = isOutOfStock ? 'OUT OF STOCK' : 'Add To Cart';
-            const buttonClasses = isOutOfStock 
-                ? 'bg-gray-400 cursor-not-allowed' 
-                : 'bg-ash-dark hover:bg-ash-red';
+            // QUICK BUY button styling/text
+            const quickBuyButtonClasses = isOutOfStock 
+                ? 'bg-gray-400 cursor-not-allowed border-gray-400 text-white' 
+                : 'bg-ash-dark hover:bg-ash-red text-white';
+            // ADD TO CART button styling/text (secondary CTA)
+            const addToCartButtonClasses = isOutOfStock
+                ? 'bg-gray-200 cursor-not-allowed border-gray-400 text-gray-500'
+                : 'bg-white border-ash-dark hover:border-ash-red text-ash-dark hover:text-ash-red';
             // ------------------------------------
 
             // Use the new/harmonized utility functions
@@ -281,19 +312,25 @@
                             </div>
                         </div>
 
-                        <div class="flex items-center space-x-2">
-                            <div class="flex items-center border border-gray-300 rounded-sm">
-                                <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="text-sm md:text-base text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-l-sm font-semibold" ${buttonDisabled}>
-                                    &minus;
-                                </button>
-                                <input type="number" id="quantity-input-${collection._id}" value="${isOutOfStock ? 0 : 1}" min="1" max="${maxStock}" aria-label="Quantity" class="w-6 md:w-8 h-7 md:h-8 text-center text-xs md:text-sm border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" ${buttonDisabled} />
-                                <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="text-sm md:text-base text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-r-sm font-semibold" ${buttonDisabled}>
-                                    &plus;
+                        <div class="flex flex-col space-y-2">
+                            <div class="flex items-center space-x-2">
+                                <div class="flex items-center border border-gray-300 rounded-sm">
+                                    <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="text-sm md:text-base text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-l-sm font-semibold" ${buttonDisabled}>
+                                        &minus;
+                                    </button>
+                                    <input type="number" id="quantity-input-${collection._id}" value="${isOutOfStock ? 0 : 1}" min="1" max="${maxStock}" aria-label="Quantity" class="w-8 md:w-10 h-7 md:h-8 text-center text-xs md:text-sm border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" ${buttonDisabled} />
+                                    <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="text-sm md:text-base text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-r-sm font-semibold" ${buttonDisabled}>
+                                        &plus;
+                                    </button>
+                                </div>
+                                
+                                <button onclick="quickBuyItem('${collection._id}')" class="flex-1 text-xs md:text-sm h-8 rounded-sm transition font-bold uppercase tracking-widest flex items-center justify-center ${quickBuyButtonClasses}" ${buttonDisabled}>
+                                    ${isOutOfStock ? 'OUT OF STOCK' : 'QUICK BUY'}
                                 </button>
                             </div>
 
-                            <button class="flex-1 text-xs md:text-sm text-white h-7 md:h-8 rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center ${buttonClasses}" ${buttonDisabled}>
-                                ${buttonText}
+                            <button onclick="addToCartItem('${collection._id}')" class="w-full text-xs md:text-sm h-7 md:h-8 rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center border ${addToCartButtonClasses}" ${buttonDisabled}>
+                                Add To Cart
                             </button>
                         </div>
                     </div>

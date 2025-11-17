@@ -110,7 +110,7 @@
             /* Wears Collection (Default size) */
             #wears-collections-grid .collection-card {
                 flex-shrink: 0; /* Cards won't shrink */
-                width: 70vw; /* Standard size */
+                width: 50vw; /* Standard size */
                 max-width: 300px; /* Optional max width */
                 scroll-snap-align: start;
                 margin-right: 1rem;
@@ -118,7 +118,7 @@
             /* New Arrivals (Reduced size) */
             #new-arrivals-grid .collection-card {
                 flex-shrink: 0; 
-                width: 60vw; /* Reduced size for visual difference */
+                width: 45vw; /* Reduced size for visual difference */
                 max-width: 250px;
                 scroll-snap-align: start;
                 margin-right: 1rem;
@@ -261,8 +261,9 @@
             sizes = ['S', 'M', 'L', 'XL'];
         }
 
+        // *** MODIFIED SIZE CLASSES FOR REDUCED VIEW ***
         const sizeClasses = isReduced 
-            ? 'text-[0.6rem] px-1.5 py-0.5' // Smaller for reduced card
+            ? 'text-[0.6rem] px-1 py-0' // EVEN SMALLER for reduced card
             : 'text-xs px-2 py-0.5 md:px-2 md:py-1'; // Default size
         
         return sizes.map(size => `
@@ -374,22 +375,26 @@
         const isReduced = size === 'reduced';
         
         // Card Padding
-        const cardPadding = isReduced ? 'p-1 md:p-2' : 'p-2 md:p-3'; 
+        // *** MORE REDUCED PADDING ***
+        const cardPadding = isReduced ? 'p-1' : 'p-2 md:p-3'; 
         
         // Name and Description Text Size
-        const nameFontSize = isReduced ? 'text-xs md:text-sm' : 'text-sm md:text-base';
-        const descriptionFontSize = isReduced ? 'text-[0.6rem]' : 'text-xs';
+        // *** SMALLER TEXT ***
+        const nameFontSize = isReduced ? 'text-xs' : 'text-sm md:text-base';
+        const descriptionFontSize = isReduced ? 'text-[0.6rem] leading-tight' : 'text-xs';
         
         // Price Text Size
-        const priceFontSize = isReduced ? 'text-base font-bold' : 'text-lg font-extrabold';
+        // *** SMALLER PRICE TEXT ***
+        const priceFontSize = isReduced ? 'text-sm font-bold' : 'text-lg font-extrabold';
         
         // Control Height/Size
-        const controlHeight = isReduced ? 'h-6 md:h-7' : 'h-7 md:h-8';
-        const controlTextSize = isReduced ? 'text-[0.6rem] md:text-xs' : 'text-xs md:text-sm';
-        const quantityControlWidth = isReduced ? 'w-5 md:w-6' : 'w-6 md:w-8';
-        const quantityButtonSize = isReduced ? 'w-6 h-6 md:w-7 md:h-7' : 'w-7 h-7 md:w-8 md:h-8';
-        const quantityInputWidth = isReduced ? 'w-4 md:w-6' : 'w-6 md:w-8';
-        const quantityInputTextSize = isReduced ? 'text-[0.6rem] md:text-xs' : 'text-xs md:text-sm';
+        // *** SMALLER CONTROLS ***
+        const controlHeight = isReduced ? 'h-5' : 'h-7 md:h-8';
+        const controlTextSize = isReduced ? 'text-[0.6rem]' : 'text-xs md:text-sm';
+        const quantityControlWidth = isReduced ? 'w-4' : 'w-6 md:w-8';
+        const quantityButtonSize = isReduced ? 'w-5 h-5' : 'w-7 h-7 md:w-8 md:h-8';
+        const quantityInputWidth = isReduced ? 'w-4' : 'w-6 md:w-8';
+        const quantityInputTextSize = isReduced ? 'text-[0.6rem]' : 'text-xs md:text-sm';
         // --- End Conditional Sizing Classes ---
 
         const primaryVariant = collection.variants && collection.variants.length > 0 ? collection.variants[0] : null;
@@ -401,6 +406,7 @@
         const itemPrice = collection.price; 
         const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
 
+        // Passed 'isReduced' to size list function
         const sizeListHtml = createSizeList(collection._id, collection.availableSizes, isReduced); 
         const colorListHtml = createColorList(collection._id, collection.variants); 
         const maxStock = collection.availableStock > 0 ? collection.availableStock : 0; 
@@ -412,9 +418,10 @@
         const description = collection.tag || 'Exclusive limited edition wear.';
 
         // *** Define Buttons/Labels based on Stock Status ***
-        const stockBadge = isOutOfStock
-            ? '<span class="absolute top-2 left-2 bg-ash-red text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">OUT OF STOCK</span>'
-            : '';
+        // *** SMALLER BADGE ***
+        const stockBadge = isReduced
+            ? '<span class="absolute top-1 left-1 bg-ash-red text-white text-[0.6rem] font-bold px-1 py-0 rounded shadow-lg z-40">OOS</span>'
+            : '<span class="absolute top-2 left-2 bg-ash-red text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">OUT OF STOCK</span>';
             
         const cartButtonHtml = isOutOfStock
             ? `
@@ -429,7 +436,7 @@
             `;
 
         const quantityControlHtml = isOutOfStock
-            ? `<div class="w-20 md:w-24 ${controlHeight} border border-gray-300 rounded-sm flex items-center justify-center text-xs text-gray-500">N/A</div>`
+            ? `<div class="w-12 ${controlHeight} border border-gray-300 rounded-sm flex items-center justify-center text-[0.6rem] text-gray-500">N/A</div>`
             : `
                 <div class="flex items-center border border-gray-300 rounded-sm">
                     <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-l-sm font-semibold">
@@ -488,21 +495,21 @@
                     
                     <p class="${priceFontSize} text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
                     
-                    <div class="flex items-center gap-2 mt-2">
+                    <div class="flex items-center gap-1 mt-1">
                         <span class="text-xs font-medium text-gray-700">Color:</span>
                         <div class="flex gap-1 text-gray-700">
                             ${colorListHtml}
                         </div>
                     </div>
 
-                    <div class="flex flex-wrap items-center gap-1 mt-2 mb-3">
+                    <div class="flex flex-wrap items-center gap-1 mt-1 mb-2">
                         <span class="text-xs font-medium text-gray-700">Size:</span>
                         <div class="flex flex-wrap gap-1 text-gray-700">
                             ${sizeListHtml}
                         </div>
                     </div>
 
-                    <div class="flex items-center space-x-2">
+                    <div class="flex items-center space-x-1">
                         ${quantityControlHtml}
 
                         ${cartButtonHtml}

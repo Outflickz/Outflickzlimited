@@ -180,7 +180,7 @@
             // 1. Create a map for the image switching logic: { colorHex: imageUrl }
             const colorMap = variants.reduce((acc, v) => {
                 // Ensure the color code is used as the key
-                acc[v.color] = v.imageUrl; 
+                acc[v.color] = v.imageUrl;
                 return acc;
             }, {});
 
@@ -339,25 +339,26 @@
         }
 
 
-        // --- FETCH AND RENDER COLLECTIONS (UNCHANGED LOGIC) ---
+        // --- FETCH AND RENDER COLLECTIONS (UPDATED FOR CONSISTENCY WITH HOMEPAGE API ASSUMPTION) ---
         async function fetchAndRenderWearsCollections() {
             const container = document.getElementById('wears-collections-grid');
             if (!container) return;
 
-            // Updated loading message color for contrast on white background
+            // Updated loading message
             container.innerHTML = `
                 <div class="col-span-full text-center text-gray-800 py-10">
                     <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-800 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    Loading Wears Collections...
+                    Loading Collections...
                 </div>`;
 
             try {
-                const wearsApiUrl = `${API_BASE_URL}/api/collections/wears`;
+                // MODIFIED: Using the generic /api/collections endpoint, assuming consistency with homepage.
+                const collectionsApiUrl = `${API_BASE_URL}/api/collections`;
 
-                const response = await fetch(wearsApiUrl, {
+                const response = await fetch(collectionsApiUrl, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
@@ -375,17 +376,17 @@
 
                 if (collections && collections.length > 0) {
                     // Filter the collections to only show those where isActive is true OR totalStock > 0
-                    // In a real application, you might filter on isActive. Since the requirement is to show it 
-                    // and label it 'Out of Stock' when inactive/stock is 0, we don't apply an active filter here.
+                    // If the homepage uses a specific filter, you might add it here, e.g., filter by category:
+                    // const filteredCollections = collections.filter(c => c.category === 'Wears');
                     collections.forEach(collection => {
                         container.innerHTML += createCollectionCard(collection);
                     });
                 } else {
-                    container.innerHTML = '<p class="col-span-full text-center text-gray-800 py-10">No Wears Collections are currently available.</p>';
+                    container.innerHTML = '<p class="col-span-full text-center text-gray-800 py-10">No Collections are currently available.</p>';
                 }
             } catch (error) {
-                console.error('Error fetching wears collections:', error);
-                container.innerHTML = '<p class="col-span-full text-center text-red-700 py-10">Error loading wears collections. Please ensure the API server is running on the public domain.</p>';
+                console.error('Error fetching collections:', error);
+                container.innerHTML = '<p class="col-span-full text-center text-red-700 py-10">Error loading collections. Please ensure the API server is running on the public domain.</p>';
             }
         }
 

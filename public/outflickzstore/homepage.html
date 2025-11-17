@@ -621,23 +621,24 @@ function createCollectionCard(collection) {
 
     <section id="wears-collections-section" class="py-10 sm:py-12 bg-color-white text-color-black border-t border-racing-grey white-section">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="mb-6 sm:mb-8 text-left">
-                <h2 class="text-3xl sm:text-2xl font-extrabold text-color-black uppercase mb-1">
-                    New In
-                </h2>
-                <p class="text-lg sm:text-xl font-medium text-gray-700">
-                    Explore our new collection
-                </p>
-            </div>
-            <div id="wears-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+            <div class="flex justify-between items-start mb-6 sm:mb-8">
+                <div>
+                    <h2 class="text-3xl sm:text-2xl font-extrabold text-color-black uppercase mb-1">
+                        New In
+                    </h2>
+                    <p class="text-lg sm:text-xl font-medium text-gray-700">
+                        Explore our new collection
+                    </p>
                 </div>
-
-            <div class="text-center mt-8 sm:mt-10">
-                <a href="wearscollection.html" class="border-2 border-ash-red text-ash-red hover:bg-ash-red hover:text-white transition duration-300 font-bold py-2 px-6 sm:py-2.5 sm:px-8 rounded-sm uppercase text-xs tracking-widest">
+                
+                <a href="wearscollection.html" class="border-2 border-ash-red text-ash-red hover:bg-ash-red hover:text-white transition duration-300 font-bold py-1.5 px-4 sm:py-2 sm:px-6 rounded-sm uppercase text-xs sm:text-sm tracking-widest mt-2">
                     View All Wears
                 </a>
             </div>
-        </div>
+            <div id="wears-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+                </div>
+            
+            </div>
     </section>
 
     <div id="image-modal" class="modal fixed inset-0 z-[100] bg-black bg-opacity-90 flex items-center justify-center opacity-0 pointer-events-none" onclick="closeModal()" role="dialog" aria-modal="true" aria-labelledby="modal-item-title">

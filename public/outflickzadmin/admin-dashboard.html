@@ -43,7 +43,7 @@
                 Wears Collection
             </button>
             
-            <button id="btn-newarrivals" onclick="setActiveContent('newarrivals')" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+            <button id="btn-newarrivals" onclick="navigateToNewArrivals()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 New Arrivals
             </button>
@@ -175,6 +175,12 @@
             // Redirects the browser to the specified file path
             window.location.href = './wearscollection.html';
         }
+
+        // NEW FUNCTION for external navigation (New Arrivals)
+        function navigateToNewArrivals() {
+            // Redirects the browser to the specified file path, as requested
+            window.location.href = './newarrivals.html';
+        }
         
         /**
          * Handles the admin logout process.
@@ -202,7 +208,7 @@
             });
         });
 
-        // Function to switch between Dashboard, New Arrivals, and Settings content
+        // Function to switch between Dashboard, and Settings content
         function setActiveContent(contentId) {
             contentSections.forEach(section => {
                 section.classList.add('hidden');
@@ -213,41 +219,38 @@
             if (contentElement) {
                 contentElement.classList.remove('hidden');
             } else if (contentId === 'newarrivals') {
-                 // Special handling for the removed 'newarrivals' content: 
-                 // Since the section was removed, clicking the button only updates the active state.
-                 // We can optionally display a fallback message on the dashboard if this is critical, 
-                 // but for now, we just proceed to update the button styles.
-                 console.log(`Content section 'content-${contentId}' is not available.`);
+                 // Special handling for new arrivals: it now redirects, so don't look for an internal section.
+                 // We will update button styles, but not display an internal section.
+                 console.log(`Content section 'content-${contentId}' is now a redirect. Reverting to dashboard view.`);
                  document.getElementById('content-dashboard').classList.remove('hidden');
-                 contentId = 'dashboard'; // Default to dashboard if content doesn't exist
+                 contentId = 'newarrivals-dummy-active-state'; // Use a dummy ID to keep the button active
             }
 
 
             navButtons.forEach(button => {
-                // Only manage active state for internal links (dashboard/settings/newarrivals)
-                if (button.id.startsWith('btn-') && button.id !== 'btn-wearscollection') {
-                    // Reset inactive styles
-                    button.classList.remove('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
-                    button.classList.add('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
+                const buttonContentId = button.id.replace('btn-', '');
+                // Skip external links for this internal content switching logic
+                if (buttonContentId === 'wearscollection' || buttonContentId === 'logout') {
+                    return; 
                 }
+
+                // Reset inactive styles
+                button.classList.remove('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
+                button.classList.add('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
             });
 
-            const activeBtn = document.getElementById(`btn-${contentId}`);
-            // Special handling for 'newarrivals' to allow its button to become active
-            const newArrivalsBtn = document.getElementById('btn-newarrivals');
-
-
+            const activeBtnId = contentId === 'newarrivals-dummy-active-state' ? 'btn-newarrivals' : `btn-${contentId}`;
+            const activeBtn = document.getElementById(activeBtnId);
+            
             if (activeBtn) {
                 // Set active styles
                 activeBtn.classList.remove('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
                 activeBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
-            } else if (contentId === 'newarrivals' && newArrivalsBtn) {
-                // If the content section was removed, but the button is clicked, still set its style
-                newArrivalsBtn.classList.remove('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
-                newArrivalsBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
-                
-                // Ensure dashboard is shown since newarrivals content is absent
-                document.getElementById('content-dashboard').classList.remove('hidden');
+            } 
+            
+            // Re-apply dashboard styles if a non-existent internal page was clicked (like newarrivals used to be)
+            if (!contentElement && contentId !== 'settings') {
+                 document.getElementById('content-dashboard').classList.remove('hidden');
             }
 
 

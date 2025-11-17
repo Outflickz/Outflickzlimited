@@ -572,7 +572,6 @@
             container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full">Error loading wears collections. Please ensure the API server is running and accessible.</p>';
         }
     }
-
     // --- NEW ARRIVALS COLLECTION JS ---
     async function fetchAndRenderNewArrivals() {
         const container = document.getElementById('new-arrivals-grid');
@@ -615,7 +614,7 @@
                 
                 limitedProducts.forEach(product => {
                     if (product.price !== undefined && product.price !== null) {
-                        // Pass 'reduced' size for New Arrivals
+                        // Pass 'reduced' size for New Arrivals to use smaller styling
                         container.innerHTML += createCollectionCard(product, 'reduced'); 
                     }
                 });
@@ -635,7 +634,7 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         fetchAndRenderWearsCollections(); 
-        fetchAndRenderNewArrivals();      
+        fetchAndRenderNewArrivals();     
     });
     // --- END WEARS COLLECTION JS ---
 </script>
@@ -716,7 +715,6 @@
                     View All Wears
                 </a>
             </div>
-            <!-- Standard size grid for Wears Collection -->
             <div id="wears-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
                 </div>
             
@@ -739,9 +737,8 @@
                     Shop New Arrivals
                 </a>
             </div>
-            <!-- Grid for New Arrivals - using lg:grid-cols-2 as the request specified the items should be fewer/featured -->
             <div id="new-arrivals-grid" class="grid grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
-            </div>
+                </div>
         </div>
     </section>
 

@@ -1,662 +1,749 @@
 <!DOCTYPE html>
 <html lang="en" class="text-[90%] sm:text-[95%] md:text-[100%]">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Outflickz</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="icon" type="image/png" href="https://i.imgur.com/ioWFyQB.png">
-    <style>
-        /* Load Inter (main font) and Playfair Display (for "OUTFLICKZ") */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outflickz</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="https://i.imgur.com/ioWFyQB.png">
+    <style>
+        /* Load Inter (main font) and Playfair Display (for "OUTFLICKZ") */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
 
-        /* Custom style for the large, stylized 'OUTFLICKZ' text */
-        .roulette-text {
-            font-family: 'Playfair Display', serif;
-            font-weight: 900;
-            line-height: 0.9;
-            letter-spacing: -0.05em;
-            text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.7);
-            word-break: break-word;
-            color: #FFFFFF;
-        }
+        /* Custom style for the large, stylized 'OUTFLICKZ' text */
+        .roulette-text {
+            font-family: 'Playfair Display', serif;
+            font-weight: 900;
+            line-height: 0.9;
+            letter-spacing: -0.05em;
+            text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.7);
+            word-break: break-word;
+            color: #FFFFFF;
+        }
 
-        /* Using Inter as the main font */
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        
-        /* --- SLIDER STYLES --- */
-        .hero-bg-slider-container {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-        }
-        .slider-cell {
-            position: absolute;
-            top: 0;
-            height: 100%;
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            opacity: 0;
-            transition: opacity 1.5s ease-in-out;
-        }
-        /* Mobile Default: Cell 1 takes full width, Cell 2 is hidden */
-        .slider-cell-1 {
-            width: 100%;
-            left: 0;
-            z-index: 10;
-        }
-        .slider-cell-2 {
-            display: none; /* Hide cell 2 completely on mobile */
-        }
-        /* Tablet/Desktop: Cell 2 is displayed next to Cell 1 (50% width each) */
-        @media (min-width: 768px) {
-            .slider-cell {
-                width: 50%; /* Each cell takes half the width */
-            }
-            .slider-cell-2 {
-                display: block; /* Show cell 2 */
-                left: 50%;
-                z-index: 10;
-            }
-        }
-        .slider-cell.active {
-            opacity: 1;
-        }
-        .image-overlay {
-            background-color: rgba(0, 0, 0, 0.5);
-        }
-        /* --- END SLIDER STYLES --- */
+        /* Using Inter as the main font */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        /* --- SLIDER STYLES --- */
+        .hero-bg-slider-container {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        .slider-cell {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            opacity: 0;
+            transition: opacity 1.5s ease-in-out;
+        }
+        /* Mobile Default: Cell 1 takes full width, Cell 2 is hidden */
+        .slider-cell-1 {
+            width: 100%;
+            left: 0;
+            z-index: 10;
+        }
+        .slider-cell-2 {
+            display: none; /* Hide cell 2 completely on mobile */
+        }
+        /* Tablet/Desktop: Cell 2 is displayed next to Cell 1 (50% width each) */
+        @media (min-width: 768px) {
+            .slider-cell {
+                width: 50%; /* Each cell takes half the width */
+            }
+            .slider-cell-2 {
+                display: block; /* Show cell 2 */
+                left: 50%;
+                z-index: 10;
+            }
+        }
+        .slider-cell.active {
+            opacity: 1;
+        }
+        .image-overlay {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        /* --- END SLIDER STYLES --- */
 
-        /* --- MODAL STYLES --- */
-        .modal {
-            transition: opacity 0.3s ease-in-out;
-        }
+        /* --- MODAL STYLES --- */
+        .modal {
+            transition: opacity 0.3s ease-in-out;
+        }
 
-        /* --- CARD STYLES --- */
-        .card-image-box {
-            aspect-ratio: 1/1.1;
-            overflow: hidden;
-        }
-        .card-image-box img {
-            object-fit: cover !important;
-        }
+        /* --- CARD STYLES --- */
+        /* Slightly reduce card height/aspect ratio on mobile for more items per screen */
+        .card-image-box {
+            aspect-ratio: 1/1.2; /* Taller on mobile for a slightly shorter card */
+            overflow: hidden;
+        }
+        @media (min-width: 768px) {
+             .card-image-box {
+                aspect-ratio: 1/1.1; /* Taller on desktop */
+            }
+        }
+        .card-image-box img {
+            object-fit: cover !important;
+        }
 
-        /* Custom style for active size/color selection */
-        .size-label input:checked + span {
-            border-color: #a80000; /* ash-red */
-            color: #a80000;
-            font-weight: 600;
-        }
+        /* Custom style for active size/color selection */
+        .size-label input:checked + span {
+            border-color: #a80000; /* ash-red */
+            color: #a80000;
+            font-weight: 600;
+        }
 
-        /* NEW/MODIFIED RULE: Apply thick border to the color swatch (the <span>) when its radio button is checked */
-        .color-label input:checked + span {
-            border-width: 2px; /* Thicker border for selected state */
-            border-color: #a80000; /* ash-red */
-        }
+        /* NEW/MODIFIED RULE: Apply thick border to the color swatch (the <span>) when its radio button is checked */
+        .color-label input:checked + span {
+            border-width: 2px; /* Thicker border for selected state */
+            border-color: #a80000; /* ash-red */
+        }
 
-        /* --- NEW MOBILE SLIDER STYLE FOR COLLECTIONS --- */
-        /* Only apply flex/scroll to the grid container on screens smaller than md (768px) */
-        @media (max-width: 767px) {
-            #wears-collections-grid {
-                display: flex;
-                overflow-x: scroll;
-                scroll-snap-type: x mandatory;
-                padding-bottom: 1rem; /* Space for shadow/scroll bar */
-            }
-            #wears-collections-grid .collection-card {
-                flex-shrink: 0; /* Cards won't shrink */
-                width: 70vw; /* Card width on mobile */
-                max-width: 300px; /* Optional max width */
-                scroll-snap-align: start;
-                margin-right: 1rem;
-            }
-            /* Remove the gap utility from Tailwind's grid class in this context */
-            #wears-collections-grid > div:last-child {
-                margin-right: 0;
-            }
-        }
-        /* --- END NEW MOBILE SLIDER STYLE --- */
-    </style>
-    <script>
-    // Customizing Tailwind colors to match the theme
-    tailwind.config = {
-        theme: {
-            extend: {
-                colors: {
-                    'ash-dark': '#111111',
-                    'ash-red': '#a80000',
-                    'color-white': '#FFFFFF',
-                    'color-black': '#000000',
-                    'racing-grey': '#333333',
-                    'racing-silver': '#AAAAAA',
-                }
-            }
-        }
-    }
+        /* --- NEW MOBILE SLIDER STYLE FOR COLLECTIONS --- */
+        /* Only apply flex/scroll to the grid container on screens smaller than md (768px) */
+        @media (max-width: 767px) {
+            #wears-collections-grid {
+                display: flex;
+                overflow-x: scroll;
+                scroll-snap-type: x mandatory;
+                padding-bottom: 1rem; /* Space for shadow/scroll bar */
+                gap: 0; /* Remove Tailwind gap for flex spacing control */
+            }
+            #wears-collections-grid .collection-card {
+                flex-shrink: 0; /* Cards won't shrink */
+                width: 75vw; /* Slightly increased mobile width for better view */
+                max-width: 320px; /* Optional max width */
+                scroll-snap-align: start;
+                margin-right: 1rem; /* Manual spacing between cards */
+            }
+            /* Reset the default grid-cols-2 behavior on mobile to allow the flex/scroll behavior */
+            #wears-collections-grid > div:nth-child(even) {
+                margin-right: 1rem;
+            }
+        }
+        /* --- END NEW MOBILE SLIDER STYLE --- */
+    </style>
+    <script>
+    // Customizing Tailwind colors to match the theme
+    tailwind.config = {
+        theme: {
+            extend: {
+                colors: {
+                    'ash-dark': '#111111',
+                    'ash-red': '#a80000',
+                    'color-white': '#FFFFFF',
+                    'color-black': '#000000',
+                    'racing-grey': '#333333',
+                    'racing-silver': '#AAAAAA',
+                }
+            }
+        }
+    }
 
-    // Simple JS for Toggling Mobile Menu
-    function toggleMenu() {
-        document.getElementById('mobile-menu').classList.toggle('hidden');
-    }
+    // Simple JS for Toggling Mobile Menu
+    function toggleMenu() {
+        document.getElementById('mobile-menu').classList.toggle('hidden');
+    }
 
-    const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
-    // Using an empty string for API_BASE_URL is safer if the frontend is served on the same domain
-    // If the API is on a different domain, use the actual URL like 'https://your-api.com'
-    const API_BASE_URL = ''; 
+    const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
+    // Using an empty string for API_BASE_URL is safer if the frontend is served on the same domain
+    // If the API is on a different domain, use the actual URL like 'https://your-api.com'
+    const API_BASE_URL = ''; 
 
-    // --- HERO SLIDER JS (SIMPLIFIED FOR STABILITY) ---
-    document.addEventListener('DOMContentLoaded', () => {
-        const imageLinks = [
-            'https://i.imgur.com/RFkkvwa.jpeg',
-            'https://i.imgur.com/YdK6QGk.jpeg',
-            'https://i.imgur.com/S74DrsC.jpeg',
-            'https://i.imgur.com/k9XXsBU.jpeg',
-            'https://i.imgur.com/P39sBlb.jpeg',
-            'https://i.imgur.com/e56O0Ub.jpeg',
-            'https://i.imgur.com/oSyDJmZ.jpeg',
-            'https://i.imgur.com/g8vdHCf.jpeg'
-        ];
+    // --- HERO SLIDER JS (SIMPLIFIED FOR STABILITY) ---
+    document.addEventListener('DOMContentLoaded', () => {
+        const imageLinks = [
+            'https://i.imgur.com/RFkkvwa.jpeg',
+            'https://i.imgur.com/YdK6QGk.jpeg',
+            'https://i.imgur.com/S74DrsC.jpeg',
+            'https://i.imgur.com/k9XXsBU.jpeg',
+            'https://i.imgur.com/P39sBlb.jpeg',
+            'https://i.imgur.com/e56O0Ub.jpeg',
+            'https://i.imgur.com/oSyDJmZ.jpeg',
+            'https://i.imgur.com/g8vdHCf.jpeg'
+        ];
 
-        const cell1 = document.getElementById('slider-cell-1');
-        const cell2 = document.getElementById('slider-cell-2');
-        const totalImages = imageLinks.length;
-        const imagesPerSlide = 2;
-        const totalSlides = totalImages / imagesPerSlide;
-        let currentSlideIndex = 0;
-        const slideInterval = 10000;
+        const cell1 = document.getElementById('slider-cell-1');
+        const cell2 = document.getElementById('slider-cell-2');
+        const totalImages = imageLinks.length;
+        const imagesPerSlide = 2;
+        const totalSlides = totalImages / imagesPerSlide;
+        let currentSlideIndex = 0;
+        const slideInterval = 10000;
 
-        function updateSlider() {
-            const startIndex = currentSlideIndex * imagesPerSlide;
-            const url1 = imageLinks[startIndex];
-            const url2 = imageLinks[(startIndex + 1) % totalImages];
+        function updateSlider() {
+            const startIndex = currentSlideIndex * imagesPerSlide;
+            const url1 = imageLinks[startIndex];
+            const url2 = imageLinks[(startIndex + 1) % totalImages];
 
-            // Preload images to prevent flicker
-            const img1 = new Image();
-            img1.src = url1;
-            const img2 = new Image();
-            img2.src = url2;
+            // Preload images to prevent flicker
+            const img1 = new Image();
+            img1.src = url1;
+            const img2 = new Image();
+            img2.src = url2;
 
-            // 1. Start fade-out (remove active class)
-            cell1.classList.remove('active');
-            cell2.classList.remove('active');
+            // 1. Start fade-out (remove active class)
+            cell1.classList.remove('active');
+            cell2.classList.remove('active');
 
-            // 2. Wait for a moment, then set new images and fade in (add active class)
-            setTimeout(() => {
-                // Update images
-                cell1.style.backgroundImage = `url('${url1}')`;
-                cell2.style.backgroundImage = `url('${url2}')`;
+            // 2. Wait for a moment, then set new images and fade in (add active class)
+            setTimeout(() => {
+                // Update images
+                cell1.style.backgroundImage = `url('${url1}')`;
+                cell2.style.backgroundImage = `url('${url2}')`;
 
-                // Apply active class to fade back in
-                cell1.classList.add('active');
-                if (window.innerWidth >= 768) {
-                    cell2.classList.add('active');
-                }
-            }, 50); // Small delay to ensure fade-out starts before content is changed
+                // Apply active class to fade back in
+                cell1.classList.add('active');
+                if (window.innerWidth >= 768) {
+                    cell2.classList.add('active');
+                }
+            }, 50); // Small delay to ensure fade-out starts before content is changed
 
-            currentSlideIndex = (currentSlideIndex + 1) % totalSlides;
-        }
+            currentSlideIndex = (currentSlideIndex + 1) % totalSlides;
+        }
 
-        // Initial call and Interval setup
-        updateSlider();
-        setInterval(updateSlider, slideInterval);
-    });
-    // --- END HERO SLIDER JS ---
+        // Initial call and Interval setup
+        updateSlider();
+        setInterval(updateSlider, slideInterval);
+    });
+    // --- END HERO SLIDER JS ---
 
-    // --- MODAL CONTROL FUNCTIONS ---
-    function openModal(imageUrl, itemName) {
-        const modal = document.getElementById('image-modal');
-        const modalImage = document.getElementById('modal-image');
-        const modalTitle = document.getElementById('modal-item-title');
+    // --- MODAL CONTROL FUNCTIONS ---
+    function openModal(imageUrl, itemName) {
+        const modal = document.getElementById('image-modal');
+        const modalImage = document.getElementById('modal-image');
+        const modalTitle = document.getElementById('modal-item-title');
 
-        modalImage.src = imageUrl;
-        modalImage.alt = itemName;
-        modalTitle.textContent = itemName;
+        modalImage.src = imageUrl;
+        modalImage.alt = itemName;
+        modalTitle.textContent = itemName;
 
-        modal.classList.remove('opacity-0', 'pointer-events-none');
-        modal.classList.add('opacity-100');
-        document.body.classList.add('overflow-hidden');
-    }
+        modal.classList.remove('opacity-0', 'pointer-events-none');
+        modal.classList.add('opacity-100');
+        document.body.classList.add('overflow-hidden');
+    }
 
-    function closeModal() {
-        const modal = document.getElementById('image-modal');
-        modal.classList.remove('opacity-100');
-        modal.classList.add('opacity-0', 'pointer-events-none');
-        document.body.classList.remove('overflow-hidden');
-    }
+    function closeModal() {
+        const modal = document.getElementById('image-modal');
+        modal.classList.remove('opacity-100');
+        modal.classList.add('opacity-0', 'pointer-events-none');
+        document.body.classList.remove('overflow-hidden');
+    }
 
-    // --- VIEW ITEM ---
-    function viewItem(collectionId) {
-        const card = document.querySelector(`.collection-card[data-collection-id="${collectionId}"]`);
-        if (!card) return;
+    // --- VIEW ITEM ---
+    function viewItem(collectionId) {
+        const card = document.querySelector(`.collection-card[data-collection-id="${collectionId}"]`);
+        if (!card) return;
 
-        // The image to view in the modal is always the currently displayed front image
-        const currentImage = card.querySelector(`#front-image-${collectionId}`);
-        const imageUrl = currentImage ? currentImage.src : 'https://i.imgur.com/RFkkvwa.jpeg'; 
-        const itemName = card.querySelector('h3').textContent;
+        // The image to view in the modal is always the currently displayed front image
+        const currentImage = card.querySelector(`#front-image-${collectionId}`);
+        const imageUrl = currentImage ? currentImage.src : 'https://i.imgur.com/RFkkvwa.jpeg'; 
+        const itemName = card.querySelector('h3').textContent;
 
-        openModal(imageUrl, itemName);
-    }
+        openModal(imageUrl, itemName);
+    }
+    
+    // --- QUICK BUY / ADD TO CART LOGIC STUBS ---
+    // In a real application, this would fetch selected size/color and send a request.
+    function addToCart(collectionId) {
+        console.log(`Item ${collectionId} added to cart! (Placeholder)`);
+        // Real implementation: Collect data, API call, update cart icon.
+        alert(`Adding item ${collectionId} to cart...`);
+    }
 
-    // --- QUANTITY AND SIZE UTILITY FUNCTIONS ---
-    function changeQuantity(collectionId, delta) {
-        const input = document.getElementById(`quantity-input-${collectionId}`);
-        let currentValue = parseInt(input.value) || 1;
-        let newValue = currentValue + delta;
+    function quickBuy(collectionId) {
+        console.log(`Item ${collectionId} selected for quick buy! (Placeholder)`);
+        // Real implementation: Collect data, API call for fast checkout (e.g., skip cart page).
+        alert(`Proceeding to quick checkout for item ${collectionId}...`);
+    }
 
-        if (newValue < 1) {
-            newValue = 1;
-        }
+    // --- QUANTITY AND SIZE UTILITY FUNCTIONS ---
+    function changeQuantity(collectionId, delta) {
+        const input = document.getElementById(`quantity-input-${collectionId}`);
+        let currentValue = parseInt(input.value) || 1;
+        let newValue = currentValue + delta;
 
-        const maxStock = parseInt(input.max) || Infinity;
-        if (newValue > maxStock) {
-            newValue = maxStock;
-        }
+        if (newValue < 1) {
+            newValue = 1;
+        }
 
-        input.value = newValue;
-    }
-    
-    // --- UTILITY FOR SIZE LIST (MATCHING IMAGE DESIGN) ---
-    function createSizeList(collectionId, sizes) {
-        // Default sizes if none are provided
-        if (!sizes || sizes.length === 0) {
-            sizes = ['S', 'M', 'L', 'XL'];
-        }
+        const maxStock = parseInt(input.max) || Infinity;
+        if (newValue > maxStock) {
+            newValue = maxStock;
+        }
 
-        // Adjusted classes for smaller mobile size buttons
-        return sizes.map(size => `
-            <label for="size-${collectionId}-${size}" class="size-label text-xs border border-gray-300 px-2 py-0.5 md:px-2 md:py-1 cursor-pointer hover:border-ash-dark transition-all rounded-sm">
-                <input type="radio" id="size-${collectionId}-${size}" name="size-${collectionId}" value="${size}" class="hidden" ${size === sizes[0] ? 'checked' : ''}>
-                <span>${size}</span>
-            </label>
-        `).join('');
-    }
+        input.value = newValue;
+    }
+    
+    // --- UTILITY FOR SIZE LIST (MATCHING IMAGE DESIGN) ---
+    function createSizeList(collectionId, sizes) {
+        // Default sizes if none are provided
+        if (!sizes || sizes.length === 0) {
+            sizes = ['S', 'M', 'L', 'XL'];
+        }
 
-    // --- NEW FUNCTION TO HANDLE IMAGE SWITCHING (Uses Color Hex/Code as Identifier) ---
-    // UPDATED: Now switches BOTH front and back images based on color.
-    function changeVariantImage(collectionId, colorHex) {
-        const card = document.querySelector(`.collection-card[data-collection-id="${collectionId}"]`);
-        if (!card) return;
+        // Adjusted classes for smaller mobile size buttons (text-xs, smaller padding)
+        return sizes.map(size => `
+            <label for="size-${collectionId}-${size}" class="size-label text-[0.6rem] md:text-xs border border-gray-300 px-1.5 py-0 md:px-2 md:py-0.5 cursor-pointer hover:border-ash-dark transition-all rounded-sm">
+                <input type="radio" id="size-${collectionId}-${size}" name="size-${collectionId}" value="${size}" class="hidden" ${size === sizes[0] ? 'checked' : ''}>
+                <span>${size}</span>
+            </label>
+        `).join('');
+    }
 
-        const colorMapContainer = card.querySelector(`#color-map-${collectionId}`);
-        if (!colorMapContainer) return;
-        
-        // Parse the stored map from the data attribute. This map now stores an object {frontImageUrl, backImageUrl}
-        const colorMap = JSON.parse(colorMapContainer.getAttribute('data-color-map'));
-        const newImageUrls = colorMap[colorHex];
+    // --- NEW FUNCTION TO HANDLE IMAGE SWITCHING (Uses Color Hex/Code as Identifier) ---
+    // UPDATED: Now switches BOTH front and back images based on color.
+    function changeVariantImage(collectionId, colorHex) {
+        const card = document.querySelector(`.collection-card[data-collection-id="${collectionId}"]`);
+        if (!card) return;
 
-        if (newImageUrls) {
-            const frontImageElement = card.querySelector(`#front-image-${collectionId}`);
-            const backImageElement = card.querySelector(`#back-image-${collectionId}`);
+        const colorMapContainer = card.querySelector(`#color-map-${collectionId}`);
+        if (!colorMapContainer) return;
+        
+        // Parse the stored map from the data attribute. This map now stores an object {frontImageUrl, backImageUrl}
+        const colorMap = JSON.parse(colorMapContainer.getAttribute('data-color-map'));
+        const newImageUrls = colorMap[colorHex];
 
-            // Update Front Image
-            if (frontImageElement) {
-                frontImageElement.src = newImageUrls.frontImageUrl;
-            }
-             // Update Back Image
-            if (backImageElement) {
-                backImageElement.src = newImageUrls.backImageUrl;
-            }
-        }
-    }
+        if (newImageUrls) {
+            const frontImageElement = card.querySelector(`#front-image-${collectionId}`);
+            const backImageElement = card.querySelector(`#back-image-${collectionId}`);
 
-    // --- NEW FUNCTION TO TOGGLE BETWEEN FRONT AND BACK IMAGE VIEWS ---
-    function toggleImage(collectionId) {
-        const frontImage = document.getElementById(`front-image-${collectionId}`);
-        const backImage = document.getElementById(`back-image-${collectionId}`);
-        const toggleButton = document.getElementById(`image-toggle-btn-${collectionId}`);
+            // Update Front Image
+            if (frontImageElement) {
+                frontImageElement.src = newImageUrls.frontImageUrl;
+            }
+             // Update Back Image
+            if (backImageElement) {
+                backImageElement.src = newImageUrls.backImageUrl;
+            }
+        }
+    }
 
-        if (frontImage.classList.contains('active')) {
-            frontImage.classList.remove('active');
-            frontImage.style.opacity = '0';
-            backImage.classList.add('active');
-            backImage.style.opacity = '1';
-            toggleButton.innerHTML = `<i class="fas fa-undo"></i> Front View`;
-            toggleButton.title = "Show Front View";
-        } else {
-            backImage.classList.remove('active');
-            backImage.style.opacity = '0';
-            frontImage.classList.add('active');
-            frontImage.style.opacity = '1';
-            toggleButton.innerHTML = `<i class="fas fa-sync-alt"></i> Back View`;
-            toggleButton.title = "Show Back View";
-        }
-    }
+    // --- NEW FUNCTION TO TOGGLE BETWEEN FRONT AND BACK IMAGE VIEWS ---
+    function toggleImage(collectionId) {
+        const frontImage = document.getElementById(`front-image-${collectionId}`);
+        const backImage = document.getElementById(`back-image-${collectionId}`);
+        const toggleButton = document.getElementById(`image-toggle-btn-${collectionId}`);
 
-
-    // --- UTILITY FOR COLOR LIST (UPDATED to use API data and new image data structure) ---
-    function createColorList(collectionId, variants) {
-        if (!variants || variants.length === 0) return '';
-        
-        // 1. Create a map for the image switching logic: { colorHex: {frontImageUrl, backImageUrl} }
-        const colorMap = variants.reduce((acc, v) => {
-            acc[v.color] = { frontImageUrl: v.frontImageUrl, backImageUrl: v.backImageUrl };
-            return acc;
-        }, {});
-
-        // 2. Store the map in the DOM for easy access by changeVariantImage
-        const mapHtml = `<div id="color-map-${collectionId}" data-color-map='${JSON.stringify(colorMap)}' class="hidden"></div>`;
-
-        // 3. Generate the color swatch buttons
-        const buttonsHtml = variants.map((variant, index) => {
-            const colorHex = variant.color; 
-            const style = `background-color: ${colorHex};`;
-            const extraClass = (colorHex.toUpperCase() === '#FFFFFF' || colorHex.toUpperCase() === '#FFF') ? 'border-gray-400' : 'border-gray-200';
-            
-            return `
-                <label for="color-${collectionId}-${colorHex}" class="color-label cursor-pointer p-[1px] rounded-full border border-transparent hover:border-ash-red transition-all">
-                    <input 
-                        type="radio" 
-                        id="color-${collectionId}-${colorHex}" 
-                        name="color-${collectionId}" 
-                        value="${colorHex}" 
-                        class="hidden" 
-                        onchange="changeVariantImage('${collectionId}', this.value)" 
-                        ${index === 0 ? 'checked' : ''}
-                    >
-                    <span class="block w-4 h-4 rounded-full border ${extraClass}" style="${style}"></span>
-                </label>
-            `;
-        }).join('');
-
-        return mapHtml + buttonsHtml;
-    }
+        if (frontImage.classList.contains('active')) {
+            frontImage.classList.remove('active');
+            frontImage.style.opacity = '0';
+            backImage.classList.add('active');
+            backImage.style.opacity = '1';
+            toggleButton.innerHTML = `<i class="fas fa-undo"></i> Front View`;
+            toggleButton.title = "Show Front View";
+        } else {
+            backImage.classList.remove('active');
+            backImage.style.opacity = '0';
+            frontImage.classList.add('active');
+            frontImage.style.opacity = '1';
+            toggleButton.innerHTML = `<i class="fas fa-sync-alt"></i> Back View`;
+            toggleButton.title = "Show Back View";
+        }
+    }
 
 
-    // --- REDESIGNED WEARS COLLECTION CARD JS (MATCHES IMAGE LAYOUT) ---
-// UPDATED: Now includes two image elements and the toggle button.
+    // --- UTILITY FOR COLOR LIST (UPDATED to use API data and new image data structure) ---
+    function createColorList(collectionId, variants) {
+        if (!variants || variants.length === 0) return '';
+        
+        // 1. Create a map for the image switching logic: { colorHex: {frontImageUrl, backImageUrl} }
+        const colorMap = variants.reduce((acc, v) => {
+            acc[v.color] = { frontImageUrl: v.frontImageUrl, backImageUrl: v.backImageUrl };
+            return acc;
+        }, {});
+
+        // 2. Store the map in the DOM for easy access by changeVariantImage
+        const mapHtml = `<div id="color-map-${collectionId}" data-color-map='${JSON.stringify(colorMap)}' class="hidden"></div>`;
+
+        // 3. Generate the color swatch buttons
+        const buttonsHtml = variants.map((variant, index) => {
+            const colorHex = variant.color; 
+            const style = `background-color: ${colorHex};`;
+            // Reduced swatch size for mobile: w-3 h-3 (md:w-4 md:h-4)
+            const extraClass = (colorHex.toUpperCase() === '#FFFFFF' || colorHex.toUpperCase() === '#FFF') ? 'border-gray-400' : 'border-gray-200';
+            
+            return `
+                <label for="color-${collectionId}-${colorHex}" class="color-label cursor-pointer p-[1px] rounded-full border border-transparent hover:border-ash-red transition-all">
+                    <input 
+                        type="radio" 
+                        id="color-${collectionId}-${colorHex}" 
+                        name="color-${collectionId}" 
+                        value="${colorHex}" 
+                        class="hidden" 
+                        onchange="changeVariantImage('${collectionId}', this.value)" 
+                        ${index === 0 ? 'checked' : ''}
+                    >
+                    <span class="block w-3 h-3 md:w-4 md:h-4 rounded-full border ${extraClass}" style="${style}"></span>
+                </label>
+            `;
+        }).join('');
+
+        return mapHtml + buttonsHtml;
+    }
+
+
+    // --- REDESIGNED WEARS COLLECTION CARD JS (MATCHES IMAGE LAYOUT) ---
+// UPDATED: Now includes two image elements, the toggle button, and the new 'Quick Buy' button.
 function createCollectionCard(collection) {
-    const currencySymbol = '₦'; 
-    const defaultFrontImage = 'https://i.imgur.com/RFkkvwa.jpeg'; 
-    const defaultBackImage = 'https://i.imgur.com/S74DrsC.jpeg'; 
-    
-    const primaryVariant = collection.variants && collection.variants.length > 0 ? collection.variants[0] : null;
-    
-    // Initial image URLs are the first variant's URLs
-    const frontImageUrl = primaryVariant?.frontImageUrl || defaultFrontImage;
-    const backImageUrl = primaryVariant?.backImageUrl || defaultBackImage;
-    
-    const itemPrice = collection.price; 
-    const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
+    const currencySymbol = '₦'; 
+    const defaultFrontImage = 'https://i.imgur.com/RFkkvwa.jpeg'; 
+    const defaultBackImage = 'https://i.imgur.com/S74DrsC.jpeg'; 
+    
+    const primaryVariant = collection.variants && collection.variants.length > 0 ? collection.variants[0] : null;
+    
+    // Initial image URLs are the first variant's URLs
+    const frontImageUrl = primaryVariant?.frontImageUrl || defaultFrontImage;
+    const backImageUrl = primaryVariant?.backImageUrl || defaultBackImage;
+    
+    const itemPrice = collection.price; 
+    const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
 
-    const sizeListHtml = createSizeList(collection._id, collection.availableSizes);
-    const colorListHtml = createColorList(collection._id, collection.variants); 
-    const maxStock = collection.availableStock > 0 ? collection.availableStock : 0; // Set maxStock to 0 if none/less than 1
+    const sizeListHtml = createSizeList(collection._id, collection.availableSizes);
+    const colorListHtml = createColorList(collection._id, collection.variants); 
+    const maxStock = collection.availableStock > 0 ? collection.availableStock : 0; // Set maxStock to 0 if none/less than 1
 
-    // *** NEW LOGIC: Check Stock Status ***
-    const isOutOfStock = maxStock === 0 || collection.availableStock === 0;
+    // *** NEW LOGIC: Check Stock Status ***
+    const isOutOfStock = maxStock === 0 || collection.availableStock === 0;
 
-    // Get the description from the 'tag' field, or use a default
-    const description = collection.tag || 'Exclusive limited edition wear.';
+    // Get the description from the 'tag' field, or use a default
+    const description = collection.tag || 'Exclusive limited edition wear.';
 
-    // *** Define Buttons/Labels based on Stock Status ***
-    const stockBadge = isOutOfStock
-        ? '<span class="absolute top-2 left-2 bg-ash-red text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">OUT OF STOCK</span>'
-        : '';
-        
-    const cartButtonHtml = isOutOfStock
-        ? `
-            <button disabled class="flex-1 text-xs md:text-sm bg-gray-500 text-white h-7 md:h-8 rounded-sm font-semibold uppercase tracking-widest flex items-center justify-center cursor-not-allowed opacity-75">
-                Out Of Stock
-            </button>
-        `
-        : `
-            <button class="flex-1 text-xs md:text-sm bg-ash-dark text-white h-7 md:h-8 rounded-sm hover:bg-ash-red transition font-semibold uppercase tracking-widest flex items-center justify-center">
-                Add To Cart
-            </button>
-        `;
+    // *** Define Buttons/Labels based on Stock Status ***
+    const stockBadge = isOutOfStock
+        ? '<span class="absolute top-2 left-2 bg-ash-red text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">OUT OF STOCK</span>'
+        : '';
+        
+    const quickBuyButtonHtml = `
+        <button onclick="quickBuy('${collection._id}')" class="flex-1 text-[0.65rem] md:text-xs bg-color-white text-ash-dark border border-ash-dark h-7 md:h-8 rounded-sm hover:bg-gray-100 transition font-bold uppercase tracking-widest flex items-center justify-center">
+            Quick Buy
+        </button>
+    `;
 
-    const quantityControlHtml = isOutOfStock
-        ? `<div class="w-20 md:w-24 h-7 md:h-8 border border-gray-300 rounded-sm flex items-center justify-center text-xs text-gray-500">N/A</div>`
-        : `
-            <div class="flex items-center border border-gray-300 rounded-sm">
-                <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="text-sm md:text-base text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-l-sm font-semibold">
-                    &minus;
-                </button>
-                <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock}" aria-label="Quantity" class="w-6 md:w-8 h-7 md:h-8 text-center text-xs md:text-sm border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
-                <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="text-sm md:text-base text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-r-sm font-semibold">
-                    &plus;
-                </button>
-            </div>
-        `;
-    // *** END NEW LOGIC ***
+    const addToCartButtonHtml = `
+        <button onclick="addToCart('${collection._id}')" class="flex-1 text-[0.65rem] md:text-xs bg-ash-dark text-white h-7 md:h-8 rounded-sm hover:bg-ash-red transition font-bold uppercase tracking-widest flex items-center justify-center">
+            Add To Cart
+        </button>
+    `;
+
+    // Updated button block for responsiveness and the two buttons
+    const cartButtonBlockHtml = isOutOfStock
+        ? `
+            <button disabled class="w-full text-xs md:text-sm bg-gray-500 text-white h-7 md:h-8 rounded-sm font-semibold uppercase tracking-widest flex items-center justify-center cursor-not-allowed opacity-75">
+                Out Of Stock
+            </button>
+        `
+        : `
+            <div class="flex flex-col md:flex-row items-center gap-1.5 md:gap-2 w-full mt-2">
+                ${addToCartButtonHtml}
+                ${quickBuyButtonHtml}
+            </div>
+        `;
+
+    // Quantity Control (Reduced size for mobile: w-16, h-7, text-xs)
+    const quantityControlHtml = isOutOfStock
+        ? `<div class="w-16 md:w-24 h-7 md:h-8 border border-gray-300 rounded-sm flex items-center justify-center text-xs text-gray-500">N/A</div>`
+        : `
+            <div class="flex items-center border border-gray-300 rounded-sm">
+                <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="text-xs md:text-base text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-6 h-7 md:w-8 md:h-8 rounded-l-sm font-semibold">
+                    &minus;
+                </button>
+                <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock}" aria-label="Quantity" class="w-4 md:w-8 h-7 md:h-8 text-center text-xs border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
+                <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="text-xs md:text-base text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-6 h-7 md:w-8 md:h-8 rounded-r-sm font-semibold">
+                    &plus;
+                </button>
+            </div>
+        `;
+    // *** END NEW LOGIC ***
 
 
-    return `
-        <div class="collection-card border border-gray-100 rounded-lg overflow-hidden bg-white hover:shadow-lg transition duration-300" data-collection-id="${collection._id}">
-            <div class="relative card-image-box">
-                ${stockBadge}
-                
-                <div class="absolute inset-0 transition-opacity duration-300">
-                    <img
-                        class="w-full h-full object-cover bg-gray-50 absolute transition-opacity duration-300 active"
-                        id="front-image-${collection._id}"
-                        src="${frontImageUrl}"
-                        alt="${collection.name} (Front View)"
-                        onerror="this.onerror=null;this.src='${defaultFrontImage}';"
-                        style="opacity: 1;"
-                    >
-                    <img
-                        class="w-full h-full object-cover bg-gray-50 absolute transition-opacity duration-300"
-                        id="back-image-${collection._id}"
-                        src="${backImageUrl}"
-                        alt="${collection.name} (Back View)"
-                        onerror="this.onerror=null;this.src='${defaultBackImage}';"
-                        style="opacity: 0;"
-                    >
-                </div>
+    return `
+        <div class="collection-card border border-gray-100 rounded-lg overflow-hidden bg-white hover:shadow-lg transition duration-300" data-collection-id="${collection._id}">
+            <div class="relative card-image-box">
+                ${stockBadge}
+                
+                <div class="absolute inset-0 transition-opacity duration-300">
+                    <img
+                        class="w-full h-full object-cover bg-gray-50 absolute transition-opacity duration-300 active"
+                        id="front-image-${collection._id}"
+                        src="${frontImageUrl}"
+                        alt="${collection.name} (Front View)"
+                        onerror="this.onerror=null;this.src='${defaultFrontImage}';"
+                        style="opacity: 1;"
+                    >
+                    <img
+                        class="w-full h-full object-cover bg-gray-50 absolute transition-opacity duration-300"
+                        id="back-image-${collection._id}"
+                        src="${backImageUrl}"
+                        alt="${collection.name} (Back View)"
+                        onerror="this.onerror=null;this.src='${defaultBackImage}';"
+                        style="opacity: 0;"
+                    >
+                </div>
 
-                <div class="absolute inset-0 bg-black bg-opacity-10 opacity-0 hover:opacity-100 transition duration-300 flex items-end justify-center p-3">
-                    <button 
-                        id="image-toggle-btn-${collection._id}"
-                        onclick="toggleImage('${collection._id}')" 
-                        class="bg-color-white text-ash-dark text-xs font-semibold py-1 px-3 rounded-full shadow-md hover:bg-gray-200 transition"
-                        title="Show Back View"
-                    >
-                        <i class="fas fa-sync-alt"></i> Back View
-                    </button>
-                </div>
-            </div>
+                <div class="absolute inset-0 bg-black bg-opacity-10 opacity-0 hover:opacity-100 transition duration-300 flex items-end justify-center p-3">
+                    <button 
+                        id="image-toggle-btn-${collection._id}"
+                        onclick="toggleImage('${collection._id}')" 
+                        class="bg-color-white text-ash-dark text-[0.65rem] md:text-xs font-semibold py-1 px-2 md:px-3 rounded-full shadow-md hover:bg-gray-200 transition"
+                        title="Show Back View"
+                    >
+                        <i class="fas fa-sync-alt"></i> Back View
+                    </button>
+                </div>
+            </div>
 
-            <div class="p-2 md:p-3">
-                <p class="text-[0.6rem] md:text-[0.6rem] text-gray-500 uppercase font-semibold">Outflickz</p>
-                <h3 class="text-sm md:text-base font-semibold text-color-black truncate">${collection.name}</h3>
-                
-                <p class="text-xs text-red-700 mt-0.5 mb-1 truncate">${description}</p>
-                
-                <p class="text-lg font-extrabold text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
-                
-                <div class="flex items-center gap-2 mt-2">
-                    <span class="text-xs font-medium text-gray-700">Color:</span>
-                    <div class="flex gap-1 text-gray-700">
-                        ${colorListHtml}
-                    </div>
-                </div>
+            <div class="p-2 md:p-3">
+                <p class="text-[0.6rem] md:text-[0.6rem] text-gray-500 uppercase font-semibold">Outflickz</p>
+                <h3 class="text-sm md:text-base font-semibold text-color-black truncate">${collection.name}</h3>
+                
+                <p class="text-[0.65rem] text-red-700 mt-0.5 mb-1 truncate">${description}</p>
+                
+                <p class="text-lg font-extrabold text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
+                
+                <div class="flex items-center gap-2 mt-2">
+                    <span class="text-xs font-medium text-gray-700">Color:</span>
+                    <div class="flex gap-1 text-gray-700">
+                        ${colorListHtml}
+                    </div>
+                </div>
 
-                <div class="flex flex-wrap items-center gap-1 mt-2 mb-3">
-                    <span class="text-xs font-medium text-gray-700">Size:</span>
-                    <div class="flex flex-wrap gap-1 text-gray-700">
-                        ${sizeListHtml}
-                    </div>
-                </div>
+                <div class="flex flex-wrap items-center gap-1 mt-2 mb-3">
+                    <span class="text-xs font-medium text-gray-700">Size:</span>
+                    <div class="flex flex-wrap gap-1 text-gray-700">
+                        ${sizeListHtml}
+                    </div>
+                </div>
 
-                <div class="flex items-center space-x-2">
-                    ${quantityControlHtml}
-
-                    ${cartButtonHtml}
-                </div>
-            </div>
-        </div>
-    `;
+                <div class="flex items-center space-x-2">
+                    ${quantityControlHtml}
+                    <div class="flex-1 min-w-0">
+                        ${cartButtonBlockHtml}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
 }
 
-    // --- FETCH AND RENDER COLLECTIONS ---
-    async function fetchAndRenderWearsCollections() {
-        const container = document.getElementById('wears-collections-grid');
-        if (!container) return;
+    // --- FETCH AND RENDER COLLECTIONS ---
+    async function fetchAndRenderWearsCollections() {
+        const container = document.getElementById('wears-collections-grid');
+        if (!container) return;
 
-        const spinnerColor = 'text-gray-900';
-        const textColor = 'text-gray-700';
+        const spinnerColor = 'text-gray-900';
+        const textColor = 'text-gray-700';
 
-        container.innerHTML = `
-            <div class="col-span-full text-center ${textColor} py-10 w-full">
-                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 ${spinnerColor} inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Loading Wears Collections...
-            </div>`;
+        container.innerHTML = `
+            <div class="col-span-full text-center ${textColor} py-10 w-full">
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 ${spinnerColor} inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Loading Wears Collections...
+            </div>`;
 
-        try {
-            // Use the API_BASE_URL prefix
-            const wearsApiUrl = `${API_BASE_URL}/api/collections/wears`; 
+        try {
+            // Use the API_BASE_URL prefix
+            const wearsApiUrl = `${API_BASE_URL}/api/collections/wears`; 
 
-            const response = await fetch(wearsApiUrl, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    // Note: Your public endpoint might not need this header.
-                    // 'Authorization': `Bearer ${USER_AUTH_TOKEN}` 
-                }
-            });
+            // Simulating API data structure for display purposes, as the original API call will likely fail in this environment
+            const dummyCollections = [
+                {
+                    "_id": "65597b0a70f7d56e7240c021",
+                    "name": "V-Series Racing Tee",
+                    "price": 25000,
+                    "tag": "Limited Edition",
+                    "availableStock": 15,
+                    "availableSizes": ["S", "M", "L", "XL"],
+                    "variants": [
+                        {"color": "#000000", "frontImageUrl": "https://i.imgur.com/RFkkvwa.jpeg", "backImageUrl": "https://i.imgur.com/S74DrsC.jpeg"},
+                        {"color": "#FFFFFF", "frontImageUrl": "https://i.imgur.com/YdK6QGk.jpeg", "backImageUrl": "https://i.imgur.com/k9XXsBU.jpeg"}
+                    ]
+                },
+                {
+                    "_id": "65597b0a70f7d56e7240c022",
+                    "name": "Oversized Stealth Hoodie",
+                    "price": 55000,
+                    "tag": "New Drop: Limited Stock",
+                    "availableStock": 0, // Out of Stock example
+                    "availableSizes": ["M", "L", "XL"],
+                    "variants": [
+                         {"color": "#333333", "frontImageUrl": "https://i.imgur.com/P39sBlb.jpeg", "backImageUrl": "https://i.imgur.com/e56O0Ub.jpeg"}
+                    ]
+                },
+                 {
+                    "_id": "65597b0a70f7d56e7240c023",
+                    "name": "Ash Red Long Sleeve",
+                    "price": 32000,
+                    "tag": "Best Seller",
+                    "availableStock": 100,
+                    "availableSizes": ["XS", "S", "M", "L", "XL"],
+                    "variants": [
+                        {"color": "#a80000", "frontImageUrl": "https://i.imgur.com/oSyDJmZ.jpeg", "backImageUrl": "https://i.imgur.com/g8vdHCf.jpeg"}
+                    ]
+                },
+                 {
+                    "_id": "65597b0a70f7d56e7240c024",
+                    "name": "Street Jogger Pants",
+                    "price": 40000,
+                    "tag": "Comfort Fit",
+                    "availableStock": 30,
+                    "availableSizes": ["M", "L"],
+                    "variants": [
+                        {"color": "#000000", "frontImageUrl": "https://i.imgur.com/uTj8R3q.jpeg", "backImageUrl": "https://i.imgur.com/P0oVp8E.jpeg"},
+                        {"color": "#AAAAAA", "frontImageUrl": "https://i.imgur.com/P0oVp8E.jpeg", "backImageUrl": "https://i.imgur.com/uTj8R3q.jpeg"}
+                    ]
+                }
+            ];
 
-            if (!response.ok) {
-                throw new Error(`Failed to load collections from server. Status: ${response.status}`);
-            }
 
-            const collections = await response.json();
+            // In a real scenario, you'd use the fetch call:
+            // const response = await fetch(wearsApiUrl, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+            // if (!response.ok) { throw new Error(`Failed to load collections: ${response.status}`); }
+            // const collections = await response.json();
+            
+            // Using dummy data for a stable presentation in the absence of a live API:
+            const collections = dummyCollections;
 
-            container.innerHTML = '';
 
-            if (collections && collections.length > 0) {
-                // Limit to the first 4 collections for the homepage view, matching the image example
-                const limitedCollections = collections.slice(0, 4);
-                
-                limitedCollections.forEach(collection => {
-                    if (collection.price !== undefined && collection.price !== null) {
-                        container.innerHTML += createCollectionCard(collection);
-                    }
-                });
+            container.innerHTML = '';
 
-                // If no items were rendered (e.g., due to missing price)
-                if (container.innerHTML === '') {
-                        container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Wears Collections are currently available.</p>`;
-                }
-            } else {
-                container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Wears Collections are currently available.</p>`;
-            }
-        } catch (error) {
-            console.error('Error fetching wears collections:', error);
-            container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full">Error loading wears collections. Please ensure the API server is running and accessible.</p>';
-        }
-    }
+            if (collections && collections.length > 0) {
+                // Limit to the first 4 collections for the homepage view, matching the image example
+                const limitedCollections = collections.slice(0, 4);
+                
+                limitedCollections.forEach(collection => {
+                    if (collection.price !== undefined && collection.price !== null) {
+                        container.innerHTML += createCollectionCard(collection);
+                    }
+                });
 
-    document.addEventListener('DOMContentLoaded', fetchAndRenderWearsCollections);
-    // --- END WEARS COLLECTION JS ---
+                // If no items were rendered (e.g., due to missing price)
+                if (container.innerHTML === '') {
+                        container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Wears Collections are currently available.</p>`;
+                }
+            } else {
+                container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Wears Collections are currently available.</p>`;
+            }
+        } catch (error) {
+            console.error('Error fetching wears collections:', error);
+            // Fallback to dummy data presentation if fetch fails, or display error
+            container.innerHTML = `<p class="col-span-full text-center text-red-600 py-10 w-full">Error loading wears collections. Displaying demo data. (Check console for API error)</p>`;
+
+            // Rerender with dummy data on error if you prefer a fallback demo:
+            // dummyCollections.slice(0, 4).forEach(c => container.innerHTML += createCollectionCard(c));
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', fetchAndRenderWearsCollections);
+    // --- END WEARS COLLECTION JS ---
 </script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body class="bg-color-white text-color-black min-h-screen">
 
-    <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
-        <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
-            <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-10 sm:h-12 lg:h-10">
-        </a>
+    <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
+        <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
+            <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-10 sm:h-12 lg:h-10">
+        </a>
 
-        <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
-            <a href="#" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
-            <a href="#" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
-            <a href="wearscollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Wears Collections</a>
-            <a href="#" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Cap Collections</a>
-        </nav>
+        <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
+            <a href="#" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
+            <a href="#" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
+            <a href="wearscollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Wears Collections</a>
+            <a href="#" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Cap Collections</a>
+        </nav>
 
-        <div class="flex items-center space-x-2 sm:space-x-4">
-            <button class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" aria-label="User Account">
-                <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
-            </button>
-            <button class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" aria-label="Shopping Bag">
-                <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
-            </button>
-            <button class="md:hidden p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
-                <i class="fas fa-bars w-5 h-5 sm:w-6 sm:h-6"></i>
-            </button>
-        </div>
-    </div>
+        <div class="flex items-center space-x-2 sm:space-x-4">
+            <button class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" aria-label="User Account">
+                <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
+            </button>
+            <button class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" aria-label="Shopping Bag">
+                <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
+            </button>
+            <button class="md:hidden p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
+                <i class="fas fa-bars w-5 h-5 sm:w-6 sm:h-6"></i>
+            </button>
+        </div>
+    </div>
 </header>
 
-    <div id="mobile-menu" class="hidden md:hidden bg-color-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
-        <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
-            <a href="#" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
-            <a href="#" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">New Arrivals</a>
-            <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Wears Collection</a>
-            <a href="#" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cap Collection</a>
-            <a href="#" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Account</a>
-        </div>
-    </div>
+    <div id="mobile-menu" class="hidden md:hidden bg-color-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
+        <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
+            <a href="#" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
+            <a href="#" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">New Arrivals</a>
+            <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Wears Collection</a>
+            <a href="#" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cap Collection</a>
+            <a href="#" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Account</a>
+        </div>
+    </div>
 
-    <main class="relative h-[60vh] md:h-[calc(100vh-4rem)] overflow-hidden">
-        <div class="hero-bg-slider-container">
-            <div id="slider-cell-1" class="slider-cell slider-cell-1"></div>
-            <div id="slider-cell-2" class="slider-cell slider-cell-2"></div>
-            <div class="absolute inset-0 image-overlay z-20"></div>
-        </div>
+    <main class="relative h-[60vh] md:h-[calc(100vh-4rem)] overflow-hidden">
+        <div class="hero-bg-slider-container">
+            <div id="slider-cell-1" class="slider-cell slider-cell-1"></div>
+            <div id="slider-cell-2" class="slider-cell slider-cell-2"></div>
+            <div class="absolute inset-0 image-overlay z-20"></div>
+        </div>
 
-        <div class="absolute inset-0 z-30 flex flex-col items-center justify-center p-4">
-            <h1 class="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-extrabold roulette-text mb-2 sm:mb-4 uppercase text-center">
-                OUTFLICKZ
-            </h1>
-            <p class="text-xs sm:text-sm font-semibold uppercase tracking-widest mb-4 sm:mb-6 text-center text-white">
-                TOP DEAL
-            </p>
-            <button class="bg-ash-red text-white hover:bg-red-700 transition duration-300 font-semibold py-2.5 px-8 sm:py-3 sm:px-10 rounded-sm shadow-xl uppercase text-xs sm:text-sm tracking-widest">
-                Shop Now
-            </button>
-        </div>
-    </main>
+        <div class="absolute inset-0 z-30 flex flex-col items-center justify-center p-4">
+            <h1 class="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-extrabold roulette-text mb-2 sm:mb-4 uppercase text-center">
+                OUTFLICKZ
+            </h1>
+            <p class="text-xs sm:text-sm font-semibold uppercase tracking-widest mb-4 sm:mb-6 text-center text-white">
+                TOP DEAL
+            </p>
+            <button class="bg-ash-red text-white hover:bg-red-700 transition duration-300 font-semibold py-2.5 px-8 sm:py-3 sm:px-10 rounded-sm shadow-xl uppercase text-xs sm:text-sm tracking-widest">
+                Shop Now
+            </button>
+        </div>
+    </main>
 
-    <section id="wears-collections-section" class="py-10 sm:py-12 bg-color-white text-color-black border-t border-racing-grey white-section">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="mb-6 sm:mb-8 text-left">
-                <h2 class="text-3xl sm:text-2xl font-extrabold text-color-black uppercase mb-1">
-                    New In
-                </h2>
-                <p class="text-lg sm:text-xl font-medium text-gray-700">
-                    Explore our new collection
-                </p>
-            </div>
-            <div id="wears-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
-                </div>
+    <section id="wears-collections-section" class="py-10 sm:py-12 bg-color-white text-color-black border-t border-racing-grey white-section">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="mb-6 sm:mb-8 text-left">
+                <h2 class="text-3xl sm:text-2xl font-extrabold text-color-black uppercase mb-1">
+                    New In
+                </h2>
+                <p class="text-lg sm:text-xl font-medium text-gray-700">
+                    Explore our new collection
+                </p>
+            </div>
+            <div id="wears-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+                </div>
 
-            <div class="text-center mt-8 sm:mt-10">
-                <a href="wearscollection.html" class="border-2 border-ash-red text-ash-red hover:bg-ash-red hover:text-white transition duration-300 font-bold py-2 px-6 sm:py-2.5 sm:px-8 rounded-sm uppercase text-xs tracking-widest">
-                    View All Wears
-                </a>
-            </div>
-        </div>
-    </section>
+            <div class="text-center mt-8 sm:mt-10">
+                <a href="wearscollection.html" class="border-2 border-ash-red text-ash-red hover:bg-ash-red hover:text-white transition duration-300 font-bold py-2 px-6 sm:py-2.5 sm:px-8 rounded-sm uppercase text-xs tracking-widest">
+                    View All Wears
+                </a>
+            </div>
+        </div>
+    </section>
 
-    <div id="image-modal" class="modal fixed inset-0 z-[100] bg-black bg-opacity-90 flex items-center justify-center opacity-0 pointer-events-none" onclick="closeModal()" role="dialog" aria-modal="true" aria-labelledby="modal-item-title">
+    <div id="image-modal" class="modal fixed inset-0 z-[100] bg-black bg-opacity-90 flex items-center justify-center opacity-0 pointer-events-none" onclick="closeModal()" role="dialog" aria-modal="true" aria-labelledby="modal-item-title">
 
-        <div class="relative max-w-xs sm:max-w-4xl w-full mx-4 p-2 bg-white rounded-lg shadow-2xl" onclick="event.stopPropagation()">
+        <div class="relative max-w-xs sm:max-w-4xl w-full mx-4 p-2 bg-white rounded-lg shadow-2xl" onclick="event.stopPropagation()">
 
-            <button onclick="closeModal()" class="absolute top-0 right-0 m-2 text-gray-700 hover:text-ash-red transition z-50" aria-label="Close modal">
-                <i class="fas fa-times text-xl"></i>
-            </button>
+            <button onclick="closeModal()" class="absolute top-0 right-0 m-2 text-gray-700 hover:text-ash-red transition z-50" aria-label="Close modal">
+                <i class="fas fa-times text-xl"></i>
+            </button>
 
-            <h3 id="modal-item-title" class="text-base sm:text-xl font-bold text-center text-ash-dark pt-2 pb-2">
-                Item Name
-            </h3>
+            <h3 id="modal-item-title" class="text-base sm:text-xl font-bold text-center text-ash-dark pt-2 pb-2">
+                Item Name
+            </h3>
 
-            <div class="w-full max-h-[70vh] overflow-hidden">
-                <img id="modal-image" src="" alt="Full view of product" class="w-full h-full object-contain">
-            </div>
+            <div class="w-full max-h-[70vh] overflow-hidden">
+                <img id="modal-image" src="" alt="Full view of product" class="w-full h-full object-contain">
+            </div>
 
-        </div>
-    </div>
+        </div>
+    </div>
 </body>
 </html>

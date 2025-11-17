@@ -1091,6 +1091,42 @@ app.get('/api/collections/wears', async (req, res) => {
     }
 });
 
+// GET /api/collections/newarrivals (For Homepage Display)
+app.get('/api/collections/newarrivals', async (req, res) => {
+    try {
+        // Fetch only ACTIVE products (NewArrivals)
+        const products = await NewArrivals.find({ isActive: true }) 
+            .select('_id name tag price variations sizes totalStock') 
+            .sort({ createdAt: -1 })
+            .lean(); 
+
+        // Prepare the data for the public frontend
+        const publicProducts = await Promise.all(products.map(async (product) => {
+            
+            // Map Mongoose variation to a simpler public variant object
+            const variants = await Promise.all(product.variations.map(async (v) => ({
+                color: v.colorHex,
+                frontImageUrl: await generateSignedUrl(v.frontImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Front+View+Error',
+                backImageUrl: await generateSignedUrl(v.backImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Back+View+Error'
+            })));
+
+            return {
+                _id: product._id,
+                name: product.name,
+                tag: product.tag,
+                price: product.price, 
+                availableSizes: product.sizes,
+                availableStock: product.totalStock, 
+                variants: variants
+            };
+        }));
+
+        res.status(200).json(publicProducts);
+    } catch (error) {
+        console.error('Error fetching public new arrivals:', error);
+        res.status(500).json({ message: 'Server error while fetching new arrivals for homepage.', details: error.message });
+    }
+});
 
 // --- NETLIFY EXPORTS for api.js wrapper ---
 module.exports = {

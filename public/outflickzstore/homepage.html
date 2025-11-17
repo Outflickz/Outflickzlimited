@@ -261,9 +261,8 @@
             sizes = ['S', 'M', 'L', 'XL'];
         }
 
-        // *** MODIFIED SIZE CLASSES FOR REDUCED VIEW ***
         const sizeClasses = isReduced 
-            ? 'text-[0.6rem] px-1 py-0' // EVEN SMALLER for reduced card
+            ? 'text-[0.6rem] px-1.5 py-0.5' // Smaller for reduced card
             : 'text-xs px-2 py-0.5 md:px-2 md:py-1'; // Default size
         
         return sizes.map(size => `
@@ -375,26 +374,22 @@
         const isReduced = size === 'reduced';
         
         // Card Padding
-        // *** MORE REDUCED PADDING ***
-        const cardPadding = isReduced ? 'p-1' : 'p-2 md:p-3'; 
+        const cardPadding = isReduced ? 'p-1 md:p-2' : 'p-2 md:p-3'; 
         
         // Name and Description Text Size
-        // *** SMALLER TEXT ***
-        const nameFontSize = isReduced ? 'text-xs' : 'text-sm md:text-base';
-        const descriptionFontSize = isReduced ? 'text-[0.6rem] leading-tight' : 'text-xs';
+        const nameFontSize = isReduced ? 'text-xs md:text-sm' : 'text-sm md:text-base';
+        const descriptionFontSize = isReduced ? 'text-[0.6rem]' : 'text-xs';
         
         // Price Text Size
-        // *** SMALLER PRICE TEXT ***
-        const priceFontSize = isReduced ? 'text-sm font-bold' : 'text-lg font-extrabold';
+        const priceFontSize = isReduced ? 'text-base font-bold' : 'text-lg font-extrabold';
         
         // Control Height/Size
-        // *** SMALLER CONTROLS ***
-        const controlHeight = isReduced ? 'h-5' : 'h-7 md:h-8';
-        const controlTextSize = isReduced ? 'text-[0.6rem]' : 'text-xs md:text-sm';
-        const quantityControlWidth = isReduced ? 'w-4' : 'w-6 md:w-8';
-        const quantityButtonSize = isReduced ? 'w-5 h-5' : 'w-7 h-7 md:w-8 md:h-8';
-        const quantityInputWidth = isReduced ? 'w-4' : 'w-6 md:w-8';
-        const quantityInputTextSize = isReduced ? 'text-[0.6rem]' : 'text-xs md:text-sm';
+        const controlHeight = isReduced ? 'h-6 md:h-7' : 'h-7 md:h-8';
+        const controlTextSize = isReduced ? 'text-[0.6rem] md:text-xs' : 'text-xs md:text-sm';
+        const quantityControlWidth = isReduced ? 'w-5 md:w-6' : 'w-6 md:w-8';
+        const quantityButtonSize = isReduced ? 'w-6 h-6 md:w-7 md:h-7' : 'w-7 h-7 md:w-8 md:h-8';
+        const quantityInputWidth = isReduced ? 'w-4 md:w-6' : 'w-6 md:w-8';
+        const quantityInputTextSize = isReduced ? 'text-[0.6rem] md:text-xs' : 'text-xs md:text-sm';
         // --- End Conditional Sizing Classes ---
 
         const primaryVariant = collection.variants && collection.variants.length > 0 ? collection.variants[0] : null;
@@ -406,7 +401,6 @@
         const itemPrice = collection.price; 
         const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
 
-        // Passed 'isReduced' to size list function
         const sizeListHtml = createSizeList(collection._id, collection.availableSizes, isReduced); 
         const colorListHtml = createColorList(collection._id, collection.variants); 
         const maxStock = collection.availableStock > 0 ? collection.availableStock : 0; 
@@ -418,10 +412,9 @@
         const description = collection.tag || 'Exclusive limited edition wear.';
 
         // *** Define Buttons/Labels based on Stock Status ***
-        // *** SMALLER BADGE ***
-        const stockBadge = isReduced
-            ? '<span class="absolute top-1 left-1 bg-ash-red text-white text-[0.6rem] font-bold px-1 py-0 rounded shadow-lg z-40">OOS</span>'
-            : '<span class="absolute top-2 left-2 bg-ash-red text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">OUT OF STOCK</span>';
+        const stockBadge = isOutOfStock
+            ? '<span class="absolute top-2 left-2 bg-ash-red text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">OUT OF STOCK</span>'
+            : '';
             
         const cartButtonHtml = isOutOfStock
             ? `
@@ -436,7 +429,7 @@
             `;
 
         const quantityControlHtml = isOutOfStock
-            ? `<div class="w-12 ${controlHeight} border border-gray-300 rounded-sm flex items-center justify-center text-[0.6rem] text-gray-500">N/A</div>`
+            ? `<div class="w-20 md:w-24 ${controlHeight} border border-gray-300 rounded-sm flex items-center justify-center text-xs text-gray-500">N/A</div>`
             : `
                 <div class="flex items-center border border-gray-300 rounded-sm">
                     <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-l-sm font-semibold">
@@ -495,21 +488,21 @@
                     
                     <p class="${priceFontSize} text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
                     
-                    <div class="flex items-center gap-1 mt-1">
+                    <div class="flex items-center gap-2 mt-2">
                         <span class="text-xs font-medium text-gray-700">Color:</span>
                         <div class="flex gap-1 text-gray-700">
                             ${colorListHtml}
                         </div>
                     </div>
 
-                    <div class="flex flex-wrap items-center gap-1 mt-1 mb-2">
+                    <div class="flex flex-wrap items-center gap-1 mt-2 mb-3">
                         <span class="text-xs font-medium text-gray-700">Size:</span>
                         <div class="flex flex-wrap gap-1 text-gray-700">
                             ${sizeListHtml}
                         </div>
                     </div>
 
-                    <div class="flex items-center space-x-1">
+                    <div class="flex items-center space-x-2">
                         ${quantityControlHtml}
 
                         ${cartButtonHtml}
@@ -579,6 +572,7 @@
             container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full">Error loading wears collections. Please ensure the API server is running and accessible.</p>';
         }
     }
+
     // --- NEW ARRIVALS COLLECTION JS ---
     async function fetchAndRenderNewArrivals() {
         const container = document.getElementById('new-arrivals-grid');
@@ -621,7 +615,7 @@
                 
                 limitedProducts.forEach(product => {
                     if (product.price !== undefined && product.price !== null) {
-                        // Pass 'reduced' size for New Arrivals to use smaller styling
+                        // Pass 'reduced' size for New Arrivals
                         container.innerHTML += createCollectionCard(product, 'reduced'); 
                     }
                 });
@@ -641,7 +635,7 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         fetchAndRenderWearsCollections(); 
-        fetchAndRenderNewArrivals();     
+        fetchAndRenderNewArrivals();      
     });
     // --- END WEARS COLLECTION JS ---
 </script>
@@ -722,6 +716,7 @@
                     View All Wears
                 </a>
             </div>
+            <!-- Standard size grid for Wears Collection -->
             <div id="wears-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
                 </div>
             
@@ -732,10 +727,10 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-start mb-6 sm:mb-8">
                 <div>
-                    <h2 class="text-3xl sm:text-2xl font-extrabold text-color-black uppercase mb-1">
+                    <h2 class="text-xl sm:text-xl font-extrabold text-color-black uppercase mb-1">
                         New Arrivals
                     </h2>
-                    <p class="text-lg sm:text-xl font-medium text-gray-700">
+                    <p class="text-xl sm:text-xl font-medium text-gray-700">
                         Limited edition drops
                     </p>
                 </div>
@@ -744,8 +739,9 @@
                     Shop New Arrivals
                 </a>
             </div>
+            <!-- Grid for New Arrivals - using lg:grid-cols-2 as the request specified the items should be fewer/featured -->
             <div id="new-arrivals-grid" class="grid grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
-                </div>
+            </div>
         </div>
     </section>
 

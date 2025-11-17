@@ -13,24 +13,59 @@
             border-radius: 50%;
             border: 2px solid #ccc;
         }
+        /* Active link style for the current page */
+        .active-link-page {
+            background-color: #065F46; /* emerald-700 */
+            color: white;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
 
-    <div id="sidebar" class="fixed z-30 inset-y-0 left-0 w-64 transform -translate-x-full md:translate-x-0 transition duration-200 ease-in-out bg-white shadow-xl">
-        <h1 class="p-4 text-xl font-bold text-indigo-600">Admin Dashboard</h1>
-        <ul>
-            <li class="p-4 hover:bg-gray-100"><a href="collections.html" class="text-gray-700">Wears Collections</a></li>
-            <li class="p-4 bg-indigo-50 border-r-4 border-indigo-600"><a href="newarrivals.html" class="text-indigo-600 font-semibold">New Arrivals</a></li>
-            </ul>
-    </div>
+    <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-emerald-900 text-white transform transition-transform duration-300 z-30 lg:translate-x-0 -translate-x-full shadow-2xl flex flex-col">
+        <div class="p-6 flex-shrink-0">
+            <img src="https://placehold.co/100x40/10b981/ffffff?text=Logo" alt="E-commerce Logo" class="h-10 w-auto mb-6 rounded-lg shadow-md border border-emerald-700">
+            <h1 class="text-xl font-extrabold text-emerald-400 border-t border-emerald-800 pt-4">Commerce Hub</h1>
+        </div>
+        
+        <nav class="space-y-2 px-4 flex-grow overflow-y-auto">
+            
+            <a href="admin-dashboard.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l-7-7-7 7m10 0v10a1 1 0 01-1 1h-3m-3 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-9 0h10"></path></svg>
+                Dashboard
+            </a>
+            
+            <a href="collections.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                Wears Collection
+            </a>
+            
+            <a href="newarrivals.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg active-link-page">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                New Arrivals
+            </a>
+
+            <a href="settings.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.526.34.813.486 1.066-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                Settings
+            </a>
+        </nav>
+        
+        <div class="p-4 flex-shrink-0 border-t border-emerald-800">
+            <button id="btn-logout" onclick="logoutAdmin()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-red-600 hover:bg-red-700 text-white shadow-lg">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                Log Out
+            </button>
+        </div>
+    </aside>
 
     <div class="md:ml-64 p-8">
-        <button id="sidebar-toggle" class="md:hidden p-2 text-gray-500 hover:text-gray-700">☰ Menu</button>
+        <button id="sidebar-toggle" class="lg:hidden p-2 text-gray-500 hover:text-gray-700">☰ Menu</button>
         
         <div id="success-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"></div>
         <div id="error-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"></div>
         <div id="confirmation-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"></div>
+        
         <div id="restock-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 justify-center items-center">
             <div class="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full">
                 <h3 class="text-lg font-bold mb-4">Quick Restock & Activate</h3>
@@ -70,13 +105,9 @@
                                 <label for="available-sizes" class="block text-sm font-medium text-gray-700">Available Sizes (Comma separated: S, M, L)</label>
                                 <input type="text" id="available-sizes" placeholder="S, M, L, XL" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
                             </div>
-                            <div>
-                                <label for="available-stock" class="block text-sm font-medium text-gray-700">Total Stock</label>
-                                <input type="number" min="0" id="available-stock" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-                            </div>
-                            <div class="flex items-center pt-5">
+                            <div class="md:col-span-2 flex items-center pt-5">
                                 <input id="is-active" type="checkbox" checked class="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500">
-                                <label for="is-active" class="ml-2 block text-sm font-medium text-gray-700">Active / Available Online</label>
+                                <label for="is-active" class="ml-2 block text-sm font-medium text-gray-700">Active / Available Online (Unchecking this sets stock to 0)</label>
                             </div>
                         </div>
 
@@ -131,14 +162,14 @@
 
 <script>
     // --- Configuration and Global Variables ---
-    const API_BASE_URL = '/api/v1/products'; // Changed API endpoint
+    const API_BASE_URL = '/api/v1/products'; 
     const MAX_VARIATIONS = 4;
 
-    let productIdToUpdate = null; // Renamed from collectionIdToUpdate
+    let productIdToUpdate = null; 
     let sectionCount = 0;
 
-    // DOM Elements (renamed from 'collection' to 'product' or 'arrival')
-    const productsTableBody = document.getElementById('products-table-body'); // Renamed
+    // DOM Elements
+    const productsTableBody = document.getElementById('products-table-body'); 
     const formTitle = document.getElementById('form-title');
     const submitBtn = document.getElementById('submit-btn');
     const resetFormBtn = document.getElementById('reset-form-btn');
@@ -154,10 +185,8 @@
     const restockConfirmBtn = document.getElementById('restockConfirmBtn');
     const restockCancelBtn = document.getElementById('restockCancelBtn');
 
-    // --- Utility Functions (Place your existing getAuthToken, showSuccessModal, showErrorModal, showConfirmationModal here) ---
-    // NOTE: These are assumed to be available globally (e.g., in a separate utils.js file or defined here for completeness)
+    // --- Utility Functions (Placeholders) ---
     function getAuthToken() {
-        // Placeholder for real logic (e.g., localStorage.getItem('token'))
         console.warn('getAuthToken called - placeholder logic used.');
         return 'fake-admin-token-123'; 
     }
@@ -172,21 +201,34 @@
     }
     function showConfirmationModal(message) {
         console.warn("Confirmation required:", message.replace(/<mark>|<\/mark>/g, ''));
-        // In a real app, this would show a confirmation modal. We'll return true for simplicity here.
         return Promise.resolve(confirm(message.replace(/<mark>|<\/mark>/g, '')));
     }
+    
+    // Placeholder navigation functions to match the sidebar buttons
+    function navigateToWearsCollection() {
+        console.log("Navigating to collections.html");
+        // window.location.href = 'collections.html';
+    }
+    function navigateToNewArrivals() {
+        console.log("Navigating to newarrivals.html");
+        // window.location.href = 'newarrivals.html';
+    }
+    function logoutAdmin() {
+        console.log("Admin logged out");
+        // Redirect to login page
+    }
+    function setActiveContent(contentId) {
+        console.log("Setting active content:", contentId);
+        // Logic for single-page dashboard content switching
+    }
 
+    // --- Core Functions ---
 
-    // --- Core Functions (Renamed/Modified) ---
-
-    /**
-     * Resets the form to the default 'Create' state.
-     */
     function resetForm() {
         document.getElementById('new-arrival-form').reset();
         productIdToUpdate = null;
-        formTitle.textContent = '✨ Create New Arrival'; // Renamed title
-        submitBtn.textContent = 'Submit New Arrival'; // Renamed button text
+        formTitle.textContent = '✨ Create New Arrival'; 
+        submitBtn.textContent = 'Submit New Arrival'; 
         submitBtn.classList.remove('bg-yellow-600', 'hover:bg-yellow-700');
         submitBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
         resetFormBtn.classList.add('hidden');
@@ -198,11 +240,7 @@
         updateAddSectionButtonState();
     }
 
-
-    /**
-     * Fetches and renders all new arrivals.
-     */
-    async function fetchProducts() { // Renamed from fetchCollections
+    async function fetchProducts() { 
         const token = getAuthToken();
         if (!token) return;
 
@@ -217,8 +255,8 @@
                 throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
             }
 
-            const products = await response.json(); // Renamed variable
-            renderProductsTable(products); // Renamed function call
+            const products = await response.json(); 
+            renderProductsTable(products); 
 
         } catch (error) {
             console.error('Error fetching products:', error);
@@ -226,14 +264,10 @@
         }
     }
 
-    /**
-     * Renders the table rows for the products.
-     * @param {Array<Object>} products - Array of product objects.
-     */
-    function renderProductsTable(products) { // Renamed from renderCollectionsTable
+    function renderProductsTable(products) { 
         productsTableBody.innerHTML = '';
 
-        products.forEach(product => { // Renamed variable
+        products.forEach(product => { 
             const tagClass = getTagClass(product.tag);
             const formattedPrice = `₦${(product.price || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
             
@@ -248,12 +282,15 @@
             } else if (product.isActive && product.totalStock === 0) {
                 statusText = 'Out of Stock (Active)';
                 statusClass = 'bg-red-100 text-red-800';
-            } else if (!product.isActive && product.totalStock === 0) {
-                statusText = 'Out of Stock (Inactive)';
-                statusClass = 'bg-red-100 text-red-800';
-                
-                // Show Restock/Activate button if inactive and out of stock
-                restockButton = `<button onclick="quickRestockAndActivate('${product._id}', '${product.name}', ${product.price})" class="text-green-600 hover:text-green-900 transition duration-150 mr-3">Restock/Activate</button>`;
+            } else if (!product.isActive || product.totalStock === 0) {
+                if (product.totalStock === 0) {
+                    statusText = 'Out of Stock (Inactive)';
+                    statusClass = 'bg-red-100 text-red-800';
+                    restockButton = `<button onclick="quickRestockAndActivate('${product._id}', '${product.name}', ${product.price})" class="text-green-600 hover:text-green-900 transition duration-150 mr-3">Restock/Activate</button>`;
+                } else if (!product.isActive && product.totalStock > 0) {
+                     statusText = 'Active (Hidden)';
+                     statusClass = 'bg-yellow-100 text-yellow-800';
+                }
             }
 
             // Image Preview logic - assuming the first variation's front image is used
@@ -291,7 +328,6 @@
         });
     }
 
-    // getTagClass (remains the same)
     function getTagClass(tag) { 
         switch (tag) {
             case 'Top Deal': return 'bg-emerald-100 text-emerald-800';
@@ -303,10 +339,7 @@
         }
     }
 
-    /**
-     * Fetches data for a specific product and populates the form for editing.
-     */
-    async function editProduct(productId) { // Renamed from editCollection
+    async function editProduct(productId) { 
         const token = getAuthToken();
         if (!token) return;
 
@@ -321,62 +354,62 @@
                 throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
             }
 
-            const product = await response.json(); // Renamed variable
+            const product = await response.json(); 
 
             // 1. Set form mode
-            productIdToUpdate = productId; // Renamed
-            formTitle.textContent = `✏️ Edit New Arrival: ${product.name}`; // Renamed title
-            submitBtn.textContent = 'Update New Arrival'; // Renamed button text
+            productIdToUpdate = productId; 
+            formTitle.textContent = `✏️ Edit New Arrival: ${product.name}`; 
+            submitBtn.textContent = 'Update New Arrival'; 
             submitBtn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
             submitBtn.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
             resetFormBtn.classList.remove('hidden');
 
             // 2. Populate basic details
-            document.getElementById('product-name').value = product.name; // Renamed ID
-            document.getElementById('product-tag').value = product.tag; // Renamed ID
-            document.getElementById('product-price').value = product.price; // Renamed ID
+            document.getElementById('product-name').value = product.name; 
+            document.getElementById('product-tag').value = product.tag; 
+            document.getElementById('product-price').value = product.price; 
             document.getElementById('available-sizes').value = product.sizes.join(', ');
-            document.getElementById('available-stock').value = product.totalStock;
             document.getElementById('is-active').checked = product.isActive;
 
-            // 3. Populate variations (uses existing createProductSection logic)
+            // 3. Populate variations 
             productSectionsContainer.innerHTML = '';
             sectionCount = 0;
 
-            product.variations.forEach(variation => {
-                const sectionNumber = variation.variationIndex;
+            product.variations.forEach((variation, index) => {
+                const sectionNumber = index; 
                 const frontUrl = variation.frontImageUrl || null;
                 const backUrl = variation.backImageUrl || null;
 
                 const newSection = document.createElement('div');
-                newSection.innerHTML = createProductSection(sectionNumber - 1, frontUrl, backUrl).trim();
+                newSection.innerHTML = createProductSection(sectionNumber, frontUrl, backUrl).trim();
                 productSectionsContainer.appendChild(newSection.firstChild);
                 sectionCount++;
 
                 // Populate color
-                const colorInput = document.getElementById(`color-input-${sectionNumber}`);
+                const colorInput = document.getElementById(`color-input-${index}`);
                 if (colorInput) {
                     colorInput.value = variation.colorHex;
-                    updateColorPreview(variation.colorHex, `color-preview-${sectionNumber}`);
+                    updateColorPreview(variation.colorHex, `color-preview-${index}`);
                 }
             });
+
+            // Re-index section IDs to be 1-based (Fix for consistency)
+            reindexProductSections();
+
 
             // 4. Update the add button state
             updateAddSectionButtonState();
 
             // 5. Scroll to the form
-            document.getElementById('content-newarrival').scrollIntoView({ behavior: 'smooth' }); // Renamed ID
+            document.getElementById('content-newarrival').scrollIntoView({ behavior: 'smooth' }); 
 
         } catch (error) {
             console.error('Error fetching product for edit:', error);
-            showErrorModal(`Error fetching product data: <mark>${error.message}</mark>`);
+            showErrorModal(`Error fetching product data: <mark>${error.message}</mark>`); 
         }
     }
 
-    /**
-     * Sends a DELETE request to remove a product.
-     */
-    async function deleteProduct(productId) { // Renamed from deleteCollection
+    async function deleteProduct(productId) { 
         const token = getAuthToken();
         if (!token) return;
 
@@ -396,24 +429,19 @@
                 throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
             }
 
-            showSuccessModal(`New arrival <mark>${productId.slice(-6)}</mark> deleted successfully.`); // Renamed message
-            fetchProducts(); // Renamed function call
+            showSuccessModal(`New arrival <mark>${productId.slice(-6)}</mark> deleted successfully.`); 
+            fetchProducts(); 
 
         } catch (error) {
             console.error('Deletion failed:', error);
-            showErrorModal(`Error deleting new arrival: <mark>${error.message}</mark>`); // Renamed message
+            showErrorModal(`Error deleting new arrival: <mark>${error.message}</mark>`); 
         }
     }
 
-
-    /**
-     * Prompts admin for new stock and updates totalStock and isActive status.
-     */
-    async function quickRestockAndActivate(productId, productName, currentPrice) { // Renamed collection to product
+    async function quickRestockAndActivate(productId, productName, currentPrice) { 
         const token = getAuthToken();
         if (!token) return;
         
-        // Modal setup logic remains the same (using productId as context)
         const formattedPrice = `₦${(currentPrice || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
         restockModalName.innerHTML = `**${productName}** (Price: <mark>${formattedPrice}</mark>)`;
         restockInput.value = 100;
@@ -423,6 +451,9 @@
         const getStockPromise = new Promise((resolve, reject) => {
             
             const handleConfirm = () => {
+                restockConfirmBtn.removeEventListener('click', handleConfirm);
+                restockCancelBtn.removeEventListener('click', handleCancel); 
+
                 const newStock = parseInt(restockInput.value);
                 if (!isNaN(newStock) && newStock > 0) {
                     resolve(newStock);
@@ -430,20 +461,21 @@
                     restockModal.classList.add('hidden');
                 } else {
                     showErrorModal("Please enter a valid number greater than 0 for the stock quantity.");
+                    restockConfirmBtn.addEventListener('click', handleConfirm);
+                    restockCancelBtn.addEventListener('click', handleCancel);
                 }
             };
 
             const handleCancel = () => {
+                restockConfirmBtn.removeEventListener('click', handleConfirm);
+                restockCancelBtn.removeEventListener('click', handleCancel);
                 reject(new Error("Restock cancelled by user."));
                 restockModal.classList.remove('flex');
                 restockModal.classList.add('hidden');
             };
 
-            restockConfirmBtn.onclick = null;
-            restockCancelBtn.onclick = null;
-
-            restockConfirmBtn.addEventListener('click', handleConfirm, { once: true });
-            restockCancelBtn.addEventListener('click', handleCancel, { once: true });
+            restockConfirmBtn.addEventListener('click', handleConfirm);
+            restockCancelBtn.addEventListener('click', handleCancel);
         });
         
         let newStock;
@@ -457,13 +489,12 @@
         }
 
         try {
-            // Prepare the payload.
             const updatePayload = {
                 totalStock: newStock,
                 isActive: true, 
             };
 
-            const response = await fetch(`${API_BASE_URL}/${productId}`, { // Renamed variable
+            const response = await fetch(`${API_BASE_URL}/${productId}`, { 
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -482,31 +513,53 @@
                 }
             }
 
-            showSuccessModal(`New Arrival <mark>**${productName}**</mark> successfully restocked to <mark>**${newStock}**</mark> and activated!`); // Renamed message
-            fetchProducts(); // Renamed function call
+            showSuccessModal(`New Arrival <mark>**${productName}**</mark> successfully restocked to <mark>**${newStock}**</mark> and activated!`); 
+            fetchProducts(); 
 
         } catch (error) {
             console.error('Restock failed:', error);
-            showErrorModal(`Error restocking new arrival: <mark>${error.message}</mark>`); // Renamed message
+            showErrorModal(`Error restocking new arrival: <mark>${error.message}</mark>`); 
         }
     }
 
 
-    // --- FORM SECTION MANAGEMENT (Remains largely the same, but embedded for completeness) ---
+    // --- FORM SECTION MANAGEMENT (same as before) ---
 
-    // Includes createProductSection, addProductSection, removeProductSection, reindexProductSections, updateAddSectionButtonState, updateColorPreview
+    function renderImageInput(viewType, imageUrl, requiredAttr, viewLabel) {
+        // This function is still used by createProductSection, relying on sectionCount during initial add
+        const viewId = `${viewType}-upload-${sectionCount}`;
+        const existingUrlId = `existing-${viewType}-url-${sectionCount}`;
+        
+        const imageInfo = imageUrl ?
+            `<p class="mt-2 text-xs text-gray-500">Existing ${viewLabel}: <a href="${imageUrl}" target="_blank" class="text-blue-500 hover:underline">View Image</a>. Uploading a new file will replace it.</p>
+             <input type="hidden" id="${existingUrlId}" name="${existingUrlId}" value="${imageUrl}">` :
+            `<p class="mt-2 text-xs text-gray-500">Upload the ${viewLabel} image for this variation.</p>`;
+        
+        const imagePreviewHtml = imageUrl ?
+            `<div class="mt-3">
+                <p class="text-sm font-medium text-gray-700 mb-2">Current ${viewLabel} Preview:</p>
+                <img src="${imageUrl}" alt="Current ${viewLabel} preview" class="max-w-full h-auto rounded-lg shadow-md max-h-32 object-contain" />
+            </div>` : '';
+
+        return `
+            <div>
+                <label for="${viewId}" class="block text-sm font-medium text-gray-700">${viewLabel} Image</label>
+                <input type="file" name="${viewId}" id="${viewId}" accept="image/*" ${requiredAttr} class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
+                ${imageInfo}
+                ${imagePreviewHtml}
+            </div>
+        `;
+    }
 
     function createProductSection(index, frontImageUrl = null, backImageUrl = null) {
-        // ... (The implementation from the original code is copied here, it's generic enough) ...
-        const sectionNumber = index + 1;
-        const uniqueId = `section-${sectionNumber}`;
+        const uniqueId = `section-${index}`;
+        const sectionNumber = index + 1; 
         const isEditing = frontImageUrl !== null || backImageUrl !== null;
-
         const fileRequiredAttribute = isEditing ? '' : 'required';
 
-        const renderImageInput = (viewType, imageUrl, requiredAttr, viewLabel) => {
-            const viewId = `${viewType}-upload-${sectionNumber}`;
-            const existingUrlId = `existing-${viewType}-url-${sectionNumber}`;
+        const renderImageInputCorrected = (viewType, imageUrl, requiredAttr, viewLabel) => {
+            const viewId = `${viewType}-upload-${index}`;
+            const existingUrlId = `existing-${viewType}-url-${index}`;
             
             const imageInfo = imageUrl ?
                 `<p class="mt-2 text-xs text-gray-500">Existing ${viewLabel}: <a href="${imageUrl}" target="_blank" class="text-blue-500 hover:underline">View Image</a>. Uploading a new file will replace it.</p>
@@ -529,24 +582,25 @@
             `;
         };
 
+
         return `
-            <div id="${uniqueId}" data-variation-index="${sectionNumber}" class="p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-inner relative">
+            <div id="${uniqueId}" data-variation-index="${index}" class="p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-inner relative">
                 <h4 class="text-md font-bold text-gray-600 mb-3 flex justify-between items-center">
                     Product Variation #${sectionNumber}
-                    ${sectionNumber > 1 ? `<button type="button" onclick="removeProductSection('${uniqueId}')" class="text-red-500 hover:text-red-700 transition duration-150 text-sm">Remove</button>` : ''}
+                    ${sectionNumber > 1 || isEditing ? `<button type="button" onclick="removeProductSection('${uniqueId}')" class="text-red-500 hover:text-red-700 transition duration-150 text-sm">Remove</button>` : ''}
                 </h4>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    ${renderImageInput('front-view', frontImageUrl, fileRequiredAttribute, 'Front View')}
-                    ${renderImageInput('back-view', backImageUrl, fileRequiredAttribute, 'Back View')}
+                    ${renderImageInputCorrected('front-view', frontImageUrl, fileRequiredAttribute, 'Front View')}
+                    ${renderImageInputCorrected('back-view', backImageUrl, '', 'Back View (Optional)')}
                     
                     <div>
-                        <label for="color-input-${sectionNumber}" class="block text-sm font-medium text-gray-700">Color/Hex Code</label>
+                        <label for="color-input-${index}" class="block text-sm font-medium text-gray-700">Color/Hex Code</label>
                         <div class="flex items-center mt-1">
-                            <input type="color" id="color-input-${sectionNumber}" value="#10B981" required
+                            <input type="color" id="color-input-${index}" value="#10B981" required
                                 class="p-0 h-10 w-10 block rounded-full border-2 border-gray-300 cursor-pointer"
-                                oninput="updateColorPreview(this.value, 'color-preview-${sectionNumber}')">
-                            <div id="color-preview-${sectionNumber}" class="color-preview ml-3 bg-emerald-600" style="background-color: #10B981;"></div>
+                                oninput="updateColorPreview(this.value, 'color-preview-${index}')">
+                            <div id="color-preview-${index}" class="color-preview ml-3 bg-emerald-600" style="background-color: #10B981;"></div>
                             <span class="ml-3 text-sm text-gray-500">Pick a color</span>
                         </div>
                     </div>
@@ -558,17 +612,23 @@
     function addProductSection() {
         if (sectionCount < MAX_VARIATIONS) {
             const newSection = document.createElement('div');
-            newSection.innerHTML = createProductSection(sectionCount).trim();
+            newSection.innerHTML = createProductSection(sectionCount).trim(); 
             productSectionsContainer.appendChild(newSection.firstChild);
             sectionCount++;
 
             updateAddSectionButtonState();
+        } else {
+             showErrorModal(`You can only add a maximum of <mark>${MAX_VARIATIONS}</mark> product variations.`);
         }
     }
 
     function removeProductSection(id) {
         const sectionToRemove = document.getElementById(id);
         if (sectionToRemove) {
+            if (productIdToUpdate === null && sectionCount === 1) {
+                showErrorModal("You must have at least one product variation.");
+                return;
+            }
             sectionToRemove.remove();
             sectionCount--;
             reindexProductSections();
@@ -578,20 +638,24 @@
 
     function reindexProductSections() {
         Array.from(productSectionsContainer.children).forEach((section, index) => {
+            const newIndex = index; 
             const newSectionNumber = index + 1; 
 
-            const existingFrontUrl = section.querySelector('[id^="existing-front-view-url-"]')?.value || null;
-            const existingBackUrl = section.querySelector('[id^="existing-back-view-url-"]')?.value || null;
-            const existingColor = section.querySelector('[id^="color-input-"]')?.value || '#10B981';
+            const existingFrontUrl = section.querySelector(`[id^="existing-front-view-url-"]`)?.value || null;
+            const existingBackUrl = section.querySelector(`[id^="existing-back-view-url-"]`)?.value || null;
+            const existingColor = section.querySelector(`[id^="color-input-"]`)?.value || '#10B981';
 
             const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = createProductSection(index, existingFrontUrl, existingBackUrl).trim();
+            tempDiv.innerHTML = createProductSection(newIndex, existingFrontUrl, existingBackUrl).trim();
             const newSectionElement = tempDiv.firstChild;
 
-            const newColorInput = newSectionElement.querySelector(`#color-input-${newSectionNumber}`);
+            const newColorInput = newSectionElement.querySelector(`#color-input-${newIndex}`);
             if (newColorInput) {
                 newColorInput.value = existingColor;
-                updateColorPreview(existingColor, `color-preview-${newSectionNumber}`);
+                const colorPreview = newSectionElement.querySelector(`#color-preview-${newIndex}`);
+                if (colorPreview) {
+                     colorPreview.style.backgroundColor = existingColor;
+                }
             }
 
             section.replaceWith(newSectionElement);
@@ -619,24 +683,18 @@
         }
     }
     
-    /**
-     * Handles the form submission (CREATE or UPDATE).
-     */
-    async function handleCollectionSubmit(event) { // Retaining function name for simplicity, though it now handles Products
+    async function handleCollectionSubmit(event) { 
         event.preventDefault();
 
-        // Determine if this is a POST (Create) or PUT (Update) operation
-        const isUpdate = productIdToUpdate !== null; // Renamed variable
+        const isUpdate = productIdToUpdate !== null; 
         const method = isUpdate ? 'PUT' : 'POST';
-        const url = isUpdate ? `${API_BASE_URL}/${productIdToUpdate}` : API_BASE_URL; // Renamed variable
+        const url = isUpdate ? `${API_BASE_URL}/${productIdToUpdate}` : API_BASE_URL; 
 
-        // Form validation: ensure at least one section exists
         if (productSectionsContainer.children.length === 0) {
             showErrorModal("Please add at least one product variation."); 
             return;
         }
 
-        // Disable button and show loading state
         submitBtn.disabled = true;
         submitBtn.textContent = isUpdate ? 'Updating...' : 'Submitting...';
         submitBtn.classList.remove('hover:bg-emerald-700', 'hover:bg-yellow-700', 'bg-emerald-600', 'bg-yellow-600');
@@ -648,13 +706,13 @@
             return;
         }
 
-        // --- 1. Collect Variations and Files (Same as original) ---
         const formData = new FormData();
         let productVariationsMetadata = [];
         let isValid = true;
 
         Array.from(productSectionsContainer.children).forEach((section, index) => {
-            const sectionNumber = index + 1; 
+            const sectionNumber = index; 
+            const displaySectionNumber = index + 1; 
             
             const frontImageInput = section.querySelector(`#front-view-upload-${sectionNumber}`);
             const backImageInput = section.querySelector(`#back-view-upload-${sectionNumber}`);
@@ -663,7 +721,7 @@
             const existingFrontUrlInput = section.querySelector(`#existing-front-view-url-${sectionNumber}`);
             const existingBackUrlInput = section.querySelector(`#existing-back-view-url-${sectionNumber}`);
 
-            if (frontImageInput && backImageInput && colorInput) {
+            if (frontImageInput && colorInput) {
                 const frontImageFile = frontImageInput.files[0];
                 const backImageFile = backImageInput.files[0];
                 const color = colorInput.value;
@@ -674,29 +732,22 @@
                 let frontUrlForMetadata = existingFrontUrl;
                 let backUrlForMetadata = existingBackUrl;
 
-                // Handle Front View Image
                 if (frontImageFile) {
-                    formData.append(`front-view-upload-${sectionNumber}`, frontImageFile); 
-                    frontUrlForMetadata = null; 
-                } else if (!isUpdate && !existingFrontUrl) { 
-                    showErrorModal(`Front View Image for Variation <mark>#${sectionNumber}</mark> is missing.`); 
+                    formData.append(`front-view-upload-${displaySectionNumber}`, frontImageFile); 
+                    frontUrlForMetadata = 'UPLOAD_NEW'; 
+                } else if (!existingFrontUrl) { 
+                    showErrorModal(`Front View Image for Variation <mark>#${displaySectionNumber}</mark> is missing.`); 
                     isValid = false;
                     return;
                 }
 
-                // Handle Back View Image
                 if (backImageFile) {
-                    formData.append(`back-view-upload-${sectionNumber}`, backImageFile); 
-                    backUrlForMetadata = null; 
-                } else if (!isUpdate && !existingBackUrl) {
-                    showErrorModal(`Back View Image for Variation <mark>#${sectionNumber}</mark> is missing.`); 
-                    isValid = false;
-                    return;
-                }
+                    formData.append(`back-view-upload-${displaySectionNumber}`, backImageFile); 
+                    backUrlForMetadata = 'UPLOAD_NEW'; 
+                } 
 
-                // Store metadata for this variation
                 productVariationsMetadata.push({
-                    variationIndex: sectionNumber,
+                    variationIndex: displaySectionNumber,
                     colorHex: color,
                     frontImageUrl: frontUrlForMetadata,
                     backImageUrl: backUrlForMetadata,
@@ -709,29 +760,21 @@
             return;
         }
 
-        // --- 2. Collect General Form Data (Modified IDs) ---
         const isActive = document.getElementById('is-active').checked;
-        let totalStock = parseInt(document.getElementById('available-stock').value);
+        let totalStock = isActive ? 1 : 0; 
 
-        if (!isActive) {
-            totalStock = 0;
-            document.getElementById('available-stock').value = 0;
-        }
-
-        const productData = { // Renamed variable
-            name: document.getElementById('product-name').value, // Renamed ID
-            tag: document.getElementById('product-tag').value, // Renamed ID
-            price: parseFloat(document.getElementById('product-price').value), // Renamed ID
+        const productData = { 
+            name: document.getElementById('product-name').value, 
+            tag: document.getElementById('product-tag').value, 
+            price: parseFloat(document.getElementById('product-price').value), 
             sizes: document.getElementById('available-sizes').value.split(',').map(s => s.trim().toUpperCase()).filter(s => s),
-            totalStock: totalStock,
+            totalStock: isActive ? totalStock : 0, 
             isActive: isActive,
             variations: productVariationsMetadata
         };
 
-        // --- 3. Append JSON Data to FormData (Modified key name for clarity if needed on backend) ---
-        formData.append('productData', JSON.stringify(productData)); // Renamed key
+        formData.append('productData', JSON.stringify(productData)); 
 
-        // --- 4. Send the Data to the Backend ---
         try {
             const response = await fetch(url, {
                 method: method,
@@ -755,27 +798,24 @@
 
             const successMessage = isUpdate 
                 ? `New Arrival <mark>${productData.name}</mark> updated successfully!` 
-                : `New Arrival <mark>${productData.name}</mark> created successfully! ID: <mark>${result.productId ? result.productId.slice(-6) : 'N/A'}</mark>`; // Renamed collectionId to productId
+                : `New Arrival <mark>${productData.name}</mark> created successfully! ID: <mark>${result.productId ? result.productId.slice(-6) : 'N/A'}</mark>`;
             
             showSuccessModal(successMessage); 
 
-            // Refresh table and reset form
-            fetchProducts(); // Renamed function call
+            fetchProducts(); 
             resetForm();
 
         } catch (error) {
             console.error('Submission failed:', error);
             showErrorModal(`Error submitting new arrival: <mark>${error.message}</mark>`); 
         } finally {
-            // Re-enable button
             resetFormSubmitButtonState(isUpdate);
         }
     }
 
-    // Helper to reset the submit button state (Remains the same as logic is identical)
     function resetFormSubmitButtonState(isUpdate) {
         submitBtn.disabled = false;
-        submitBtn.textContent = isUpdate ? 'Update New Arrival' : 'Submit New Arrival'; // Renamed button text
+        submitBtn.textContent = isUpdate ? 'Update New Arrival' : 'Submit New Arrival'; 
         submitBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
         if (isUpdate) {
             submitBtn.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
@@ -785,32 +825,26 @@
     }
 
 
-    // Initialize the page on load
+    // --- Initialization ---
     document.addEventListener('DOMContentLoaded', () => {
-        // Add the initial product section for the creation form
         if (productSectionsContainer.children.length === 0) {
             addProductSection();
         }
 
-        // Attach the form submit handler
-        document.getElementById('new-arrival-form').addEventListener('submit', handleCollectionSubmit); // Renamed ID
+        document.getElementById('new-arrival-form').addEventListener('submit', handleCollectionSubmit); 
 
-        // Toggle sidebar visibility on mobile
+        // Toggle sidebar visibility on mobile (using the new sidebar ID)
         sidebarToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('-translate-x-full');
+            // Toggles between -translate-x-full and translate-x-0
+            sidebar.classList.toggle('-translate-x-full'); 
+            sidebar.classList.toggle('translate-x-0'); 
         });
 
-        // Add new section button listener
         addSectionBtn.addEventListener('click', () => {
-            if (sectionCount < MAX_VARIATIONS) {
-                addProductSection();
-            } else {
-                showErrorModal(`You can only add a maximum of <mark>${MAX_VARIATIONS}</mark> product variations per new arrival.`);
-            }
+             addProductSection();
         });
 
-        // Load existing collections on page load
-        fetchProducts(); // Renamed function call
+        fetchProducts(); 
     });
 </script>
 </body>

@@ -42,7 +42,11 @@
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
                 Wears Collection
             </button>
-
+            
+            <button id="btn-newarrivals" onclick="setActiveContent('newarrivals')" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                New Arrivals
+            </button>
             <button id="btn-settings" onclick="setActiveContent('settings')" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.526.34.813.486 1.066-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                 Settings
@@ -198,15 +202,29 @@
             });
         });
 
-        // Function to switch between Dashboard and Settings content
+        // Function to switch between Dashboard, New Arrivals, and Settings content
         function setActiveContent(contentId) {
             contentSections.forEach(section => {
                 section.classList.add('hidden');
             });
-            document.getElementById(`content-${contentId}`).classList.remove('hidden');
+
+            // Check if the requested content ID exists before trying to display it
+            const contentElement = document.getElementById(`content-${contentId}`);
+            if (contentElement) {
+                contentElement.classList.remove('hidden');
+            } else if (contentId === 'newarrivals') {
+                 // Special handling for the removed 'newarrivals' content: 
+                 // Since the section was removed, clicking the button only updates the active state.
+                 // We can optionally display a fallback message on the dashboard if this is critical, 
+                 // but for now, we just proceed to update the button styles.
+                 console.log(`Content section 'content-${contentId}' is not available.`);
+                 document.getElementById('content-dashboard').classList.remove('hidden');
+                 contentId = 'dashboard'; // Default to dashboard if content doesn't exist
+            }
+
 
             navButtons.forEach(button => {
-                // Only manage active state for internal links (dashboard/settings)
+                // Only manage active state for internal links (dashboard/settings/newarrivals)
                 if (button.id.startsWith('btn-') && button.id !== 'btn-wearscollection') {
                     // Reset inactive styles
                     button.classList.remove('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
@@ -215,11 +233,23 @@
             });
 
             const activeBtn = document.getElementById(`btn-${contentId}`);
+            // Special handling for 'newarrivals' to allow its button to become active
+            const newArrivalsBtn = document.getElementById('btn-newarrivals');
+
+
             if (activeBtn) {
                 // Set active styles
                 activeBtn.classList.remove('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
                 activeBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
+            } else if (contentId === 'newarrivals' && newArrivalsBtn) {
+                // If the content section was removed, but the button is clicked, still set its style
+                newArrivalsBtn.classList.remove('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
+                newArrivalsBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
+                
+                // Ensure dashboard is shown since newarrivals content is absent
+                document.getElementById('content-dashboard').classList.remove('hidden');
             }
+
 
             // Hide sidebar on small screens after selection
             if (window.innerWidth < 1024) {
@@ -229,12 +259,9 @@
 
         /**
          * Fetches real-time dashboard statistics from the Node.js/MongoDB API.
-         * The 'fetch' block is the only one used now that we're using a real application context.
          */
         async function fetchDashboardData() {
             const token = localStorage.getItem('adminToken'); // Get the actual token
-
-            // NOTE: We are removing the mock data fallback as requested to use a 'real application' approach.
             
             if (!token) {
                 console.error("No adminToken found. Redirecting to login for authentication.");

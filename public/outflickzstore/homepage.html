@@ -782,40 +782,53 @@
         </div>
     </section>
 
- <section id="advertisements-section" class="py-8 sm:py-10 bg-color-white text-color-black">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 class="text-xs sm:text-xm font-extrabold text-color-black uppercase mb-4 text-center">
-            Exclusive Look
-        </h2>
-        
-        <div id="advertisements-grid" class="flex overflow-x-scroll snap-x snap-mandatory space-x-3 sm:space-x-4 pb-4">
+ <section id="advertisements-section" class="py-8 sm:py-10 bg-white text-gray-900">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <!-- Header/Title -->
+            <h2 class="text-xs sm:text-sm font-extrabold text-gray-900 uppercase mb-4 text-center tracking-widest">
+                Exclusive Look
+            </h2>
             
-            <div class="ad-image-box rounded-lg overflow-hidden shadow-md flex-shrink-0 snap-center w-52 sm:w-60 md:w-72">
-                <img src="https://i.imgur.com/3Z36L6D.jpeg" alt="Advertisement 1: Model wearing Outflickz shirt" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-105">
-            </div>
-            
-            <div class="ad-image-box rounded-lg overflow-hidden shadow-md flex-shrink-0 snap-center w-52 sm:w-60 md:w-72">
-                <img src="https://i.imgur.com/yohJHbh.jpeg" alt="Advertisement 1: Model wearing Outflickz shirt" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-105">
-            </div>
-            
-            <div class="ad-image-box rounded-lg overflow-hidden shadow-md flex-shrink-0 snap-center w-52 sm:w-60 md:w-72">
-                <img src="https://i.imgur.com/ZTkiU0L.jpeg" alt="Advertisement 2: Model in dark Outflickz hoodie" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-105">
-            </div>
-            
-            <div class="ad-image-box rounded-lg overflow-hidden shadow-md flex-shrink-0 snap-center w-52 sm:w-60 md:w-72">
-                <img src="https://i.imgur.com/5MHHtZB.jpeg" alt="Advertisement 3: Close-up of Outflickz product detail" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-105">
-            </div>
-            
-            <div class="ad-image-box rounded-lg overflow-hidden shadow-md flex-shrink-0 snap-center w-52 sm:w-60 md:w-72">
-                <img src="https://i.imgur.com/gA0XCdQ.jpeg" alt="Advertisement 4: Lifestyle shot of Outflickz collection" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-105">
-            </div>
-            
-            <div class="ad-image-box rounded-lg overflow-hidden shadow-md flex-shrink-0 snap-center w-52 sm:w-60 md:w-72">
-                <img src="https://i.imgur.com/ZgWIhuA.jpeg" alt="Advertisement 4: Lifestyle shot of Outflickz collection" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-105">
+            <!-- Ad Slider Container -->
+            <!-- flex, horizontal scroll, snap points, and spacing -->
+            <div id="advertisements-grid" class="flex overflow-x-scroll snap-x snap-mandatory space-x-3 sm:space-x-4 pb-4">
+                
+                <!-- Ad Image 1 -->
+                <!-- UPDATED: Base size changed to w-36 (from w-52) for smaller mobile size -->
+                <div class="ad-image-box rounded-xl overflow-hidden shadow-lg flex-shrink-0 snap-center w-36 sm:w-56 md:w-72 cursor-pointer transform hover:shadow-xl">
+                    <img src="https://i.imgur.com/3Z36L6D.jpeg" alt="Model wearing Outflickz shirt" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-110">
+                </div>
+                
+                <!-- Ad Image 2 -->
+                <div class="ad-image-box rounded-xl overflow-hidden shadow-lg flex-shrink-0 snap-center w-36 sm:w-56 md:w-72 cursor-pointer transform hover:shadow-xl">
+                    <img src="https://i.imgur.com/yohJHbh.jpeg" alt="Model wearing Outflickz shirt" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-110">
+                </div>
+                
+                <!-- Ad Image 3 -->
+                <div class="ad-image-box rounded-xl overflow-hidden shadow-lg flex-shrink-0 snap-center w-36 sm:w-56 md:w-72 cursor-pointer transform hover:shadow-xl">
+                    <img src="https://i.imgur.com/ZTkiU0L.jpeg" alt="Model in dark Outflickz hoodie" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-110">
+                </div>
+                
+                <!-- Ad Image 4 -->
+                <div class="ad-image-box rounded-xl overflow-hidden shadow-lg flex-shrink-0 snap-center w-36 sm:w-56 md:w-72 cursor-pointer transform hover:shadow-xl">
+                    <img src="https://i.imgur.com/5MHHtZB.jpeg" alt="Close-up of Outflickz product detail" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-110">
+                </div>
+                
+                <!-- Ad Image 5 -->
+                <div class="ad-image-box rounded-xl overflow-hidden shadow-lg flex-shrink-0 snap-center w-36 sm:w-56 md:w-72 cursor-pointer transform hover:shadow-xl">
+                    <img src="https://i.imgur.com/gA0XCdQ.jpeg" alt="Lifestyle shot of Outflickz collection" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-110">
+                </div>
+                
+                <!-- Ad Image 6 -->
+                <div class="ad-image-box rounded-xl overflow-hidden shadow-lg flex-shrink-0 snap-center w-36 sm:w-56 md:w-72 cursor-pointer transform hover:shadow-xl">
+                    <img src="https://i.imgur.com/ZgWIhuA.jpeg" alt="Lifestyle shot of Outflickz collection" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-110">
+                </div>
+
+                <!-- Spacer for better snapping on the last element -->
+                <div class="flex-shrink-0 w-4"></div>
             </div>
         </div>
-    </div>
-</section>
+    </section>
 
     <div id="image-modal" class="modal fixed inset-0 z-[100] bg-black bg-opacity-90 flex items-center justify-center opacity-0 pointer-events-none" onclick="closeModal()" role="dialog" aria-modal="true" aria-labelledby="modal-item-title">
 

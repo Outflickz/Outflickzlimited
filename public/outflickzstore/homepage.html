@@ -98,10 +98,10 @@
             border-color: #a80000; /* ash-red */
         }
 
-        /* --- NEW MOBILE SLIDER STYLE FOR COLLECTIONS --- */
+        /* --- NEW MOBILE SLIDER STYLE FOR COLLECTIONS AND ADS --- */
         /* Only apply flex/scroll to the grid container on screens smaller than md (768px) */
         @media (max-width: 767px) {
-            #wears-collections-grid, #new-arrivals-grid {
+            #wears-collections-grid, #new-arrivals-grid, #advertisements-grid {
                 display: flex;
                 overflow-x: scroll;
                 scroll-snap-type: x mandatory;
@@ -123,8 +123,18 @@
                 scroll-snap-align: start;
                 margin-right: 1rem;
             }
+            /* Advertisements */
+            #advertisements-grid .ad-image-box {
+                flex-shrink: 0;
+                width: 80vw; /* Large size for mobile scrolling */
+                max-width: 400px;
+                scroll-snap-align: center;
+                margin-right: 1rem;
+            }
             /* Ensure the last card snaps correctly */
-            #wears-collections-grid > div:last-child, #new-arrivals-grid > div:last-child {
+            #wears-collections-grid > div:last-child, 
+            #new-arrivals-grid > div:last-child,
+            #advertisements-grid > div:last-child {
                 margin-right: 0;
             }
         }
@@ -572,8 +582,7 @@
             container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full">Error loading wears collections. Please ensure the API server is running and accessible.</p>';
         }
     }
-
-    // --- NEW ARRIVALS COLLECTION JS ---
+// --- NEW ARRIVALS COLLECTION JS ---
     async function fetchAndRenderNewArrivals() {
         const container = document.getElementById('new-arrivals-grid');
         if (!container) return;
@@ -635,7 +644,7 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         fetchAndRenderWearsCollections(); 
-        fetchAndRenderNewArrivals();     
+        fetchAndRenderNewArrivals(); 
     });
     // --- END WEARS COLLECTION JS ---
 </script>
@@ -743,6 +752,35 @@
         </div>
     </section>
 
+    <section id="advertisements-section" class="py-8 sm:py-10 bg-color-white text-color-black">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="text-xs sm:text-xm font-extrabold text-color-black uppercase mb-4 text-center">
+                Exclusive Look
+            </h2>
+            <div id="advertisements-grid" class="grid grid-cols-1 md:grid-cols-4 gap-3 sm:gap-4">
+                <div class="ad-image-box rounded-lg overflow-hidden shadow-md">
+                    <a href="#">
+                        <img src="https://i.imgur.com/3Z36L6D.jpeg" alt="Advertisement 1: Model wearing Outflickz shirt" class="w-full h-full object-cover aspect-[4/3] md:aspect-square transition duration-300 hover:scale-105">
+                    </a>
+                </div>
+                <div class="ad-image-box rounded-lg overflow-hidden shadow-md">
+                    <a href="#">
+                        <img src="https://i.imgur.com/ZTkiU0L.jpeg" alt="Advertisement 2: Model in dark Outflickz hoodie" class="w-full h-full object-cover aspect-[4/3] md:aspect-square transition duration-300 hover:scale-105">
+                    </a>
+                </div>
+                <div class="ad-image-box rounded-lg overflow-hidden shadow-md">
+                    <a href="#">
+                        <img src="https://i.imgur.com/5MHHtZB.jpeg" alt="Advertisement 3: Close-up of Outflickz product detail" class="w-full h-full object-cover aspect-[4/3] md:aspect-square transition duration-300 hover:scale-105">
+                    </a>
+                </div>
+                <div class="ad-image-box rounded-lg overflow-hidden shadow-md">
+                    <a href="#">
+                        <img src="https://i.imgur.com/gA0XCdQ.jpeg" alt="Advertisement 4: Lifestyle shot of Outflickz collection" class="w-full h-full object-cover aspect-[4/3] md:aspect-square transition duration-300 hover:scale-105">
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
     <div id="image-modal" class="modal fixed inset-0 z-[100] bg-black bg-opacity-90 flex items-center justify-center opacity-0 pointer-events-none" onclick="closeModal()" role="dialog" aria-modal="true" aria-labelledby="modal-item-title">
 
         <div class="relative max-w-xs sm:max-w-4xl w-full mx-4 p-2 bg-white rounded-lg shadow-2xl" onclick="event.stopPropagation()">

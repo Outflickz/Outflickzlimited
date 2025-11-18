@@ -107,7 +107,7 @@
                 scroll-snap-type: x mandatory;
                 padding-bottom: 1rem; /* Space for shadow/scroll bar */
             }
-            /* Wears Collection (Default size) */
+            /* Wears Collection (Default size) - LARGER */
             #wears-collections-grid .collection-card {
                 flex-shrink: 0; /* Cards won't shrink */
                 width: 50vw; /* Standard size */
@@ -115,7 +115,7 @@
                 scroll-snap-align: start;
                 margin-right: 1rem;
             }
-            /* New Arrivals (Reduced size) */
+            /* New Arrivals (Reduced size) - SMALLER */
             #new-arrivals-grid .collection-card {
                 flex-shrink: 0; 
                 width: 45vw; /* Reduced size for visual difference */
@@ -635,7 +635,7 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         fetchAndRenderWearsCollections(); 
-        fetchAndRenderNewArrivals();      
+        fetchAndRenderNewArrivals();     
     });
     // --- END WEARS COLLECTION JS ---
 </script>
@@ -704,7 +704,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-start mb-6 sm:mb-8">
                 <div>
-                    <h2 class="text-3xl sm:text-2xl font-extrabold text-color-black uppercase mb-1">
+                    <h2 class="text-lg sm:text-2xl font-extrabold text-color-black uppercase mb-1">
                         New In
                     </h2>
                     <p class="text-lg sm:text-xl font-medium text-gray-700">
@@ -712,11 +712,10 @@
                     </p>
                 </div>
                 
-                <a href="wearscollection.html" class="border-2 border-ash-red text-ash-red hover:bg-ash-red hover:text-white transition duration-300 font-bold py-1.5 px-4 sm:py-2 sm:px-6 rounded-sm uppercase text-xs sm:text-sm tracking-widest mt-2">
+                <a href="wearscollection.html" class="border-2 border-ash-red text-ash-red hover:bg-ash-red hover:text-white transition duration-300 font-bold py-1.5 px-4 sm:py-2 sm:px-6 rounded-sm uppercase text-lg sm:text-sm tracking-widest mt-2">
                     View All Wears
                 </a>
             </div>
-            <!-- Standard size grid for Wears Collection -->
             <div id="wears-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
                 </div>
             
@@ -727,20 +726,19 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-start mb-6 sm:mb-8">
                 <div>
-                    <h2 class="text-xl sm:text-xl font-extrabold text-color-black uppercase mb-1">
+                    <h2 class="text-lg sm:text-xl font-extrabold text-color-black uppercase mb-1">
                         New Arrivals
                     </h2>
-                    <p class="text-xl sm:text-xl font-medium text-gray-700">
+                    <p class="text-lg sm:text-xl font-medium text-gray-700">
                         Limited edition drops
                     </p>
                 </div>
                 
-                <a href="newarrivals.html" class="border-2 border-ash-red text-ash-red hover:bg-ash-red hover:text-white transition duration-300 font-bold py-1.5 px-4 sm:py-2 sm:px-6 rounded-sm uppercase text-xs sm:text-sm tracking-widest mt-2">
+                <a href="newarrivals.html" class="border-2 border-ash-red text-ash-red hover:bg-ash-red hover:text-white transition duration-300 font-bold py-1.5 px-4 sm:py-2 sm:px-6 rounded-sm uppercase text-lg sm:text-sm tracking-widest mt-2">
                     Shop New Arrivals
                 </a>
             </div>
-            <!-- Grid for New Arrivals - using lg:grid-cols-2 as the request specified the items should be fewer/featured -->
-            <div id="new-arrivals-grid" class="grid grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
+            <div id="new-arrivals-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
             </div>
         </div>
     </section>

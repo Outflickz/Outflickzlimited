@@ -1509,6 +1509,87 @@ app.post(
     }
 );
 
+// POST /api/admin/preordercollections (Create New Pre-Order Collection) 
+app.post(
+    '/api/admin/preordercollections',
+    verifyToken,
+    upload.fields(uploadFields),
+    async (req, res) => {
+        try {
+            // A. Extract JSON Metadata
+            if (!req.body.collectionData) {
+                return res.status(400).json({ message: "Missing pre-order collection data payload." });
+            }
+            const collectionData = JSON.parse(req.body.collectionData);
+
+            // B. Process Files and Integrate Paths into Variations (No change here)
+            const files = req.files;
+            const finalVariations = [];
+            const uploadPromises = [];
+            
+            for (const variation of collectionData.variations) {
+                const index = variation.variationIndex;
+                const frontFile = files[`front-view-upload-${index}`]?.[0];
+                const backFile = files[`back-view-upload-${index}`]?.[0];
+
+                if (!frontFile || !backFile) {
+                    throw new Error(`Missing BOTH front and back image files for Variation #${index}.`);
+                }
+
+                const uploadFrontPromise = uploadFileToPermanentStorage(frontFile);
+                const uploadBackPromise = uploadFileToPermanentStorage(backFile);
+                
+                const combinedUploadPromise = Promise.all([uploadFrontPromise, uploadBackPromise])
+                    .then(([frontImageUrl, backImageUrl]) => {
+                        finalVariations.push({
+                            variationIndex: variation.variationIndex,
+                            colorHex: variation.colorHex,
+                            frontImageUrl: frontImageUrl,
+                            backImageUrl: backImageUrl,
+                        });
+                    });
+                    
+                uploadPromises.push(combinedUploadPromise);
+            }
+            
+            await Promise.all(uploadPromises);
+
+            if (finalVariations.length === 0) {
+                return res.status(400).json({ message: "No valid product images and metadata were received after upload processing." });
+            }
+
+            // C. Create the Final Collection Object (UPDATED: Added availableDate, Removed deadlines)
+            const newCollection = new PreOrderCollection({
+                name: collectionData.name,
+                tag: collectionData.tag,
+                price: collectionData.price,
+                sizes: collectionData.sizes,
+                totalStock: collectionData.totalStock,
+                isActive: collectionData.isActive,
+                availableDate: collectionData.availableDate, // NEW FIELD
+                variations: finalVariations,
+            });
+
+            // D. Save to Database
+            const savedCollection = await newCollection.save();
+
+            res.status(201).json({
+                message: 'Pre-Order Collection created and images uploaded successfully.',
+                collectionId: savedCollection._id,
+                name: savedCollection.name
+            });
+
+        } catch (error) {
+            console.error('Error creating pre-order collection:', error);
+            if (error.name === 'ValidationError') {
+                const messages = Object.values(error.errors).map(err => err.message).join(', ');
+                return res.status(400).json({ message: `Validation Error: ${messages}`, errors: error.errors });
+            }
+            res.status(500).json({ message: 'Server error during collection creation or file upload.', details: error.message });
+        }
+    }
+);
+
 // PUT /api/admin/preordercollections/:id (Update Pre-Order Collection)
 app.put(
     '/api/admin/preordercollections/:id',
@@ -1527,15 +1608,15 @@ app.put(
             // Check if it's a simple update (JSON content-type and no collectionData for full form)
             const isQuickUpdate = req.get('Content-Type')?.includes('application/json') && !req.body.collectionData;
             
-            // A. HANDLE QUICK UPDATE (Stock, Active Status, Deadlines)
+            // A. HANDLE QUICK UPDATE (Stock, Active Status, Available Date)
             if (isQuickUpdate) {
-                const { totalStock, isActive, preorderDeadline, estimatedDelivery } = req.body;
+                // UPDATED: Destructure availableDate instead of deadlines
+                const { totalStock, isActive, availableDate } = req.body;
                 
                 const updateFields = {};
                 if (totalStock !== undefined) updateFields.totalStock = totalStock;
                 if (isActive !== undefined) updateFields.isActive = isActive;
-                if (preorderDeadline !== undefined) updateFields.preorderDeadline = preorderDeadline;
-                if (estimatedDelivery !== undefined) updateFields.estimatedDelivery = estimatedDelivery;
+                if (availableDate !== undefined) updateFields.availableDate = availableDate; // NEW FIELD
 
                 if (Object.keys(updateFields).length === 0) {
                     return res.status(400).json({ message: "Missing update fields in simple update payload." });
@@ -1562,7 +1643,8 @@ app.put(
             const updatedVariations = [];
             const uploadPromises = [];
             const oldImagesToDelete = [];
-
+            
+            // (Variation/File processing logic remains the same)
             for (const incomingVariation of collectionData.variations) {
                 const index = incomingVariation.variationIndex;
                 const existingPermanentVariation = existingCollection.variations.find(v => v.variationIndex === index);
@@ -1613,15 +1695,14 @@ app.put(
                 return res.status(400).json({ message: "No valid variations were processed for update." });
             }
             
-            // Update the Document Fields
+            // Update the Document Fields (UPDATED: Added availableDate, Removed deadlines)
             existingCollection.name = collectionData.name;
             existingCollection.tag = collectionData.tag;
             existingCollection.price = collectionData.price;
             existingCollection.sizes = collectionData.sizes;
             existingCollection.totalStock = collectionData.totalStock;
             existingCollection.isActive = collectionData.isActive;
-            existingCollection.preorderDeadline = collectionData.preorderDeadline;
-            existingCollection.estimatedDelivery = collectionData.estimatedDelivery;
+            existingCollection.availableDate = collectionData.availableDate; // NEW FIELD
             
             existingCollection.variations = updatedVariations.map(v => ({
                 variationIndex: v.variationIndex,
@@ -1682,13 +1763,13 @@ app.get(
     verifyToken,
     async (req, res) => {
         try {
-            // Fetch all collections
+            // Fetch all collections (UPDATED: Added availableDate, Removed deadlines)
             const collections = await PreOrderCollection.find({})
-                .select('_id name tag price variations totalStock isActive preorderDeadline estimatedDelivery')
+                .select('_id name tag price variations totalStock isActive availableDate') // UPDATED
                 .sort({ createdAt: -1 })
                 .lean();
 
-            // Sign URLs
+            // Sign URLs (Logic remains the same)
             const signedCollections = await Promise.all(collections.map(async (collection) => {
                 const signedVariations = await Promise.all(collection.variations.map(async (v) => ({
                     ...v,

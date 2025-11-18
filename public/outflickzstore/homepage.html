@@ -140,7 +140,7 @@
         }
         /* --- END NEW MOBILE SLIDER STYLE --- */
     </style>
-    <script>
+   <script>
     // Customizing Tailwind colors to match the theme
     tailwind.config = {
         theme: {
@@ -161,6 +161,25 @@
     function toggleMenu() {
         document.getElementById('mobile-menu').classList.toggle('hidden');
     }
+
+    // --- SHOP NOW DROPDOWN JS ---
+    function toggleShopDropdown() {
+        const dropdown = document.getElementById('shop-dropdown-menu');
+        dropdown.classList.toggle('hidden');
+    }
+
+    // Optional: Close the dropdown if the user clicks anywhere outside of it
+    document.addEventListener('click', function(event) {
+        const dropdown = document.getElementById('shop-dropdown-menu');
+        const button = document.getElementById('shop-now-btn');
+
+        // Check if the click occurred outside the button and outside the dropdown
+        if (dropdown && button && !button.contains(event.target) && !dropdown.contains(event.target)) {
+            dropdown.classList.add('hidden');
+        }
+    });
+    // --- END SHOP NOW DROPDOWN JS ---
+
 
     const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
     const API_BASE_URL = ''; 
@@ -703,9 +722,20 @@
             <p class="text-xs sm:text-sm font-semibold uppercase tracking-widest mb-4 sm:mb-6 text-center text-white">
                 TOP DEAL
             </p>
-            <button class="bg-ash-red text-white hover:bg-red-700 transition duration-300 font-semibold py-2.5 px-8 sm:py-3 sm:px-10 rounded-sm shadow-xl uppercase text-xs sm:text-xs tracking-widest">
-                Shop Now
-            </button>
+            <div class="relative inline-block text-center">
+    <button id="shop-now-btn" class="bg-ash-red text-white hover:bg-red-700 transition duration-300 font-semibold py-2.5 px-8 sm:py-3 sm:px-10 rounded-sm shadow-xl uppercase text-xs sm:text-xs tracking-widest" onclick="toggleShopDropdown()">
+        Shop Now
+    </button>
+
+    <div id="shop-dropdown-menu" class="hidden absolute top-full mt-2 left-1/2 transform -translate-x-1/2 w-48 bg-white rounded-lg shadow-lg z-40 border border-gray-100 overflow-hidden">
+        <a href="wearscollection.html" class="block px-4 py-2 text-sm font-medium text-ash-dark hover:bg-gray-100 transition duration-150">
+            Wears Collections
+        </a>
+        <a href="capcollection.html" class="block px-4 py-2 text-sm font-medium text-ash-dark hover:bg-gray-100 transition duration-150">
+            Caps Collection
+        </a>
+    </div>
+</div>
         </div>
     </main>
 

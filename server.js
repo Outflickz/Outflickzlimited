@@ -354,15 +354,6 @@ const CapCollectionSchema = new mongoose.Schema({
             message: 'A collection must have between 1 and 4 variations.'
         }
     },
-    sizes: {
-        type: [String],
-        required: [true, 'Available sizes are required'],
-        validate: {
-            // Caps often only have ONE SIZE
-            validator: function(v) { return Array.isArray(v) && v.length > 0; },
-            message: 'Sizes array cannot be empty.'
-        }
-    },
     totalStock: {
         type: Number,
         required: [true, 'Total stock number is required'],

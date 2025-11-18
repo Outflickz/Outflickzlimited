@@ -44,12 +44,7 @@
             transform: scale(1.05);
         }
 
-        /* Custom style for active size/color selection */
-        .size-label input:checked + span {
-            border-color: #a80000; 
-            color: #a80000;
-            font-weight: 600;
-        }
+        /* Custom style for active color selection */
         .color-label input:checked + span {
             border-width: 2px;
             border-color: #a80000; 
@@ -92,7 +87,7 @@
         // Intersection Observer setup
         let observer;
 
-        // --- UTILITY FUNCTIONS (Copied from homepage.html) ---
+        // --- UTILITY FUNCTIONS ---
 
         function toggleMenu() {
             document.getElementById('mobile-menu').classList.toggle('hidden');
@@ -141,20 +136,7 @@
             }
         }
 
-        function createSizeList(collectionId, sizes) {
-            if (!sizes || sizes.length === 0) {
-                sizes = ['ONE SIZE']; // Default for caps
-            }
-            // Reduced size classes for collection page density
-            const sizeClasses = 'text-[0.6rem] px-1.5 py-0.5'; 
-            
-            return sizes.map(size => `
-                <label for="size-${collectionId}-${size}" class="size-label border border-gray-300 cursor-pointer hover:border-ash-dark transition-all rounded-sm">
-                    <input type="radio" id="size-${collectionId}-${size}" name="size-${collectionId}" value="${size}" class="hidden" ${size === sizes[0] ? 'checked' : ''}>
-                    <span class="${sizeClasses}">${size}</span>
-                </label>
-            `).join('');
-        }
+        // REMOVED: createSizeList function
 
         function createColorList(collectionId, variants) {
             if (!variants || variants.length === 0) return '';
@@ -214,7 +196,7 @@
             const itemPrice = collection.price; 
             const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
 
-            const sizeListHtml = createSizeList(collection._id, collection.availableSizes); 
+            // REMOVED: Size list generation
             const colorListHtml = createColorList(collection._id, collection.variants); 
             const maxStock = collection.availableStock > 0 ? collection.availableStock : 0; 
             const isOutOfStock = maxStock === 0 || collection.availableStock === 0;
@@ -257,7 +239,6 @@
                         ${stockBadge}
                         
                         <div class="relative w-full h-full">
-                            <!-- Front Image (Initially active) -->
                             <img
                                 class="product-image active"
                                 id="front-image-${collection._id}"
@@ -266,7 +247,6 @@
                                 onerror="this.onerror=null;this.src='${defaultFrontImage}';"
                                 style="opacity: 1;"
                             >
-                            <!-- Back Image (Initially hidden) -->
                             <img
                                 class="product-image"
                                 id="back-image-${collection._id}"
@@ -297,17 +277,10 @@
                         
                         <p class="${priceFontSize} text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
                         
-                        <div class="flex items-center gap-2 mt-2">
+                        <div class="flex items-center gap-2 mt-2 mb-3">
                             <span class="text-xs font-medium text-gray-700">Color:</span>
                             <div class="flex gap-1 text-gray-700">
                                 ${colorListHtml}
-                            </div>
-                        </div>
-
-                        <div class="flex flex-wrap items-center gap-1 mt-2 mb-3">
-                            <span class="text-xs font-medium text-gray-700">Size:</span>
-                            <div class="flex flex-wrap gap-1 text-gray-700">
-                                ${sizeListHtml}
                             </div>
                         </div>
 
@@ -452,7 +425,6 @@
 </head>
 <body class="text-color-black min-h-screen">
 
-    <!-- Header Section (Same as homepage) -->
     <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
             <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
@@ -490,7 +462,6 @@
         </div>
     </div>
 
-    <!-- Main Content Section -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <h1 class="text-3xl sm:text-4xl font-extrabold text-ash-dark mb-2 border-b-2 border-ash-red inline-block pb-1">
             The Cap Collection
@@ -499,18 +470,13 @@
             Explore our full range of headwear, from signature snapbacks to limited-edition trucker caps.
         </p>
 
-        <!-- Caps Grid -->
         <div id="caps-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
-            <!-- Cap products will be inserted here by JavaScript -->
-        </div>
+            </div>
 
-        <!-- Intersection Observer Target and Loader Indicator -->
-        <!-- This target div is watched by the Intersection Observer. When it comes into view, the next batch of caps is loaded. -->
         <div id="observer-target" class="w-full h-1 bg-transparent mt-10 hidden"></div>
 
         <div id="loader-indicator" class="w-full flex justify-center items-center py-10 hidden" role="status" aria-live="polite">
-            <!-- Content updated by updateLoader function -->
-        </div>
+            </div>
         
     </main>
 

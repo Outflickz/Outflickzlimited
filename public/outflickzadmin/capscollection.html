@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wears Collection Management - Commerce Hub</title>
+    <title>Caps Collection Management - Commerce Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
     <link rel="icon" type="image/png" href="https://i.imgur.com/ioWFyQB.png">
@@ -60,20 +60,20 @@
                     Dashboard
                 </a>
                 
-                <a href="wearscollection.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-emerald-600 hover:bg-emerald-700 active-link">
+                <a href="wearscollection.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14v12a2 2 0 01-2 2H7a2 2 0 01-2-2V9z"></path></svg>
                     Wears Collection
                 </a>
                 
-                  <a href="capscollection.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-emerald-600 hover:bg-emerald-700 active-link">
+                <a href="capscollection.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-emerald-600 hover:bg-emerald-700 active-link">
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14v12a2 2 0 01-2 2H7a2 2 0 01-2-2V9z"></path></svg>
                     Caps Collection
                 </a>
 
-            <a href="newarrivals.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg active-link-page">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                New Arrivals
-            </a>
+                <a href="newarrivals.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    New Arrivals
+                </a>
 
 
                 <a href="settings.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
@@ -95,13 +95,13 @@
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
         </button>
         
-        <section id="content-wearscollection" class="content-section p-6 pt-16 lg:pt-6">
-            <h2 class="text-3xl font-bold text-gray-800 mb-8 border-b pb-2">🛍️ Wears Collection Management</h2>
+        <section id="content-capscollection" class="content-section p-6 pt-16 lg:pt-6">
+            <h2 class="text-3xl font-bold text-gray-800 mb-8 border-b pb-2">🧢 Caps Collection Management</h2>
             
-            <h3 id="form-title" class="text-2xl font-semibold text-gray-800 mb-6 mt-10">➕ Create New Collection</h3>
+            <h3 id="form-title" class="text-2xl font-semibold text-gray-800 mb-6 mt-10">➕ Create New Cap Collection</h3>
             
             <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-emerald-500">
-                <form id="wears-collection-form" onsubmit="handleCollectionSubmit(event)">
+                <form id="caps-collection-form" onsubmit="handleCollectionSubmit(event)">
                     
                     <h4 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">Collection Details</h4>
                     
@@ -129,7 +129,7 @@
                                 <input type="number" id="collection-price" min="0.01" step="0.01" value="00.00" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
                                 <p class="mt-1 text-xs text-gray-500">Base price for items in this collection.</p>
                             </div>
-                            </div>
+                        </div>
 
                         <div class="flex items-center space-x-4">
                             <input type="checkbox" id="is-active" class="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500">
@@ -138,7 +138,7 @@
                     </div>
                     
                     <h4 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">Product Variations (Max 4)</h4>
-                    <p class="text-sm text-gray-500 mb-6">Define the four available product options (e.g., different styles or images) for this collection.</p>
+                    <p class="text-sm text-gray-500 mb-6">Define the four available product options (e.g., different colors/styles) for this collection, including front and back views.</p>
 
                     <div id="product-sections" class="space-y-6">
                         </div>
@@ -156,16 +156,11 @@
                     <h4 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">Global Attributes</h4>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                        <div>
-                            <label for="available-sizes" class="block text-sm font-medium text-gray-700">Available Sizes (Comma Separated)</label>
-                            <input type="text" id="available-sizes" placeholder="S, M, L, XL, XXL" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
-                            <p class="mt-1 text-xs text-gray-500">E.g., S, M, L, XL or 32, 34, 36</p>
-                        </div>
-
+                        
                         <div>
                             <label for="available-stock" class="block text-sm font-medium text-gray-700">Total Available Stock Number</label>
                             <input type="number" id="available-stock" min="0" value="100" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
-                            <p class="mt-1 text-xs text-gray-500">This is the total stock quantity for the entire collection.</p>
+                            <p class="mt-1 text-xs text-gray-500">This is the total stock quantity for the entire collection. (Caps are assumed One-Size unless specified)</p>
                         </div>
                     </div>
 
@@ -176,9 +171,11 @@
                 </form>
             </div>
         </section>
+
         <hr class="my-12 border-gray-300">
+
         <section id="content-managecollection" class="content-section p-6">
-            <h3 class="text-2xl font-semibold text-gray-800 mb-6">📋 Manage Existing Collections</h3>
+            <h3 class="text-2xl font-semibold text-gray-800 mb-6">📋 Manage Existing Cap Collections</h3>
             <div id="loading-indicator" class="text-center p-8 text-gray-500 hidden">Loading collections...</div>
             <div id="collections-error" class="text-center p-8 text-red-500 hidden">Error loading collections.</div>
 
@@ -203,7 +200,6 @@
         </section>
 
     </main>
-
     <div id="success-modal" class="fixed inset-0 z-50 items-center justify-center hidden modal-backdrop">
         <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full mx-4 p-6 transform transition-all">
             <div class="text-center">
@@ -288,8 +284,6 @@
             </div>
         </div>
     </div>
-
-
     <script>
 // --- JAVASCRIPT LOGIC ---
 
@@ -320,14 +314,15 @@ const restockConfirmBtn = document.getElementById('restock-confirm-btn');
 const restockCancelBtn = document.getElementById('restock-cancel-btn');
 
 
-let sectionCount = 0; // Tracks the number of variations currently in the form
-let collectionIdToUpdate = null; // Stores the ID of the collection being edited (null for creation)
-let confirmationResolver = null; // Used to resolve the confirmation modal promise.
+let sectionCount = 0; 
+let collectionIdToUpdate = null; 
+let confirmationResolver = null; 
 
-const API_BASE_URL = '/api/admin/wearscollections'; // Consistent API endpoint
+// API_BASE_URL for caps
+const API_BASE_URL = '/api/admin/capscollections'; 
 const MAX_VARIATIONS = 4;
 
-// --- MODAL FUNCTIONS (Updated to use custom HTML Modals) ---
+// --- MODAL FUNCTIONS (Standard) ---
 function showModal(modalElement, messageElement, message) {
     messageElement.innerHTML = message;
     modalElement.classList.remove('hidden');
@@ -342,11 +337,6 @@ function showErrorModal(message) {
     showModal(errorModal, errorModalMessage, message);
 }
 
-/**
- * Custom Confirmation Modal using Promises.
- * @param {string} message - The message to display.
- * @returns {Promise<boolean>} - Resolves to true if confirmed, false otherwise.
- */
 function showConfirmationModal(message) {
     confirmationModalMessage.textContent = message;
     confirmationModal.classList.remove('hidden');
@@ -381,7 +371,6 @@ function showConfirmationModal(message) {
 // ------------------------------------------------------------------------------------------
 
 // --- GLOBAL FUNCTIONS REQUIRED FOR INLINE HTML HANDLERS ---
-// Making these functions globally accessible for the onclick handlers in the HTML table.
 window.updateColorPreview = updateColorPreview;
 window.editCollection = editCollection;
 window.deleteCollection = deleteCollection;
@@ -401,7 +390,6 @@ function getAuthToken() {
     return token;
 }
 
-// --- LOGOUT FUNCTIONALITY ---
 function logoutAdmin() {
     console.log('Logging out admin...');
     localStorage.removeItem('adminToken');
@@ -411,13 +399,10 @@ function logoutAdmin() {
 
 // --- COLLECTION MANAGEMENT (FRONTEND) ---
 
-/**
- * Resets the form to "Create New Collection" mode.
- */
 function resetForm() {
-    document.getElementById('wears-collection-form').reset();
+    document.getElementById('caps-collection-form').reset();
     collectionIdToUpdate = null;
-    formTitle.textContent = '➕ Create New Collection';
+    formTitle.textContent = '➕ Create New Cap Collection';
     submitBtn.textContent = 'Submit Collection';
     submitBtn.classList.remove('bg-yellow-600', 'hover:bg-yellow-700');
     submitBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
@@ -434,17 +419,14 @@ function resetForm() {
     });
 
     // Scroll to the form
-    document.getElementById('content-wearscollection').scrollIntoView({ behavior: 'smooth' });
+    document.getElementById('content-capscollection').scrollIntoView({ behavior: 'smooth' });
 }
 
-/**
- * Fetches all collections and renders them to the table.
- */
 async function fetchCollections() {
     const token = getAuthToken();
     if (!token) return;
 
-    collectionsTableBody.innerHTML = ''; // Clear existing
+    collectionsTableBody.innerHTML = ''; 
     loadingIndicator.classList.remove('hidden');
     collectionsError.classList.add('hidden');
 
@@ -455,20 +437,15 @@ async function fetchCollections() {
         });
 
         if (!response.ok) {
-            // Robust error handling to catch non-JSON responses (like HTML 404/500 pages)
             const errorText = await response.text();
             let errorMessage = `HTTP error! Status: ${response.status}.`;
-
             try {
                 const errorData = JSON.parse(errorText);
                 errorMessage = errorData.message || errorMessage;
             } catch (e) {
-                // Non-JSON response (e.g., HTML page from Netlify 404 or backend server)
-                console.error('Raw non-JSON error response (likely 404 or 500 HTML page):', errorText);
-                // Use a more helpful message for the user
+                console.error('Raw non-JSON error response:', errorText);
                 errorMessage = `${errorMessage} The server returned an invalid response. (See console for raw data).`;
             }
-
             throw new Error(errorMessage);
         }
 
@@ -500,20 +477,16 @@ function renderCollectionsTable(collections) {
         const statusClass = isActiveAndStocked ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
         const statusText = isActiveAndStocked ? 'Active' : 'Out of Stock / Inactive';
 
-        // CRITICAL UPDATE: Extract the FIRST variation's imageUrl (which is now a Signed URL)
-        const firstImageUrl = collection.variations[0]?.imageUrl || 'https://via.placeholder.com/64?text=N/A';
-        const imagePreview = `<img src="${firstImageUrl}" alt="Preview" class="w-10 h-10 object-cover rounded-full inline mr-2 shadow-sm">`;
+        // CRITICAL UPDATE: Uses first variation's FRONT imageUrl
+        const imageUrl = collection.variations[0]?.frontImageUrl || 'https://via.placeholder.com/64?text=N/A';
+        const imagePreview = `<img src="${imageUrl}" alt="Preview" class="w-10 h-10 object-cover rounded-full inline mr-2 shadow-sm">`;
         
-        // --- UPDATED PRICE FORMAT TO NAIRA (₦) ---
         const formattedPrice = `₦${(collection.price || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 
-        // --- NEW LOGIC FOR RESTOCK/ACTIVATE BUTTON ---
-        // Show restock button only if stock is zero or inactive
         const needsRestock = !isActiveAndStocked;
         const restockButton = needsRestock
             ? `<button onclick="quickRestockAndActivate('${collection._id}', '${collection.name.replace(/'/g, "\\'")}', ${collection.price})" class="text-emerald-600 hover:text-emerald-900 transition duration-150 mr-3 text-xs font-semibold">Restock/Activate</button>`
             : '';
-        // ---------------------------------------------
 
         const row = `
             <tr>
@@ -543,9 +516,6 @@ function renderCollectionsTable(collections) {
     });
 }
 
-/**
- * Determines the appropriate Tailwind class for a given tag.
- */
 function getTagClass(tag) {
     switch (tag) {
         case 'Top Deal': return 'bg-emerald-100 text-emerald-800';
@@ -557,9 +527,6 @@ function getTagClass(tag) {
     }
 }
 
-/**
- * Fetches data for a specific collection and populates the form for editing.
- */
 async function editCollection(collectionId) {
     const token = getAuthToken();
     if (!token) return;
@@ -577,23 +544,23 @@ async function editCollection(collectionId) {
 
         const collection = await response.json();
 
-        // 1. Set form mode (remains the same)
+        // 1. Set form mode
         collectionIdToUpdate = collectionId;
-        formTitle.textContent = `✏️ Edit Collection: ${collection.name}`;
+        formTitle.textContent = `✏️ Edit Cap Collection: ${collection.name}`;
         submitBtn.textContent = 'Update Collection';
         submitBtn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
         submitBtn.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
         resetFormBtn.classList.remove('hidden');
 
-        // 2. Populate basic details (remains the same)
+        // 2. Populate basic details
         document.getElementById('collection-name').value = collection.name;
         document.getElementById('collection-description').value = collection.tag;
         document.getElementById('collection-price').value = collection.price; 
-        document.getElementById('available-sizes').value = collection.sizes.join(', ');
+        // document.getElementById('available-sizes').value = collection.sizes.join(', '); // REMOVED
         document.getElementById('available-stock').value = collection.totalStock;
         document.getElementById('is-active').checked = collection.isActive;
 
-        // 3. Populate variations (MODIFIED FOR DUAL IMAGES)
+        // 3. Populate variations (REINSTATED DUAL IMAGE LOGIC)
         productSectionsContainer.innerHTML = '';
         sectionCount = 0;
 
@@ -617,11 +584,11 @@ async function editCollection(collectionId) {
             }
         });
 
-        // 4. Update the add button state (remains the same)
+        // 4. Update the add button state
         updateAddSectionButtonState();
 
-        // 5. Scroll to the form (remains the same)
-        document.getElementById('content-wearscollection').scrollIntoView({ behavior: 'smooth' });
+        // 5. Scroll to the form
+        document.getElementById('content-capscollection').scrollIntoView({ behavior: 'smooth' });
 
     } catch (error) {
         console.error('Error fetching collection for edit:', error);
@@ -629,19 +596,14 @@ async function editCollection(collectionId) {
     }
 }
 
-/**
- * Sends a DELETE request to remove a collection.
- */
 async function deleteCollection(collectionId) {
     const token = getAuthToken();
     if (!token) return;
 
-    // --- MODAL UPDATE: Use showConfirmationModal ---
-    const isConfirmed = await showConfirmationModal(`Are you sure you want to permanently delete collection <mark>${collectionId.slice(-6)}</mark>? This action cannot be undone.`);
+    const isConfirmed = await showConfirmationModal(`Are you sure you want to permanently delete cap collection <mark>${collectionId.slice(-6)}</mark>? This action cannot be undone.`);
     if (!isConfirmed) {
         return;
     }
-    // ---------------------------------------------
 
     try {
         const response = await fetch(`${API_BASE_URL}/${collectionId}`, {
@@ -654,9 +616,8 @@ async function deleteCollection(collectionId) {
             throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
         }
 
-        // Collection deleted successfully
         showSuccessModal(`Collection <mark>${collectionId.slice(-6)}</mark> deleted successfully.`); 
-        fetchCollections(); // Refresh the table
+        fetchCollections(); 
 
     } catch (error) {
         console.error('Deletion failed:', error);
@@ -664,21 +625,14 @@ async function deleteCollection(collectionId) {
     }
 }
 
-
-/**
- * Prompts admin for new stock and updates totalStock and isActive status.
- * @param {string} collectionId - The ID of the collection.
- * @param {string} collectionName - The name of the collection.
- * @param {number} currentPrice - The current price of the collection.
- */
 async function quickRestockAndActivate(collectionId, collectionName, currentPrice) {
     const token = getAuthToken();
     if (!token) return;
     
-    // --- Setup Restock Modal --- (Remains the same)
+    // --- Setup Restock Modal ---
     const formattedPrice = `₦${(currentPrice || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
     restockModalName.innerHTML = `**${collectionName}** (Price: <mark>${formattedPrice}</mark>)`;
-    restockInput.value = 100; // Default to 100, assuming a decent restock volume
+    restockInput.value = 100; 
     restockModal.classList.remove('hidden');
     restockModal.classList.add('flex');
 
@@ -719,10 +673,8 @@ async function quickRestockAndActivate(collectionId, collectionName, currentPric
         }
         return;
     }
-    // ---------------------------------------------
 
     try {
-        // Prepare the payload.
         const updatePayload = {
             totalStock: newStock,
             isActive: true, // Explicitly set to true on restock
@@ -743,12 +695,12 @@ async function quickRestockAndActivate(collectionId, collectionName, currentPric
                 const errorData = JSON.parse(errorText);
                 throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
             } catch (e) {
-                 throw new Error(errorText || `HTTP error! Status: ${response.status}`);
+                throw new Error(errorText || `HTTP error! Status: ${response.status}`);
             }
         }
 
-        showSuccessModal(`Collection <mark>**${collectionName}**</mark> successfully restocked to <mark>**${newStock}**</mark> and activated!`);
-        fetchCollections(); // Refresh the table
+        showSuccessModal(`Cap Collection <mark>**${collectionName}**</mark> successfully restocked to <mark>**${newStock}**</mark> and activated!`);
+        fetchCollections(); 
 
     } catch (error) {
         console.error('Restock failed:', error);
@@ -757,8 +709,9 @@ async function quickRestockAndActivate(collectionId, collectionName, currentPric
 }
 
 // --- FORM SECTION MANAGEMENT ---
+
 /**
- * Function to create a product section HTML structure.
+ * Function to create a product section HTML structure (REINSTATED DUAL IMAGE).
  * @param {number} index - The zero-based index for the section (0 to 3).
  * @param {string} [frontImageUrl=null] - Optional existing front image URL (SIGNED URL).
  * @param {string} [backImageUrl=null] - Optional existing back image URL (SIGNED URL).
@@ -824,9 +777,7 @@ function createProductSection(index, frontImageUrl = null, backImageUrl = null) 
     `;
 }
 
-/**
- * Function to add a product section
- */
+
 function addProductSection() {
     if (sectionCount < MAX_VARIATIONS) {
         const newSection = document.createElement('div');
@@ -839,20 +790,13 @@ function addProductSection() {
     }
 }
 
-/**
- * Function to remove a product section
- */
+
 function removeProductSection(id) {
     const sectionToRemove = document.getElementById(id);
     if (sectionToRemove) {
         sectionToRemove.remove();
-
-        // Decrement the section count
         sectionCount--;
-
-        // Re-index all remaining sections to maintain sequential `variationIndex`
         reindexProductSections();
-
         updateAddSectionButtonState();
     }
 }
@@ -889,9 +833,7 @@ function reindexProductSections() {
     sectionCount = productSectionsContainer.children.length;
 }
 
-/**
- * Updates the state of the "Add Product Variation" button.
- */
+
 function updateAddSectionButtonState() {
     if (sectionCount >= MAX_VARIATIONS) {
         addSectionBtn.disabled = true;
@@ -904,34 +846,28 @@ function updateAddSectionButtonState() {
     }
 }
 
-/** * Function to update the color circle preview
- * @param {string} colorValue - The hex color value.
- * @param {string} previewId - The ID of the color preview element.
- */
 function updateColorPreview(colorValue, previewId) {
     const previewElement = document.getElementById(previewId);
     if (previewElement) {
         previewElement.style.backgroundColor = colorValue;
     }
 }
+
 /**
- * Handles the form submission (CREATE or UPDATE).
+ * Handles the form submission (CREATE or UPDATE) - REINSTATED DUAL IMAGE.
  */
 async function handleCollectionSubmit(event) {
     event.preventDefault();
 
-    // Determine if this is a POST (Create) or PUT (Update) operation
     const isUpdate = collectionIdToUpdate !== null;
     const method = isUpdate ? 'PUT' : 'POST';
     const url = isUpdate ? `${API_BASE_URL}/${collectionIdToUpdate}` : API_BASE_URL;
 
-    // Form validation: ensure at least one section exists
     if (productSectionsContainer.children.length === 0) {
         showErrorModal("Please add at least one product variation."); 
         return;
     }
 
-    // Disable button and show loading state
     submitBtn.disabled = true;
     submitBtn.textContent = isUpdate ? 'Updating...' : 'Submitting...';
     submitBtn.classList.remove('hover:bg-emerald-700', 'hover:bg-yellow-700', 'bg-emerald-600', 'bg-yellow-600');
@@ -943,7 +879,7 @@ async function handleCollectionSubmit(event) {
         return;
     }
 
-    // --- 1. Collect Variations and Files (MODIFIED FOR DUAL IMAGES) ---
+    // --- 1. Collect Variations and Files (REINSTATED DUAL IMAGE LOGIC) ---
     const formData = new FormData();
     let productVariationsMetadata = [];
     let isValid = true;
@@ -1009,32 +945,30 @@ async function handleCollectionSubmit(event) {
         return;
     }
 
-    // --- 2. Collect General Form Data (MODIFIED LOGIC) ---
+    // --- 2. Collect General Form Data ---
     const isActive = document.getElementById('is-active').checked;
     let totalStock = parseInt(document.getElementById('available-stock').value);
 
-    // --- CRITICAL LOGIC: If collection is unchecked, label it Out of Stock ---
+    // CRITICAL LOGIC: If collection is unchecked, label it Out of Stock
     if (!isActive) {
         totalStock = 0;
-        // Optionally set input value to 0 to reflect the change visually
         document.getElementById('available-stock').value = 0;
     }
-    // ----------------------------------------------------
 
     const collectionData = {
         name: document.getElementById('collection-name').value,
         tag: document.getElementById('collection-description').value,
         price: parseFloat(document.getElementById('collection-price').value), 
-        sizes: document.getElementById('available-sizes').value.split(',').map(s => s.trim().toUpperCase()).filter(s => s),
-        totalStock: totalStock, // Use the updated stock value
+        sizes: ["ONE SIZE"], // Hardcoded for caps based on request to remove size input
+        totalStock: totalStock, 
         isActive: isActive,
         variations: productVariationsMetadata
     };
 
-    // --- 3. Append JSON Data to FormData (remains the same) ---
+    // --- 3. Append JSON Data to FormData ---
     formData.append('collectionData', JSON.stringify(collectionData));
 
-    // --- 4. Send the Data to the Backend (remains the same) ---
+    // --- 4. Send the Data to the Backend ---
     try {
         const response = await fetch(url, {
             method: method,
@@ -1045,7 +979,6 @@ async function handleCollectionSubmit(event) {
         });
 
         if (!response.ok) {
-            // ... (error handling remains the same) ...
             const errorText = await response.text();
             try {
                 const errorData = JSON.parse(errorText);
@@ -1058,8 +991,8 @@ async function handleCollectionSubmit(event) {
         const result = await response.json();
 
         const successMessage = isUpdate 
-            ? `Collection <mark>${collectionData.name}</mark> updated successfully!` 
-            : `Collection <mark>${collectionData.name}</mark> created successfully! ID: <mark>${result.collectionId ? result.collectionId.slice(-6) : 'N/A'}</mark>`;
+            ? `Cap Collection <mark>${collectionData.name}</mark> updated successfully!` 
+            : `Cap Collection <mark>${collectionData.name}</mark> created successfully! ID: <mark>${result.collectionId ? result.collectionId.slice(-6) : 'N/A'}</mark>`;
         
         showSuccessModal(successMessage); 
 
@@ -1069,17 +1002,13 @@ async function handleCollectionSubmit(event) {
 
     } catch (error) {
         console.error('Submission failed:', error);
-        showErrorModal(`Error submitting collection: <mark>${error.message}</mark>`); 
+        showErrorModal(`Error submitting cap collection: <mark>${error.message}</mark>`); 
     } finally {
         // Re-enable button
         resetFormSubmitButtonState(isUpdate);
     }
 }
 
-/**
- * Helper to reset the submit button state.
- * @param {boolean} isUpdate - True if the form was in update mode.
- */
 function resetFormSubmitButtonState(isUpdate) {
     submitBtn.disabled = false;
     submitBtn.textContent = isUpdate ? 'Update Collection' : 'Submit Collection';
@@ -1099,7 +1028,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Attach the form submit handler
-    document.getElementById('wears-collection-form').addEventListener('submit', handleCollectionSubmit);
+    document.getElementById('caps-collection-form').addEventListener('submit', handleCollectionSubmit);
 
     // Toggle sidebar visibility on mobile
     sidebarToggle.addEventListener('click', () => {

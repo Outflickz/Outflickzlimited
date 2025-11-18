@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outflickz - Cap Collection</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="https://i.imgur.com/ioWFyQB.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Load Inter (main font) */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F8F8F8;
+        }
+
+        /* Customizing Tailwind colors to match the theme */
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'ash-dark': '#111111',
+                        'ash-red': '#a80000',
+                        'color-white': '#FFFFFF',
+                        'color-black': '#000000',
+                    }
+                }
+            }
+        }
+
+        /* --- CARD STYLES (Reduced size for high-density collection view) --- */
+        .card-image-box {
+            /* Aspect ratio adjusted slightly for caps */
+            aspect-ratio: 1/1.1; 
+            overflow: hidden;
+        }
+        .card-image-box img {
+            object-fit: cover !important;
+            transition: transform 0.3s ease-in-out;
+        }
+        .card-image-box:hover img {
+            transform: scale(1.05);
+        }
+
+        /* Custom style for active size/color selection */
+        .size-label input:checked + span {
+            border-color: #a80000; 
+            color: #a80000;
+            font-weight: 600;
+        }
+        .color-label input:checked + span {
+            border-width: 2px;
+            border-color: #a80000; 
+        }
+
+        /* Image transitions for front/back view toggle */
+        .product-image {
+            transition: opacity 0.3s ease-in-out;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Loader specific styles */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #a80000;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+    <script>
+        const API_BASE_URL = ''; 
+        const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
+        
+        // Pagination/Loading State
+        let currentPage = 1;
+        const pageSize = 12; // Number of items to load per batch
+        let isLoading = false;
+        let hasMore = true;
+
+        // Intersection Observer setup
+        let observer;
+
+        // --- UTILITY FUNCTIONS (Copied from homepage.html) ---
+
+        function toggleMenu() {
+            document.getElementById('mobile-menu').classList.toggle('hidden');
+        }
+
+        function toggleImage(collectionId) {
+            const frontImage = document.getElementById(`front-image-${collectionId}`);
+            const backImage = document.getElementById(`back-image-${collectionId}`);
+            const toggleButton = document.getElementById(`image-toggle-btn-${collectionId}`);
+
+            if (frontImage.style.opacity === '1' || frontImage.classList.contains('active')) {
+                // Switch to Back
+                frontImage.style.opacity = '0';
+                frontImage.classList.remove('active');
+                backImage.style.opacity = '1';
+                backImage.classList.add('active');
+                toggleButton.innerHTML = `<i class="fas fa-undo"></i> Front View`;
+                toggleButton.title = "Show Front View";
+            } else {
+                // Switch to Front
+                backImage.style.opacity = '0';
+                backImage.classList.remove('active');
+                frontImage.style.opacity = '1';
+                frontImage.classList.add('active');
+                toggleButton.innerHTML = `<i class="fas fa-sync-alt"></i> Back View`;
+                toggleButton.title = "Show Back View";
+            }
+        }
+
+        function changeVariantImage(collectionId, colorHex) {
+            const card = document.querySelector(`.collection-card[data-collection-id="${collectionId}"]`);
+            if (!card) return;
+
+            const colorMapContainer = card.querySelector(`#color-map-${collectionId}`);
+            if (!colorMapContainer) return;
+            
+            const colorMap = JSON.parse(colorMapContainer.getAttribute('data-color-map'));
+            const newImageUrls = colorMap[colorHex];
+
+            if (newImageUrls) {
+                const frontImageElement = card.querySelector(`#front-image-${collectionId}`);
+                const backImageElement = card.querySelector(`#back-image-${collectionId}`);
+
+                if (frontImageElement) frontImageElement.src = newImageUrls.frontImageUrl;
+                if (backImageElement) backImageElement.src = newImageUrls.backImageUrl;
+            }
+        }
+
+        function createSizeList(collectionId, sizes) {
+            if (!sizes || sizes.length === 0) {
+                sizes = ['ONE SIZE']; // Default for caps
+            }
+            // Reduced size classes for collection page density
+            const sizeClasses = 'text-[0.6rem] px-1.5 py-0.5'; 
+            
+            return sizes.map(size => `
+                <label for="size-${collectionId}-${size}" class="size-label border border-gray-300 cursor-pointer hover:border-ash-dark transition-all rounded-sm">
+                    <input type="radio" id="size-${collectionId}-${size}" name="size-${collectionId}" value="${size}" class="hidden" ${size === sizes[0] ? 'checked' : ''}>
+                    <span class="${sizeClasses}">${size}</span>
+                </label>
+            `).join('');
+        }
+
+        function createColorList(collectionId, variants) {
+            if (!variants || variants.length === 0) return '';
+            
+            const colorMap = variants.reduce((acc, v) => {
+                acc[v.color] = { frontImageUrl: v.frontImageUrl, backImageUrl: v.backImageUrl };
+                return acc;
+            }, {});
+
+            const mapHtml = `<div id="color-map-${collectionId}" data-color-map='${JSON.stringify(colorMap)}' class="hidden"></div>`;
+
+            const buttonsHtml = variants.map((variant, index) => {
+                const colorHex = variant.color; 
+                const style = `background-color: ${colorHex};`;
+                const extraClass = (colorHex.toUpperCase() === '#FFFFFF' || colorHex.toUpperCase() === '#FFF') ? 'border-gray-400' : 'border-gray-200';
+                
+                return `
+                    <label for="color-${collectionId}-${colorHex}" class="color-label cursor-pointer p-[1px] rounded-full border border-transparent hover:border-ash-red transition-all">
+                        <input 
+                            type="radio" 
+                            id="color-${collectionId}-${colorHex}" 
+                            name="color-${collectionId}" 
+                            value="${colorHex}" 
+                            class="hidden" 
+                            onchange="changeVariantImage('${collectionId}', this.value)" 
+                            ${index === 0 ? 'checked' : ''}
+                        >
+                        <span class="block w-4 h-4 rounded-full border ${extraClass}" style="${style}"></span>
+                    </label>
+                `;
+            }).join('');
+
+            return mapHtml + buttonsHtml;
+        }
+
+        function createCollectionCard(collection) {
+            const currencySymbol = '₦'; 
+            const defaultFrontImage = 'https://placehold.co/400x440/e0e0e0/555?text=CAP+FRONT'; 
+            const defaultBackImage = 'https://placehold.co/400x440/e0e0e0/555?text=CAP+BACK'; 
+            
+            // Reduced size classes
+            const cardPadding = 'p-2'; 
+            const nameFontSize = 'text-xs md:text-sm';
+            const descriptionFontSize = 'text-[0.6rem]';
+            const priceFontSize = 'text-base font-bold';
+            const controlHeight = 'h-6';
+            const controlTextSize = 'text-xs';
+            const quantityButtonSize = 'w-6 h-6';
+            const quantityInputWidth = 'w-6';
+            const quantityInputTextSize = 'text-[0.6rem]';
+
+            const primaryVariant = collection.variants && collection.variants.length > 0 ? collection.variants[0] : null;
+            
+            const frontImageUrl = primaryVariant?.frontImageUrl || defaultFrontImage;
+            const backImageUrl = primaryVariant?.backImageUrl || defaultBackImage;
+            
+            const itemPrice = collection.price; 
+            const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
+
+            const sizeListHtml = createSizeList(collection._id, collection.availableSizes); 
+            const colorListHtml = createColorList(collection._id, collection.variants); 
+            const maxStock = collection.availableStock > 0 ? collection.availableStock : 0; 
+            const isOutOfStock = maxStock === 0 || collection.availableStock === 0;
+            const description = collection.tag || 'Exclusive Cap Design.';
+
+
+            const stockBadge = isOutOfStock
+                ? '<span class="absolute top-2 left-2 bg-ash-red text-white text-[0.65rem] font-bold px-2 py-0.5 rounded shadow-lg z-40">OUT OF STOCK</span>'
+                : '';
+                
+            const cartButtonHtml = isOutOfStock
+                ? `
+                    <button disabled class="flex-1 ${controlTextSize} bg-gray-500 text-white ${controlHeight} rounded-sm font-semibold uppercase tracking-widest flex items-center justify-center cursor-not-allowed opacity-75">
+                        Sold Out
+                    </button>
+                `
+                : `
+                    <button class="flex-1 ${controlTextSize} bg-ash-dark text-white ${controlHeight} rounded-sm hover:bg-ash-red transition font-semibold uppercase tracking-widest flex items-center justify-center">
+                        Add To Cart
+                    </button>
+                `;
+
+            const quantityControlHtml = isOutOfStock
+                ? `<div class="w-16 ${controlHeight} border border-gray-300 rounded-sm flex items-center justify-center text-xs text-gray-500">N/A</div>`
+                : `
+                    <div class="flex items-center border border-gray-300 rounded-sm">
+                        <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-l-sm font-semibold">
+                            &minus;
+                        </button>
+                        <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock}" aria-label="Quantity" class="${quantityInputWidth} ${controlHeight} text-center ${quantityInputTextSize} border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
+                        <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-r-sm font-semibold">
+                            &plus;
+                        </button>
+                    </div>
+                `;
+
+            return `
+                <div class="collection-card border border-gray-200 rounded-lg overflow-hidden bg-white hover:shadow-lg transition duration-300" data-collection-id="${collection._id}">
+                    <div class="relative card-image-box">
+                        ${stockBadge}
+                        
+                        <div class="relative w-full h-full">
+                            <!-- Front Image (Initially active) -->
+                            <img
+                                class="product-image active"
+                                id="front-image-${collection._id}"
+                                src="${frontImageUrl}"
+                                alt="${collection.name} (Front View)"
+                                onerror="this.onerror=null;this.src='${defaultFrontImage}';"
+                                style="opacity: 1;"
+                            >
+                            <!-- Back Image (Initially hidden) -->
+                            <img
+                                class="product-image"
+                                id="back-image-${collection._id}"
+                                src="${backImageUrl}"
+                                alt="${collection.name} (Back View)"
+                                onerror="this.onerror=null;this.src='${defaultBackImage}';"
+                                style="opacity: 0;"
+                            >
+                        </div>
+
+                        <div class="absolute inset-0 bg-black bg-opacity-10 opacity-0 hover:opacity-100 transition duration-300 flex items-end justify-center p-3">
+                            <button 
+                                id="image-toggle-btn-${collection._id}"
+                                onclick="toggleImage('${collection._id}')" 
+                                class="bg-color-white text-ash-dark text-xs font-semibold py-1 px-3 rounded-full shadow-md hover:bg-gray-200 transition"
+                                title="Show Back View"
+                            >
+                                <i class="fas fa-sync-alt"></i> Back View
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="${cardPadding}">
+                        <p class="text-[0.6rem] text-gray-500 uppercase font-semibold">Outflickz Cap</p>
+                        <h3 class="${nameFontSize} font-semibold text-color-black truncate">${collection.name}</h3>
+                        
+                        <p class="${descriptionFontSize} text-red-700 mt-0.5 mb-1 truncate">${description}</p>
+                        
+                        <p class="${priceFontSize} text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
+                        
+                        <div class="flex items-center gap-2 mt-2">
+                            <span class="text-xs font-medium text-gray-700">Color:</span>
+                            <div class="flex gap-1 text-gray-700">
+                                ${colorListHtml}
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-1 mt-2 mb-3">
+                            <span class="text-xs font-medium text-gray-700">Size:</span>
+                            <div class="flex flex-wrap gap-1 text-gray-700">
+                                ${sizeListHtml}
+                            </div>
+                        </div>
+
+                        <div class="flex items-center space-x-2">
+                            ${quantityControlHtml}
+
+                            ${cartButtonHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function changeQuantity(collectionId, delta) {
+            const input = document.getElementById(`quantity-input-${collectionId}`);
+            let currentValue = parseInt(input.value) || 1;
+            let newValue = currentValue + delta;
+
+            if (newValue < 1) {
+                newValue = 1;
+            }
+
+            const maxStock = parseInt(input.max) || Infinity;
+            if (newValue > maxStock) {
+                newValue = maxStock;
+            }
+
+            input.value = newValue;
+        }
+
+        // --- FETCH AND RENDER LOGIC ---
+
+        function updateLoader(show, message = 'Loading more items...') {
+            const loaderElement = document.getElementById('loader-indicator');
+            const observerTarget = document.getElementById('observer-target');
+            if (show) {
+                loaderElement.classList.remove('hidden');
+                loaderElement.innerHTML = `<div class="loader"></div><span class="ml-3 text-sm font-medium text-gray-600">${message}</span>`;
+                // Show the observer target when loading, hide it when finished
+                observerTarget.classList.remove('hidden'); 
+            } else {
+                loaderElement.classList.add('hidden');
+                observerTarget.classList.add('hidden');
+            }
+        }
+
+        async function fetchAndRenderCaps() {
+            if (isLoading || !hasMore) {
+                if (!hasMore) {
+                    updateLoader(true, 'You\'ve reached the end of the collection.');
+                    setTimeout(() => updateLoader(false), 2000); 
+                }
+                return;
+            }
+
+            isLoading = true;
+            updateLoader(true);
+
+            try {
+                // Endpoint: /api/collections/caps?page=1&limit=12
+                const apiUrl = `${API_BASE_URL}/api/collections/caps?page=${currentPage}&limit=${pageSize}`; 
+
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to load caps from server. Status: ${response.status}`);
+                }
+
+                const newCaps = await response.json();
+                const container = document.getElementById('caps-grid');
+                
+                if (newCaps && newCaps.length > 0) {
+                    newCaps.forEach(cap => {
+                        if (cap.price !== undefined && cap.price !== null) {
+                            container.innerHTML += createCollectionCard(cap);
+                        }
+                    });
+                    currentPage++; // Increment page for the next request
+                } else {
+                    hasMore = false; // No more items to load
+                }
+
+                if (currentPage === 2 && newCaps.length === 0) {
+                    // This is the initial load (page 1) and nothing was returned
+                    container.innerHTML = `<p class="col-span-full text-center text-gray-700 py-10 w-full">No caps are currently available in the collection.</p>`;
+                }
+
+            } catch (error) {
+                console.error('Error fetching caps collections:', error);
+                // Only show error on initial load or if user is still scrolling
+                if (currentPage === 1) { 
+                    document.getElementById('caps-grid').innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full">Error loading cap collections. Please ensure the API server is running and accessible.</p>';
+                } else {
+                    updateLoader(true, 'Error loading more items.');
+                }
+            } finally {
+                isLoading = false;
+                updateLoader(false);
+
+                if (!hasMore) {
+                    updateLoader(true, 'You\'ve reached the end of the collection.');
+                    // Hide the target so the observer doesn't keep firing
+                    document.getElementById('observer-target').classList.add('hidden'); 
+                }
+            }
+        }
+
+        // --- INTERSECTION OBSERVER SETUP ---
+
+        function setupIntersectionObserver() {
+            const observerTarget = document.getElementById('observer-target');
+
+            observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    // Check if the target element is visible and we still have more data
+                    if (entry.isIntersecting && hasMore) {
+                        fetchAndRenderCaps();
+                    }
+                });
+            }, {
+                root: null, // relative to the viewport
+                rootMargin: '0px',
+                threshold: 0.1 // Trigger when 10% of the target is visible
+            });
+
+            if (observerTarget) {
+                observer.observe(observerTarget);
+            }
+        }
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchAndRenderCaps(); // Initial load
+            setupIntersectionObserver();
+        });
+    </script>
+</head>
+<body class="text-color-black min-h-screen">
+
+    <!-- Header Section (Same as homepage) -->
+    <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
+            <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
+                <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-10 sm:h-12 lg:h-10">
+            </a>
+
+            <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
+                <a href="#" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
+                <a href="newarrivals.html" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
+                <a href="wearscollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Wears Collections</a>
+                <a href="capcollection.html" class="font-medium text-ash-red hover:text-red-700 transition flex items-center font-bold">Cap Collections</a>
+            </nav>
+
+            <div class="flex items-center space-x-2 sm:space-x-4">
+                <button class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" aria-label="User Account">
+                    <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
+                </button>
+                <button class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" aria-label="Shopping Bag">
+                    <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
+                </button>
+                <button class="md:hidden p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
+                    <i class="fas fa-bars w-5 h-5 sm:w-6 sm:h-6"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div id="mobile-menu" class="hidden md:hidden bg-color-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
+        <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
+            <a href="#" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
+            <a href="newarrivals.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">New Arrivals</a>
+            <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Wears Collection</a>
+            <a href="capcollection.html" class="block px-3 py-2 font-medium text-ash-red hover:bg-red-50 rounded-md font-bold">Cap Collection</a>
+            <a href="#" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Account</a>
+        </div>
+    </div>
+
+    <!-- Main Content Section -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-ash-dark mb-2 border-b-2 border-ash-red inline-block pb-1">
+            The Cap Collection
+        </h1>
+        <p class="text-sm text-gray-600 mb-8">
+            Explore our full range of headwear, from signature snapbacks to limited-edition trucker caps.
+        </p>
+
+        <!-- Caps Grid -->
+        <div id="caps-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
+            <!-- Cap products will be inserted here by JavaScript -->
+        </div>
+
+        <!-- Intersection Observer Target and Loader Indicator -->
+        <!-- This target div is watched by the Intersection Observer. When it comes into view, the next batch of caps is loaded. -->
+        <div id="observer-target" class="w-full h-1 bg-transparent mt-10 hidden"></div>
+
+        <div id="loader-indicator" class="w-full flex justify-center items-center py-10 hidden" role="status" aria-live="polite">
+            <!-- Content updated by updateLoader function -->
+        </div>
+        
+    </main>
+
+</body>
+</html>

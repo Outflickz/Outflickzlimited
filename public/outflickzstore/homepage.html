@@ -101,7 +101,7 @@
         /* --- NEW MOBILE SLIDER STYLE FOR COLLECTIONS AND ADS --- */
         /* Only apply flex/scroll to the grid container on screens smaller than md (768px) */
         @media (max-width: 767px) {
-            #wears-collections-grid, #new-arrivals-grid, #advertisements-grid {
+            #wears-collections-grid, #new-arrivals-grid, #caps-collections-grid, #advertisements-grid {
                 display: flex;
                 overflow-x: scroll;
                 scroll-snap-type: x mandatory;
@@ -115,8 +115,8 @@
                 scroll-snap-align: start;
                 margin-right: 1rem;
             }
-            /* New Arrivals (Reduced size) - SMALLER */
-            #new-arrivals-grid .collection-card {
+            /* New Arrivals & Caps (Reduced size) - SMALLER */
+            #new-arrivals-grid .collection-card, #caps-collections-grid .collection-card {
                 flex-shrink: 0; 
                 width: 45vw; /* Reduced size for visual difference */
                 max-width: 250px;
@@ -134,6 +134,7 @@
             /* Ensure the last card snaps correctly */
             #wears-collections-grid > div:last-child, 
             #new-arrivals-grid > div:last-child,
+            #caps-collections-grid > div:last-child,
             #advertisements-grid > div:last-child {
                 margin-right: 0;
             }
@@ -600,7 +601,8 @@
             console.error('Error fetching wears collections:', error);
             container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full">Error loading wears collections. Please ensure the API server is running and accessible.</p>';
         }
-    }
+    } 
+
 // --- NEW ARRIVALS COLLECTION JS ---
     async function fetchAndRenderNewArrivals() {
         const container = document.getElementById('new-arrivals-grid');
@@ -661,11 +663,74 @@
     }
 
 
+// --- NEW CAP COLLECTION JS ---
+    async function fetchAndRenderCapsCollection() {
+        // Using the same grid container ID pattern
+        const container = document.getElementById('caps-collections-grid');
+        if (!container) return;
+
+        const spinnerColor = 'text-gray-900';
+        const textColor = 'text-gray-700';
+
+        // Initial loading state for Caps Collection
+        container.innerHTML = `
+            <div class="col-span-full text-center ${textColor} py-10 w-full">
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 ${spinnerColor} inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Loading Caps Collections...
+            </div>`;
+
+        try {
+            // NEW ENDPOINT: /api/collections/caps
+            const capsApiUrl = `${API_BASE_URL}/api/collections/caps`; 
+
+            const response = await fetch(capsApiUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to load caps collections from server. Status: ${response.status}`);
+            }
+
+            const collections = await response.json();
+
+            container.innerHTML = '';
+
+            if (collections && collections.length > 0) {
+                // Limit to the first 4 collections for the homepage view
+                const limitedCollections = collections.slice(0, 4);
+                
+                limitedCollections.forEach(collection => {
+                    if (collection.price !== undefined && collection.price !== null) {
+                        // IMPORTANT: Pass 'reduced' size for smaller cards as requested
+                        container.innerHTML += createCollectionCard(collection, 'reduced');
+                    }
+                });
+
+                if (container.innerHTML === '') {
+                        container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Caps Collections are currently available.</p>`;
+                }
+            } else {
+                container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Caps Collections are currently available.</p>`;
+            }
+        } catch (error) {
+            console.error('Error fetching caps collections:', error);
+            container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full">Error loading caps collections. Please ensure the API server is running and accessible.</p>';
+        }
+    }
+
+
     document.addEventListener('DOMContentLoaded', () => {
         fetchAndRenderWearsCollections(); 
         fetchAndRenderNewArrivals(); 
+        fetchAndRenderCapsCollection(); // <-- CAPS COLLECTION INITIALIZED
     });
-    // --- END WEARS COLLECTION JS ---
+    // --- END COLLECTION JS ---
 </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
@@ -681,7 +746,7 @@
             <a href="#" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
             <a href="#" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
             <a href="wearscollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Wears Collections</a>
-            <a href="#" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Cap Collections</a>
+            <a href="capcollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Cap Collections</a>
         </nav>
 
         <div class="flex items-center space-x-2 sm:space-x-4">
@@ -703,7 +768,7 @@
             <a href="#" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
             <a href="#" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">New Arrivals</a>
             <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Wears Collection</a>
-            <a href="#" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cap Collection</a>
+            <a href="capcollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cap Collection</a>
             <a href="#" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Account</a>
         </div>
     </div>
@@ -782,54 +847,64 @@
         </div>
     </section>
 
- <section id="advertisements-section" class="py-8 sm:py-10 bg-white text-gray-900">
+    <section id="advertisements-section" class="py-8 sm:py-10 bg-white text-gray-900">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <!-- Header/Title -->
             <h2 class="text-xs sm:text-sm font-extrabold text-gray-900 uppercase mb-4 text-center tracking-widest">
                 Exclusive Look
             </h2>
             
-            <!-- Ad Slider Container -->
-            <!-- flex, horizontal scroll, snap points, and spacing -->
             <div id="advertisements-grid" class="flex overflow-x-scroll snap-x snap-mandatory space-x-3 sm:space-x-4 pb-4">
                 
-                <!-- Ad Image 1 -->
-                <!-- UPDATED: Base size changed to w-36 (from w-52) for smaller mobile size -->
                 <div class="ad-image-box rounded-xl overflow-hidden shadow-lg flex-shrink-0 snap-center w-36 sm:w-56 md:w-72 cursor-pointer transform hover:shadow-xl">
                     <img src="https://i.imgur.com/3Z36L6D.jpeg" alt="Model wearing Outflickz shirt" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-110">
                 </div>
                 
-                <!-- Ad Image 2 -->
                 <div class="ad-image-box rounded-xl overflow-hidden shadow-lg flex-shrink-0 snap-center w-36 sm:w-56 md:w-72 cursor-pointer transform hover:shadow-xl">
                     <img src="https://i.imgur.com/yohJHbh.jpeg" alt="Model wearing Outflickz shirt" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-110">
                 </div>
                 
-                <!-- Ad Image 3 -->
                 <div class="ad-image-box rounded-xl overflow-hidden shadow-lg flex-shrink-0 snap-center w-36 sm:w-56 md:w-72 cursor-pointer transform hover:shadow-xl">
                     <img src="https://i.imgur.com/ZTkiU0L.jpeg" alt="Model in dark Outflickz hoodie" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-110">
                 </div>
                 
-                <!-- Ad Image 4 -->
                 <div class="ad-image-box rounded-xl overflow-hidden shadow-lg flex-shrink-0 snap-center w-36 sm:w-56 md:w-72 cursor-pointer transform hover:shadow-xl">
                     <img src="https://i.imgur.com/5MHHtZB.jpeg" alt="Close-up of Outflickz product detail" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-110">
                 </div>
                 
-                <!-- Ad Image 5 -->
                 <div class="ad-image-box rounded-xl overflow-hidden shadow-lg flex-shrink-0 snap-center w-36 sm:w-56 md:w-72 cursor-pointer transform hover:shadow-xl">
                     <img src="https://i.imgur.com/gA0XCdQ.jpeg" alt="Lifestyle shot of Outflickz collection" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-110">
                 </div>
                 
-                <!-- Ad Image 6 -->
                 <div class="ad-image-box rounded-xl overflow-hidden shadow-lg flex-shrink-0 snap-center w-36 sm:w-56 md:w-72 cursor-pointer transform hover:shadow-xl">
                     <img src="https://i.imgur.com/ZgWIhuA.jpeg" alt="Lifestyle shot of Outflickz collection" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-110">
                 </div>
 
-                <!-- Spacer for better snapping on the last element -->
                 <div class="flex-shrink-0 w-4"></div>
             </div>
         </div>
     </section>
 
+     <section id="caps-collections-section" class="py-10 sm:py-12 bg-color-white text-color-black border-t border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-start mb-6 sm:mb-8">
+                <div>
+                    <h2 class="text-xs sm:text-xm font-extrabold text-color-black uppercase mb-1">
+                        🧢 Cap Collections
+                    </h2>
+                    <p class="text-xs sm:text-xm font-medium text-gray-700">
+                        Find the perfect fit for your headwear game
+                    </p>
+                </div>
+                
+                <a href="capcollection.html" class="border-2 border-ash-red text-ash-red hover:bg-ash-red hover:text-white transition duration-300 font-bold py-1.5 px-4 sm:py-2 sm:px-6 rounded-sm uppercase text-xs sm:text-xm tracking-widest mt-2">
+                    Shop All Caps
+                </a>
+            </div>
+            <div id="caps-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+            </div>
+        </div>
+    </section>
+    
     <div id="image-modal" class="modal fixed inset-0 z-[100] bg-black bg-opacity-90 flex items-center justify-center opacity-0 pointer-events-none" onclick="closeModal()" role="dialog" aria-modal="true" aria-labelledby="modal-item-title">
 
         <div class="relative max-w-xs sm:max-w-4xl w-full mx-4 p-2 bg-white rounded-lg shadow-2xl" onclick="event.stopPropagation()">

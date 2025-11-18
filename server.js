@@ -379,16 +379,24 @@ CapCollectionSchema.pre('save', function(next) {
 
 const CapCollection = mongoose.models.CapCollection || mongoose.model('CapCollection', CapCollectionSchema);
 
-
 const PreOrderCollectionSchema = new mongoose.Schema({
+    // General Product Information
     name: { type: String, required: true, trim: true },
     tag: { type: String, required: true },
     price: { type: Number, required: true, min: 0 },
     sizes: { type: [String], required: true }, // e.g., ['S', 'M', 'L']
     totalStock: { type: Number, required: true, min: 0 },
     isActive: { type: Boolean, default: true },
-    preorderDeadline: { type: Date, required: true }, // New Field: The deadline to place a pre-order
-    estimatedDelivery: { type: Date, required: true }, // New Field: Estimated delivery time
+
+    // New Availability Field
+    availableDate: { 
+        type: Date, 
+        required: true, 
+        // This is the date the pre-ordered item is expected to be available/shipped, 
+        // or the date it becomes generally available.
+    }, 
+
+    // Variations (Colors, Images)
     variations: [
         {
             variationIndex: { type: Number, required: true },

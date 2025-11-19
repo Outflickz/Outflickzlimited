@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outflickz - User Account</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="https://i.imgur.com/ioWFyQB.png">
+    <style>
+        /* Custom Tailwind Configuration (optional: for better focus rings) */
+        :focus:not(:focus-visible) {
+            outline: none;
+        }
+        /* Custom transition for view switching */
+        .view-transition {
+            transition: opacity 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4 sm:p-6 md:p-8">
+
+    <div class="w-full max-w-md bg-white shadow-xl rounded-lg p-6 sm:p-8 md:p-10 border border-gray-200">
+        
+        <div class="flex flex-col items-center mb-8">
+            <img 
+                src="https://i.imgur.com/1Rxhi9q.jpeg" 
+                alt="Outflickz Logo" 
+                class="w-20 h-auto mb-3"
+            >
+            <h1 class="text-3xl font-extrabold text-black tracking-widest">
+                OUTFLICKZ
+            </h1>
+            <p id="auth-header" class="text-gray-600 mt-1 text-lg font-medium">Welcome Back</p>
+        </div>
+
+        <div id="auth-views" class="relative overflow-hidden">
+            
+            <div id="login-view" class="view-transition">
+                <form id="login-form" onsubmit="handleLogin(event)">
+                    <div class="mb-4">
+                        <label for="login-email" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                        <input type="email" id="login-email" name="email" required 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="you@example.com"
+                        >
+                    </div>
+                    <div class="mb-6">
+                        <label for="login-password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                        <input type="password" id="login-password" name="password" required 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="••••••••"
+                        >
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Log In
+                    </button>
+                </form>
+
+                <div class="mt-4 text-center text-sm">
+                    <button onclick="showView('forgot')" class="text-blue-600 hover:text-blue-800 transition duration-150 ease-in-out focus:outline-none">
+                        Forgot Password?
+                    </button>
+                    <span class="text-gray-500 mx-2">|</span>
+                    <button onclick="showView('create')" class="text-blue-600 hover:text-blue-800 transition duration-150 ease-in-out focus:outline-none">
+                        Create an Account
+                    </button>
+                </div>
+            </div>
+
+            <div id="create-view" class="view-transition hidden absolute top-0 w-full opacity-0">
+                <form id="create-form" onsubmit="handleCreateAccount(event)">
+                    <div class="mb-4">
+                        <label for="create-email" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                        <input type="email" id="create-email" name="email" required 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="your.new@example.com"
+                        >
+                    </div>
+                    <div class="mb-4">
+                        <label for="create-password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                        <input type="password" id="create-password" name="password" required 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Min 8 characters"
+                        >
+                    </div>
+                    <div class="mb-6">
+                        <label for="confirm-password" class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                        <input type="password" id="confirm-password" name="confirmPassword" required 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Re-enter password"
+                        >
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                        Create Account
+                    </button>
+                </form>
+
+                <div class="mt-4 text-center text-sm">
+                    <button onclick="showView('login')" class="text-blue-600 hover:text-blue-800 transition duration-150 ease-in-out focus:outline-none">
+                        Back to Login
+                    </button>
+                </div>
+            </div>
+
+            <div id="forgot-view" class="view-transition hidden absolute top-0 w-full opacity-0">
+                <form id="forgot-form" onsubmit="handleForgotPassword(event)">
+                    <p class="text-sm text-gray-600 mb-5 text-center">
+                        Enter your email address and we'll send you a link to reset your password.
+                    </p>
+                    <div class="mb-6">
+                        <label for="forgot-email" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                        <input type="email" id="forgot-email" name="email" required 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="you@example.com"
+                        >
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-2 px-4 rounded-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
+                        Send Reset Link
+                    </button>
+                </form>
+
+                <div class="mt-4 text-center text-sm">
+                    <button onclick="showView('login')" class="text-blue-600 hover:text-blue-800 transition duration-150 ease-in-out focus:outline-none">
+                        Back to Login
+                    </button>
+                </div>
+            </div>
+
+            <div id="message-area" class="mt-6 p-3 text-sm rounded-md hidden"></div>
+
+        </div>
+        </div>
+
+    <script>
+        const views = {
+            'login': document.getElementById('login-view'),
+            'create': document.getElementById('create-view'),
+            'forgot': document.getElementById('forgot-view')
+        };
+        const headerElement = document.getElementById('auth-header');
+        const messageArea = document.getElementById('message-area');
+        const container = document.getElementById('auth-views');
+
+        /**
+         * Switches the active authentication view with a fade transition.
+         * @param {string} viewName - 'login', 'create', or 'forgot'
+         */
+        function showView(viewName) {
+            // Find the currently visible view
+            let currentView = Object.values(views).find(v => v.classList.contains('opacity-100') && !v.classList.contains('hidden'));
+            
+            // Set the new header text
+            const headers = {
+                'login': 'Welcome Back',
+                'create': 'Create Your Account',
+                'forgot': 'Reset Your Password'
+            };
+            headerElement.textContent = headers[viewName] || 'Authentication';
+            
+            // Reset message area
+            messageArea.classList.add('hidden');
+            messageArea.innerHTML = '';
+
+            // Get the view to transition to
+            const nextView = views[viewName];
+
+            if (currentView) {
+                // 1. Fade out the current view
+                currentView.classList.remove('opacity-100');
+                currentView.classList.add('opacity-0');
+                
+                // Set the container height to prevent jump during transition
+                container.style.height = `${container.offsetHeight}px`;
+
+                setTimeout(() => {
+                    // 2. Hide the current view and prepare the next one
+                    currentView.classList.add('hidden');
+                    currentView.classList.remove('absolute');
+                    
+                    nextView.classList.remove('hidden');
+                    nextView.classList.add('absolute'); // Position the new view over the old one
+                    
+                    // Reset container height and wait for the new content to render
+                    container.style.height = 'auto';
+
+                    // 3. Fade in the new view
+                    // We must wait a tiny bit for the new height to be calculated
+                    setTimeout(() => {
+                         // Must be removed from absolute and re-added to allow natural flow
+                         nextView.classList.remove('absolute');
+                         
+                         // Measure the new height after content is fully visible/positioned
+                         container.style.height = `${container.offsetHeight}px`;
+
+                         // Now, apply the transition classes
+                         nextView.classList.remove('opacity-0');
+                         nextView.classList.add('opacity-100');
+
+                         setTimeout(() => {
+                            // Clear dynamic height after transition
+                            container.style.height = '';
+                         }, 300); // Must match CSS transition duration
+                    }, 50); // Small delay to ensure DOM is ready for next frame
+                }, 300); // Must match CSS transition duration
+            } else {
+                // Initial load: show login view immediately
+                nextView.classList.remove('hidden');
+                nextView.classList.remove('opacity-0');
+                nextView.classList.add('opacity-100');
+            }
+        }
+        
+        // Initial setup to ensure only login is visible and active on load
+        document.addEventListener('DOMContentLoaded', () => {
+            showView('login');
+        });
+
+        /**
+         * Displays a temporary message in the message area.
+         * @param {string} message - The message text.
+         * @param {string} type - 'success', 'error', or 'info'.
+         */
+        function displayMessage(message, type = 'info') {
+            const baseClasses = 'mt-6 p-3 text-sm rounded-md';
+            messageArea.className = baseClasses;
+            messageArea.innerHTML = message;
+            
+            switch (type) {
+                case 'success':
+                    messageArea.classList.add('bg-green-100', 'text-green-800');
+                    break;
+                case 'error':
+                    messageArea.classList.add('bg-red-100', 'text-red-800');
+                    break;
+                default: // 'info'
+                    messageArea.classList.add('bg-blue-100', 'text-blue-800');
+                    break;
+            }
+            messageArea.classList.remove('hidden');
+        }
+
+        /**
+         * Placeholder function for handling login form submission.
+         */
+        function handleLogin(event) {
+            event.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            // --- Server-side authentication logic would go here ---
+            // For demo purposes, we simulate success for 'test@outflickz.com'
+            if (email === 'test@outflickz.com' && password === 'password') {
+                displayMessage(`Login successful! Welcome ${email}. Redirecting...`, 'success');
+                // window.location.href = '/outflickzstore/homepage.html'; // Actual redirect
+            } else {
+                displayMessage('Login failed. Please check your email and password.', 'error');
+            }
+
+            console.log('Login attempt:', { email, password });
+        }
+
+        /**
+         * Placeholder function for handling create account form submission.
+         */
+        function handleCreateAccount(event) {
+            event.preventDefault();
+            const email = document.getElementById('create-email').value;
+            const password = document.getElementById('create-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+
+            if (password !== confirmPassword) {
+                displayMessage('Passwords do not match.', 'error');
+                return;
+            }
+
+            // --- Server-side account creation logic would go here ---
+            displayMessage(`Account creation request sent for ${email}. Check your email for verification.`, 'info');
+            
+            // Optionally redirect to login after a delay
+            setTimeout(() => {
+                showView('login');
+                document.getElementById('login-email').value = email; // Pre-fill login email
+            }, 3000);
+
+            console.log('Create Account attempt:', { email, password });
+        }
+
+        /**
+         * Placeholder function for handling forgot password form submission.
+         */
+        function handleForgotPassword(event) {
+            event.preventDefault();
+            const email = document.getElementById('forgot-email').value;
+
+            // --- Server-side password reset logic would go here ---
+            displayMessage(`If an account exists for ${email}, a password reset link has been sent.`, 'success');
+
+            // Optionally redirect to login after a delay
+            setTimeout(() => {
+                showView('login');
+            }, 5000);
+
+            console.log('Forgot Password attempt:', { email });
+        }
+    </script>
+</body>
+</html>

@@ -70,22 +70,40 @@
 
             <div id="create-view" class="view-transition hidden absolute top-0 w-full opacity-0">
                 <form id="create-form" onsubmit="handleCreateAccount(event)">
+                    
+                    <div class="mb-4 flex space-x-4">
+                        <div class="w-1/2">
+                            <label for="create-firstName" class="block text-sm font-medium text-gray-700 mb-1">First Name (Optional)</label>
+                            <input type="text" id="create-firstName" name="firstName" 
+                                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="John"
+                            >
+                        </div>
+                        <div class="w-1/2">
+                            <label for="create-lastName" class="block text-sm font-medium text-gray-700 mb-1">Last Name (Optional)</label>
+                            <input type="text" id="create-lastName" name="lastName" 
+                                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Doe"
+                            >
+                        </div>
+                    </div>
+
                     <div class="mb-4">
-                        <label for="create-email" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                        <label for="create-email" class="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
                         <input type="email" id="create-email" name="email" required 
                             class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                             placeholder="your.new@example.com"
                         >
                     </div>
                     <div class="mb-4">
-                        <label for="create-password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                        <label for="create-password" class="block text-sm font-medium text-gray-700 mb-1">Password *</label>
                         <input type="password" id="create-password" name="password" required 
                             class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                             placeholder="Min 8 characters"
                         >
                     </div>
                     <div class="mb-6">
-                        <label for="confirm-password" class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                        <label for="confirm-password" class="block text-sm font-medium text-gray-700 mb-1">Confirm Password *</label>
                         <input type="password" id="confirm-password" name="confirmPassword" required 
                             class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                             placeholder="Re-enter password"
@@ -123,7 +141,7 @@
                 </form>
 
                 <div class="mt-4 text-center text-sm">
-                    <button onclick="showView('login')" class="text-blue-600 hover:bg-blue-800 transition duration-150 ease-in-out focus:outline-none">
+                    <button onclick="showView('login')" class="text-blue-600 hover:text-blue-800 transition duration-150 ease-in-out focus:outline-none">
                         Back to Login
                     </button>
                 </div>
@@ -169,269 +187,233 @@
     </div>
 
     <script>
-        const views = {
-            'login': document.getElementById('login-view'),
-            'create': document.getElementById('create-view'),
-            'forgot': document.getElementById('forgot-view'),
-            'profile': document.getElementById('profile-view') // NEW VIEW
-        };
-        const headerElement = document.getElementById('auth-header');
-        const messageArea = document.getElementById('message-area');
-        const container = document.getElementById('auth-views');
+        const views = {
+            'login': document.getElementById('login-view'),
+            'create': document.getElementById('create-view'),
+            'forgot': document.getElementById('forgot-view'),
+            'profile': document.getElementById('profile-view') 
+        };
+        const headerElement = document.getElementById('auth-header');
+        const messageArea = document.getElementById('message-area');
+        const container = document.getElementById('auth-views');
 
-        /**
-         * Switches the active authentication view with a fade transition.
-         * @param {string} viewName - 'login', 'create', 'forgot', or 'profile'
-         */
-        function showView(viewName) {
-            // Find the currently visible view
-            let currentView = Object.values(views).find(v => v.classList.contains('opacity-100') && !v.classList.contains('hidden'));
-            
-            // Set the new header text
-            const headers = {
-                'login': 'Welcome Back',
-                'create': 'Create Your Account',
-                'forgot': 'Reset Your Password',
-                'profile': 'Your Account Dashboard' // NEW HEADER
-            };
-            headerElement.textContent = headers[viewName] || 'Authentication';
-            
-            // Reset message area (unless switching to profile, where a message might be needed)
-            if (viewName !== 'profile') {
-                messageArea.classList.add('hidden');
-                messageArea.innerHTML = '';
-            }
+        /**
+         * Switches the active authentication view with a fade transition.
+         */
+        function showView(viewName) {
+            let currentView = Object.values(views).find(v => v.classList.contains('opacity-100') && !v.classList.contains('hidden'));
+            
+            const headers = {
+                'login': 'Welcome Back',
+                'create': 'Create Your Account',
+                'forgot': 'Reset Your Password',
+                'profile': 'Your Account Dashboard'
+            };
+            headerElement.textContent = headers[viewName] || 'Authentication';
+            
+            if (viewName !== 'profile') {
+                messageArea.classList.add('hidden');
+                messageArea.innerHTML = '';
+            }
 
-            // Get the view to transition to
-            const nextView = views[viewName];
+            const nextView = views[viewName];
 
-            if (currentView) {
-                // 1. Fade out the current view
-                currentView.classList.remove('opacity-100');
-                currentView.classList.add('opacity-0');
-                
-                // Set the container height to prevent jump during transition
-                container.style.height = `${container.offsetHeight}px`;
+            if (currentView) {
+                currentView.classList.remove('opacity-100');
+                currentView.classList.add('opacity-0');
+                container.style.height = `${container.offsetHeight}px`;
 
-                setTimeout(() => {
-                    // 2. Hide the current view and prepare the next one
-                    currentView.classList.add('hidden');
-                    currentView.classList.remove('absolute');
-                    
-                    nextView.classList.remove('hidden');
-                    nextView.classList.add('absolute'); // Position the new view over the old one
-                    
-                    // Reset container height and wait for the new content to render
-                    container.style.height = 'auto';
+                setTimeout(() => {
+                    currentView.classList.add('hidden');
+                    currentView.classList.remove('absolute');
+                    
+                    nextView.classList.remove('hidden');
+                    nextView.classList.add('absolute');
+                    
+                    container.style.height = 'auto';
 
-                    // 3. Fade in the new view
-                    setTimeout(() => {
-                        // Must be removed from absolute and re-added to allow natural flow
-                        nextView.classList.remove('absolute');
-                        
-                        // Measure the new height after content is fully visible/positioned
-                        container.style.height = `${container.offsetHeight}px`;
+                    setTimeout(() => {
+                        nextView.classList.remove('absolute');
+                        container.style.height = `${container.offsetHeight}px`;
 
-                        // Now, apply the transition classes
-                        nextView.classList.remove('opacity-0');
-                        nextView.classList.add('opacity-100');
+                        nextView.classList.remove('opacity-0');
+                        nextView.classList.add('opacity-100');
 
-                        setTimeout(() => {
-                            // Clear dynamic height after transition
-                            container.style.height = '';
-                        }, 300); // Must match CSS transition duration
-                    }, 50); // Small delay to ensure DOM is ready for next frame
-                }, 300); // Must match CSS transition duration
-            } else {
-                // Initial load: show login view immediately
-                nextView.classList.remove('hidden');
-                nextView.classList.remove('opacity-0');
-                nextView.classList.add('opacity-100');
-            }
-        }
-        
-        // Initial setup to ensure only login is visible and active on load
-        document.addEventListener('DOMContentLoaded', () => {
-            showView('login');
-        });
+                        setTimeout(() => {
+                            container.style.height = '';
+                        }, 300); 
+                    }, 50); 
+                }, 300); 
+            } else {
+                nextView.classList.remove('hidden');
+                nextView.classList.remove('opacity-0');
+                nextView.classList.add('opacity-100');
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            showView('login');
+        });
 
-        /**
-         * Displays a temporary message in the message area.
-         * @param {string} message - The message text.
-         * @param {string} type - 'success', 'error', or 'info'.
-         */
-        function displayMessage(message, type = 'info') {
-            const baseClasses = 'mt-6 p-3 text-sm rounded-md';
-            messageArea.className = baseClasses;
-            messageArea.innerHTML = message;
-            
-            switch (type) {
-                case 'success':
-                    messageArea.classList.add('bg-green-100', 'text-green-800');
-                    break;
-                case 'error':
-                    messageArea.classList.add('bg-red-100', 'text-red-800');
-                    break;
-                default: // 'info'
-                    messageArea.classList.add('bg-blue-100', 'text-blue-800');
-                    break;
-            }
-            messageArea.classList.remove('hidden');
-        }
+        /**
+         * Displays a temporary message.
+         */
+        function displayMessage(message, type = 'info') {
+            const baseClasses = 'mt-6 p-3 text-sm rounded-md';
+            messageArea.className = baseClasses;
+            messageArea.innerHTML = message;
+            
+            switch (type) {
+                case 'success':
+                    messageArea.classList.add('bg-green-100', 'text-green-800');
+                    break;
+                case 'error':
+                    messageArea.classList.add('bg-red-100', 'text-red-800');
+                    break;
+                default: // 'info'
+                    messageArea.classList.add('bg-blue-100', 'text-blue-800');
+                    break;
+            }
+            messageArea.classList.remove('hidden');
+        }
 
-        /**
-         * Fetches user profile data from the backend API/USERACCOUNT.
-         */
-        async function fetchUserProfile() {
-            try {
-                // In a real application, the browser would automatically send the 
-                // session cookie or authorization header after a successful login.
-                // We're simulating this by making the request.
-                const response = await fetch('/api/usersaccount', {
-                    method: 'GET',
-                    headers: {
-                        // Include headers necessary for authentication, e.g., if using tokens
-                        // 'Authorization': 'Bearer ' + localStorage.getItem('token') 
-                    }
-                });
+        /**
+         * Fetches user profile data from the backend API/USERACCOUNT.
+         */
+        async function fetchUserProfile() {
+            try {
+                const response = await fetch('/api/usersaccount', {
+                    method: 'GET',
+                    // headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } // Add real auth here
+                });
 
-                if (response.status === 404) {
-                    displayMessage('Error: User record not found.', 'error');
-                    showView('login');
-                    return;
-                }
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-                }
+                if (response.status === 404) {
+                    displayMessage('Error: User record not found.', 'error');
+                    showView('login');
+                    return;
+                }
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                }
 
-                const userData = await response.json();
-                
-                // Populate the profile view with data
-                populateProfileView(userData);
+                const userData = await response.json();
+                populateProfileView(userData);
+                showView('profile');
 
-                // Switch to the profile view
-                showView('profile');
+            } catch (error) {
+                console.error('Error fetching user account details:', error);
+                displayMessage(`Failed to load profile: ${error.message}. Please try logging in again.`, 'error');
+                showView('login');
+            }
+        }
 
-            } catch (error) {
-                console.error('Error fetching user account details:', error);
-                displayMessage(`Failed to load profile: ${error.message}. Please try logging in again.`, 'error');
-                // On critical failure, revert to login view
-                showView('login');
-            }
-        }
+        /**
+         * Populates the profile view elements with fetched user data.
+         */
+        function populateProfileView(data) {
+            const formatDate = (dateString) => {
+                if (!dateString) return 'N/A';
+                return new Date(dateString).toLocaleDateString('en-US', {
+                    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+            };
 
-        /**
-         * Populates the profile view elements with fetched user data.
-         * @param {object} data - The structured user object from the API.
-         */
-        function populateProfileView(data) {
-            // Helper function for date formatting
-            const formatDate = (dateString) => {
-                if (!dateString) return 'N/A';
-                return new Date(dateString).toLocaleDateString('en-US', {
-                    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                });
-            };
+            document.getElementById('profile-id').textContent = data.id || 'N/A';
+            document.getElementById('profile-email').textContent = data.profile.email || 'N/A';
+            document.getElementById('profile-name').textContent = 
+                `${data.profile.firstName || 'N/A'} ${data.profile.lastName || ''}`.trim();
+            document.getElementById('profile-username').textContent = data.profile.username || 'N/A';
+            
+            document.getElementById('profile-role').textContent = 
+                data.status.role ? data.status.role.toUpperCase() : 'USER';
+            document.getElementById('profile-verified').textContent = 
+                data.status.isVerified ? '✅ Verified' : '❌ Not Verified';
 
-            document.getElementById('profile-id').textContent = data.id || 'N/A';
-            
-            // Profile Section
-            document.getElementById('profile-email').textContent = data.profile.email || 'N/A';
-            document.getElementById('profile-name').textContent = 
-                `${data.profile.firstName || 'N/A'} ${data.profile.lastName || ''}`.trim();
-            document.getElementById('profile-username').textContent = data.profile.username || 'N/A';
-            
-            // Status Section
-            document.getElementById('profile-role').textContent = 
-                data.status.role ? data.status.role.toUpperCase() : 'USER';
-            document.getElementById('profile-verified').textContent = 
-                data.status.isVerified ? '✅ Verified' : '❌ Not Verified';
+            document.getElementById('profile-member-since').textContent = formatDate(data.membership.memberSince);
+            document.getElementById('profile-last-updated').textContent = formatDate(data.membership.lastUpdated);
+        }
 
-            // Membership Section
-            document.getElementById('profile-member-since').textContent = formatDate(data.membership.memberSince);
-            document.getElementById('profile-last-updated').textContent = formatDate(data.membership.lastUpdated);
-        }
+        /**
+         * UPDATED function for handling login form submission to redirect to homepage.html.
+         */
+        function handleLogin(event) {
+            event.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const loginBtn = document.getElementById('login-btn');
+            
+            loginBtn.textContent = 'Logging in...';
+            loginBtn.disabled = true;
 
-        /**
-         * Placeholder function for handling login form submission.
-         */
-        function handleLogin(event) {
-            event.preventDefault();
-            const email = document.getElementById('login-email').value;
-            const password = document.getElementById('login-password').value;
-            const loginBtn = document.getElementById('login-btn');
-            
-            loginBtn.textContent = 'Logging in...';
-            loginBtn.disabled = true;
+            setTimeout(() => {
+                loginBtn.textContent = 'Log In';
+                loginBtn.disabled = false;
 
-            // --- Server-side authentication logic would go here ---
-            // Simulate API call to /api/login
+                if (email === 'test@outflickz.com' && password === 'password') {
+                    // Success - display message and redirect
+                    displayMessage(`Login successful! Redirecting to homepage...`, 'success');
+                    
+                    // *** Redirect Logic Added Here ***
+                    setTimeout(() => {
+                        window.location.href = 'homepage.html'; 
+                    }, 500); // Redirect quickly after showing success message
+                    
+                    // The original fetchUserProfile() is now commented out/removed for redirection
+                    // fetchUserProfile(); 
+                } else {
+                    displayMessage('Login failed. Please check your email and password.', 'error');
+                }
+            }, 1500); 
+        }
 
-            setTimeout(() => {
-                loginBtn.textContent = 'Log In';
-                loginBtn.disabled = false;
+        /**
+         * Placeholder function for handling create account form submission.
+         */
+        function handleCreateAccount(event) {
+            event.preventDefault();
+            const email = document.getElementById('create-email').value;
+            const firstName = document.getElementById('create-firstName').value; // NEW
+            const lastName = document.getElementById('create-lastName').value;   // NEW
+            const password = document.getElementById('create-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
 
-                // For demo, we simulate success for 'test@outflickz.com'
-                if (email === 'test@outflickz.com' && password === 'password') {
-                    displayMessage(`Login successful! Attempting to load profile...`, 'success');
-                    
-                    // After successful login, attempt to fetch user profile
-                    // We're pretending the session/token is now set.
-                    fetchUserProfile(); 
-                } else {
-                    displayMessage('Login failed. Please check your email and password.', 'error');
-                }
-            }, 1500); // Simulate network delay
-        }
+            if (password !== confirmPassword) {
+                displayMessage('Passwords do not match.', 'error');
+                return;
+            }
+            
+            // Log the new, complete data structure
+            console.log('Create Account attempt:', { email, firstName, lastName, password });
 
-        /**
-         * Placeholder function for handling create account form submission.
-         */
-        function handleCreateAccount(event) {
-            event.preventDefault();
-            const password = document.getElementById('create-password').value;
-            const confirmPassword = document.getElementById('confirm-password').value;
+            // --- Server-side account creation logic would go here ---
+            displayMessage(`Account creation request sent for ${email}. Check your email for verification.`, 'info');
+            
+            setTimeout(() => {
+                showView('login');
+            }, 3000); 
+        }
 
-            if (password !== confirmPassword) {
-                displayMessage('Passwords do not match.', 'error');
-                return;
-            }
+        /**
+         * Placeholder function for handling forgot password form submission.
+         */
+        function handleForgotPassword(event) {
+            event.preventDefault();
+            const email = document.getElementById('forgot-email').value;
+            displayMessage(`If an account exists for ${email}, a password reset link has been sent.`, 'success');
+            setTimeout(() => {
+                showView('login');
+            }, 5000);
+        }
 
-            // --- Server-side account creation logic would go here ---
-            displayMessage(`Account creation request sent. Check your email for verification.`, 'info');
-            
-            setTimeout(() => {
-                showView('login');
-            }, 3000); 
-        }
-
-        /**
-         * Placeholder function for handling forgot password form submission.
-         */
-        function handleForgotPassword(event) {
-            event.preventDefault();
-            const email = document.getElementById('forgot-email').value;
-
-            // --- Server-side password reset logic would go here ---
-            displayMessage(`If an account exists for ${email}, a password reset link has been sent.`, 'success');
-
-            setTimeout(() => {
-                showView('login');
-            }, 5000);
-        }
-
-        /**
-         * Placeholder function for handling user logout.
-         */
-        function handleLogout() {
-            // In a real application:
-            // 1. Clear local storage/session (e.g., remove token)
-            // 2. Call /api/logout endpoint
-            displayMessage('You have been successfully logged out.', 'info');
-            showView('login');
-        }
-    </script>
+        /**
+         * Placeholder function for handling user logout.
+         */
+        function handleLogout() {
+            displayMessage('You have been successfully logged out.', 'info');
+            showView('login');
+        }
+    </script>
 </body>
 </html>

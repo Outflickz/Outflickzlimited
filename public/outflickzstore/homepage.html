@@ -397,8 +397,8 @@ function createColorList(collectionId, variants) {
 // UPDATED: Now handles the 'caps' size by removing the size selection UI.
 function createCollectionCard(collection, size = 'default') {
     const currencySymbol = '₦'; 
-    const defaultFrontImage = 'https://i.imgur.com/RFkkvwa.jpeg'; 
-    const defaultBackImage = 'https://i.imgur.com/S74DrsC.jpeg'; 
+    const defaultFrontImage = ''; 
+    const defaultBackImage = ''; 
     
     // --- Conditional Sizing Classes ---
     const isReduced = size === 'reduced' || size === 'caps';
@@ -886,8 +886,8 @@ document.addEventListener('DOMContentLoaded', () => {
         </a>
 
         <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
-            <a href="#" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
-            <a href="#" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
+            <a href="newarrivals.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
+            <a href="preorder.html" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
             <a href="wearscollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Wears Collections</a>
             <a href="capcollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Cap Collections</a>
         </nav>
@@ -908,8 +908,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     <div id="mobile-menu" class="hidden md:hidden bg-color-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
         <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
-            <a href="#" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
-            <a href="#" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">New Arrivals</a>
+            <a href="preorder.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
+            <a href="newarrivals.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">New Arrivals</a>
             <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Wears Collection</a>
             <a href="capcollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cap Collection</a>
             <a href="#" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Account</a>
@@ -1111,8 +1111,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     <ul class="space-y-2 text-sm">
                         <li><a href="wearscollection.html" class="text-gray-400 hover:text-ash-red transition">Wears</a></li>
                         <li><a href="capcollection.html" class="text-gray-400 hover:text-ash-red transition">Caps</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">New Arrivals</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Pre-Order</a></li>
+                        <li><a href="newarrivals.html" class="text-gray-400 hover:text-ash-red transition">New Arrivals</a></li>
+                        <li><a href="preorder.html" class="text-gray-400 hover:text-ash-red transition">Pre-Order</a></li>
                     </ul>
                 </div>
 
@@ -1150,7 +1150,9 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
     </footer>
 
-    <a href="https://wa.me/2348012345678?text=Hello%20Outflickz,%20I%20have%20a%20question%20about%20your%20collection." 
+    
+    <!-- UPDATED WhatsApp Link with new number and message -->
+    <a href="https://wa.me/2347042882706?text=HELLO!%20WELCOME%20TO%20OUTFLICKZ!%20HOW%20CAN%20WE%20HELP%20YOU" 
         target="_blank" 
         class="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-3 sm:p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105" 
         aria-label="Chat with us on WhatsApp">

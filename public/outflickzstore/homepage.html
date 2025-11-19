@@ -101,14 +101,14 @@
         /* --- NEW MOBILE SLIDER STYLE FOR COLLECTIONS AND ADS --- */
         /* Only apply flex/scroll to the grid container on screens smaller than md (768px) */
         @media (max-width: 767px) {
-            #wears-collections-grid, #new-arrivals-grid, #caps-collections-grid, #advertisements-grid {
+            #wears-collections-grid, #new-arrivals-grid, #caps-collections-grid, #advertisements-grid, #preorder-collections-grid {
                 display: flex;
                 overflow-x: scroll;
                 scroll-snap-type: x mandatory;
                 padding-bottom: 1rem; /* Space for shadow/scroll bar */
             }
             /* Wears Collection (Default size) - LARGER */
-            #wears-collections-grid .collection-card {
+            #wears-collections-grid .collection-card, #preorder-collections-grid .collection-card {
                 flex-shrink: 0; /* Cards won't shrink */
                 width: 50vw; /* Standard size */
                 max-width: 300px; /* Optional max width */
@@ -135,6 +135,7 @@
             #wears-collections-grid > div:last-child, 
             #new-arrivals-grid > div:last-child,
             #caps-collections-grid > div:last-child,
+            #preorder-collections-grid > div:last-child,
             #advertisements-grid > div:last-child {
                 margin-right: 0;
             }
@@ -355,6 +356,41 @@ const mockCapsCollections = {
                     color: '#7B3F00', 
                     frontImageUrl: 'https://i.imgur.com/gA0XCdQ.jpeg', 
                     backImageUrl: 'https://i.imgur.com/ZgWIhuA.jpeg' 
+                }
+            ]
+        }
+    ]
+};
+
+const mockPreOrderCollections = {
+    collections: [
+        {
+            _id: 'P001',
+            name: 'Winter Drop Pullover',
+            tag: 'Available for pre-order: Ships Dec 1st.',
+            price: 40000.00,
+            availableStock: 99, // High stock to indicate pre-order status
+            availableSizes: ['M', 'L', 'XL', 'XXL'],
+            variants: [
+                {
+                    color: '#333333', // Racing Grey
+                    frontImageUrl: 'https://i.imgur.com/vH1W2a0.jpeg', 
+                    backImageUrl: 'https://i.imgur.com/P39sBlb.jpeg' 
+                }
+            ]
+        },
+        {
+            _id: 'P002',
+            name: 'Street Joggers',
+            tag: 'Lock in your pair now!',
+            price: 28000.00,
+            availableStock: 99,
+            availableSizes: ['28', '30', '32', '34'],
+            variants: [
+                {
+                    color: '#000000', 
+                    frontImageUrl: 'https://i.imgur.com/oSyDJmZ.jpeg', 
+                    backImageUrl: 'https://i.imgur.com/g8vdHCf.jpeg' 
                 }
             ]
         }
@@ -595,9 +631,8 @@ function createCollectionCard(collection, size = 'default') {
     // Control Height/Size
     const controlHeight = isReduced ? 'h-5 md:h-6' : 'h-6 md:h-7';
     const controlTextSize = isReduced ? 'text-[0.5rem] md:text-xs' : 'text-xs md:text-sm';
-    const quantityControlWidth = isReduced ? 'w-4 md:w-5' : 'w-5 md:w-7';
-    const quantityButtonSize = isReduced ? 'w-6 h-6 md:w-7 md:h-7' : 'w-7 h-7 md:w-8 md:h-8';
     const quantityInputWidth = isReduced ? 'w-4 md:w-6' : 'w-6 md:w-8';
+    const quantityButtonSize = isReduced ? 'w-6 h-6 md:w-7 md:h-7' : 'w-7 h-7 md:w-8 md:h-8';
     const quantityInputTextSize = isReduced ? 'text-[0.6rem] md:text-xs' : 'text-xs md:text-sm';
     // --- End Conditional Sizing Classes ---
 
@@ -791,7 +826,7 @@ async function fetchAndRenderWearsCollections() {
                 container.innerHTML += createCollectionCard(collection, 'default');
             });
         } else {
-             container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full">Error loading wears collections. Using fallback data (if available).</p>';
+            container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full">Error loading wears collections. Using fallback data (if available).</p>';
         }
     }
 } 
@@ -863,7 +898,7 @@ async function fetchAndRenderNewArrivals() {
                 container.innerHTML += createCollectionCard(product, 'reduced');
             });
         } else {
-             container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full">Error loading new arrivals. Using fallback data (if available).</p>';
+            container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full">Error loading new arrivals. Using fallback data (if available).</p>';
         }
     }
 }
@@ -939,7 +974,78 @@ async function fetchAndRenderCapsCollection() {
                 container.innerHTML += createCollectionCard(collection, 'caps');
             });
         } else {
-             container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full">Error loading caps collections. Using fallback data (if available).</p>';
+            container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full">Error loading caps collections. Using fallback data (if available).</p>';
+        }
+    }
+}
+
+
+// --- NEW PRE-ORDER COLLECTION JS (ADDED) ---
+async function fetchAndRenderPreOrderCollection() {
+    const container = document.getElementById('preorder-collections-grid');
+    if (!container) return;
+
+    const spinnerColor = 'text-gray-900';
+    const textColor = 'text-gray-700';
+
+    container.innerHTML = `
+        <div class="col-span-full text-center ${textColor} py-10 w-full">
+            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 ${spinnerColor} inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Loading Pre-Orders...
+        </div>`;
+
+    try {
+        const preOrderApiUrl = `${API_BASE_URL}/api/collections/preorder`; 
+
+        const response = await fetch(preOrderApiUrl, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to load pre-order collections from server. Status: ${response.status}`);
+        }
+
+        const collections = await response.json();
+
+        container.innerHTML = '';
+        
+        let collectionsToRender = collections && collections.length > 0 ? collections : mockPreOrderCollections.collections;
+
+        if (collectionsToRender && collectionsToRender.length > 0) {
+            const limitedCollections = collectionsToRender.slice(0, 4);
+            
+            limitedCollections.forEach(collection => {
+                if (collection.price !== undefined && collection.price !== null) {
+                    // Use 'default' size for pre-orders
+                    container.innerHTML += createCollectionCard(collection, 'default');
+                }
+            });
+
+            if (container.innerHTML === '') {
+                container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Pre-Order items are currently available.</p>`;
+            }
+        } else {
+            container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Pre-Order items are currently available.</p>`;
+        }
+    } catch (error) {
+        console.error('Error fetching pre-order collections, using mock data:', error);
+        
+        // --- FALLBACK LOGIC ---
+        const collectionsToRender = mockPreOrderCollections.collections.slice(0, 4);
+        container.innerHTML = '';
+        
+        if (collectionsToRender && collectionsToRender.length > 0) {
+            collectionsToRender.forEach(collection => {
+                container.innerHTML += createCollectionCard(collection, 'default');
+            });
+        } else {
+                container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full">Error loading pre-order collections. Using fallback data (if available).</p>';
         }
     }
 }
@@ -949,6 +1055,7 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchAndRenderWearsCollections(); 
     fetchAndRenderNewArrivals(); 
     fetchAndRenderCapsCollection(); // <-- CAPS COLLECTION INITIALIZED
+    fetchAndRenderPreOrderCollection(); // <-- PRE-ORDER COLLECTION INITIALIZED
 });
 // --- END COLLECTION JS ---
     </script>
@@ -1104,7 +1211,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
     </section>
 
-     <section id="caps-collections-section" class="py-10 sm:py-12 bg-color-white text-color-black border-t border-b border-gray-200">
+    <section id="caps-collections-section" class="py-10 sm:py-12 bg-color-white text-color-black border-t border-b border-gray-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-start mb-6 sm:mb-8">
                 <div>
@@ -1125,6 +1232,26 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
     </section>
     
+    <section id="preorder-collections-section" class="py-10 sm:py-12 bg-gray-50 text-color-black border-t border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-start mb-6 sm:mb-8">
+                <div>
+                    <h2 class="text-xs sm:text-xm font-extrabold text-color-black uppercase mb-1">
+                        🕒 Pre-Order Drop
+                    </h2>
+                    <p class="text-xs sm:text-xm font-medium text-gray-700">
+                        Secure your exclusive item before it sells out
+                    </p>
+                </div>
+                
+                <a href="preorder.html" class="border-2 border-ash-dark text-ash-dark hover:bg-ash-dark hover:text-white transition duration-300 font-bold py-1.5 px-4 sm:py-2 sm:px-6 rounded-sm uppercase text-xs sm:text-xm tracking-widest mt-2">
+                    View Pre-Orders
+                </a>
+            </div>
+            <div id="preorder-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+            </div>
+        </div>
+    </section>
     <div id="image-modal" class="modal fixed inset-0 z-[100] bg-black bg-opacity-90 flex items-center justify-center opacity-0 pointer-events-none" onclick="closeModal()" role="dialog" aria-modal="true" aria-labelledby="modal-item-title">
 
         <div class="relative max-w-xs sm:max-w-4xl w-full mx-4 p-2 bg-white rounded-lg shadow-2xl" onclick="event.stopPropagation()">
@@ -1143,5 +1270,59 @@ document.addEventListener('DOMContentLoaded', () => {
 
         </div>
     </div>
-</body>
+    
+    <footer class="bg-ash-dark text-racing-silver py-10 sm:py-12 mt-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-8 border-b border-racing-grey pb-8 mb-8">
+                
+                <div>
+                    <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-8 mb-4 filter brightness-0 invert">
+                    <p class="text-xs font-medium leading-relaxed">
+                        Driving street style with performance and precision. Outflickz: Where fashion meets the fast lane.
+                    </p>
+                </div>
+
+                <div>
+                    <h4 class="text-sm font-bold uppercase mb-4 text-color-white">Shop</h4>
+                    <ul class="space-y-2 text-xs">
+                        <li><a href="wearscollection.html" class="hover:text-color-white transition">Wears Collections</a></li>
+                        <li><a href="capcollection.html" class="hover:text-color-white transition">Cap Collections</a></li>
+                        <li><a href="newarrivals.html" class="hover:text-color-white transition">New Arrivals</a></li>
+                        <li><a href="preorder.html" class="hover:text-color-white transition">Pre-Order</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h4 class="text-sm font-bold uppercase mb-4 text-color-white">Support</h4>
+                    <ul class="space-y-2 text-xs">
+                        <li><a href="#" class="hover:text-color-white transition">Contact Us</a></li>
+                        <li><a href="#" class="hover:text-color-white transition">Shipping & Returns</a></li>
+                        <li><a href="#" class="hover:text-color-white transition">FAQ</a></li>
+                        <li><a href="#" class="hover:text-color-white transition">Size Guide</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h4 class="text-sm font-bold uppercase mb-4 text-color-white">Company</h4>
+                    <ul class="space-y-2 text-xs">
+                        <li><a href="#" class="hover:text-color-white transition">About Us</a></li>
+                        <li><a href="#" class="hover:text-color-white transition">Privacy Policy</a></li>
+                        <li><a href="#" class="hover:text-color-white transition">Terms of Service</a></li>
+                    </ul>
+                    <div class="flex space-x-4 mt-6">
+                        <a href="#" aria-label="Instagram"><i class="fab fa-instagram hover:text-ash-red transition text-base"></i></a>
+                        <a href="#" aria-label="Twitter"><i class="fab fa-twitter hover:text-ash-red transition text-base"></i></a>
+                        <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f hover:text-ash-red transition text-base"></i></a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center pt-4">
+                <p class="text-xs text-racing-silver">
+                    &copy; 2025 Outflickz. All rights reserved.
+                </p>
+            </div>
+        </div>
+    </footer>
+    </body>
 </html>

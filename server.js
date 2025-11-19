@@ -1865,6 +1865,49 @@ app.get('/api/collections/preorder', async (req, res) => {
     }
 });
 
+// GET /api/collections/preorder (For Homepage Display)
+app.get('/api/collections/preorder', async (req, res) => {
+    try {
+        // 1. Fetch only collections that are active (isActive: true)
+        const collections = await PreOrderCollection.find({ isActive: true })
+            // Select all necessary fields from the Schema
+            .select('_id name tag price sizes totalStock availableDate variations') 
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // 2. Transform and Sign URLs for public frontend structure
+        const publicCollections = await Promise.all(collections.map(async (collection) => {
+            
+            // Map Mongoose variations to a simpler public variants array and sign URLs
+            const variants = await Promise.all(collection.variations.map(async (v) => ({
+                frontImageUrl: await generateSignedUrl(v.frontImageUrl) || v.frontImageUrl,
+                backImageUrl: await generateSignedUrl(v.backImageUrl) || v.backImageUrl
+            })));
+
+            // Return the transformed object matching the Caps/Wears format
+            return {
+                _id: collection._id,
+                name: collection.name,
+                tag: collection.tag,
+                price: collection.price, 
+                availableSizes: collection.sizes,
+                availableStock: collection.totalStock, 
+                availableDate: collection.availableDate,
+                variants: variants
+            };
+        }));
+
+        // 3. Send the fully structured response
+        res.status(200).json(publicCollections);
+    } catch (error) {
+        console.error('Error fetching public pre-order collections:', error);
+        res.status(500).json({ 
+            message: 'Server error while fetching public collections.', 
+            details: error.message 
+        });
+    }
+});
+
 // --- NETLIFY EXPORTS for api.js wrapper ---
 module.exports = {
     app,

@@ -1678,6 +1678,40 @@ app.get(
         }
     }
 );
+// DELETE /api/admin/preordercollections/:collectionId (Delete a Pre-Order Collection)
+app.delete(
+    '/api/admin/preordercollections/:collectionId',
+    verifyToken, // Ensures only authorized users can delete
+    async (req, res) => {
+        const { collectionId } = req.params;
+
+        try {
+            // Find the collection by ID and delete it
+            const deletedCollection = await PreOrderCollection.findByIdAndDelete(collectionId);
+
+            // Check if the collection was found and deleted
+            if (!deletedCollection) {
+                return res.status(404).json({ message: 'Pre-order collection not found.' });
+            }
+
+            // Successful deletion
+            // A 200 OK or 204 No Content are both appropriate for a successful DELETE.
+            res.status(200).json({ 
+                message: 'Pre-order collection deleted successfully.',
+                collectionId: collectionId 
+            });
+
+        } catch (error) {
+            // Handle common Mongoose errors (e.g., invalid ID format)
+            if (error.name === 'CastError') {
+                return res.status(400).json({ message: 'Invalid collection ID format.' });
+            }
+            
+            console.error(`Error deleting collection ${collectionId}:`, error);
+            res.status(500).json({ message: 'Server error during deletion.', details: error.message });
+        }
+    }
+);
 
 
 // --- PUBLIC ROUTES (Existing) ---

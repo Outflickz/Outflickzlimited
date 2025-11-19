@@ -400,7 +400,6 @@ const PreOrderCollectionSchema = new mongoose.Schema({
     variations: [
         {
             variationIndex: { type: Number, required: true },
-            colorHex: { type: String, required: true },
             frontImageUrl: { type: String, required: true },
             backImageUrl: { type: String, required: true },
         }
@@ -1428,11 +1427,7 @@ app.get(
 );
 
 // POST /api/admin/preordercollections (Create New Pre-Order Collection) 
-app.post(
-    '/api/admin/preordercollections',
-    verifyToken,
-    upload.fields(uploadFields),
-    async (req, res) => {
+app.post('/api/admin/preordercollections',verifyToken, upload.fields(uploadFields), async (req, res) => {
         try {
             // A. Extract JSON Metadata
             if (!req.body.collectionData) {
@@ -1461,7 +1456,7 @@ app.post(
                     .then(([frontImageUrl, backImageUrl]) => {
                         finalVariations.push({
                             variationIndex: variation.variationIndex,
-                            colorHex: variation.colorHex,
+                            // colorHex was removed in the previous step
                             frontImageUrl: frontImageUrl,
                             backImageUrl: backImageUrl,
                         });
@@ -1476,7 +1471,7 @@ app.post(
                 return res.status(400).json({ message: "No valid product images and metadata were received after upload processing." });
             }
 
-            // C. Create the Final Collection Object
+            // C. Create the Final Collection Object (UPDATED: Using availableDate, removed deadlines)
             const newCollection = new PreOrderCollection({
                 name: collectionData.name,
                 tag: collectionData.tag,
@@ -1484,8 +1479,7 @@ app.post(
                 sizes: collectionData.sizes,
                 totalStock: collectionData.totalStock,
                 isActive: collectionData.isActive,
-                preorderDeadline: collectionData.preorderDeadline, // Specific pre-order field
-                estimatedDelivery: collectionData.estimatedDelivery, // Specific pre-order field
+                availableDate: collectionData.availableDate, // Using the new unified date field
                 variations: finalVariations,
             });
 
@@ -1508,6 +1502,7 @@ app.post(
         }
     }
 );
+
 
 // PUT /api/admin/preordercollections/:id (Update Pre-Order Collection)
 app.put(
@@ -1620,12 +1615,10 @@ app.put(
             existingCollection.sizes = collectionData.sizes;
             existingCollection.totalStock = collectionData.totalStock;
             existingCollection.isActive = collectionData.isActive;
-            existingCollection.preorderDeadline = collectionData.preorderDeadline;
-            existingCollection.estimatedDelivery = collectionData.estimatedDelivery;
+            existingCollection.availableDate = collectionData.availableDate;
             
             existingCollection.variations = updatedVariations.map(v => ({
                 variationIndex: v.variationIndex,
-                colorHex: v.colorHex,
                 frontImageUrl: v.frontImageUrl,
                 backImageUrl: v.backImageUrl,
             }));
@@ -1652,29 +1645,6 @@ app.put(
         }
     }
 );
-
-// DELETE /api/admin/preordercollections/:id (Delete Pre-Order Collection) 
-app.delete('/api/admin/preordercollections/:id', verifyToken, async (req, res) => {
-    try {
-        const collectionId = req.params.id;
-        const deletedCollection = await PreOrderCollection.findByIdAndDelete(collectionId);
-
-        if (!deletedCollection) {
-            return res.status(404).json({ message: 'Pre-Order Collection not found for deletion.' });
-        }
-
-        // Delete associated images from permanent storage (fire and forget)
-        deletedCollection.variations.forEach(v => {
-            if (v.frontImageUrl) deleteFileFromPermanentStorage(v.frontImageUrl);
-            if (v.backImageUrl) deleteFileFromPermanentStorage(v.backImageUrl);
-        });
-
-        res.status(200).json({ message: `Pre-Order Collection ${collectionId} and associated images deleted successfully.` });
-    } catch (error) {
-        console.error('Error deleting pre-order collection:', error);
-        res.status(500).json({ message: 'Server error during collection deletion.' });
-    }
-});
 
 // GET /api/admin/preordercollections (Fetch All Pre-Order Collections) 
 app.get(
@@ -1708,6 +1678,7 @@ app.get(
         }
     }
 );
+
 
 // --- PUBLIC ROUTES (Existing) ---
 

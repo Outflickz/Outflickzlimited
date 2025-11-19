@@ -178,6 +178,64 @@ const adminSchema = new mongoose.Schema({
 });
 const Admin = mongoose.models.Admin || mongoose.model('Admin', adminSchema);
 
+// --- MONGODB SCHEMAS & MODELS ---
+const userSchema = new mongoose.Schema({
+    // Basic Authentication Fields
+    email: { 
+        type: String, 
+        required: true, 
+        unique: true,
+        trim: true,
+        lowercase: true 
+    },
+    // The password field should be marked 'select: false' for security 
+    // so it is not returned by default in queries.
+    passwordHash: { 
+        type: String, 
+        required: true, 
+        select: false 
+    },
+    
+    // Account Status and Role
+    isVerified: { 
+        type: Boolean, 
+        default: false 
+    },
+    role: { 
+        type: String, 
+        default: 'user', 
+        enum: ['user'] // Define allowed roles
+    },
+
+    // Profile Information
+    firstName: { 
+        type: String, 
+        trim: true 
+    },
+    lastName: { 
+        type: String, 
+        trim: true 
+    },
+    username: { 
+        type: String, 
+        unique: true, 
+        sparse: true, // Allows null values to not violate the unique constraint
+        trim: true 
+    },
+
+    // Reset/Verification Tokens (Temporary fields)
+    resetPasswordToken: String,
+    resetPasswordExpires: Date,
+    verificationToken: String
+}, { 
+    timestamps: true // Adds createdAt and updatedAt fields automatically
+});
+
+// Create the Mongoose Model
+// Use mongoose.models.User || to prevent re-compilation on hot reloads
+const User = mongoose.models.User || mongoose.model('User', userSchema);
+// module.exports = User;
+
 // --- Product Variation Sub-Schema (Supporting Dual Images) ---
 
 const ProductVariationSchema = new mongoose.Schema({
@@ -1903,6 +1961,58 @@ app.get('/api/collections/preorder', async (req, res) => {
         console.error('Error fetching public pre-order collections:', error);
         res.status(500).json({ 
             message: 'Server error while fetching public collections.', 
+            details: error.message 
+        });
+    }
+});
+
+// GET /api/usersaccount (For Current User Profile Display)
+app.get('/api/usersaccount', isAuthenticated, async (req, res) => {
+    try {
+        // 1. Get the authenticated User ID
+        // NOTE: Please adjust 'req.userId' if your middleware uses a different field 
+        // (e.g., req.user._id or req.session.userId).
+        const userId = req.userId; 
+
+        // 2. Fetch the User document by ID
+        const user = await User.findById(userId)
+            // Select ONLY the public fields needed for the frontend profile.
+            // Explicitly excluding 'passwordHash', 'resetPasswordToken', etc.
+            .select('_id email firstName lastName username isVerified role createdAt updatedAt') 
+            .lean(); // Use .lean() for faster query results (plain JavaScript objects)
+
+        // 3. Handle case where user is not found (Auth succeeded but record is missing)
+        if (!user) {
+            return res.status(404).json({ message: 'User account not found.' });
+        }
+
+        // 4. Transform and structure the response for the frontend 
+        // (Similar to how you structured PreOrderCollection)
+        const publicUserAccount = {
+            id: user._id, // Use 'id' for frontend consistency
+            profile: {
+                email: user.email,
+                firstName: user.firstName || 'N/A',
+                lastName: user.lastName || 'N/A',
+                username: user.username || 'N/A',
+            },
+            status: {
+                role: user.role,
+                isVerified: user.isVerified,
+            },
+            membership: {
+                memberSince: user.createdAt,
+                lastUpdated: user.updatedAt,
+            }
+        };
+
+        // 5. Send the fully structured response
+        res.status(200).json(publicUserAccount);
+
+    } catch (error) {
+        console.error('Error fetching user account details:', error);
+        res.status(500).json({ 
+            message: 'Server error while fetching user account details.', 
             details: error.message 
         });
     }

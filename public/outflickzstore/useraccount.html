@@ -52,7 +52,7 @@
                         >
                     </div>
                     
-                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <button type="submit" id="login-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                         Log In
                     </button>
                 </form>
@@ -123,22 +123,57 @@
                 </form>
 
                 <div class="mt-4 text-center text-sm">
-                    <button onclick="showView('login')" class="text-blue-600 hover:text-blue-800 transition duration-150 ease-in-out focus:outline-none">
+                    <button onclick="showView('login')" class="text-blue-600 hover:bg-blue-800 transition duration-150 ease-in-out focus:outline-none">
                         Back to Login
                     </button>
                 </div>
             </div>
 
+            <div id="profile-view" class="view-transition hidden absolute top-0 w-full opacity-0">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4 border-b pb-2">Your Profile 👤</h2>
+                
+                <div id="profile-details">
+                    <div class="space-y-4">
+                        <div class="p-3 bg-gray-50 rounded-md shadow-sm">
+                            <h3 class="font-bold text-gray-700">Personal Information</h3>
+                            <p class="text-sm text-gray-500">ID: <span id="profile-id" class="font-medium text-gray-800">...</span></p>
+                            <p class="text-sm text-gray-500">Email: <span id="profile-email" class="font-medium text-gray-800">...</span></p>
+                            <p class="text-sm text-gray-500">Name: <span id="profile-name" class="font-medium text-gray-800">...</span></p>
+                            <p class="text-sm text-gray-500">Username: <span id="profile-username" class="font-medium text-gray-800">...</span></p>
+                        </div>
+
+                        <div class="p-3 bg-gray-50 rounded-md shadow-sm">
+                            <h3 class="font-bold text-gray-700">Account Status</h3>
+                            <p class="text-sm text-gray-500">Role: <span id="profile-role" class="font-medium text-gray-800">...</span></p>
+                            <p class="text-sm text-gray-500">Verified: <span id="profile-verified" class="font-medium text-gray-800">...</span></p>
+                        </div>
+                        
+                        <div class="p-3 bg-gray-50 rounded-md shadow-sm">
+                            <h3 class="font-bold text-gray-700">Membership</h3>
+                            <p class="text-sm text-gray-500">Member Since: <span id="profile-member-since" class="font-medium text-gray-800">...</span></p>
+                            <p class="text-sm text-gray-500">Last Updated: <span id="profile-last-updated" class="font-medium text-gray-800">...</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 text-center">
+                    <button onclick="handleLogout()" class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                        Log Out
+                    </button>
+                </div>
+            </div>
+            
             <div id="message-area" class="mt-6 p-3 text-sm rounded-md hidden"></div>
 
         </div>
-        </div>
+    </div>
 
     <script>
         const views = {
             'login': document.getElementById('login-view'),
             'create': document.getElementById('create-view'),
-            'forgot': document.getElementById('forgot-view')
+            'forgot': document.getElementById('forgot-view'),
+            'profile': document.getElementById('profile-view') // NEW VIEW
         };
         const headerElement = document.getElementById('auth-header');
         const messageArea = document.getElementById('message-area');
@@ -146,7 +181,7 @@
 
         /**
          * Switches the active authentication view with a fade transition.
-         * @param {string} viewName - 'login', 'create', or 'forgot'
+         * @param {string} viewName - 'login', 'create', 'forgot', or 'profile'
          */
         function showView(viewName) {
             // Find the currently visible view
@@ -156,13 +191,16 @@
             const headers = {
                 'login': 'Welcome Back',
                 'create': 'Create Your Account',
-                'forgot': 'Reset Your Password'
+                'forgot': 'Reset Your Password',
+                'profile': 'Your Account Dashboard' // NEW HEADER
             };
             headerElement.textContent = headers[viewName] || 'Authentication';
             
-            // Reset message area
-            messageArea.classList.add('hidden');
-            messageArea.innerHTML = '';
+            // Reset message area (unless switching to profile, where a message might be needed)
+            if (viewName !== 'profile') {
+                messageArea.classList.add('hidden');
+                messageArea.innerHTML = '';
+            }
 
             // Get the view to transition to
             const nextView = views[viewName];
@@ -187,22 +225,21 @@
                     container.style.height = 'auto';
 
                     // 3. Fade in the new view
-                    // We must wait a tiny bit for the new height to be calculated
                     setTimeout(() => {
-                         // Must be removed from absolute and re-added to allow natural flow
-                         nextView.classList.remove('absolute');
-                         
-                         // Measure the new height after content is fully visible/positioned
-                         container.style.height = `${container.offsetHeight}px`;
+                        // Must be removed from absolute and re-added to allow natural flow
+                        nextView.classList.remove('absolute');
+                        
+                        // Measure the new height after content is fully visible/positioned
+                        container.style.height = `${container.offsetHeight}px`;
 
-                         // Now, apply the transition classes
-                         nextView.classList.remove('opacity-0');
-                         nextView.classList.add('opacity-100');
+                        // Now, apply the transition classes
+                        nextView.classList.remove('opacity-0');
+                        nextView.classList.add('opacity-100');
 
-                         setTimeout(() => {
+                        setTimeout(() => {
                             // Clear dynamic height after transition
                             container.style.height = '';
-                         }, 300); // Must match CSS transition duration
+                        }, 300); // Must match CSS transition duration
                     }, 50); // Small delay to ensure DOM is ready for next frame
                 }, 300); // Must match CSS transition duration
             } else {
@@ -243,23 +280,110 @@
         }
 
         /**
+         * Fetches user profile data from the backend API/USERACCOUNT.
+         */
+        async function fetchUserProfile() {
+            try {
+                // In a real application, the browser would automatically send the 
+                // session cookie or authorization header after a successful login.
+                // We're simulating this by making the request.
+                const response = await fetch('/api/usersaccount', {
+                    method: 'GET',
+                    headers: {
+                        // Include headers necessary for authentication, e.g., if using tokens
+                        // 'Authorization': 'Bearer ' + localStorage.getItem('token') 
+                    }
+                });
+
+                if (response.status === 404) {
+                    displayMessage('Error: User record not found.', 'error');
+                    showView('login');
+                    return;
+                }
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                }
+
+                const userData = await response.json();
+                
+                // Populate the profile view with data
+                populateProfileView(userData);
+
+                // Switch to the profile view
+                showView('profile');
+
+            } catch (error) {
+                console.error('Error fetching user account details:', error);
+                displayMessage(`Failed to load profile: ${error.message}. Please try logging in again.`, 'error');
+                // On critical failure, revert to login view
+                showView('login');
+            }
+        }
+
+        /**
+         * Populates the profile view elements with fetched user data.
+         * @param {object} data - The structured user object from the API.
+         */
+        function populateProfileView(data) {
+            // Helper function for date formatting
+            const formatDate = (dateString) => {
+                if (!dateString) return 'N/A';
+                return new Date(dateString).toLocaleDateString('en-US', {
+                    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+            };
+
+            document.getElementById('profile-id').textContent = data.id || 'N/A';
+            
+            // Profile Section
+            document.getElementById('profile-email').textContent = data.profile.email || 'N/A';
+            document.getElementById('profile-name').textContent = 
+                `${data.profile.firstName || 'N/A'} ${data.profile.lastName || ''}`.trim();
+            document.getElementById('profile-username').textContent = data.profile.username || 'N/A';
+            
+            // Status Section
+            document.getElementById('profile-role').textContent = 
+                data.status.role ? data.status.role.toUpperCase() : 'USER';
+            document.getElementById('profile-verified').textContent = 
+                data.status.isVerified ? '✅ Verified' : '❌ Not Verified';
+
+            // Membership Section
+            document.getElementById('profile-member-since').textContent = formatDate(data.membership.memberSince);
+            document.getElementById('profile-last-updated').textContent = formatDate(data.membership.lastUpdated);
+        }
+
+        /**
          * Placeholder function for handling login form submission.
          */
         function handleLogin(event) {
             event.preventDefault();
             const email = document.getElementById('login-email').value;
             const password = document.getElementById('login-password').value;
+            const loginBtn = document.getElementById('login-btn');
+            
+            loginBtn.textContent = 'Logging in...';
+            loginBtn.disabled = true;
 
             // --- Server-side authentication logic would go here ---
-            // For demo purposes, we simulate success for 'test@outflickz.com'
-            if (email === 'test@outflickz.com' && password === 'password') {
-                displayMessage(`Login successful! Welcome ${email}. Redirecting...`, 'success');
-                // window.location.href = '/outflickzstore/homepage.html'; // Actual redirect
-            } else {
-                displayMessage('Login failed. Please check your email and password.', 'error');
-            }
+            // Simulate API call to /api/login
 
-            console.log('Login attempt:', { email, password });
+            setTimeout(() => {
+                loginBtn.textContent = 'Log In';
+                loginBtn.disabled = false;
+
+                // For demo, we simulate success for 'test@outflickz.com'
+                if (email === 'test@outflickz.com' && password === 'password') {
+                    displayMessage(`Login successful! Attempting to load profile...`, 'success');
+                    
+                    // After successful login, attempt to fetch user profile
+                    // We're pretending the session/token is now set.
+                    fetchUserProfile(); 
+                } else {
+                    displayMessage('Login failed. Please check your email and password.', 'error');
+                }
+            }, 1500); // Simulate network delay
         }
 
         /**
@@ -267,7 +391,6 @@
          */
         function handleCreateAccount(event) {
             event.preventDefault();
-            const email = document.getElementById('create-email').value;
             const password = document.getElementById('create-password').value;
             const confirmPassword = document.getElementById('confirm-password').value;
 
@@ -277,15 +400,11 @@
             }
 
             // --- Server-side account creation logic would go here ---
-            displayMessage(`Account creation request sent for ${email}. Check your email for verification.`, 'info');
+            displayMessage(`Account creation request sent. Check your email for verification.`, 'info');
             
-            // Optionally redirect to login after a delay
             setTimeout(() => {
                 showView('login');
-                document.getElementById('login-email').value = email; // Pre-fill login email
-            }, 3000);
-
-            console.log('Create Account attempt:', { email, password });
+            }, 3000); 
         }
 
         /**
@@ -298,12 +417,20 @@
             // --- Server-side password reset logic would go here ---
             displayMessage(`If an account exists for ${email}, a password reset link has been sent.`, 'success');
 
-            // Optionally redirect to login after a delay
             setTimeout(() => {
                 showView('login');
             }, 5000);
+        }
 
-            console.log('Forgot Password attempt:', { email });
+        /**
+         * Placeholder function for handling user logout.
+         */
+        function handleLogout() {
+            // In a real application:
+            // 1. Clear local storage/session (e.g., remove token)
+            // 2. Call /api/logout endpoint
+            displayMessage('You have been successfully logged out.', 'info');
+            showView('login');
         }
     </script>
 </body>

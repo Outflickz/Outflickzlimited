@@ -614,7 +614,8 @@ async function fetchAndRenderWearsCollections() {
 
         container.innerHTML = '';
         
-        let collectionsToRender = collections && collections.length > 0 ? collections : mockWearsCollections.collections;
+        // Use real data, no mock fallback here
+        let collectionsToRender = collections && collections.length > 0 ? collections : [];
 
         if (collectionsToRender && collectionsToRender.length > 0) {
             // Limit to the first 4 collections for the homepage view, matching the image example
@@ -635,19 +636,10 @@ async function fetchAndRenderWearsCollections() {
             container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Wears Collections are currently available.</p>`;
         }
     } catch (error) {
-        console.error('Error fetching wears collections, using mock data:', error);
+        console.error('Error fetching wears collections:', error);
         
-        // --- FALLBACK LOGIC ---
-        const collectionsToRender = mockWearsCollections.collections.slice(0, 4);
-        container.innerHTML = '';
-        
-        if (collectionsToRender && collectionsToRender.length > 0) {
-            collectionsToRender.forEach(collection => {
-                container.innerHTML += createCollectionCard(collection, 'default');
-            });
-        } else {
-             container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full">Error loading wears collections. Using fallback data (if available).</p>';
-        }
+        // Clean error message on API failure
+        container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server (502/Down).</p>';
     }
 } 
 
@@ -687,7 +679,7 @@ async function fetchAndRenderNewArrivals() {
 
         container.innerHTML = '';
         
-        let productsToRender = products && products.length > 0 ? products : mockNewArrivals.products;
+        let productsToRender = products && products.length > 0 ? products : [];
 
         if (productsToRender && productsToRender.length > 0) {
             // Limit to the first 2 products for a more exclusive homepage view
@@ -707,19 +699,10 @@ async function fetchAndRenderNewArrivals() {
             container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No New Arrivals are currently available.</p>`;
         }
     } catch (error) {
-        console.error('Error fetching new arrivals, using mock data:', error);
+        console.error('Error fetching new arrivals:', error);
         
-        // --- FALLBACK LOGIC ---
-        const productsToRender = mockNewArrivals.products.slice(0, 2);
-        container.innerHTML = '';
-        
-        if (productsToRender && productsToRender.length > 0) {
-            productsToRender.forEach(product => {
-                container.innerHTML += createCollectionCard(product, 'reduced');
-            });
-        } else {
-             container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full">Error loading new arrivals. Using fallback data (if available).</p>';
-        }
+        // Clean error message on API failure
+        container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server (502/Down).</p>';
     }
 }
 
@@ -762,7 +745,7 @@ async function fetchAndRenderCapsCollection() {
 
         container.innerHTML = '';
         
-        let collectionsToRender = collections && collections.length > 0 ? collections : mockCapsCollections.collections;
+        let collectionsToRender = collections && collections.length > 0 ? collections : [];
 
         if (collectionsToRender && collectionsToRender.length > 0) {
             // Limit to the first 4 collections for the homepage view
@@ -782,24 +765,14 @@ async function fetchAndRenderCapsCollection() {
             container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Caps Collections are currently available.</p>`;
         }
     } catch (error) {
-        console.error('Error fetching caps collections, using mock data:', error);
+        console.error('Error fetching caps collections:', error);
         
-        // --- FALLBACK LOGIC ---
-        const collectionsToRender = mockCapsCollections.collections.slice(0, 4);
-        container.innerHTML = '';
-        
-        if (collectionsToRender && collectionsToRender.length > 0) {
-            collectionsToRender.forEach(collection => {
-                // IMPORTANT: Pass 'caps' size
-                container.innerHTML += createCollectionCard(collection, 'caps');
-            });
-        } else {
-             container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full">Error loading caps collections. Using fallback data (if available).</p>';
-        }
+        // Clean error message on API failure
+        container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server (502/Down).</p>';
     }
 }
 
-// 🎯 NEW PRE-ORDER COLLECTION JS FUNCTION
+// 🎯 PRE-ORDER COLLECTION JS FUNCTION
 async function fetchAndRenderPreorderCollections() {
     const container = document.getElementById('preorder-collections-grid');
     if (!container) return;
@@ -836,8 +809,6 @@ async function fetchAndRenderPreorderCollections() {
 
         container.innerHTML = '';
         
-        // Note: Mock data (e.g., mockPreorderCollections) is omitted here for brevity, 
-        // but would be included in a real application's fallback logic.
         let collectionsToRender = collections && collections.length > 0 ? collections : []; 
 
         if (collectionsToRender && collectionsToRender.length > 0) {
@@ -846,7 +817,7 @@ async function fetchAndRenderPreorderCollections() {
             
             limitedCollections.forEach(collection => {
                 if (collection.price !== undefined && collection.price !== null) {
-                    // Pass 'preorder' size flag (using 'default' for styling, but setting flag internally for logic)
+                    // Pass 'preorder' size flag to enable pre-order specific logic/badges
                     container.innerHTML += createCollectionCard(collection, 'preorder');
                 }
             });
@@ -860,8 +831,8 @@ async function fetchAndRenderPreorderCollections() {
     } catch (error) {
         console.error('Error fetching pre-order collections:', error);
         
-        // --- FALLBACK LOGIC --- (Assuming no mock data is available for preorders)
-        container.innerHTML = `<p class="col-span-full text-center text-red-600 py-10 w-full">Error loading pre-order collections.</p>`;
+        // Clean error message on API failure
+        container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server (502/Down).</p>';
     }
 }
 

@@ -1842,12 +1842,13 @@ app.get('/api/collections/preorder', async (req, res) => {
         // 2. Transform and Sign URLs for public frontend structure
         const publicCollections = await Promise.all(collections.map(async (collection) => {
             
-            // Map Mongoose variations to a simpler public variants array and sign URLs
+           // Map Mongoose variations to a simpler public variants array and sign URLs
             const variants = await Promise.all(collection.variations.map(async (v) => ({
+                // 🔑 FIX: Add the color field back to the response object
+                color: v.colorHex, 
                 frontImageUrl: await generateSignedUrl(v.frontImageUrl) || v.frontImageUrl,
                 backImageUrl: await generateSignedUrl(v.backImageUrl) || v.backImageUrl
             })));
-
            // Recommended Pre-Order Collection Response Structure
 return {
     _id: collection._id,

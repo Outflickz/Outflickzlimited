@@ -1842,43 +1842,6 @@ app.get('/api/collections/caps', async (req, res) => {
     }
 });
 
-app.get('/api/collections/preorder', async (req, res) => {
-    try {
-        // 1. Fetch only collections that are active (isActive: true)
-        const collections = await PreOrderCollection.find({ isActive: true })
-            // CORRECT: Selects all public-facing fields used in the new schema (sizes, totalStock, availableDate).
-            .select('_id name tag price sizes totalStock availableDate variations')
-            .sort({ createdAt: -1 })
-            .lean();
-
-        // 2. Sign URLs for variations
-        const signedCollections = await Promise.all(collections.map(async (collection) => {
-            const signedVariations = await Promise.all(collection.variations.map(async (v) => ({
-                // Keep existing variation fields
-                ...v, 
-                // Ensure signed URLs are generated for public display
-                frontImageUrl: await generateSignedUrl(v.frontImageUrl) || v.frontImageUrl,
-                backImageUrl: await generateSignedUrl(v.backImageUrl) || v.backImageUrl
-            })));
-            
-            // Return the collection with the updated, signed variations
-            return {
-                ...collection,
-                variations: signedVariations
-            };
-        }));
-
-        // 3. Send the fully structured response
-        res.status(200).json(signedCollections);
-    } catch (error) {
-        console.error('Error fetching public pre-order collections:', error);
-        res.status(500).json({ 
-            message: 'Server error while fetching public collections.', 
-            details: error.message 
-        });
-    }
-});
-
 // GET /api/collections/preorder (For Homepage Display)
 app.get('/api/collections/preorder', async (req, res) => {
     try {
@@ -1898,17 +1861,17 @@ app.get('/api/collections/preorder', async (req, res) => {
                 backImageUrl: await generateSignedUrl(v.backImageUrl) || v.backImageUrl
             })));
 
-            // Return the transformed object matching the Caps/Wears format
-            return {
-                _id: collection._id,
-                name: collection.name,
-                tag: collection.tag,
-                price: collection.price, 
-                availableSizes: collection.sizes,
-                availableStock: collection.totalStock, 
-                availableDate: collection.availableDate,
-                variants: variants
-            };
+           // Recommended Pre-Order Collection Response Structure
+return {
+    _id: collection._id,
+    name: collection.name,
+    tag: collection.tag,
+    price: collection.price, 
+    availableSizes: collection.sizes,
+    availableStock: collection.totalStock, 
+    availableDate: collection.availableDate, // This is the crucial extra field
+    variants: variants
+};
         }));
 
         // 3. Send the fully structured response

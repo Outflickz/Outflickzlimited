@@ -178,19 +178,6 @@ const adminSchema = new mongoose.Schema({
 });
 const Admin = mongoose.models.Admin || mongoose.model('Admin', adminSchema);
 
-// --- MONGODB SCHEMAS & MODELS ---
-const userSchema = new mongoose.Schema({
-     email: { type: String, required: true, unique: true, trim: true, lowercase: true },
-    passwordHash: { type: String, required: true },
-    firstName: { type: String, trim: true },
-    lastName: { type: String, trim: true },
-    username: { type: String, trim: true, unique: true, sparse: true },
-    isVerified: { type: Boolean, default: false },
-    role: { type: String, enum: ['user', 'admin'], default: 'user' },
-}, { timestamps: true });
-
-const User = mongoose.models.User || mongoose.model('User', userSchema);
-// module.exports = User;
 
 // --- Product Variation Sub-Schema (Supporting Dual Images) ---
 

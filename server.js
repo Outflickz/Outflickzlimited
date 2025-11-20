@@ -1885,57 +1885,6 @@ return {
     }
 });
 
-// GET /api/usersaccount (For Current User Profile Display)
-app.get('/api/usersaccount', isAuthenticated, async (req, res) => {
-    try {
-        // 1. Get the authenticated User ID
-        // NOTE: Please adjust 'req.userId' if your middleware uses a different field 
-        // (e.g., req.user._id or req.session.userId).
-        const userId = req.userId; 
-
-        // 2. Fetch the User document by ID
-        const user = await User.findById(userId)
-            // Select ONLY the public fields needed for the frontend profile.
-            // Explicitly excluding 'passwordHash', 'resetPasswordToken', etc.
-            .select('_id email firstName lastName username isVerified role createdAt updatedAt') 
-            .lean(); // Use .lean() for faster query results (plain JavaScript objects)
-
-        // 3. Handle case where user is not found (Auth succeeded but record is missing)
-        if (!user) {
-            return res.status(404).json({ message: 'User account not found.' });
-        }
-
-        // 4. Transform and structure the response for the frontend 
-        // (Similar to how you structured PreOrderCollection)
-        const publicUserAccount = {
-            id: user._id, // Use 'id' for frontend consistency
-            profile: {
-                email: user.email,
-                firstName: user.firstName || 'N/A',
-                lastName: user.lastName || 'N/A',
-                username: user.username || 'N/A',
-            },
-            status: {
-                role: user.role,
-                isVerified: user.isVerified,
-            },
-            membership: {
-                memberSince: user.createdAt,
-                lastUpdated: user.updatedAt,
-            }
-        };
-
-        // 5. Send the fully structured response
-        res.status(200).json(publicUserAccount);
-
-    } catch (error) {
-        console.error('Error fetching user account details:', error);
-        res.status(500).json({ 
-            message: 'Server error while fetching user account details.', 
-            details: error.message 
-        });
-    }
-});
 
 // --- NETLIFY EXPORTS for api.js wrapper ---
 module.exports = {

@@ -1530,8 +1530,7 @@ app.put(
                 const updateFields = {};
                 if (totalStock !== undefined) updateFields.totalStock = totalStock;
                 if (isActive !== undefined) updateFields.isActive = isActive;
-                if (preorderDeadline !== undefined) updateFields.preorderDeadline = preorderDeadline;
-                if (estimatedDelivery !== undefined) updateFields.estimatedDelivery = estimatedDelivery;
+                if (availableDate !== undefined) updateFields.availableDate = availableDate;
 
                 if (Object.keys(updateFields).length === 0) {
                     return res.status(400).json({ message: "Missing update fields in simple update payload." });
@@ -1596,7 +1595,7 @@ app.put(
                 
                 updatedVariations.push({
                     variationIndex: index,
-                    colorHex: incomingVariation.colorHex,
+                   // colorHex: incomingVariation.colorHex,
                     // Use functions for lazy evaluation of file URLs after uploads complete
                     get frontImageUrl() { return finalFrontUrl; },
                     get backImageUrl() { return finalBackUrl; },
@@ -1845,7 +1844,6 @@ app.get('/api/collections/preorder', async (req, res) => {
            // Map Mongoose variations to a simpler public variants array and sign URLs
             const variants = await Promise.all(collection.variations.map(async (v) => ({
                 // 🔑 FIX: Add the color field back to the response object
-                color: v.colorHex, 
                 frontImageUrl: await generateSignedUrl(v.frontImageUrl) || v.frontImageUrl,
                 backImageUrl: await generateSignedUrl(v.backImageUrl) || v.backImageUrl
             })));

@@ -2233,21 +2233,24 @@ app.post('/api/users/register', async (req, res) => {
         return res.status(400).json({ message: 'Invalid input. Email and a password of at least 8 characters are required.' });
     }
 
+    // Initialize newUser outside the main try block for access in catch blocks
+    let newUser; 
+    let verificationCode;
+
     try {
         
         // Mongoose pre-save middleware handles hashing the password
-        const newUser = await User.create({
+        newUser = await User.create({
             email,
             password, 
             profile: { firstName, lastName },
-            // These will be updated immediately by the helper function below
             isVerified: false 
         });
 
         // Generate and store the verification code
-        const verificationCode = await generateAndSaveVerificationCode(newUser);
+        verificationCode = await generateAndSaveVerificationCode(newUser);
 
-        // --- 🛠️ Send Verification Code Email Logic ---
+        // --- 🛠️ Send Verification Code Email Logic (NOW AWAITED) ---
         const verificationSubject = 'Outflickz: Your Account Verification Code';
         const verificationHtml = `
             <div style="background-color: #f7f7f7; padding: 30px; border: 1px solid #e0e0e0; max-width: 500px; margin: 0 auto; font-family: sans-serif; border-radius: 8px;">
@@ -2266,38 +2269,46 @@ app.post('/api/users/register', async (req, res) => {
 
                 <p style="font-family: sans-serif; margin-top: 20px; line-height: 1.6; font-size: 14px; color: #555555;">If you did not create this account, please ignore this email.</p>
 
-                <!-- Footer -->
                 <p style="font-size: 10px; margin-top: 30px; border-top: 1px solid #e0e0e0; padding-top: 10px; color: #888888; text-align: center;">&copy; ${new Date().getFullYear()} Outflickz Limited.</p>
             </div>
         `;
 
-        // Send email and log errors if it fails
-        sendMail(email, verificationSubject, verificationHtml)
-            .then(() => {
-                console.log(`Verification email sent to ${email} with code ${verificationCode}`);
-            })
-            .catch(error => {
-                // Log detailed error if email fails - CRITICAL STEP
-                console.error(`CRITICAL: Failed to send verification email to ${email}:`, error.message, error.response);
-                // Frontend is already directed to verification, the user can now use the resend endpoint.
-            });
+        // The key change: AWAIT the mail function. 
+        // If it throws an error (e.g., incorrect API key), the code jumps to the catch block.
+        await sendMail(email, verificationSubject, verificationHtml);
+        console.log(`Verification email sent to ${email} with code ${verificationCode}`);
         
-        // Response indicates that the user must now verify the account
+        // Response indicates success
         res.status(201).json({ 
             message: 'Registration successful. Please check your email for the 6-digit verification code.',
             userId: newUser._id,
-            needsVerification: true // Signal to frontend to show the verification screen
+            needsVerification: true
         });
 
     } catch (error) {
+        
         if (error.code === 11000) { // MongoDB duplicate key error (for email)
             return res.status(409).json({ message: 'This email address is already registered.' });
         }
+        
+        // NEW ERROR HANDLING: Catches errors thrown by sendMail (after user creation)
+        // Note: You must ensure 'sendMail' throws a recognizable error (like EmailSendError)
+        // or has error message content related to the email service.
+        if (newUser && (error.name === 'EmailSendError' || error.message.includes('email service') || error.message.includes('SMTP'))) {
+            console.error(`CRITICAL: Email service failed for ${email}:`, error);
+            // Return 503 (Service Unavailable) to clearly state the account was created but the email service failed.
+            return res.status(503).json({ 
+                message: 'Account created, but we failed to send the verification email. Please use the "Resend Code" option or try logging in again.',
+                needsVerification: true,
+                userId: newUser._id
+            });
+        }
+
+        // Default server error
         console.error("User registration error:", error);
         res.status(500).json({ message: 'Server error during registration.' });
     }
 });
-
 
 // 5. POST /api/users/resend-verification (New Endpoint)
 app.post('/api/users/resend-verification', async (req, res) => {

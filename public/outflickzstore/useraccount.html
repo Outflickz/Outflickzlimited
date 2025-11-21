@@ -189,7 +189,7 @@
                 </form>
 
                 <div class="mt-6 text-center text-sm">
-                    <button onclick="handleResendCode()" class="text-purple-600 hover:text-purple-800 transition duration-150 ease-in-out font-medium focus:outline-none focus:underline">
+                    <button onclick="handleResendCode()" id="resend-btn" class="text-purple-600 hover:text-purple-800 transition duration-150 ease-in-out font-medium focus:outline-none focus:underline">
                         Resend Code
                     </button>
                 </div>
@@ -262,10 +262,7 @@
     </div>
 
     <script>
-        // NOTE: The JavaScript logic from the original code remains functional and is reused below.
-        // I have kept the original logic identical for functions like showView, handleLogin, etc., 
-        // as the request was for frontend *style* and *responsiveness* updates.
-        
+        // ... (Existing variables and showView, togglePasswordVisibility, displayMessage functions) ...
         let pendingVerificationEmail = ''; 
         
         const views = {
@@ -461,11 +458,41 @@
         }
 
         /**
-         * NEW: Handles resending the verification code.
+         * NEW: Starts a cooldown timer for the Resend Code button.
+         */
+        function setResendCooldown(durationSeconds = 60) {
+            const resendBtn = document.getElementById('resend-btn');
+            resendBtn.disabled = true;
+            let timer = durationSeconds;
+            resendBtn.textContent = `Resend Code (${timer}s)`;
+
+            const interval = setInterval(() => {
+                timer--;
+                if (timer > 0) {
+                    resendBtn.textContent = `Resend Code (${timer}s)`;
+                } else {
+                    clearInterval(interval);
+                    resendBtn.textContent = 'Resend Code';
+                    resendBtn.disabled = false;
+                }
+            }, 1000);
+        }
+
+        /**
+         * NEW: Handles resending the verification code with cooldown logic.
          */
         function handleResendCode() {
+            const resendBtn = document.getElementById('resend-btn');
+
+            if (resendBtn.disabled) {
+                // Cooldown is active, just return
+                return;
+            }
+
             if (pendingVerificationEmail) {
                 displayMessage(`Resending code to ${pendingVerificationEmail}...`, 'info');
+                setResendCooldown(60); // Start a 60-second cooldown
+
                 // In a real app, trigger the resend API call here
                 setTimeout(() => {
                     displayMessage('New code sent! Check your inbox.', 'success');
@@ -510,7 +537,6 @@
         }
 
         // Example data to populate profile after a mock login (for testing profile view)
-        // You can uncomment the line below and call showView('profile') to see it.
         /*
         populateProfileView({
             id: 'u-12345',

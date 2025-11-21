@@ -84,79 +84,80 @@
                 <p class="mt-4 text-gray-600 text-sm">Fetching metrics...</p>
             </div>
 
-<div id="metric-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 hidden">                
-                                <div class="bg-white p-5 rounded-xl shadow-md border-b-4 border-emerald-500 hover:shadow-xl transition duration-300">
-                    <div class="flex items-center">
-                        <div class="p-3 rounded-full bg-emerald-100 text-emerald-600">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 2v8m0 0v1m-3 0h6m-1-5a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        </div>
-                        <div class="ml-4">
-                            <p class="text-xs font-medium text-gray-500 uppercase">Total Sales (LTD)</p>
-                            <p id="total-sales" class="text-2xl font-extrabold text-gray-900 mt-1">₦0</p>
-                        </div>
-                    </div>
-                </div>
+            <div id="metric-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 hidden">
+                
+                <div class="bg-white p-5 rounded-xl shadow-md border-b-4 border-emerald-500 hover:shadow-xl transition duration-300">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-emerald-100 text-emerald-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 2v8m0 0v1m-3 0h6m-1-5a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-xs font-medium text-gray-500 uppercase">Total Sales (LTD)</p>
+                            <p id="total-sales" class="text-2xl font-extrabold text-gray-900 mt-1">₦0</p>
+                        </div>
+                    </div>
+                </div>
 
-                                <div class="bg-white p-5 rounded-xl shadow-md border-b-4 border-cyan-500 hover:shadow-xl transition duration-300">
-                    <div class="flex items-center">
-                        <div class="p-3 rounded-full bg-cyan-100 text-cyan-600">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
-                        </div>
-                        <div class="ml-4">
-                            <p class="text-xs font-medium text-gray-500 uppercase">Wears Active Stock</p>
-                            <p id="wears-stock" class="text-2xl font-extrabold text-gray-900 mt-1">0</p>
-                        </div>
-                    </div>
-                </div>
+                <div class="bg-white p-5 rounded-xl shadow-md border-b-4 border-cyan-500 hover:shadow-xl transition duration-300">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-cyan-100 text-cyan-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-xs font-medium text-gray-500 uppercase">Wears Active Stock</p>
+                            <p id="wears-stock" class="text-2xl font-extrabold text-gray-900 mt-1">0</p>
+                        </div>
+                    </div>
+                </div>
                 
-                                <div class="bg-white p-5 rounded-xl shadow-md border-b-4 border-blue-500 hover:shadow-xl transition duration-300">
-                    <div class="flex items-center">
-                        <div class="p-3 rounded-full bg-blue-100 text-blue-600">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 13h10M4 19v-6a3 3 0 013-3h10a3 3 0 013 3v6a3 3 0 01-3 3H7a3 3 0 01-3-3z"></path></svg>
-                        </div>
-                        <div class="ml-4">
-                            <p class="text-xs font-medium text-gray-500 uppercase">Caps Active Stock</p>
-                            <p id="caps-stock" class="text-2xl font-extrabold text-gray-900 mt-1">0</p>
-                        </div>
-                    </div>
-                </div>
+                <div class="bg-white p-5 rounded-xl shadow-md border-b-4 border-blue-500 hover:shadow-xl transition duration-300">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 13h10M4 19v-6a3 3 0 013-3h10a3 3 0 013 3v6a3 3 0 01-3 3H7a3 3 0 01-3-3z"></path></svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-xs font-medium text-gray-500 uppercase">Caps Active Stock</p>
+                            <p id="caps-stock" class="text-2xl font-extrabold text-gray-900 mt-1">0</p>
+                        </div>
+                    </div>
+                </div>
                 
-                                <div class="bg-white p-5 rounded-xl shadow-md border-b-4 border-fuchsia-500 hover:shadow-xl transition duration-300">
-                    <div class="flex items-center">
-                        <div class="p-3 rounded-full bg-fuchsia-100 text-fuchsia-600">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        </div>
-                        <div class="ml-4">
-                            <p class="text-xs font-medium text-gray-500 uppercase">New Arrivals Stock</p>
-                            <p id="new-arrivals-stock" class="text-2xl font-extrabold text-gray-900 mt-1">0</p>
-                        </div>
-                    </div>
-                </div>
+                <div class="bg-white p-5 rounded-xl shadow-md border-b-4 border-fuchsia-500 hover:shadow-xl transition duration-300">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-fuchsia-100 text-fuchsia-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-xs font-medium text-gray-500 uppercase">New Arrivals Stock</p>
+                            <p id="new-arrivals-stock" class="text-2xl font-extrabold text-gray-900 mt-1">0</p>
+                        </div>
+                    </div>
+                </div>
                 
-                      <div class="bg-white p-5 rounded-xl shadow-md border-b-4 border-amber-500 hover:shadow-xl transition duration-300">
-                    <div class="flex items-center">
-                        <div class="p-3 rounded-full bg-amber-100 text-amber-600">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
-                        </div>
-                        <div class="ml-4">
-                            <p class="text-xs font-medium text-gray-500 uppercase">Pre-Order Active Stock</p>
-                            <p id="pre-order-stock" class="text-2xl font-extrabold text-gray-900 mt-1">0</p>
-                        </div>
-                    </div>
-                </div>
+                <div class="bg-white p-5 rounded-xl shadow-md border-b-4 border-amber-500 hover:shadow-xl transition duration-300">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-amber-100 text-amber-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-xs font-medium text-gray-500 uppercase">Pre-Order Active Stock</p>
+                            <p id="pre-order-stock" class="text-2xl font-extrabold text-gray-900 mt-1">0</p>
+                        </div>
+                    </div>
+                </div>
 
-                                <div class="bg-white p-5 rounded-xl shadow-md border-b-4 border-purple-500 hover:shadow-xl transition duration-300">
-                    <div class="flex items-center">
-                        <div class="p-3 rounded-full bg-purple-100 text-purple-600">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                        </div>
-                        <div class="ml-4">
-                            <p class="text-xs font-medium text-gray-500 uppercase">Registered Users</p>
-                            <p id="registered-users" class="text-2xl font-extrabold text-gray-900 mt-1">0</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                <div class="bg-white p-5 rounded-xl shadow-md border-b-4 border-purple-500 hover:shadow-xl transition duration-300">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-purple-100 text-purple-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-xs font-medium text-gray-500 uppercase">Registered Users</p>
+                            <p id="registered-users" class="text-2xl font-extrabold text-gray-900 mt-1">0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
             
             <div class="mt-8 bg-white p-6 rounded-xl shadow-lg border-t-2 border-gray-200">
                 <h3 class="text-xl font-semibold mb-4 text-gray-700">Recent Activity Log 🔔</h3>
@@ -279,11 +280,11 @@
             if (contentElement) {
                 contentElement.classList.remove('hidden');
             } else if (['newarrivals', 'capscollection', 'wearscollection', 'preorders'].includes(contentId)) {
-                 // Special handling for external links: they now redirect, so don't look for an internal section.
-                 // We will update button styles, but not display an internal section.
-                 console.log(`Content section 'content-${contentId}' is now a redirect. Reverting to dashboard view.`);
-                 document.getElementById('content-dashboard').classList.remove('hidden');
-                 contentId = `${contentId}-dummy-active-state`; // Use a dummy ID to keep the button active
+                // Special handling for external links: they now redirect, so don't look for an internal section.
+                // We will update button styles, but not display an internal section.
+                console.log(`Content section 'content-${contentId}' is now a redirect. Reverting to dashboard view.`);
+                document.getElementById('content-dashboard').classList.remove('hidden');
+                contentId = `${contentId}-dummy-active-state`; // Use a dummy ID to keep the button active
             }
 
 
@@ -313,7 +314,7 @@
             
             // Re-apply dashboard styles if a non-existent internal page was clicked (like newarrivals used to be)
             if (!contentElement && contentId !== 'settings') {
-                 document.getElementById('content-dashboard').classList.remove('hidden');
+                document.getElementById('content-dashboard').classList.remove('hidden');
             }
 
 
@@ -356,15 +357,15 @@
                 }
 
                 const data = await response.json();
-                return {
-                    totalSales: data.totalSales || 0,
-                    // These keys must match the new keys returned by the backend
-                    wearsStock: data.wearsStock || 0, // NEW
-                    capsStock: data.capsStock || 0, // NEW
-                    newArrivalsStock: data.newArrivalsStock || 0, // NEW
-                    preOrderStock: data.preOrderStock || 0, // NEW
-                    registeredUsers: data.userCount || 0
-                };
+                return {
+                    totalSales: data.totalSales || 0,
+                    // These keys must match the new keys returned by the backend
+                    wearsStock: data.wearsStock || 0, // NEW
+                    capsStock: data.capsStock || 0, // NEW
+                    newArrivalsStock: data.newArrivalsStock || 0, // NEW
+                    preOrderStock: data.preOrderStock || 0, // NEW
+                    registeredUsers: data.userCount || 0
+                };
 
             } catch (error) {
                 console.error('Error fetching dashboard data:', error);
@@ -389,18 +390,18 @@
                     currency: 'NGN',
                     minimumFractionDigits: 0,
                     maximumFractionDigits: 2,
-              }).format(data.totalSales);
+                }).format(data.totalSales);
 
-                totalSalesElement.textContent = salesFormatted;
-                
-                // Display NEW individual stock counts
-                wearsStockElement.textContent = data.wearsStock.toLocaleString(); // NEW
-                capsStockElement.textContent = data.capsStock.toLocaleString(); // NEW
-                newArrivalsStockElement.textContent = data.newArrivalsStock.toLocaleString(); // NEW
-                preOrderStockElement.textContent = data.preOrderStock.toLocaleString(); // NEW
-                
-                registeredUsersElement.textContent = data.registeredUsers.toLocaleString();
-                metricCards.classList.remove('hidden');
+                totalSalesElement.textContent = salesFormatted;
+                
+                // Display NEW individual stock counts
+                wearsStockElement.textContent = data.wearsStock.toLocaleString(); // NEW
+                capsStockElement.textContent = data.capsStock.toLocaleString(); // NEW
+                newArrivalsStockElement.textContent = data.newArrivalsStock.toLocaleString(); // NEW
+                preOrderStockElement.textContent = data.preOrderStock.toLocaleString(); // NEW
+                
+                registeredUsersElement.textContent = data.registeredUsers.toLocaleString();
+                metricCards.classList.remove('hidden');
             } else {
                 // Display error state if data fetching fails
                 metricCards.innerHTML = '<div class="md:col-span-3 text-center p-8 bg-red-100 text-red-700 rounded-xl shadow-lg">Failed to load dashboard data. Please check the API connection.</div>';

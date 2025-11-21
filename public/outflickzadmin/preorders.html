@@ -574,32 +574,39 @@ function getTagClass(tag) {
  * *** MODIFIED: Added Available Date and removed Color from the form logic. ***
  * *** FIX: Implemented robust error handling to prevent SyntaxError when API returns non-JSON (HTML) error page. ***
  */
+// Conceptual fix for your client-side JavaScript (preorders.html)
 async function editCollection(collectionId) {
-    const token = getAuthToken();
-    if (!token) return;
-
     try {
-        const response = await fetch(`${API_BASE_URL}/${collectionId}`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const response = await fetch(`/api/admin/preordercollections/${collectionId}`);
 
         if (!response.ok) {
-            let errorMsg = `HTTP error! Status: ${response.status}`;
+            // Read body ONCE for error details
+            let errorDetails = `Status: ${response.status} ${response.statusText}`;
             try {
-                // Attempt to parse JSON first (for standard API error response)
-                const errorData = await response.json();
-                errorMsg = errorData.message || errorMsg;
+                // Attempt to parse JSON error message if the server provided one
+                const errorJson = await response.json(); 
+                errorDetails = errorJson.message || JSON.stringify(errorJson);
             } catch (e) {
-                // If JSON parsing fails (i.e., it's HTML/text), read as plain text
-                const errorText = await response.text();
-                // Check if it looks like an HTML error page
-                errorMsg = errorText.startsWith('<!DOCTYPE') ? 
-                           `Server returned an unexpected HTML error page (Status: ${response.status}).` : 
-                           errorText || errorMsg;
+                // If it wasn't JSON, just use the status details
+                // NOTE: Do NOT use response.text() here, as it would cause the same error if called twice.
+                // Since response.json() failed, we rely on the status text above.
             }
-            throw new Error(errorMsg);
+            
+            // Throw a proper error after reading the body
+            throw new Error(`Failed to fetch collection for edit: ${errorDetails}`);
         }
+
+        // Only read the body as JSON if the response is OK (200)
+        const collectionData = await response.json(); 
+        
+       
+    } catch (error) {
+        // This is where line 658 is executing, logging the error object
+        console.error("Error fetching collection for edit:", error.message || error);
+        // Display user-friendly message
+        // showErrorMessage(error.message || "An unknown error occurred while fetching data.");
+    }
+}
 
         const collection = await response.json();
 

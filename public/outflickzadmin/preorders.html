@@ -596,18 +596,6 @@ async function editCollection(collectionId) {
             throw new Error(`Failed to fetch collection for edit: ${errorDetails}`);
         }
 
-        // Only read the body as JSON if the response is OK (200)
-        const collectionData = await response.json(); 
-        
-       
-    } catch (error) {
-        // This is where line 658 is executing, logging the error object
-        console.error("Error fetching collection for edit:", error.message || error);
-        // Display user-friendly message
-        // showErrorMessage(error.message || "An unknown error occurred while fetching data.");
-    }
-}
-
         const collection = await response.json();
 
         // 1. Set form mode

@@ -353,25 +353,39 @@ function toggleImage(collectionId) {
     }
 }
 
-
-// --- UTILITY FOR COLOR LIST (UPDATED to use API data and new image data structure) ---
+// --- UTILITY FOR COLOR LIST (FIXED for Pre-Order Collections) ---
 function createColorList(collectionId, variants) {
+    // 1. Initial Safety Check
     if (!variants || variants.length === 0) return '';
     
-    // 1. Create a map for the image switching logic: { colorHex: {frontImageUrl, backImageUrl} }
-    const colorMap = variants.reduce((acc, v) => {
+    // 🔑 CRITICAL FIX: Filter out variants where color is undefined (i.e., Pre-Order items)
+    const coloredVariants = variants.filter(v => v.color);
+
+    // If there are no colored variants (e.g., all are pre-order), return empty.
+    if (coloredVariants.length === 0) return ''; 
+
+    // 2. Create a map for the image switching logic using ONLY the colored variants
+    const colorMap = coloredVariants.reduce((acc, v) => {
         acc[v.color] = { frontImageUrl: v.frontImageUrl, backImageUrl: v.backImageUrl };
         return acc;
     }, {});
 
-    // 2. Store the map in the DOM for easy access by changeVariantImage
+    // 3. Store the map in the DOM for easy access by changeVariantImage
+    // NOTE: We use coloredVariants here to ensure the map only holds valid colors.
     const mapHtml = `<div id="color-map-${collectionId}" data-color-map='${JSON.stringify(colorMap)}' class="hidden"></div>`;
 
-    // 3. Generate the color swatch buttons
-    const buttonsHtml = variants.map((variant, index) => {
+    // 4. Generate the color swatch buttons
+    // Use the filtered list (coloredVariants) for mapping
+    const buttonsHtml = coloredVariants.map((variant, index) => {
+        // Now 'variant.color' is guaranteed to exist!
         const colorHex = variant.color; 
         const style = `background-color: ${colorHex};`;
-        const extraClass = (colorHex.toUpperCase() === '#FFFFFF' || colorHex.toUpperCase() === '#FFF') ? 'border-gray-400' : 'border-gray-200';
+        
+        // Safety check for case sensitivity, though not strictly needed here if data is clean
+        const safeColor = String(colorHex).toUpperCase(); 
+        
+        // This line is now safe because colorHex is a string
+        const extraClass = (safeColor === '#FFFFFF' || safeColor === '#FFF') ? 'border-gray-400' : 'border-gray-200';
         
         return `
             <label for="color-${collectionId}-${colorHex}" class="color-label cursor-pointer p-[1px] rounded-full border border-transparent hover:border-ash-red transition-all">
@@ -391,7 +405,6 @@ function createColorList(collectionId, variants) {
 
     return mapHtml + buttonsHtml;
 }
-
 
 // --- REDESIGNED WEARS COLLECTION CARD JS (MATCHES IMAGE LAYOUT) ---
 // UPDATED: Now handles the 'caps' size by removing the size selection UI.

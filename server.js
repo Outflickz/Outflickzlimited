@@ -1827,38 +1827,34 @@ app.get('/api/collections/caps', async (req, res) => {
         res.status(500).json({ message: 'Server error while fetching cap collections for homepage.', details: error.message });
     }
 });
-
 // GET /api/collections/preorder (For Homepage Display)
 app.get('/api/collections/preorder', async (req, res) => {
     try {
-        // 1. Fetch only collections that are active (isActive: true)
+        // 1. Fetch collections, selecting only the necessary metadata fields.
+        // The 'variations' field is intentionally excluded as pre-order collections
+        // do not use a color-based variation structure.
         const collections = await PreOrderCollection.find({ isActive: true })
-            // Select all necessary fields from the Schema
-            .select('_id name tag price sizes totalStock availableDate variations') 
+            .select('_id name tag price sizes totalStock availableDate') 
             .sort({ createdAt: -1 })
             .lean();
 
-        // 2. Transform and Sign URLs for public frontend structure
-        const publicCollections = await Promise.all(collections.map(async (collection) => {
-            
-           // Map Mongoose variations to a simpler public variants array and sign URLs
-            const variants = await Promise.all(collection.variations.map(async (v) => ({
-                // 🔑 FIX: Add the color field back to the response object
-                frontImageUrl: await generateSignedUrl(v.frontImageUrl) || v.frontImageUrl,
-                backImageUrl: await generateSignedUrl(v.backImageUrl) || v.backImageUrl
-            })));
-           // Recommended Pre-Order Collection Response Structure
-return {
-    _id: collection._id,
-    name: collection.name,
-    tag: collection.tag,
-    price: collection.price, 
-    availableSizes: collection.sizes,
-    availableStock: collection.totalStock, 
-    availableDate: collection.availableDate, // This is the crucial extra field
-    variants: variants
-};
-        }));
+        // 2. Transform the documents into the final public response structure.
+        // No need to process variations or sign image URLs here since the homepage
+        // display of pre-order items only needs the main metadata (name, price, date).
+        const publicCollections = collections.map(collection => {
+            return {
+                _id: collection._id,
+                name: collection.name,
+                tag: collection.tag,
+                price: collection.price, 
+                // Rename for clarity on the frontend
+                availableSizes: collection.sizes,
+                availableStock: collection.totalStock, 
+                availableDate: collection.availableDate, 
+                // NOTE: 'variants' array is omitted as it contains no useful color data 
+                // for the homepage card, preventing the frontend's createColorList from running.
+            };
+        });
 
         // 3. Send the fully structured response
         res.status(200).json(publicCollections);

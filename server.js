@@ -1428,80 +1428,80 @@ app.get(
 );
 
 // POST /api/admin/preordercollections (Create New Pre-Order Collection) 
-app.post('/api/admin/preordercollections',verifyToken, upload.fields(uploadFields), async (req, res) => {
-        try {
-            // A. Extract JSON Metadata
-            if (!req.body.collectionData) {
-                return res.status(400).json({ message: "Missing pre-order collection data payload." });
-            }
-            const collectionData = JSON.parse(req.body.collectionData);
-
-            // B. Process Files and Integrate Paths into Variations
-            const files = req.files;
-            const finalVariations = [];
-            const uploadPromises = [];
-            
-            for (const variation of collectionData.variations) {
-                const index = variation.variationIndex;
-                const frontFile = files[`front-view-upload-${index}`]?.[0];
-                const backFile = files[`back-view-upload-${index}`]?.[0];
-
-                if (!frontFile || !backFile) {
-                    throw new Error(`Missing BOTH front and back image files for Variation #${index}.`);
-                }
-
-                const uploadFrontPromise = uploadFileToPermanentStorage(frontFile);
-                const uploadBackPromise = uploadFileToPermanentStorage(backFile);
-                
-                const combinedUploadPromise = Promise.all([uploadFrontPromise, uploadBackPromise])
-                    .then(([frontImageUrl, backImageUrl]) => {
-                        finalVariations.push({
-                            variationIndex: variation.variationIndex,
-                            // colorHex was removed in the previous step
-                            frontImageUrl: frontImageUrl,
-                            backImageUrl: backImageUrl,
-                        });
-                    });
-                    
-                uploadPromises.push(combinedUploadPromise);
-            }
-            
-            await Promise.all(uploadPromises);
-
-            if (finalVariations.length === 0) {
-                return res.status(400).json({ message: "No valid product images and metadata were received after upload processing." });
-            }
-
-            // C. Create the Final Collection Object (UPDATED: Using availableDate, removed deadlines)
-            const newCollection = new PreOrderCollection({
-                name: collectionData.name,
-                tag: collectionData.tag,
-                price: collectionData.price,
-                sizes: collectionData.sizes,
-                totalStock: collectionData.totalStock,
-                isActive: collectionData.isActive,
-                availableDate: collectionData.availableDate, // Using the new unified date field
-                variations: finalVariations,
-            });
-
-            // D. Save to Database
-            const savedCollection = await newCollection.save();
-
-            res.status(201).json({
-                message: 'Pre-Order Collection created and images uploaded successfully.',
-                collectionId: savedCollection._id,
-                name: savedCollection.name
-            });
-
-        } catch (error) {
-            console.error('Error creating pre-order collection:', error);
-            if (error.name === 'ValidationError') {
-                const messages = Object.values(error.errors).map(err => err.message).join(', ');
-                return res.status(400).json({ message: `Validation Error: ${messages}`, errors: error.errors });
-            }
-            res.status(500).json({ message: 'Server error during collection creation or file upload.', details: error.message });
+app.post('/api/admin/preordercollections', verifyToken, upload.fields(uploadFields), async (req, res) => {
+    try {
+        // A. Extract JSON Metadata
+        if (!req.body.collectionData) {
+            return res.status(400).json({ message: "Missing pre-order collection data payload." });
         }
+        const collectionData = JSON.parse(req.body.collectionData);
+
+        // B. Process Files and Integrate Paths into Variations
+        const files = req.files;
+        const finalVariations = [];
+        const uploadPromises = [];
+
+        for (const variation of collectionData.variations) {
+            const index = variation.variationIndex;
+            const frontFile = files[`front-view-upload-${index}`]?.[0];
+            const backFile = files[`back-view-upload-${index}`]?.[0];
+
+            if (!frontFile || !backFile) {
+                // If the incoming variation requires new files but they are missing, throw an error.
+                throw new Error(`Missing BOTH front and back image files for Variation #${index}.`);
+            }
+
+            const uploadFrontPromise = uploadFileToPermanentStorage(frontFile);
+            const uploadBackPromise = uploadFileToPermanentStorage(backFile);
+
+            const combinedUploadPromise = Promise.all([uploadFrontPromise, uploadBackPromise])
+                .then(([frontImageUrl, backImageUrl]) => {
+                    finalVariations.push({
+                        variationIndex: variation.variationIndex,
+                        frontImageUrl: frontImageUrl,
+                        backImageUrl: backImageUrl,
+                    });
+                });
+
+            uploadPromises.push(combinedUploadPromise);
+        }
+
+        await Promise.all(uploadPromises);
+
+        if (finalVariations.length === 0) {
+            return res.status(400).json({ message: "No valid product images and metadata were received after upload processing." });
+        }
+
+        // C. Create the Final Collection Object (Using availableDate)
+        const newCollection = new PreOrderCollection({
+            name: collectionData.name,
+            tag: collectionData.tag,
+            price: collectionData.price,
+            sizes: collectionData.sizes,
+            totalStock: collectionData.totalStock,
+            isActive: collectionData.isActive,
+            availableDate: collectionData.availableDate, // Using the new unified date field
+            variations: finalVariations,
+        });
+
+        // D. Save to Database
+        const savedCollection = await newCollection.save();
+
+        res.status(201).json({
+            message: 'Pre-Order Collection created and images uploaded successfully.',
+            collectionId: savedCollection._id,
+            name: savedCollection.name
+        });
+
+    } catch (error) {
+        console.error('Error creating pre-order collection:', error);
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map(err => err.message).join(', ');
+            return res.status(400).json({ message: `Validation Error: ${messages}`, errors: error.errors });
+        }
+        res.status(500).json({ message: 'Server error during collection creation or file upload.', details: error.message });
     }
+}
 );
 
 
@@ -1513,7 +1513,7 @@ app.put(
     async (req, res) => {
         const collectionId = req.params.id;
         let existingCollection;
-        
+
         try {
             existingCollection = await PreOrderCollection.findById(collectionId);
             if (!existingCollection) {
@@ -1522,28 +1522,29 @@ app.put(
 
             // Check if it's a simple update (JSON content-type and no collectionData for full form)
             const isQuickUpdate = req.get('Content-Type')?.includes('application/json') && !req.body.collectionData;
-            
-            // A. HANDLE QUICK UPDATE (Stock, Active Status, Deadlines)
+
+            // A. HANDLE QUICK UPDATE (Stock, Active Status, Available Date)
             if (isQuickUpdate) {
-                const { totalStock, isActive, preorderDeadline, estimatedDelivery } = req.body;
-                
+                // Correctly destructure and check for the unified date field
+                const { totalStock, isActive, availableDate } = req.body;
+
                 const updateFields = {};
                 if (totalStock !== undefined) updateFields.totalStock = totalStock;
                 if (isActive !== undefined) updateFields.isActive = isActive;
-                if (availableDate !== undefined) updateFields.availableDate = availableDate;
+                if (availableDate !== undefined) updateFields.availableDate = availableDate; // Corrected
 
                 if (Object.keys(updateFields).length === 0) {
                     return res.status(400).json({ message: "Missing update fields in simple update payload." });
                 }
-                
+
                 // Perform simple update
                 Object.assign(existingCollection, updateFields);
 
                 const updatedCollection = await existingCollection.save();
-                return res.status(200).json({ 
+                return res.status(200).json({
                     message: `Pre-Order Collection quick-updated.`,
                     collectionId: updatedCollection._id,
-                    updates: updateFields 
+                    updates: updateFields
                 });
             }
 
@@ -1570,44 +1571,49 @@ app.put(
                 const newFrontFile = files[frontFileKey]?.[0];
 
                 if (newFrontFile) {
+                    // New file uploaded: Schedule old file for deletion and new file for upload
                     if (existingPermanentVariation?.frontImageUrl) {
                         oldImagesToDelete.push(existingPermanentVariation.frontImageUrl);
                     }
                     const frontUploadPromise = uploadFileToPermanentStorage(newFrontFile).then(url => { finalFrontUrl = url; });
                     uploadPromises.push(frontUploadPromise);
                 } else if (!finalFrontUrl) {
+                    // No new file and no existing URL means missing required data
                     throw new Error(`Front image missing for Variation #${index} and no existing image found.`);
                 }
-                
+
                 // Process BACK Image
                 const backFileKey = `back-view-upload-${index}`;
                 const newBackFile = files[backFileKey]?.[0];
 
                 if (newBackFile) {
+                    // New file uploaded: Schedule old file for deletion and new file for upload
                     if (existingPermanentVariation?.backImageUrl) {
                         oldImagesToDelete.push(existingPermanentVariation.backImageUrl);
                     }
                     const backUploadPromise = uploadFileToPermanentStorage(newBackFile).then(url => { finalBackUrl = url; });
                     uploadPromises.push(backUploadPromise);
                 } else if (!finalBackUrl) {
+                    // No new file and no existing URL means missing required data
                     throw new Error(`Back image missing for Variation #${index} and no existing image found.`);
                 }
-                
+
+                // Push a placeholder object that will resolve once uploads complete
                 updatedVariations.push({
                     variationIndex: index,
-                   // colorHex: incomingVariation.colorHex,
                     // Use functions for lazy evaluation of file URLs after uploads complete
                     get frontImageUrl() { return finalFrontUrl; },
                     get backImageUrl() { return finalBackUrl; },
                 });
             }
-            
+
             await Promise.all(uploadPromises);
 
             if (updatedVariations.length === 0) {
-                return res.status(400).json({ message: "No valid variations were processed for update." });
+                // If the update payload was valid but somehow resulted in no variations, reject.
+                return res.status(400).json({ message: "No valid variations were processed for full update." });
             }
-            
+
             // Update the Document Fields
             existingCollection.name = collectionData.name;
             existingCollection.tag = collectionData.tag;
@@ -1616,13 +1622,14 @@ app.put(
             existingCollection.totalStock = collectionData.totalStock;
             existingCollection.isActive = collectionData.isActive;
             existingCollection.availableDate = collectionData.availableDate;
-            
+
+            // Map the placeholder objects to plain objects before saving
             existingCollection.variations = updatedVariations.map(v => ({
                 variationIndex: v.variationIndex,
                 frontImageUrl: v.frontImageUrl,
                 backImageUrl: v.backImageUrl,
             }));
-            
+
             // Save to Database
             const updatedCollection = await existingCollection.save();
 
@@ -1652,9 +1659,10 @@ app.get(
     verifyToken,
     async (req, res) => {
         try {
-            // Fetch all collections
+            // Fetch all collections, selecting only necessary and consistent fields
             const collections = await PreOrderCollection.find({})
-                .select('_id name tag price variations totalStock isActive preorderDeadline estimatedDelivery')
+                // UPDATED: Using 'availableDate' and removing 'preorderDeadline'/'estimatedDelivery'
+                .select('_id name tag price variations totalStock isActive availableDate') 
                 .sort({ createdAt: -1 })
                 .lean();
 
@@ -1662,8 +1670,9 @@ app.get(
             const signedCollections = await Promise.all(collections.map(async (collection) => {
                 const signedVariations = await Promise.all(collection.variations.map(async (v) => ({
                     ...v,
-                    frontImageUrl: await generateSignedUrl(v.frontImageUrl) || v.frontImageUrl,
-                    backImageUrl: await generateSignedUrl(v.backImageUrl) || v.backImageUrl
+                    // Handle potential null/undefined URLs gracefully
+                    frontImageUrl: v.frontImageUrl ? await generateSignedUrl(v.frontImageUrl) : null, 
+                    backImageUrl: v.backImageUrl ? await generateSignedUrl(v.backImageUrl) : null
                 })));
                 return {
                     ...collection,
@@ -1695,11 +1704,16 @@ app.delete(
                 return res.status(404).json({ message: 'Pre-order collection not found.' });
             }
 
+            // NEW: Delete associated images in the background (fire and forget)
+            deletedCollection.variations.forEach(v => {
+                if (v.frontImageUrl) deleteFileFromPermanentStorage(v.frontImageUrl);
+                if (v.backImageUrl) deleteFileFromPermanentStorage(v.backImageUrl);
+            });
+
             // Successful deletion
-            // A 200 OK or 204 No Content are both appropriate for a successful DELETE.
-            res.status(200).json({ 
-                message: 'Pre-order collection deleted successfully.',
-                collectionId: collectionId 
+            res.status(200).json({
+                message: 'Pre-order collection deleted successfully and associated images scheduled for removal.',
+                collectionId: collectionId
             });
 
         } catch (error) {
@@ -1707,13 +1721,12 @@ app.delete(
             if (error.name === 'CastError') {
                 return res.status(400).json({ message: 'Invalid collection ID format.' });
             }
-            
+
             console.error(`Error deleting collection ${collectionId}:`, error);
             res.status(500).json({ message: 'Server error during deletion.', details: error.message });
         }
     }
 );
-
 
 // --- PUBLIC ROUTES (Existing) ---
 

@@ -1884,18 +1884,30 @@ app.get('/api/collections/caps', async (req, res) => {
 // GET /api/collections/preorder (For Homepage Display)
 app.get('/api/collections/preorder', async (req, res) => {
     try {
-        // 1. Fetch collections, selecting only the necessary metadata fields.
-        // The 'variations' field is intentionally excluded as pre-order collections
-        // do not use a color-based variation structure.
+        // 1. Fetch collections, selecting the necessary metadata fields AND variations.
+        // === 🛠️ FIX START: INCLUDE 'variations' FIELD ===
         const collections = await PreOrderCollection.find({ isActive: true })
-            .select('_id name tag price sizes totalStock availableDate') 
+            .select('_id name tag price sizes totalStock availableDate variations') // <--- ADDED 'variations'
             .sort({ createdAt: -1 })
             .lean();
+        // === 🛠️ FIX END ===
 
         // 2. Transform the documents into the final public response structure.
-        // No need to process variations or sign image URLs here since the homepage
-        // display of pre-order items only needs the main metadata (name, price, date).
         const publicCollections = collections.map(collection => {
+            
+            // === 🛠️ FIX START: EXTRACT IMAGE URLs ===
+            const firstVariation = collection.variations && collection.variations.length > 0
+                ? collection.variations[0] 
+                : {};
+            
+            const frontImageUrl = firstVariation.frontImageUrl || null;
+            const backImageUrl = firstVariation.backImageUrl || null;
+            // NOTE: The images will still need to be "signed" if you are using a service like S3/GCS 
+            // that requires signed URLs for public access, but based on your admin code, 
+            // we assume the URLs are already public or signed upon creation/edit.
+            // If images don't display after this, ensure they are publically accessible or signed here.
+            // === 🛠️ FIX END ===
+
             return {
                 _id: collection._id,
                 name: collection.name,
@@ -1905,8 +1917,13 @@ app.get('/api/collections/preorder', async (req, res) => {
                 availableSizes: collection.sizes,
                 availableStock: collection.totalStock, 
                 availableDate: collection.availableDate, 
-                // NOTE: 'variants' array is omitted as it contains no useful color data 
-                // for the homepage card, preventing the frontend's createColorList from running.
+                
+                // === 🛠️ FIX START: ADD IMAGE DATA TO RESPONSE ===
+                frontImageUrl: frontImageUrl, 
+                backImageUrl: backImageUrl, 
+                // === 🛠️ FIX END ===
+                
+                // NOTE: 'variants' array is omitted (correctly)
             };
         });
 

@@ -7,7 +7,17 @@ const mongoose = require('mongoose');
 const multer = require('multer');
 const nodemailer = require('nodemailer');
 
-const { sendMail } = require('./mailer');
+// --- NODEMAILER TRANSPORTER CONFIGURATION ---
+// IMPORTANT: If this configuration is here, it should be removed from mailer.js
+const transporter = nodemailer.createTransport({
+    service: 'gmail', 
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS 
+    },
+    secure: true, 
+    port: 465, 
+});
 
 // --- BACKBLAZE B2 INTEGRATION (USING AWS SDK v3) ---
 const { S3Client, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');

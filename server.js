@@ -655,7 +655,6 @@ async function populateInitialData() {
     }
 }
 
-
 // --- EXPRESS CONFIGURATION AND MIDDLEWARE ---
 const app = express();
 // Ensure express.json() is used BEFORE the update route, but after the full form route
@@ -727,7 +726,7 @@ const verifyUserToken = (req, res, next) => {
     }
 };
 
-// --- GENERAL ADMIN API ROUTES ---
+// --- GENERAL ADMIN API ROUTES ---d
 app.post('/api/admin/register', async (req, res) => {
     // ... registration logic
     res.status(501).json({ message: 'Registration is not yet implemented.' });
@@ -2165,8 +2164,7 @@ app.get('/api/collections/preorder', async (req, res) => {
         });
     }
 });
-
-// 1. POST /api/users/register (Create Account)
+// 1. POST /api/users/register (Create Account and Send Verification Code)
 app.post('/api/users/register', async (req, res) => {
     const { email, password, firstName, lastName } = req.body;
 
@@ -2176,49 +2174,63 @@ app.post('/api/users/register', async (req, res) => {
     }
 
     try {
+        // --- 🛠️ NEW VERIFICATION CODE LOGIC ---
+        // 1. Generate a 6-digit numeric verification code
+        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+        // 2. Set code to expire in 10 minutes (600,000 ms)
+        const verificationCodeExpires = new Date(Date.now() + 600000); 
+
         // Mongoose pre-save middleware handles hashing the password
         const newUser = await User.create({
             email,
-            password, // Mongoose pre-save hook handles hashing
-            profile: { firstName, lastName }
+            password, 
+            profile: { firstName, lastName },
+            // Store the generated code and expiry time
+            verificationCode: verificationCode, 
+            verificationCodeExpires: verificationCodeExpires,
+            isVerified: false // Ensure the account is marked unverified
         });
 
-        // 🛠️ NEW: Send a Welcome/Confirmation Email with Logo and Styling
-        const welcomeSubject = 'Welcome to Outflickz Limited! Account Created';
-        const welcomeHtml = `
-            <div style="background-color: #ffffff; color: #000000; padding: 20px; border: 1px solid #eeeeee; max-width: 600px; margin: 0 auto; font-family: sans-serif; border-radius: 8px;">
-                <!-- Outflickz Logo -->
+        // --- 🛠️ NEW: Send Verification Code Email ---
+        const verificationSubject = 'Outflickz: Your Account Verification Code';
+        const verificationHtml = `
+            <div style="background-color: #f7f7f7; padding: 30px; border: 1px solid #e0e0e0; max-width: 500px; margin: 0 auto; font-family: sans-serif; border-radius: 8px;">
                 <div style="text-align: center; padding-bottom: 20px;">
-                    <img src="https://i.imgur.com/1Rxhi9q.jpeg" alt="Outflickz Limited Logo" style="max-width: 150px; height: auto; display: block; margin: 0 auto;">
+                    <img src="https://i.imgur.com/1Rxhi9q.jpeg" alt="Outflickz Limited Logo" style="max-width: 120px; height: auto; display: block; margin: 0 auto;">
                 </div>
                 
-                <h2 style="color: #000000; font-weight: 600;">Account Successfully Created</h2>
+                <h2 style="color: #000000; font-weight: 600; text-align: center;">Verify Your Account</h2>
 
                 <p style="font-family: sans-serif; line-height: 1.6;">Hello ${firstName || 'New Member'},</p>
-                <p style="font-family: sans-serif; line-height: 1.6;">Your account with Outflickz Limited has been successfully created. You can now log in to manage your profile and start shopping!</p>
+                <p style="font-family: sans-serif; line-height: 1.6;">Use the 6-digit code below to verify your email address and activate your account. This code will expire in 10 minutes.</p>
                 
-                <div style="text-align: center; margin: 30px 0;">
-                    <a href="http://your-frontend-domain.com/login" 
-                       style="display: inline-block; padding: 10px 20px; background-color: #000000; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold;">
-                        Go to Login
-                    </a>
+                <div style="text-align: center; margin: 30px 0; padding: 15px; background-color: #ffffff; border: 2px dashed #9333ea; border-radius: 4px;">
+                    <strong style="font-size: 28px; letter-spacing: 5px; color: #000000;">${verificationCode}</strong>
                 </div>
 
-                <p style="font-family: sans-serif; margin-top: 20px; line-height: 1.6;">Thank you for joining our community.</p>
+                <p style="font-family: sans-serif; margin-top: 20px; line-height: 1.6; font-size: 14px; color: #555555;">If you did not create this account, please ignore this email.</p>
 
                 <!-- Footer -->
-                <p style="font-size: 12px; margin-top: 30px; border-top: 1px solid #eeeeee; padding-top: 10px; color: #555555; text-align: center;">&copy; ${new Date().getFullYear()} Outflickz Limited. All rights reserved.</p>
+                <p style="font-size: 10px; margin-top: 30px; border-top: 1px solid #e0e0e0; padding-top: 10px; color: #888888; text-align: center;">&copy; ${new Date().getFullYear()} Outflickz Limited.</p>
             </div>
         `;
 
-        // Send email (non-blocking)
-        sendMail(email, welcomeSubject, welcomeHtml)
-            .catch(error => console.error(`Failed to send welcome email to ${email}:`, error));
+        // Send email (Crucial: now sending the code)
+        sendMail(email, verificationSubject, verificationHtml)
+            .then(() => {
+                console.log(`Verification email sent to ${email} with code ${verificationCode}`);
+            })
+            .catch(error => {
+                // Log detailed error if email fails
+                console.error(`CRITICAL: Failed to send verification email to ${email}:`, error);
+                // You might want to delete the user or mark them for cleanup if this fails often
+            });
         
-        console.log(`New user registered: ${newUser.email}`);
+        // Response indicates that the user must now verify the account
         res.status(201).json({ 
-            message: 'Registration successful. Please log in.',
-            userId: newUser._id
+            message: 'Registration successful. Please check your email for the 6-digit verification code.',
+            userId: newUser._id,
+            needsVerification: true // Signal to frontend to show the verification screen
         });
 
     } catch (error) {
@@ -2229,7 +2241,6 @@ app.post('/api/users/register', async (req, res) => {
         res.status(500).json({ message: 'Server error during registration.' });
     }
 });
-
 
 // 2. POST /api/users/login (Login)
 app.post('/api/users/login', async (req, res) => {

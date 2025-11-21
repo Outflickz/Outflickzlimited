@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
     <title>E-commerce Admin Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="icon" type="image/png" href="https://i.imgur.com/ioWFyQB.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
     <style>
         /* Custom scrollbar for a cleaner look */
         ::-webkit-scrollbar {
@@ -22,9 +23,22 @@
         .text-xl-reduced {
             font-size: 1.5rem; /* Custom size for headings */
         }
+        /* Mobile Overlay Background (used when sidebar is open) */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 20; /* Below sidebar, above main content */
+            transition: opacity 0.3s ease;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen flex">
+
+    <div id="sidebar-overlay" class="overlay hidden lg:hidden" onclick="toggleSidebar()"></div>
 
     <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-emerald-900 text-white transform transition-transform duration-300 z-30 lg:translate-x-0 -translate-x-full shadow-2xl flex flex-col">
         <div class="p-6 flex-shrink-0">
@@ -72,8 +86,9 @@
     </aside>
 
     <main class="flex-1 lg:ml-64 p-4 transition-all duration-300">
-        <button id="sidebar-toggle" class="lg:hidden fixed top-4 left-4 z-40 p-2 bg-emerald-600 text-white rounded-lg shadow-lg hover:bg-emerald-700 transition">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        <button id="sidebar-toggle" class="lg:hidden fixed top-4 left-4 z-40 p-2 bg-emerald-600 text-white rounded-lg shadow-lg hover:bg-emerald-700 transition" onclick="toggleSidebar()">
+            <svg id="menu-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+            <svg id="close-icon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
         </button>
 
         <section id="content-dashboard" class="content-section p-6 pt-16 lg:pt-6">
@@ -109,7 +124,7 @@
                         </div>
                     </div>
                 </div>
-
+                
                 <div class="bg-white p-5 rounded-xl shadow-md border-b-4 border-amber-500 hover:shadow-xl transition duration-300">
                     <div class="flex items-center">
                         <div class="p-3 rounded-full bg-amber-100 text-amber-600">
@@ -127,17 +142,17 @@
                 <h3 class="text-xl font-semibold mb-4 text-gray-700">Recent Activity Log 🔔</h3>
                 <p class="text-gray-500 text-sm mb-4">Latest actions requiring Node.js/MongoDB interaction.</p>
                 <ul class="mt-4 space-y-2 text-sm text-gray-600">
-                    <li class="p-3 bg-emerald-50 border-l-4 border-emerald-400 rounded-md flex justify-between">
+                    <li class="p-3 bg-emerald-50 border-l-4 border-emerald-400 rounded-md flex justify-between flex-wrap">
                         <span>Order **#801** completed by User ID: ABC-1234</span>
-                        <span class="text-xs text-gray-400">2 min ago</span>
+                        <span class="text-xs text-gray-400 mt-1 sm:mt-0">2 min ago</span>
                     </li>
-                    <li class="p-3 border-l-4 border-gray-200 rounded-md flex justify-between">
+                    <li class="p-3 border-l-4 border-gray-200 rounded-md flex justify-between flex-wrap">
                         <span>New product **'Ultra Widget Pro'** added to inventory.</span>
-                        <span class="text-xs text-gray-400">1 hour ago</span>
+                        <span class="text-xs text-gray-400 mt-1 sm:mt-0">1 hour ago</span>
                     </li>
-                    <li class="p-3 border-l-4 border-gray-200 rounded-md flex justify-between">
+                    <li class="p-3 border-l-4 border-gray-200 rounded-md flex justify-between flex-wrap">
                         <span>User **'jane.doe@example.com'** registered.</span>
-                        <span class="text-xs text-gray-400">3 hours ago</span>
+                        <span class="text-xs text-gray-400 mt-1 sm:mt-0">3 hours ago</span>
                     </li>
                 </ul>
             </div>
@@ -170,37 +185,56 @@
         // --- JAVASCRIPT LOGIC ---
 
         const totalSalesElement = document.getElementById('total-sales');
-        const totalProductsElement = document.getElementById('total-products');
+        const totalProductsElement = document.getElementById('total-products'); 
         const registeredUsersElement = document.getElementById('registered-users');
         const loadingIndicator = document.getElementById('loading-indicator');
         const metricCards = document.getElementById('metric-cards');
         const sidebar = document.getElementById('sidebar');
         const sidebarToggle = document.getElementById('sidebar-toggle');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+        const menuIcon = document.getElementById('menu-icon');
+        const closeIcon = document.getElementById('close-icon');
         const contentSections = document.querySelectorAll('.content-section');
-        // Include all navigation buttons in this list for styling/active state logic
         const navButtons = document.querySelectorAll('nav button'); 
+
+        /**
+         * Toggles the visibility of the sidebar and the mobile overlay.
+         */
+        function toggleSidebar() {
+            const isHidden = sidebar.classList.contains('-translate-x-full');
+            
+            // Toggle sidebar visibility
+            sidebar.classList.toggle('-translate-x-full');
+
+            // Toggle overlay and icon visibility
+            if (isHidden) {
+                sidebarOverlay.classList.remove('hidden');
+                menuIcon.classList.add('hidden');
+                closeIcon.classList.remove('hidden');
+            } else {
+                sidebarOverlay.classList.add('hidden');
+                menuIcon.classList.remove('hidden');
+                closeIcon.classList.add('hidden');
+            }
+        }
 
         // Function for external navigation (Wears Collection)
         function navigateToWearsCollection() {
-            // Redirects the browser to the specified file path
             window.location.href = './wearscollection.html';
         }
 
         // Function for external navigation (Caps Collection)
         function navigateToCapsCollection() {
-            // Redirects the browser to the specified file path, as requested
             window.location.href = './capscollection.html';
         }
         
         // Function for external navigation (New Arrivals)
         function navigateToNewArrivals() {
-            // Redirects the browser to the specified file path, as requested
             window.location.href = './newarrivals.html';
         }
 
         // NEW FUNCTION for external navigation (Pre-Order Management)
         function navigateToPreOrders() {
-            // Redirects the browser to the specified file path, as requested
             window.location.href = './preorders.html';
         }
         
@@ -218,19 +252,13 @@
             window.location.href = './admin-login.html'; 
         }
 
-        // Initial setup to show the Dashboard
+        // Initial setup to show the Dashboard and bind toggle event
         document.addEventListener('DOMContentLoaded', () => {
             setActiveContent('dashboard');
             loadDashboardData();
-            
-            // Toggle sidebar visibility on mobile
-            sidebarToggle.addEventListener('click', () => {
-                // Toggle the -translate-x-full class
-                sidebar.classList.toggle('-translate-x-full');
-            });
         });
 
-        // Function to switch between Dashboard, and Settings content
+        // Function to switch between internal content sections (Dashboard, Settings)
         function setActiveContent(contentId) {
             contentSections.forEach(section => {
                 section.classList.add('hidden');
@@ -240,60 +268,49 @@
             const contentElement = document.getElementById(`content-${contentId}`);
             if (contentElement) {
                 contentElement.classList.remove('hidden');
-            } else if (['newarrivals', 'capscollection', 'wearscollection', 'preorders'].includes(contentId)) {
-                 // Special handling for external links: they now redirect, so don't look for an internal section.
-                 // We will update button styles, but not display an internal section.
-                 console.log(`Content section 'content-${contentId}' is now a redirect. Reverting to dashboard view.`);
-                 document.getElementById('content-dashboard').classList.remove('hidden');
-                 contentId = `${contentId}-dummy-active-state`; // Use a dummy ID to keep the button active
+            } else {
+                 // For all buttons that are redirects, ensure we show the dashboard instead of a blank page
+                document.getElementById('content-dashboard').classList.remove('hidden');
             }
 
 
             navButtons.forEach(button => {
                 const buttonContentId = button.id.replace('btn-', '');
-                // List all redirect buttons here
+                // Redirects and Logout are styled consistently and never shown as "active" in the internal view style
                 if (['wearscollection', 'capscollection', 'newarrivals', 'preorders', 'logout'].includes(buttonContentId)) {
-                    // Special handling for the buttons that *are* redirects to remove their internal 'click' activation style
                     button.classList.remove('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
                     button.classList.add('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
                     return; 
                 }
 
-                // Reset inactive styles for internal pages
+                // Reset inactive styles for internal pages (Dashboard, Settings)
                 button.classList.remove('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
                 button.classList.add('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
             });
 
-            const activeBtnId = contentId.endsWith('-dummy-active-state') ? `btn-${contentId.replace('-dummy-active-state', '')}` : `btn-${contentId}`;
-            const activeBtn = document.getElementById(activeBtnId);
+            const activeBtn = document.getElementById(`btn-${contentId}`);
             
             if (activeBtn) {
-                // Set active styles
+                // Set active styles for the selected internal page
                 activeBtn.classList.remove('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
                 activeBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
             } 
             
-            // Re-apply dashboard styles if a non-existent internal page was clicked (like newarrivals used to be)
-            if (!contentElement && contentId !== 'settings') {
-                 document.getElementById('content-dashboard').classList.remove('hidden');
-            }
-
-
             // Hide sidebar on small screens after selection
             if (window.innerWidth < 1024) {
-                sidebar.classList.add('-translate-x-full');
+                toggleSidebar();
             }
         }
 
         /**
          * Fetches real-time dashboard statistics from the Node.js/MongoDB API.
+         * @returns {Promise<object|null>} Dashboard data or null on failure.
          */
         async function fetchDashboardData() {
             const token = localStorage.getItem('adminToken'); // Get the actual token
             
             if (!token) {
                 console.error("No adminToken found. Redirecting to login for authentication.");
-                // Redirect user to login page immediately if no token is found
                 window.location.href = './admin-login.html'; 
                 return null;
             }
@@ -326,7 +343,6 @@
 
             } catch (error) {
                 console.error('Error fetching dashboard data:', error);
-                // In a real application, you might show a generic error message on the dashboard
                 return null;
             }
         }

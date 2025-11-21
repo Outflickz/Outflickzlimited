@@ -496,55 +496,66 @@ async function createAdminUser(email, hashedPassword) {
 
 /**
  * Retrieves real-time statistics for the admin dashboard.
- * Calculates Total Sales, Total Active Inventory (totalStock > 0), and User Count.
+ * Calculates Total Sales, and individual collection stock counts.
  */
 async function getRealTimeDashboardStats() {
     try {
         // 1. Calculate Total Sales (sum of 'totalAmount' from completed orders)
+        // (This remains the same)
         const salesAggregation = await Order.aggregate([
             { $match: { status: 'completed' } },
             { $group: { _id: null, totalSales: { $sum: '$totalAmount' } } }
         ]);
         const totalSales = salesAggregation.length > 0 ? salesAggregation[0].totalSales : 0;
 
-        // 2. Calculate Total Active Inventory (Sum of totalStock > 0 across all Product Collections)
+        // 2. Calculate Individual Collection Stock Counts
         
-        // Sum inventory from Wears Collection
+        // Count for Wears Collection (only active items with stock > 0)
         const wearsInventory = await WearsCollection.aggregate([
             { $match: { isActive: true, totalStock: { $gt: 0 } } },
             { $group: { _id: null, total: { $sum: '$totalStock' } } }
         ]);
+        const wearsStock = wearsInventory[0]?.total || 0;
 
-        // Sum inventory from Caps Collection
+        // Count for Caps Collection (only active items with stock > 0)
         const capsInventory = await CapCollection.aggregate([
             { $match: { isActive: true, totalStock: { $gt: 0 } } },
             { $group: { _id: null, total: { $sum: '$totalStock' } } }
         ]);
+        const capsStock = capsInventory[0]?.total || 0;
         
-        // Sum inventory from New Arrivals Collection
+        // Count for New Arrivals Collection (only active items with stock > 0)
         const newArrivalsInventory = await NewArrivals.aggregate([
             { $match: { isActive: true, totalStock: { $gt: 0 } } },
             { $group: { _id: null, total: { $sum: '$totalStock' } } }
         ]);
+        const newArrivalsStock = newArrivalsInventory[0]?.total || 0;
         
-        // Combine all inventory counts
-        const totalActiveProducts = 
-              (wearsInventory[0]?.total || 0) + 
-              (capsInventory[0]?.total || 0) + 
-              (newArrivalsInventory[0]?.total || 0);
+        // Count for Pre-Order Collection (only active items with stock > 0)
+        const preOrderInventory = await PreOrderCollection.aggregate([
+            { $match: { isActive: true, totalStock: { $gt: 0 } } },
+            { $group: { _id: null, total: { $sum: '$totalStock' } } }
+        ]);
+        const preOrderStock = preOrderInventory[0]?.total || 0;
+
 
         // 3. Count Registered Users
         const userCount = await User.countDocuments({});
 
+        // 4. Return all required data fields
         return {
             totalSales: totalSales,
-            totalProducts: totalActiveProducts, // Maps to 'Active Products' on the frontend
-            userCount: userCount
+            userCount: userCount,
+            
+            // New Individual Stock Metrics
+            wearsStock: wearsStock,
+            capsStock: capsStock,
+            newArrivalsStock: newArrivalsStock,
+            preOrderStock: preOrderStock,
         };
 
     } catch (error) {
         console.error('Error in getRealTimeDashboardStats:', error);
-        // Do not return null; throw a structured error to be caught by the route handler
         throw new Error('Database aggregation failed for dashboard stats.');
     }
 }

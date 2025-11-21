@@ -577,23 +577,31 @@ function getTagClass(tag) {
  */
 // Conceptual fix for your client-side JavaScript (preorders.html)
 async function editCollection(collectionId) {
+    // === 🛠️ FIX START ===
+    const token = getAuthToken(); // 1. Get the token
+    if (!token) return;           // 2. Check if token exists
+    // === 🛠️ FIX END ===
+
     try {
-        const response = await fetch(`/api/admin/preordercollections/${collectionId}`);
+        const response = await fetch(`${API_BASE_URL}/${collectionId}`, { // Use API_BASE_URL constant
+            // === 🛠️ FIX START: Add Authorization Header ===
+            method: 'GET',
+            headers: { 
+                'Authorization': `Bearer ${token}`
+            }
+            // === 🛠️ FIX END ===
+        });
 
         if (!response.ok) {
             // Read body ONCE for error details
             let errorDetails = `Status: ${response.status} ${response.statusText}`;
             try {
-                // Attempt to parse JSON error message if the server provided one
                 const errorJson = await response.json(); 
                 errorDetails = errorJson.message || JSON.stringify(errorJson);
             } catch (e) {
                 // If it wasn't JSON, just use the status details
-                // NOTE: Do NOT use response.text() here, as it would cause the same error if called twice.
-                // Since response.json() failed, we rely on the status text above.
             }
             
-            // Throw a proper error after reading the body
             throw new Error(`Failed to fetch collection for edit: ${errorDetails}`);
         }
 

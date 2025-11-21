@@ -7,17 +7,6 @@ const mongoose = require('mongoose');
 const multer = require('multer');
 const nodemailer = require('nodemailer');
 
-// --- NODEMAILER TRANSPORTER CONFIGURATION ---
-// IMPORTANT: If this configuration is here, it should be removed from mailer.js
-const transporter = nodemailer.createTransport({
-    service: 'gmail', 
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS 
-    },
-    secure: true, 
-    port: 465, 
-});
 
 // --- BACKBLAZE B2 INTEGRATION (USING AWS SDK v3) ---
 const { S3Client, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
@@ -32,6 +21,18 @@ const BLAZE_ACCESS_KEY = process.env.BLAZE_ACCESS_KEY;
 const BLAZE_SECRET_KEY = process.env.BLAZE_SECRET_KEY;
 const BLAZE_ENDPOINT = process.env.BLAZE_ENDPOINT;
 const BLAZE_BUCKET_NAME = process.env.BLAZE_BUCKET_NAME;
+
+// --- 1. EMAIL TRANSPORT SETUP ---
+// Configuration to connect to an SMTP service (e.g., Gmail using an App Password)
+const transporter = nodemailer.createTransport({
+    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+    port: process.env.EMAIL_PORT || 465,
+    secure: process.env.EMAIL_PORT == 465 || true, 
+    auth: {
+        user: process.env.EMAIL_USER, 
+        pass: process.env.EMAIL_PASS, 
+    },
+});
 
 // Initialize the S3 Client configured for Backblaze B2
 const s3Client = new S3Client({

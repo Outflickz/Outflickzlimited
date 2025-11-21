@@ -1646,43 +1646,35 @@ app.put(
     }
 );
 
-// GET /api/admin/preordercollections/:id (Fetch Single Pre-Order Collection) 
+// GET /api/admin/preordercollections (Fetch All Pre-Order Collections) 
 app.get(
-    '/api/admin/preordercollections/:id',
+    '/api/admin/preordercollections',
     verifyToken,
     async (req, res) => {
-        const collectionId = req.params.id;
         try {
-            // 1. Fetch the collection by ID
-            // Using .lean() for performance since we will modify and send it back
-            const collection = await PreOrderCollection.findById(collectionId).lean();
+            // Fetch all collections
+            const collections = await PreOrderCollection.find({})
+                .select('_id name tag price variations totalStock isActive preorderDeadline estimatedDelivery')
+                .sort({ createdAt: -1 })
+                .lean();
 
-            if (!collection) {
-                // This is the expected place for a 404 if the ID is valid but the record doesn't exist
-                return res.status(404).json({ message: 'Pre-Order Collection not found.' });
-            }
+            // Sign URLs
+            const signedCollections = await Promise.all(collections.map(async (collection) => {
+                const signedVariations = await Promise.all(collection.variations.map(async (v) => ({
+                    ...v,
+                    frontImageUrl: await generateSignedUrl(v.frontImageUrl) || v.frontImageUrl,
+                    backImageUrl: await generateSignedUrl(v.backImageUrl) || v.backImageUrl
+                })));
+                return {
+                    ...collection,
+                    variations: signedVariations
+                };
+            }));
 
-            // 2. Sign URLs for variations 
-            const signedVariations = await Promise.all(collection.variations.map(async (v) => ({
-                ...v,
-                // Replace storage URL with a secure, time-limited signed URL
-                frontImageUrl: await generateSignedUrl(v.frontImageUrl) || v.frontImageUrl,
-                backImageUrl: await generateSignedUrl(v.backImageUrl) || v.backImageUrl
-            })));
-
-            // 3. Return the collection with signed URLs
-            res.status(200).json({
-                ...collection,
-                variations: signedVariations
-            });
-
+            res.status(200).json(signedCollections);
         } catch (error) {
-            console.error(`Error fetching single collection ${collectionId}:`, error);
-            // Handle CastError (e.g., if the collectionId is not a valid MongoDB ObjectID format)
-            if (error.name === 'CastError') {
-                return res.status(400).json({ message: 'Invalid collection ID format.' });
-            }
-            res.status(500).json({ message: 'Server error while fetching collection.', details: error.message });
+            console.error('Error fetching pre-order collections:', error);
+            res.status(500).json({ message: 'Server error while fetching collections.', details: error.message });
         }
     }
 );

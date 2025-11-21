@@ -440,8 +440,8 @@ function createCollectionCard(collection, size = 'default') {
     const primaryVariant = collection.variants && collection.variants.length > 0 ? collection.variants[0] : null;
     
     // Initial image URLs are the first variant's URLs
-    const frontImageUrl = primaryVariant?.frontImageUrl || defaultFrontImage;
-    const backImageUrl = primaryVariant?.backImageUrl || defaultBackImage;
+    const frontImageUrl = collection.frontImageUrl || primaryVariant?.frontImageUrl || defaultFrontImage;
+    const backImageUrl = collection.backImageUrl || primaryVariant?.backImageUrl || defaultBackImage;
     
     const itemPrice = collection.price; 
     const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';

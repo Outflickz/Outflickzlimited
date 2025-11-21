@@ -2165,6 +2165,7 @@ app.get('/api/collections/preorder', async (req, res) => {
         });
     }
 });
+
 // 1. POST /api/users/register (Create Account)
 app.post('/api/users/register', async (req, res) => {
     const { email, password, firstName, lastName } = req.body;

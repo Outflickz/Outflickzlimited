@@ -1427,6 +1427,7 @@ app.get(
     }
 );
 
+
 // POST /api/admin/preordercollections (Create New Pre-Order Collection) 
 app.post('/api/admin/preordercollections', verifyToken, upload.fields(uploadFields), async (req, res) => {
     try {
@@ -1653,7 +1654,7 @@ app.put(
     }
 );
 
-// GET /api/admin/preordercollections (Fetch All Pre-Order Collections) 
+// 3. GET /api/admin/preordercollections (Fetch All Pre-Order Collections) 
 app.get(
     '/api/admin/preordercollections',
     verifyToken,
@@ -1661,7 +1662,6 @@ app.get(
         try {
             // Fetch all collections, selecting only necessary and consistent fields
             const collections = await PreOrderCollection.find({})
-                // UPDATED: Using 'availableDate' and removing 'preorderDeadline'/'estimatedDelivery'
                 .select('_id name tag price variations totalStock isActive availableDate') 
                 .sort({ createdAt: -1 })
                 .lean();
@@ -1670,7 +1670,6 @@ app.get(
             const signedCollections = await Promise.all(collections.map(async (collection) => {
                 const signedVariations = await Promise.all(collection.variations.map(async (v) => ({
                     ...v,
-                    // Handle potential null/undefined URLs gracefully
                     frontImageUrl: v.frontImageUrl ? await generateSignedUrl(v.frontImageUrl) : null, 
                     backImageUrl: v.backImageUrl ? await generateSignedUrl(v.backImageUrl) : null
                 })));
@@ -1684,6 +1683,47 @@ app.get(
         } catch (error) {
             console.error('Error fetching pre-order collections:', error);
             res.status(500).json({ message: 'Server error while fetching collections.', details: error.message });
+        }
+    }
+);
+
+
+// 4. GET /api/admin/preordercollections/:id (Fetch a Single Pre-Order Collection) 
+app.get(
+    '/api/admin/preordercollections/:id',
+    verifyToken,
+    async (req, res) => {
+        const collectionId = req.params.id;
+        
+        try {
+            // Find the collection by ID
+            const collection = await PreOrderCollection.findById(collectionId).lean();
+
+            if (!collection) {
+                return res.status(404).json({ message: 'Pre-Order Collection not found.' });
+            }
+
+            // Sign URLs for all variations
+            const signedVariations = await Promise.all(collection.variations.map(async (v) => ({
+                ...v,
+                frontImageUrl: v.frontImageUrl ? await generateSignedUrl(v.frontImageUrl) : null,
+                backImageUrl: v.backImageUrl ? await generateSignedUrl(v.backImageUrl) : null
+            })));
+
+            const signedCollection = {
+                ...collection,
+                variations: signedVariations
+            };
+
+            res.status(200).json(signedCollection);
+
+        } catch (error) {
+            // Handle invalid ID format (e.g., Mongoose CastError)
+            if (error.name === 'CastError') {
+                return res.status(400).json({ message: 'Invalid collection ID format.' });
+            }
+            console.error(`Error fetching collection ${collectionId}:`, error);
+            res.status(500).json({ message: 'Server error while fetching collection.', details: error.message });
         }
     }
 );

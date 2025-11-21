@@ -2,6 +2,7 @@ const express = require('express');
 const dotenv = require('dotenv');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const path = require('path');
 const mongoose = require('mongoose');
 const multer = require('multer');
@@ -169,6 +170,53 @@ async function deleteFileFromPermanentStorage(fileUrl) {
         // Log the error but don't stop the main process if deletion fails
         console.error(`[Backblaze B2] Failed to delete file at ${fileUrl}:`, error);
     }
+}
+
+/**
+ * Helper function to send email using the configured transporter.
+ * This function was referenced but not defined in the original code.
+ */
+async function sendMail(toEmail, subject, htmlContent) {
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+        console.error("FATAL: Email environment variables (EMAIL_USER/EMAIL_PASS) are not set.");
+        // Throw an error to ensure the calling function catches it
+        throw new Error("Email service is unconfigured.");
+    }
+    
+    return transporter.sendMail({
+        from: `Outflickz Limited <${process.env.EMAIL_USER}>`, // Sender address
+        to: toEmail, // list of receivers
+        subject: subject, // Subject line
+        html: htmlContent, // html body
+    });
+}
+
+/**
+ * Helper function to generate, HASH, and save a new verification code.
+ * IMPORTANT: This now stores the HASH, not the plain code.
+ */
+async function generateHashAndSaveVerificationCode(user) {
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    // Set code to expire in 10 minutes (600,000 ms)
+    const verificationCodeExpires = new Date(Date.now() + 600000); 
+
+    // --- 🛠️ SECURITY IMPROVEMENT: HASH THE CODE ---
+    const salt = await bcrypt.genSalt(10);
+    const hashedVerificationCode = await bcrypt.hash(verificationCode, salt);
+    // ---------------------------------------------
+
+    await User.updateOne(
+        { _id: user._id },
+        { 
+            // Store the HASH, assuming model field is now named 'verificationCodeHash'
+            verificationCode: hashedVerificationCode, 
+            verificationCodeExpires: verificationCodeExpires,
+            isVerified: false
+        }
+    );
+    
+    // Return the PLAIN TEXT code for sending via email
+    return verificationCode;
 }
 // -----------------------------------------------------------------
 
@@ -2175,6 +2223,7 @@ app.get('/api/collections/preorder', async (req, res) => {
         });
     }
 });
+
 // 1. POST /api/users/register (Create Account and Send Verification Code)
 app.post('/api/users/register', async (req, res) => {
     const { email, password, firstName, lastName } = req.body;
@@ -2185,24 +2234,20 @@ app.post('/api/users/register', async (req, res) => {
     }
 
     try {
-        // --- 🛠️ NEW VERIFICATION CODE LOGIC ---
-        // 1. Generate a 6-digit numeric verification code
-        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-        // 2. Set code to expire in 10 minutes (600,000 ms)
-        const verificationCodeExpires = new Date(Date.now() + 600000); 
-
+        
         // Mongoose pre-save middleware handles hashing the password
         const newUser = await User.create({
             email,
             password, 
             profile: { firstName, lastName },
-            // Store the generated code and expiry time
-            verificationCode: verificationCode, 
-            verificationCodeExpires: verificationCodeExpires,
-            isVerified: false // Ensure the account is marked unverified
+            // These will be updated immediately by the helper function below
+            isVerified: false 
         });
 
-        // --- 🛠️ NEW: Send Verification Code Email ---
+        // Generate and store the verification code
+        const verificationCode = await generateAndSaveVerificationCode(newUser);
+
+        // --- 🛠️ Send Verification Code Email Logic ---
         const verificationSubject = 'Outflickz: Your Account Verification Code';
         const verificationHtml = `
             <div style="background-color: #f7f7f7; padding: 30px; border: 1px solid #e0e0e0; max-width: 500px; margin: 0 auto; font-family: sans-serif; border-radius: 8px;">
@@ -2226,15 +2271,15 @@ app.post('/api/users/register', async (req, res) => {
             </div>
         `;
 
-        // Send email (Crucial: now sending the code)
+        // Send email and log errors if it fails
         sendMail(email, verificationSubject, verificationHtml)
             .then(() => {
                 console.log(`Verification email sent to ${email} with code ${verificationCode}`);
             })
             .catch(error => {
-                // Log detailed error if email fails
-                console.error(`CRITICAL: Failed to send verification email to ${email}:`, error);
-                // You might want to delete the user or mark them for cleanup if this fails often
+                // Log detailed error if email fails - CRITICAL STEP
+                console.error(`CRITICAL: Failed to send verification email to ${email}:`, error.message, error.response);
+                // Frontend is already directed to verification, the user can now use the resend endpoint.
             });
         
         // Response indicates that the user must now verify the account
@@ -2253,6 +2298,67 @@ app.post('/api/users/register', async (req, res) => {
     }
 });
 
+
+// 5. POST /api/users/resend-verification (New Endpoint)
+app.post('/api/users/resend-verification', async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ message: 'Email is required to resend the code.' });
+    }
+
+    try {
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            // Respond generically to prevent email enumeration
+            return res.status(200).json({ message: 'If an account exists, a new verification code has been sent.' });
+        }
+        
+        if (user.isVerified) {
+             return res.status(400).json({ message: 'Account is already verified. Please proceed to login.' });
+        }
+        
+        // 1. Generate and store a new code
+        const verificationCode = await generateAndSaveVerificationCode(user);
+        
+        // 2. Send the new code email
+        const verificationSubject = 'Outflickz: Your NEW Account Verification Code';
+        const verificationHtml = `
+            <div style="background-color: #f7f7f7; padding: 30px; border: 1px solid #e0e0e0; max-width: 500px; margin: 0 auto; font-family: sans-serif; border-radius: 8px;">
+                <div style="text-align: center; padding-bottom: 20px;">
+                    <img src="https://i.imgur.com/1Rxhi9q.jpeg" alt="Outflickz Limited Logo" style="max-width: 120px; height: auto; display: block; margin: 0 auto;">
+                </div>
+                
+                <h2 style="color: #000000; font-weight: 600; text-align: center;">Resent Verification Code</h2>
+
+                <p style="font-family: sans-serif; line-height: 1.6;">Hello ${user.profile?.firstName || 'User'},</p>
+                <p style="font-family: sans-serif; line-height: 1.6;">A new 6-digit verification code was requested. Please use the code below to verify your email address. This code will expire in 10 minutes.</p>
+                
+                <div style="text-align: center; margin: 30px 0; padding: 15px; background-color: #ffffff; border: 2px dashed #9333ea; border-radius: 4px;">
+                    <strong style="font-size: 28px; letter-spacing: 5px; color: #000000;">${verificationCode}</strong>
+                </div>
+
+                <p style="font-family: sans-serif; margin-top: 20px; line-height: 1.6; font-size: 14px; color: #555555;">If you did not request a new code, please secure your account immediately.</p>
+
+                <!-- Footer -->
+                <p style="font-size: 10px; margin-top: 30px; border-top: 1px solid #e0e0e0; padding-top: 10px; color: #888888; text-align: center;">&copy; ${new Date().getFullYear()} Outflickz Limited.</p>
+            </div>
+        `;
+
+        await sendMail(email, verificationSubject, verificationHtml);
+        console.log(`New verification email sent successfully to ${email}`);
+
+        // 3. Send successful response
+        res.status(200).json({ message: 'A new verification code has been sent to your email address.' });
+
+    } catch (error) {
+        console.error("Resend verification code error:", error);
+        res.status(500).json({ message: 'Failed to resend verification code due to a server error.' });
+    }
+});
+
+
 // 2. POST /api/users/login (Login)
 app.post('/api/users/login', async (req, res) => {
     const { email, password } = req.body;
@@ -2264,6 +2370,17 @@ app.post('/api/users/login', async (req, res) => {
             return res.status(401).json({ message: 'Invalid email or password.' });
         }
         
+        // --- 🛠️ NEW: Check if the account is verified before login ---
+        if (!user.isVerified) {
+             // Block login and prompt user to verify
+             return res.status(403).json({ 
+                message: 'Account not verified. Please verify your email to log in.',
+                needsVerification: true,
+                userId: user._id // Optionally send ID to help frontend
+             });
+        }
+        // -----------------------------------------------------------
+
         // Create the user token
         const token = jwt.sign(
             { id: user._id, email: user.email, role: user.status.role || 'user' }, 
@@ -2350,7 +2467,7 @@ app.post('/api/users/forgot-password', async (req, res) => {
                     
                     <div style="text-align: center; margin: 30px 0;">
                         <a href="${resetLink}" 
-                           style="display: inline-block; padding: 10px 20px; background-color: #000000; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold;">
+                            style="display: inline-block; padding: 10px 20px; background-color: #000000; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold;">
                             Reset My Password
                         </a>
                     </div>

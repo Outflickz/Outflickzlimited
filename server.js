@@ -179,6 +179,37 @@ const adminSchema = new mongoose.Schema({
 const Admin = mongoose.models.Admin || mongoose.model('Admin', adminSchema);
 
 
+// --- User Schema for Customer Authentication (Compacted) ---
+
+const userSchema = new mongoose.Schema({
+    email: { type: String, required: [true, 'Email is required'], unique: true, trim: true, lowercase: true },
+    password: { type: String, required: [true, 'Password is required'], select: false },
+    profile: {
+        firstName: { type: String, trim: true },
+        lastName: { type: String, trim: true },
+    },
+    status: {
+        role: { type: String, default: 'user', enum: ['user', 'vip'] },
+        isVerified: { type: Boolean, default: false },
+    },
+    membership: {
+        memberSince: { type: Date, default: Date.now },
+        lastUpdated: { type: Date, default: Date.now }
+    }
+}, { timestamps: false });
+
+// Pre-save hook to update lastUpdated and hash password
+userSchema.pre('save', async function(next) {
+    if (this.isModified('password')) {
+        const salt = await bcrypt.genSalt(BCRYPT_SALT_ROUNDS);
+        this.password = await bcrypt.hash(this.password, salt);
+    }
+    this.membership.lastUpdated = Date.now();
+    next();
+});
+
+const User = mongoose.models.User || mongoose.model('User', userSchema);
+
 // --- Product Variation Sub-Schema (Supporting Dual Images) ---
 
 const ProductVariationSchema = new mongoose.Schema({
@@ -509,6 +540,26 @@ const uploadFields = Array.from({ length: 4 }, (_, i) => [
     { name: `back-view-upload-${i + 1}`, maxCount: 1 }
 ]).flat();
 
+// --- USER AUTHENTICATION API ROUTES ---
+
+const verifyUserToken = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'Access denied. Please log in.' });
+    }
+    const token = authHeader.split(' ')[1];
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        // Ensure this is a regular user token, not an admin token (optional check)
+        if (decoded.role !== 'user') {
+             return res.status(403).json({ message: 'Forbidden. Access limited to users.' });
+        }
+        req.userId = decoded.id; 
+        next();
+    } catch (err) {
+        res.status(401).json({ message: 'Invalid or expired session. Please log in again.' });
+    }
+};
 
 // --- GENERAL ADMIN API ROUTES ---
 app.post('/api/admin/register', async (req, res) => {
@@ -1945,6 +1996,108 @@ app.get('/api/collections/preorder', async (req, res) => {
             details: error.message 
         });
     }
+});
+
+// 1. POST /api/users/register (Create Account)
+app.post('/api/users/register', async (req, res) => {
+    const { email, password, firstName, lastName } = req.body;
+
+    // Basic Validation
+    if (!email || !password || password.length < 8) {
+        return res.status(400).json({ message: 'Invalid input. Email and a password of at least 8 characters are required.' });
+    }
+
+    try {
+        // Mongoose pre-save middleware handles hashing the password
+        const newUser = await User.create({
+            email,
+            password, // Mongoose pre-save hook handles hashing
+            profile: { firstName, lastName }
+        });
+
+        // You would typically send a verification email here.
+        
+        console.log(`New user registered: ${newUser.email}`);
+        res.status(201).json({ 
+            message: 'Registration successful. Please log in.',
+            userId: newUser._id
+        });
+
+    } catch (error) {
+        if (error.code === 11000) { // MongoDB duplicate key error (for email)
+            return res.status(409).json({ message: 'This email address is already registered.' });
+        }
+        console.error("User registration error:", error);
+        res.status(500).json({ message: 'Server error during registration.' });
+    }
+});
+
+
+// 2. POST /api/users/login (Login)
+app.post('/api/users/login', async (req, res) => {
+    const { email, password } = req.body;
+
+    try {
+        const user = await User.findOne({ email }).select('+password').lean();
+        
+        if (!user || !(await bcrypt.compare(password, user.password))) {
+            return res.status(401).json({ message: 'Invalid email or password.' });
+        }
+        
+        // Create the user token
+        const token = jwt.sign(
+            { id: user._id, email: user.email, role: user.status.role || 'user' }, 
+            JWT_SECRET, 
+            { expiresIn: '7d' } // User tokens can often last longer than admin tokens
+        );
+        
+        // Remove password before sending the rest of the user object
+        delete user.password; 
+
+        res.status(200).json({ 
+            token, 
+            message: 'Login successful',
+            user: user
+        });
+
+    } catch (error) {
+        console.error("User login error:", error);
+        res.status(500).json({ message: 'Server error during login.' });
+    }
+});
+
+
+// 3. GET /api/users/account (Fetch Profile - Protected)
+app.get('/api/users/account', verifyUserToken, async (req, res) => {
+    try {
+        // req.userId is set by verifyUserToken middleware
+        const user = await User.findById(req.userId).lean();
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+
+        // The structure of the returned user object must match what the frontend expects (profile-view)
+        res.status(200).json({
+            id: user._id,
+            profile: user.profile,
+            status: user.status,
+            membership: user.membership
+        });
+        
+    } catch (error) {
+        console.error("Fetch profile error:", error);
+        res.status(500).json({ message: 'Failed to retrieve user profile.' });
+    }
+});
+
+
+// 4. POST /api/users/forgot-password (Forgot Password)
+app.post('/api/users/forgot-password', async (req, res) => {
+    // In a production system, this would trigger email sending
+    console.log(`Password reset requested for: ${req.body.email}`);
+    // Respond successfully regardless of whether the email exists to prevent user enumeration
+    res.status(200).json({ message: 'If an account with that email exists, a password reset link has been sent.' });
 });
 
 

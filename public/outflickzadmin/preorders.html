@@ -569,10 +569,10 @@ function getTagClass(tag) {
         default: return 'bg-gray-100 text-gray-800';
     }
 }
-
 /**
  * Fetches data for a specific collection and populates the form for editing.
  * *** MODIFIED: Added Available Date and removed Color from the form logic. ***
+ * *** FIX: Implemented robust error handling to prevent SyntaxError when API returns non-JSON (HTML) error page. ***
  */
 async function editCollection(collectionId) {
     const token = getAuthToken();
@@ -585,8 +585,20 @@ async function editCollection(collectionId) {
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
+            let errorMsg = `HTTP error! Status: ${response.status}`;
+            try {
+                // Attempt to parse JSON first (for standard API error response)
+                const errorData = await response.json();
+                errorMsg = errorData.message || errorMsg;
+            } catch (e) {
+                // If JSON parsing fails (i.e., it's HTML/text), read as plain text
+                const errorText = await response.text();
+                // Check if it looks like an HTML error page
+                errorMsg = errorText.startsWith('<!DOCTYPE') ? 
+                           `Server returned an unexpected HTML error page (Status: ${response.status}).` : 
+                           errorText || errorMsg;
+            }
+            throw new Error(errorMsg);
         }
 
         const collection = await response.json();
@@ -649,7 +661,8 @@ async function editCollection(collectionId) {
 }
 
 /**
- * Sends a DELETE request to remove a collection. (Kept the same)
+ * Sends a DELETE request to remove a collection. 
+ * *** FIX: Implemented robust error handling to prevent SyntaxError when API returns non-JSON (HTML) error page. ***
  */
 async function deleteCollection(collectionId) {
     const token = getAuthToken();
@@ -667,8 +680,17 @@ async function deleteCollection(collectionId) {
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
+            let errorMsg = `HTTP error! Status: ${response.status}`;
+            try {
+                const errorData = await response.json();
+                errorMsg = errorData.message || errorMsg;
+            } catch (e) {
+                const errorText = await response.text();
+                errorMsg = errorText.startsWith('<!DOCTYPE') ? 
+                           `Server returned an unexpected HTML error page (Status: ${response.status}).` : 
+                           errorText || errorMsg;
+            }
+            throw new Error(errorMsg);
         }
 
         showSuccessModal(`Collection <mark>${collectionId.slice(-6)}</mark> deleted successfully.`); 
@@ -682,13 +704,14 @@ async function deleteCollection(collectionId) {
 
 
 /**
- * Prompts admin for new stock and updates totalStock and isActive status. (Kept the same)
+ * Prompts admin for new stock and updates totalStock and isActive status.
+ * *** FIX: Implemented robust error handling to prevent SyntaxError when API returns non-JSON (HTML) error page. ***
  */
 async function quickRestockAndActivate(collectionId, collectionName, currentPrice) {
     const token = getAuthToken();
     if (!token) return;
     
-    // --- Setup Restock Modal --- 
+    // --- Setup Restock Modal (NO CHANGE) --- 
     const formattedPrice = `₦${(currentPrice || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
     restockModalName.innerHTML = `**${collectionName}** (Price: <mark>${formattedPrice}</mark>)`;
     restockInput.value = 100; 
@@ -751,13 +774,17 @@ async function quickRestockAndActivate(collectionId, collectionName, currentPric
         });
 
         if (!response.ok) {
-            const errorText = await response.text();
+            let errorMsg = `HTTP error! Status: ${response.status}`;
             try {
-                const errorData = JSON.parse(errorText);
-                throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
+                const errorData = await response.json();
+                errorMsg = errorData.message || errorMsg;
             } catch (e) {
-                 throw new Error(errorText || `HTTP error! Status: ${response.status}`);
+                const errorText = await response.text();
+                errorMsg = errorText.startsWith('<!DOCTYPE') ? 
+                           `Server returned an unexpected HTML error page (Status: ${response.status}).` : 
+                           errorText || errorMsg;
             }
+            throw new Error(errorMsg);
         }
 
         showSuccessModal(`Collection <mark>**${collectionName}**</mark> successfully restocked to <mark>**${newStock}**</mark> and activated for pre-order!`);
@@ -769,7 +796,7 @@ async function quickRestockAndActivate(collectionId, collectionName, currentPric
     }
 }
 
-// --- FORM SECTION MANAGEMENT ---
+// --- FORM SECTION MANAGEMENT (NO CHANGE) ---
 /**
  * Function to create a product section HTML structure.
  * @param {number} index - The zero-based index for the section (0 to 3).
@@ -908,6 +935,7 @@ function updateColorPreview(colorValue, previewId) {
 /**
  * Handles the form submission (CREATE or UPDATE).
  * *** MODIFIED: Added Available Date and removed Color from the submitted data. ***
+ * *** FIX: Implemented robust error handling to prevent SyntaxError when API returns non-JSON (HTML) error page. ***
  */
 async function handleCollectionSubmit(event) {
     event.preventDefault();
@@ -1024,7 +1052,7 @@ async function handleCollectionSubmit(event) {
     // --- 3. Append JSON Data to FormData (Kept the same) ---
     formData.append('collectionData', JSON.stringify(collectionData));
 
-    // --- 4. Send the Data to the Backend (Kept the same) ---
+    // --- 4. Send the Data to the Backend ---
     try {
         const response = await fetch(url, {
             method: method,
@@ -1035,13 +1063,17 @@ async function handleCollectionSubmit(event) {
         });
 
         if (!response.ok) {
-            const errorText = await response.text();
+            let errorMsg = `HTTP error! Status: ${response.status}`;
             try {
-                const errorData = JSON.parse(errorText);
-                throw new Error(errorData.message || `Server error during ${method}.`);
+                const errorData = await response.json();
+                errorMsg = errorData.message || errorMsg;
             } catch (e) {
-                throw new Error(errorText || `HTTP error! Status: ${response.status}`);
+                const errorText = await response.text();
+                errorMsg = errorText.startsWith('<!DOCTYPE') ? 
+                           `Server returned an unexpected HTML error page (Status: ${response.status}).` : 
+                           errorText || errorMsg;
             }
+            throw new Error(errorMsg);
         }
 
         const result = await response.json();

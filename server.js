@@ -31,7 +31,6 @@ const s3Client = new S3Client({
         accessKeyId: BLAZE_ACCESS_KEY,
         secretAccessKey: BLAZE_SECRET_KEY,
     },
-    // Required for Backblaze B2's S3-compatibility layer
     forcePathStyle: true,
 });
 
@@ -664,6 +663,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/', (req, res) => { res.redirect('/outflickzstore/homepage.html'); });
+app.get('/useraccount', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'useraccount.html')); }); 
 app.get('/capscollection', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'capscollection.html')); }); 
 app.get('/newarrivals', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'newarrivals.html')); }); 
 app.get('/wearscollection', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'wearscollection.html')); }); 

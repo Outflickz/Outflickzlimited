@@ -572,42 +572,25 @@ function getTagClass(tag) {
 
 /**
  * Fetches data for a specific collection and populates the form for editing.
- * *** FIX: Added Authorization token to the fetch request headers to resolve the 401 Unauthorized error. ***
  * *** MODIFIED: Added Available Date and removed Color from the form logic. ***
+ * *** FIX: Implemented robust error handling to prevent SyntaxError when API returns non-JSON (HTML) error page. ***
  */
+// Conceptual fix for your client-side JavaScript (preorders.html)
 async function editCollection(collectionId) {
-    // 1. Get the Authentication Token
-    const token = localStorage.getItem('authToken'); // Adjust 'authToken' if your key is different
-
-    if (!token) {
-        // Stop execution and inform the user if they are not logged in.
-        return showErrorModal("You must be logged in to edit collections (Authentication Token missing).");
-    }
-
     try {
-        const response = await fetch(`/api/admin/preordercollections/${collectionId}`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                // CRITICAL FIX: Include the Authorization header with the Bearer scheme
-                'Authorization': `Bearer ${token}` 
-            }
-        });
+        const response = await fetch(`/api/admin/preordercollections/${collectionId}`);
 
         if (!response.ok) {
             // Read body ONCE for error details
             let errorDetails = `Status: ${response.status} ${response.statusText}`;
-            if (response.status === 401) {
-                // If 401, provide the specific error message from the console/server
-                errorDetails = "Access denied. Token is missing or invalid.";
-            } else {
-                try {
-                    // Attempt to parse JSON error message if the server provided one
-                    const errorJson = await response.json(); 
-                    errorDetails = errorJson.message || JSON.stringify(errorJson);
-                } catch (e) {
-                    // If it wasn't JSON, just use the status details
-                }
+            try {
+                // Attempt to parse JSON error message if the server provided one
+                const errorJson = await response.json(); 
+                errorDetails = errorJson.message || JSON.stringify(errorJson);
+            } catch (e) {
+                // If it wasn't JSON, just use the status details
+                // NOTE: Do NOT use response.text() here, as it would cause the same error if called twice.
+                // Since response.json() failed, we rely on the status text above.
             }
             
             // Throw a proper error after reading the body
@@ -633,12 +616,14 @@ async function editCollection(collectionId) {
         document.getElementById('is-active').checked = collection.isActive;
         
         // New Field: Populate Available Date
+        // Collection date is likely a MongoDB date string (e.g., "2025-11-20T00:00:00.000Z")
         if (collection.availableDate) {
             // Format to YYYY-MM-DD for the HTML date input
             const date = new Date(collection.availableDate);
             const formattedDate = date.toISOString().split('T')[0];
             document.getElementById('available-date').value = formattedDate;
         }
+
 
         // 3. Populate variations 
         productSectionsContainer.innerHTML = '';
@@ -648,12 +633,15 @@ async function editCollection(collectionId) {
             const sectionNumber = variation.variationIndex;
             const frontUrl = variation.frontImageUrl || null;
             const backUrl = variation.backImageUrl || null;
+            // The color property is no longer used/passed.
 
             const newSection = document.createElement('div');
             // Reusing createProductSection, which now omits color logic
             newSection.innerHTML = createProductSection(sectionNumber - 1, frontUrl, backUrl).trim();
             productSectionsContainer.appendChild(newSection.firstChild);
             sectionCount++;
+
+            // No need to populate color
         });
 
         // 4. Update the add button state

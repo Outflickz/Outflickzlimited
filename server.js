@@ -5,6 +5,9 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 const mongoose = require('mongoose');
 const multer = require('multer');
+const nodemailer = require('nodemailer');
+
+const { sendMail } = require('./mailer');
 
 // --- BACKBLAZE B2 INTEGRATION (USING AWS SDK v3) ---
 const { S3Client, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
@@ -440,6 +443,38 @@ const PreOrderCollectionSchema = new mongoose.Schema({
 
 const PreOrderCollection = mongoose.model('PreOrderCollection', PreOrderCollectionSchema);
 
+// --- 🛍️ NEW ORDER SCHEMA AND MODEL 🛍️ ---
+// We need a robust order model to track sales and manage inventory deduction.
+const OrderItemSchema = new mongoose.Schema({
+    productId: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        required: true, 
+        // This ref should be dynamic if you have multiple product types, 
+        // but for now, we'll assume a generic Product model (or need to decide which collection it came from).
+        // For simplicity, we'll store the collection type and ID.
+    },
+    productType: { 
+        type: String, 
+        required: true, 
+        enum: ['WearsCollection', 'CapCollection', 'NewArrivals', 'PreOrderCollection'] 
+    },
+    quantity: { type: Number, required: true, min: 1 },
+    priceAtTimeOfPurchase: { type: Number, required: true, min: 0.01 },
+    variationIndex: { type: Number },
+    size: { type: String }
+}, { _id: false });
+
+const OrderSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    items: { type: [OrderItemSchema], required: true },
+    totalAmount: { type: Number, required: true, min: 0.01 },
+    status: { type: String, default: 'completed', enum: ['pending', 'completed', 'cancelled', 'refunded'] }, // Assuming orders are marked completed after payment
+    shippingAddress: { type: Object, required: true },
+    paymentMethod: { type: String, required: true },
+}, { timestamps: true });
+
+const Order = mongoose.models.Order || mongoose.model('Order', OrderSchema);
+
 // --- DATABASE INTERACTION FUNCTIONS (Unchanged) ---
 async function findAdminUserByEmail(email) {
     const adminUser = await Admin.findOne({ email }).select('+password').lean();
@@ -459,9 +494,129 @@ async function createAdminUser(email, hashedPassword) {
     }
 }
 
+/**
+ * Retrieves real-time statistics for the admin dashboard.
+ * Calculates Total Sales, Total Active Inventory (totalStock > 0), and User Count.
+ */
 async function getRealTimeDashboardStats() {
-    // Placeholder for actual stat fetching
-    return { totalSales: 0, pendingOrders: 0, outOfStockItems: 0, userCount: 0 };
+    try {
+        // 1. Calculate Total Sales (sum of 'totalAmount' from completed orders)
+        const salesAggregation = await Order.aggregate([
+            { $match: { status: 'completed' } },
+            { $group: { _id: null, totalSales: { $sum: '$totalAmount' } } }
+        ]);
+        const totalSales = salesAggregation.length > 0 ? salesAggregation[0].totalSales : 0;
+
+        // 2. Calculate Total Active Inventory (Sum of totalStock > 0 across all Product Collections)
+        
+        // Sum inventory from Wears Collection
+        const wearsInventory = await WearsCollection.aggregate([
+            { $match: { isActive: true, totalStock: { $gt: 0 } } },
+            { $group: { _id: null, total: { $sum: '$totalStock' } } }
+        ]);
+
+        // Sum inventory from Caps Collection
+        const capsInventory = await CapCollection.aggregate([
+            { $match: { isActive: true, totalStock: { $gt: 0 } } },
+            { $group: { _id: null, total: { $sum: '$totalStock' } } }
+        ]);
+        
+        // Sum inventory from New Arrivals Collection
+        const newArrivalsInventory = await NewArrivals.aggregate([
+            { $match: { isActive: true, totalStock: { $gt: 0 } } },
+            { $group: { _id: null, total: { $sum: '$totalStock' } } }
+        ]);
+        
+        // Combine all inventory counts
+        const totalActiveProducts = 
+              (wearsInventory[0]?.total || 0) + 
+              (capsInventory[0]?.total || 0) + 
+              (newArrivalsInventory[0]?.total || 0);
+
+        // 3. Count Registered Users
+        const userCount = await User.countDocuments({});
+
+        return {
+            totalSales: totalSales,
+            totalProducts: totalActiveProducts, // Maps to 'Active Products' on the frontend
+            userCount: userCount
+        };
+
+    } catch (error) {
+        console.error('Error in getRealTimeDashboardStats:', error);
+        // Do not return null; throw a structured error to be caught by the route handler
+        throw new Error('Database aggregation failed for dashboard stats.');
+    }
+}
+
+/**
+ * Utility function to get the correct Mongoose Model based on the productType string.
+ * @param {string} productType The string name of the collection (e.g., 'WearsCollection').
+ */
+function getProductModel(productType) {
+    switch(productType) {
+        case 'WearsCollection': return WearsCollection;
+        case 'CapCollection': return CapCollection;
+        case 'NewArrivals': return NewArrivals;
+        case 'PreOrderCollection': return PreOrderCollection;
+        default: throw new Error(`Invalid product type: ${productType}`);
+    }
+}
+
+/**
+ * Handles inventory deduction when an order is completed.
+ * This is the critical piece that ensures the 'Active Products' stat decreases after a sale.
+ * @param {string} orderId The ID of the completed order.
+ */
+async function processOrderCompletion(orderId) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        const order = await Order.findById(orderId).session(session);
+        
+        if (!order || order.status !== 'pending') {
+            await session.abortTransaction();
+            // Handle scenario where order is already complete or doesn't exist
+            return; 
+        }
+        
+        // Loop through each item in the order and deduct stock from the specific collection
+        for (const item of order.items) {
+            const ProductModel = getProductModel(item.productType);
+            const quantityOrdered = item.quantity;
+            
+            // Atomically find the specific product and decrement totalStock
+            const updatedProduct = await ProductModel.findOneAndUpdate(
+                { 
+                    _id: item.productId, 
+                    totalStock: { $gte: quantityOrdered } // Check if stock is sufficient
+                },
+                { $inc: { totalStock: -quantityOrdered } }, // Decrement stock
+                { new: true, session: session }
+            );
+
+            if (!updatedProduct) {
+                await session.abortTransaction();
+                // Rollback the entire order if any single item stock check fails
+                throw new Error(`Insufficient stock for product ${item.productId} in ${item.productType}. Transaction aborted.`);
+            }
+        }
+        
+        // Update order status to completed
+        order.status = 'completed';
+        await order.save({ session });
+
+        await session.commitTransaction();
+        return order;
+
+    } catch (error) {
+        await session.abortTransaction();
+        console.error('Inventory Deduction failed during order processing:', error.message);
+        throw error;
+    } finally {
+        session.endSession();
+    }
 }
 
 async function populateInitialData() {
@@ -595,14 +750,16 @@ app.post('/api/admin/forgot-password', async (req, res) => {
 });
 
 app.get('/api/admin/dashboard/stats', verifyToken, async (req, res) => {
-    try {
-        const stats = await getRealTimeDashboardStats();
-        res.status(200).json(stats);
-    } catch (error) {
-        res.status(500).json({ message: 'Failed to retrieve dashboard stats.' });
-    }
+    try {
+        // This now calls the updated function that aggregates stock from all product models
+        const stats = await getRealTimeDashboardStats();
+        res.status(200).json(stats);
+    } catch (error) {
+        // Updated error logging for better debugging
+        console.error("Dashboard Stats API Error:", error.message);
+        res.status(500).json({ message: 'Failed to retrieve dashboard stats.' });
+    }
 });
-
 // -----------------------------------------------------------------
 // 🧢 CAP COLLECTION API ROUTES (CRUD) 🧢
 // -----------------------------------------------------------------
@@ -1997,7 +2154,6 @@ app.get('/api/collections/preorder', async (req, res) => {
         });
     }
 });
-
 // 1. POST /api/users/register (Create Account)
 app.post('/api/users/register', async (req, res) => {
     const { email, password, firstName, lastName } = req.body;
@@ -2015,7 +2171,37 @@ app.post('/api/users/register', async (req, res) => {
             profile: { firstName, lastName }
         });
 
-        // You would typically send a verification email here.
+        // 🛠️ NEW: Send a Welcome/Confirmation Email with Logo and Styling
+        const welcomeSubject = 'Welcome to Outflickz Limited! Account Created';
+        const welcomeHtml = `
+            <div style="background-color: #ffffff; color: #000000; padding: 20px; border: 1px solid #eeeeee; max-width: 600px; margin: 0 auto; font-family: sans-serif; border-radius: 8px;">
+                <!-- Outflickz Logo -->
+                <div style="text-align: center; padding-bottom: 20px;">
+                    <img src="https://i.imgur.com/1Rxhi9q.jpeg" alt="Outflickz Limited Logo" style="max-width: 150px; height: auto; display: block; margin: 0 auto;">
+                </div>
+                
+                <h2 style="color: #000000; font-weight: 600;">Account Successfully Created</h2>
+
+                <p style="font-family: sans-serif; line-height: 1.6;">Hello ${firstName || 'New Member'},</p>
+                <p style="font-family: sans-serif; line-height: 1.6;">Your account with Outflickz Limited has been successfully created. You can now log in to manage your profile and start shopping!</p>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="http://your-frontend-domain.com/login" 
+                       style="display: inline-block; padding: 10px 20px; background-color: #000000; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold;">
+                        Go to Login
+                    </a>
+                </div>
+
+                <p style="font-family: sans-serif; margin-top: 20px; line-height: 1.6;">Thank you for joining our community.</p>
+
+                <!-- Footer -->
+                <p style="font-size: 12px; margin-top: 30px; border-top: 1px solid #eeeeee; padding-top: 10px; color: #555555; text-align: center;">&copy; ${new Date().getFullYear()} Outflickz Limited. All rights reserved.</p>
+            </div>
+        `;
+
+        // Send email (non-blocking)
+        sendMail(email, welcomeSubject, welcomeHtml)
+            .catch(error => console.error(`Failed to send welcome email to ${email}:`, error));
         
         console.log(`New user registered: ${newUser.email}`);
         res.status(201).json({ 
@@ -2094,12 +2280,63 @@ app.get('/api/users/account', verifyUserToken, async (req, res) => {
 
 // 4. POST /api/users/forgot-password (Forgot Password)
 app.post('/api/users/forgot-password', async (req, res) => {
-    // In a production system, this would trigger email sending
-    console.log(`Password reset requested for: ${req.body.email}`);
-    // Respond successfully regardless of whether the email exists to prevent user enumeration
-    res.status(200).json({ message: 'If an account with that email exists, a password reset link has been sent.' });
-});
+    const { email } = req.body;
 
+    // Respond successfully immediately to prevent user enumeration attacks
+    res.status(200).json({ message: 'If an account with that email exists, a password reset link has been sent.' });
+
+    try {
+        const user = await User.findOne({ email });
+        
+        if (user) {
+            // 1. Generate a secure, unique, time-limited token (e.g., using crypto or jwt)
+            const resetToken = crypto.randomBytes(32).toString('hex'); // Assumes 'crypto' is required
+
+            // 2. Save the token and its expiry time to the user's document
+            // await User.updateOne({ _id: user._id }, { resetPasswordToken: resetToken, resetPasswordExpires: Date.now() + 3600000 }); // 1 hour
+
+            // 3. Construct the actual reset link
+            const resetLink = `http://your-frontend-domain.com/reset-password?token=${resetToken}&email=${email}`;
+
+            // 🛠️ NEW: Updated HTML template with Logo and Styling
+            const resetSubject = 'Outflickz Limited: Password Reset Request';
+            const resetHtml = `
+                <div style="background-color: #ffffff; color: #000000; padding: 20px; border: 1px solid #eeeeee; max-width: 600px; margin: 0 auto; font-family: sans-serif; border-radius: 8px;">
+                    <!-- Outflickz Logo -->
+                    <div style="text-align: center; padding-bottom: 20px;">
+                        <img src="https://i.imgur.com/1Rxhi9q.jpeg" alt="Outflickz Limited Logo" style="max-width: 150px; height: auto; display: block; margin: 0 auto;">
+                    </div>
+
+                    <h2 style="color: #000000; font-weight: 600;">Password Reset Request</h2>
+
+                    <p style="font-family: sans-serif; line-height: 1.6;">Hello,</p>
+                    <p style="font-family: sans-serif; line-height: 1.6;">You are receiving this because you (or someone else) have requested the reset of the password for your account.</p>
+                    
+                    <p style="font-family: sans-serif; line-height: 1.6;">Please click on the button below to complete the password reset process:</p>
+                    
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="${resetLink}" 
+                           style="display: inline-block; padding: 10px 20px; background-color: #000000; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold;">
+                            Reset My Password
+                        </a>
+                    </div>
+
+                    <p style="font-family: sans-serif; margin-top: 15px; line-height: 1.6;">If you did not request this, please ignore this email and your password will remain unchanged.</p>
+
+                    <!-- Footer -->
+                    <p style="font-size: 12px; margin-top: 30px; border-top: 1px solid #eeeeee; padding-top: 10px; color: #555555; text-align: center;">&copy; ${new Date().getFullYear()} Outflickz Limited. All rights reserved.</p>
+                </div>
+            `;
+            
+            // Send the email
+            sendMail(email, resetSubject, resetHtml)
+                .catch(error => console.error(`Failed to send password reset email to ${email}:`, error));
+        }
+    } catch (error) {
+        // Log internal error but do not change the 200 response sent earlier
+        console.error("Forgot password process error:", error);
+    }
+});
 
 // --- NETLIFY EXPORTS for api.js wrapper ---
 module.exports = {

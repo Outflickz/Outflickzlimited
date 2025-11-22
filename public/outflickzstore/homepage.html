@@ -141,43 +141,85 @@
         }
         /* --- END NEW MOBILE SLIDER STYLE --- */
     </style>
-   <script>
+  <script>
 // Customizing Tailwind colors to match the theme
 tailwind.config = {
-    theme: {
-        extend: {
-            colors: {
-                'ash-dark': '#111111',
-                'ash-red': '#a80000',
-                'color-white': '#FFFFFF',
-                'color-black': '#000000',
-                'racing-grey': '#333333',
-                'racing-silver': '#AAAAAA',
-            }
-        }
-    }
+    theme: {
+        extend: {
+            colors: {
+                'ash-dark': '#111111',
+                'ash-red': '#a80000',
+                'color-white': '#FFFFFF',
+                'color-black': '#000000',
+                'racing-grey': '#333333',
+                'racing-silver': '#AAAAAA',
+            }
+        }
+    }
 }
 
 // Simple JS for Toggling Mobile Menu
 function toggleMenu() {
-    document.getElementById('mobile-menu').classList.toggle('hidden');
+    document.getElementById('mobile-menu').classList.toggle('hidden');
 }
+
+// --- USER AUTHENTICATION & REDIRECTION FUNCTIONS (NEW) ---
+
+/**
+ * Checks the user's authentication status and redirects them accordingly.
+ * Assumes: 
+ * 1. A successful login sets a key named 'isLoggedIn' to 'true' in localStorage.
+ * 2. The user's actual profile page (where they manage settings, orders, etc.) is 'userprofile.html'. 
+ * 3. The login/signup page is 'useraccount.html'.
+ */
+function redirectToProfileOrLogin() {
+    // 1. Check for the login status flag (must be set on successful login)
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+
+    // 2. Conditional Redirection
+    if (isLoggedIn) {
+        // User is signed in: direct them to their profile page
+        console.log("User is logged in. Redirecting to Profile.");
+        // NOTE: Make sure you create this file or change the URL to your actual profile page
+        window.location.href = 'userprofile.html'; 
+    } else {
+        // User is NOT signed in: direct them to the login/account page
+        console.log("User is NOT logged in. Redirecting to Account page.");
+        window.location.href = 'useraccount.html';
+    }
+}
+
+/**
+ * CONCEPTUAL: This function should be called ONLY after a successful login API response 
+ * from your server (in useraccount.html). It sets the login flag and redirects 
+ * to the homepage (or profile).
+ */
+function onSuccessfulLogin() {
+    // Save the login state to the browser's storage
+    localStorage.setItem('isLoggedIn', 'true');
+    console.log("Login successful! isLoggedIn set to true.");
+
+    // Redirect the user to the homepage after login
+    window.location.href = 'homepage.html'; 
+}
+
+// --- END USER AUTHENTICATION & REDIRECTION FUNCTIONS ---
 
 // --- SHOP NOW DROPDOWN JS ---
 function toggleShopDropdown() {
-    const dropdown = document.getElementById('shop-dropdown-menu');
-    dropdown.classList.toggle('hidden');
+    const dropdown = document.getElementById('shop-dropdown-menu');
+    dropdown.classList.toggle('hidden');
 }
 
 // Optional: Close the dropdown if the user clicks anywhere outside of it
 document.addEventListener('click', function(event) {
-    const dropdown = document.getElementById('shop-dropdown-menu');
-    const button = document.getElementById('shop-now-btn');
+    const dropdown = document.getElementById('shop-dropdown-menu');
+    const button = document.getElementById('shop-now-btn');
 
-    // Check if the click occurred outside the button and outside the dropdown
-    if (dropdown && button && !button.contains(event.target) && !dropdown.contains(event.target)) {
-        dropdown.classList.add('hidden');
-    }
+    // Check if the click occurred outside the button and outside the dropdown
+    if (dropdown && button && !button.contains(event.target) && !dropdown.contains(event.target)) {
+        dropdown.classList.add('hidden');
+    }
 });
 // --- END SHOP NOW DROPDOWN JS ---
 
@@ -187,675 +229,676 @@ const API_BASE_URL = '';
 
 // --- HERO SLIDER JS (SIMPLIFIED FOR STABILITY) ---
 document.addEventListener('DOMContentLoaded', () => {
-    const imageLinks = [
-        'https://i.imgur.com/RFkkvwa.jpeg',
-        'https://i.imgur.com/YdK6QGk.jpeg',
-        'https://i.imgur.com/S74DrsC.jpeg',
-        'https://i.imgur.com/k9XXsBU.jpeg',
-        'https://i.imgur.com/P39sBlb.jpeg',
-        'https://i.imgur.com/e56O0Ub.jpeg',
-        'https://i.imgur.com/oSyDJmZ.jpeg',
-        'https://i.imgur.com/g8vdHCf.jpeg'
-    ];
+    const imageLinks = [
+        'https://i.imgur.com/RFkkvwa.jpeg',
+        'https://i.imgur.com/YdK6QGk.jpeg',
+        'https://i.imgur.com/S74DrsC.jpeg',
+        'https://i.imgur.com/k9XXsBU.jpeg',
+        'https://i.imgur.com/P39sBlb.jpeg',
+        'https://i.imgur.com/e56O0Ub.jpeg',
+        'https://i.imgur.com/oSyDJmZ.jpeg',
+        'https://i.imgur.com/g8vdHCf.jpeg'
+    ];
 
-    const cell1 = document.getElementById('slider-cell-1');
-    const cell2 = document.getElementById('slider-cell-2');
-    const totalImages = imageLinks.length;
-    const imagesPerSlide = 2;
-    const totalSlides = totalImages / imagesPerSlide;
-    let currentSlideIndex = 0;
-    const slideInterval = 10000;
+    const cell1 = document.getElementById('slider-cell-1');
+    const cell2 = document.getElementById('slider-cell-2');
+    const totalImages = imageLinks.length;
+    const imagesPerSlide = 2;
+    const totalSlides = totalImages / imagesPerSlide;
+    let currentSlideIndex = 0;
+    const slideInterval = 10000;
 
-    function updateSlider() {
-        const startIndex = currentSlideIndex * imagesPerSlide;
-        const url1 = imageLinks[startIndex];
-        const url2 = imageLinks[(startIndex + 1) % totalImages];
+    function updateSlider() {
+        const startIndex = currentSlideIndex * imagesPerSlide;
+        const url1 = imageLinks[startIndex];
+        const url2 = imageLinks[(startIndex + 1) % totalImages];
 
-        // Preload images to prevent flicker
-        const img1 = new Image();
-        img1.src = url1;
-        const img2 = new Image();
-        img2.src = url2;
+        // Preload images to prevent flicker
+        const img1 = new Image();
+        img1.src = url1;
+        const img2 = new Image();
+        img2.src = url2;
 
-        // 1. Start fade-out (remove active class)
-        cell1.classList.remove('active');
-        cell2.classList.remove('active');
+        // 1. Start fade-out (remove active class)
+        cell1.classList.remove('active');
+        cell2.classList.remove('active');
 
-        // 2. Wait for a moment, then set new images and fade in (add active class)
-        setTimeout(() => {
-            // Update images
-            cell1.style.backgroundImage = `url('${url1}')`;
-            cell2.style.backgroundImage = `url('${url2}')`;
+        // 2. Wait for a moment, then set new images and fade in (add active class)
+        setTimeout(() => {
+            // Update images
+            cell1.style.backgroundImage = `url('${url1}')`;
+            cell2.style.backgroundImage = `url('${url2}')`;
 
-            // Apply active class to fade back in
-            cell1.classList.add('active');
-            if (window.innerWidth >= 768) {
-                cell2.classList.add('active');
-            }
-        }, 50); // Small delay to ensure fade-out starts before content is changed
+            // Apply active class to fade back in
+            cell1.classList.add('active');
+            if (window.innerWidth >= 768) {
+                cell2.classList.add('active');
+            }
+        }, 50); // Small delay to ensure fade-out starts before content is changed
 
-        currentSlideIndex = (currentSlideIndex + 1) % totalSlides;
-    }
+        currentSlideIndex = (currentSlideIndex + 1) % totalSlides;
+    }
 
-    // Initial call and Interval setup
-    updateSlider();
-    setInterval(updateSlider, slideInterval);
+    // Initial call and Interval setup
+    updateSlider();
+    setInterval(updateSlider, slideInterval);
 });
 // --- END HERO SLIDER JS ---
 
 // --- MODAL CONTROL FUNCTIONS ---
 function openModal(imageUrl, itemName) {
-    const modal = document.getElementById('image-modal');
-    const modalImage = document.getElementById('modal-image');
-    const modalTitle = document.getElementById('modal-item-title');
+    const modal = document.getElementById('image-modal');
+    const modalImage = document.getElementById('modal-image');
+    const modalTitle = document.getElementById('modal-item-title');
 
-    modalImage.src = imageUrl;
-    modalImage.alt = itemName;
-    modalTitle.textContent = itemName;
+    modalImage.src = imageUrl;
+    modalImage.alt = itemName;
+    modalTitle.textContent = itemName;
 
-    modal.classList.remove('opacity-0', 'pointer-events-none');
-    modal.classList.add('opacity-100');
-    document.body.classList.add('overflow-hidden');
+    modal.classList.remove('opacity-0', 'pointer-events-none');
+    modal.classList.add('opacity-100');
+    document.body.classList.add('overflow-hidden');
 }
 
 function closeModal() {
-    const modal = document.getElementById('image-modal');
-    modal.classList.remove('opacity-100');
-    modal.classList.add('opacity-0', 'pointer-events-none');
-    document.body.classList.remove('overflow-hidden');
+    const modal = document.getElementById('image-modal');
+    modal.classList.remove('opacity-100');
+    modal.classList.add('opacity-0', 'pointer-events-none');
+    document.body.classList.remove('overflow-hidden');
 }
 
 // --- QUANTITY AND SIZE UTILITY FUNCTIONS ---
 function changeQuantity(collectionId, delta) {
-    const input = document.getElementById(`quantity-input-${collectionId}`);
-    let currentValue = parseInt(input.value) || 1;
-    let newValue = currentValue + delta;
+    const input = document.getElementById(`quantity-input-${collectionId}`);
+    let currentValue = parseInt(input.value) || 1;
+    let newValue = currentValue + delta;
 
-    if (newValue < 1) {
-        newValue = 1;
-    }
+    if (newValue < 1) {
+        newValue = 1;
+    }
 
-    const maxStock = parseInt(input.max) || Infinity;
-    if (newValue > maxStock) {
-        newValue = maxStock;
-    }
+    const maxStock = parseInt(input.max) || Infinity;
+    if (newValue > maxStock) {
+        newValue = maxStock;
+    }
 
-    input.value = newValue;
+    input.value = newValue;
 }
 
 // --- UTILITY FOR SIZE LIST (MATCHING IMAGE DESIGN) ---
 // UPDATED: Now accepts isReduced flag for conditional styling
 function createSizeList(collectionId, sizes, isReduced = false) {
-    // Default sizes if none are provided
-    if (!sizes || sizes.length === 0) {
-        sizes = ['S', 'M', 'L', 'XL'];
-    }
+    // Default sizes if none are provided
+    if (!sizes || sizes.length === 0) {
+        sizes = ['S', 'M', 'L', 'XL'];
+    }
 
-    const sizeClasses = isReduced 
-        ? 'text-[0.6rem] px-1.5 py-0.5' // Smaller for reduced card
-        : 'text-xs px-2 py-0.5 md:px-2 md:py-1'; // Default size
-    
-    return sizes.map(size => `
-        <label for="size-${collectionId}-${size}" class="size-label border border-gray-300 cursor-pointer hover:border-ash-dark transition-all rounded-sm">
-            <input type="radio" id="size-${collectionId}-${size}" name="size-${collectionId}" value="${size}" class="hidden" ${size === sizes[0] ? 'checked' : ''}>
-            <span class="${sizeClasses}">${size}</span>
-        </label>
-    `).join('');
+    const sizeClasses = isReduced 
+        ? 'text-[0.6rem] px-1.5 py-0.5' // Smaller for reduced card
+        : 'text-xs px-2 py-0.5 md:px-2 md:py-1'; // Default size
+    
+    return sizes.map(size => `
+        <label for="size-${collectionId}-${size}" class="size-label border border-gray-300 cursor-pointer hover:border-ash-dark transition-all rounded-sm">
+            <input type="radio" id="size-${collectionId}-${size}" name="size-${collectionId}" value="${size}" class="hidden" ${size === sizes[0] ? 'checked' : ''}>
+            <span class="${sizeClasses}">${size}</span>
+        </label>
+    `).join('');
 }
 
 // --- NEW FUNCTION TO HANDLE IMAGE SWITCHING (Uses Color Hex/Code as Identifier) ---
 function changeVariantImage(collectionId, colorHex) {
-    const card = document.querySelector(`.collection-card[data-collection-id="${collectionId}"]`);
-    if (!card) return;
+    const card = document.querySelector(`.collection-card[data-collection-id="${collectionId}"]`);
+    if (!card) return;
 
-    const colorMapContainer = card.querySelector(`#color-map-${collectionId}`);
-    if (!colorMapContainer) return;
-    
-    // Parse the stored map from the data attribute. This map now stores an object {frontImageUrl, backImageUrl}
-    const colorMap = JSON.parse(colorMapContainer.getAttribute('data-color-map'));
-    const newImageUrls = colorMap[colorHex];
+    const colorMapContainer = card.querySelector(`#color-map-${collectionId}`);
+    if (!colorMapContainer) return;
+    
+    // Parse the stored map from the data attribute. This map now stores an object {frontImageUrl, backImageUrl}
+    const colorMap = JSON.parse(colorMapContainer.getAttribute('data-color-map'));
+    const newImageUrls = colorMap[colorHex];
 
-    if (newImageUrls) {
-        const frontImageElement = card.querySelector(`#front-image-${collectionId}`);
-        const backImageElement = card.querySelector(`#back-image-${collectionId}`);
+    if (newImageUrls) {
+        const frontImageElement = card.querySelector(`#front-image-${collectionId}`);
+        const backImageElement = card.querySelector(`#back-image-${collectionId}`);
 
-        // Update Front Image
-        if (frontImageElement) {
-            frontImageElement.src = newImageUrls.frontImageUrl;
-        }
-           // Update Back Image
-        if (backImageElement) {
-            backImageElement.src = newImageUrls.backImageUrl;
-        }
-    }
+        // Update Front Image
+        if (frontImageElement) {
+            frontImageElement.src = newImageUrls.frontImageUrl;
+        }
+           // Update Back Image
+        if (backImageElement) {
+            backImageElement.src = newImageUrls.backImageUrl;
+        }
+    }
 }
 
 // --- NEW FUNCTION TO TOGGLE BETWEEN FRONT AND BACK IMAGE VIEWS ---
 function toggleImage(collectionId) {
-    const frontImage = document.getElementById(`front-image-${collectionId}`);
-    const backImage = document.getElementById(`back-image-${collectionId}`);
-    const toggleButton = document.getElementById(`image-toggle-btn-${collectionId}`);
+    const frontImage = document.getElementById(`front-image-${collectionId}`);
+    const backImage = document.getElementById(`back-image-${collectionId}`);
+    const toggleButton = document.getElementById(`image-toggle-btn-${collectionId}`);
 
-    if (frontImage.classList.contains('active')) {
-        frontImage.classList.remove('active');
-        frontImage.style.opacity = '0';
-        backImage.classList.add('active');
-        backImage.style.opacity = '1';
-        toggleButton.innerHTML = `<i class="fas fa-undo"></i> Front View`;
-        toggleButton.title = "Show Front View";
-    } else {
-        backImage.classList.remove('active');
-        backImage.style.opacity = '0';
-        frontImage.classList.add('active');
-        frontImage.style.opacity = '1';
-        toggleButton.innerHTML = `<i class="fas fa-sync-alt"></i> Back View`;
-        toggleButton.title = "Show Back View";
-    }
+    if (frontImage.classList.contains('active')) {
+        frontImage.classList.remove('active');
+        frontImage.style.opacity = '0';
+        backImage.classList.add('active');
+        backImage.style.opacity = '1';
+        toggleButton.innerHTML = `<i class="fas fa-undo"></i> Front View`;
+        toggleButton.title = "Show Front View";
+    } else {
+        backImage.classList.remove('active');
+        backImage.style.opacity = '0';
+        frontImage.classList.add('active');
+        frontImage.style.opacity = '1';
+        toggleButton.innerHTML = `<i class="fas fa-sync-alt"></i> Back View`;
+        toggleButton.title = "Show Back View";
+    }
 }
 
 // --- UTILITY FOR COLOR LIST (FIXED for Pre-Order Collections) ---
 function createColorList(collectionId, variants) {
-    // 1. Initial Safety Check
-    if (!variants || variants.length === 0) return '';
-    
-    // 🔑 CRITICAL FIX: Filter out variants where color is undefined (i.e., Pre-Order items)
-    const coloredVariants = variants.filter(v => v.color);
+    // 1. Initial Safety Check
+    if (!variants || variants.length === 0) return '';
+    
+    // 🔑 CRITICAL FIX: Filter out variants where color is undefined (i.e., Pre-Order items)
+    const coloredVariants = variants.filter(v => v.color);
 
-    // If there are no colored variants (e.g., all are pre-order), return empty.
-    if (coloredVariants.length === 0) return ''; 
+    // If there are no colored variants (e.g., all are pre-order), return empty.
+    if (coloredVariants.length === 0) return ''; 
 
-    // 2. Create a map for the image switching logic using ONLY the colored variants
-    const colorMap = coloredVariants.reduce((acc, v) => {
-        acc[v.color] = { frontImageUrl: v.frontImageUrl, backImageUrl: v.backImageUrl };
-        return acc;
-    }, {});
+    // 2. Create a map for the image switching logic using ONLY the colored variants
+    const colorMap = coloredVariants.reduce((acc, v) => {
+        acc[v.color] = { frontImageUrl: v.frontImageUrl, backImageUrl: v.backImageUrl };
+        return acc;
+    }, {});
 
-    // 3. Store the map in the DOM for easy access by changeVariantImage
-    // NOTE: We use coloredVariants here to ensure the map only holds valid colors.
-    const mapHtml = `<div id="color-map-${collectionId}" data-color-map='${JSON.stringify(colorMap)}' class="hidden"></div>`;
+    // 3. Store the map in the DOM for easy access by changeVariantImage
+    // NOTE: We use coloredVariants here to ensure the map only holds valid colors.
+    const mapHtml = `<div id="color-map-${collectionId}" data-color-map='${JSON.stringify(colorMap)}' class="hidden"></div>`;
 
-    // 4. Generate the color swatch buttons
-    // Use the filtered list (coloredVariants) for mapping
-    const buttonsHtml = coloredVariants.map((variant, index) => {
-        // Now 'variant.color' is guaranteed to exist!
-        const colorHex = variant.color; 
-        const style = `background-color: ${colorHex};`;
-        
-        // Safety check for case sensitivity, though not strictly needed here if data is clean
-        const safeColor = String(colorHex).toUpperCase(); 
-        
-        // This line is now safe because colorHex is a string
-        const extraClass = (safeColor === '#FFFFFF' || safeColor === '#FFF') ? 'border-gray-400' : 'border-gray-200';
-        
-        return `
-            <label for="color-${collectionId}-${colorHex}" class="color-label cursor-pointer p-[1px] rounded-full border border-transparent hover:border-ash-red transition-all">
-                <input 
-                    type="radio" 
-                    id="color-${collectionId}-${colorHex}" 
-                    name="color-${collectionId}" 
-                    value="${colorHex}" 
-                    class="hidden" 
-                    onchange="changeVariantImage('${collectionId}', this.value)" 
-                    ${index === 0 ? 'checked' : ''}
-                >
-                <span class="block w-4 h-4 rounded-full border ${extraClass}" style="${style}"></span>
-            </label>
-        `;
-    }).join('');
+    // 4. Generate the color swatch buttons
+    // Use the filtered list (coloredVariants) for mapping
+    const buttonsHtml = coloredVariants.map((variant, index) => {
+        // Now 'variant.color' is guaranteed to exist!
+        const colorHex = variant.color; 
+        const style = `background-color: ${colorHex};`;
+        
+        // Safety check for case sensitivity, though not strictly needed here if data is clean
+        const safeColor = String(colorHex).toUpperCase(); 
+        
+        // This line is now safe because colorHex is a string
+        const extraClass = (safeColor === '#FFFFFF' || safeColor === '#FFF') ? 'border-gray-400' : 'border-gray-200';
+        
+        return `
+            <label for="color-${collectionId}-${colorHex}" class="color-label cursor-pointer p-[1px] rounded-full border border-transparent hover:border-ash-red transition-all">
+                <input 
+                    type="radio" 
+                    id="color-${collectionId}-${colorHex}" 
+                    name="color-${collectionId}" 
+                    value="${colorHex}" 
+                    class="hidden" 
+                    onchange="changeVariantImage('${collectionId}', this.value)" 
+                    ${index === 0 ? 'checked' : ''}
+                >
+                <span class="block w-4 h-4 rounded-full border ${extraClass}" style="${style}"></span>
+            </label>
+        `;
+    }).join('');
 
-    return mapHtml + buttonsHtml;
+    return mapHtml + buttonsHtml;
 }
 
 // --- REDESIGNED WEARS COLLECTION CARD JS (MATCHES IMAGE LAYOUT) ---
 // UPDATED: Now handles the 'caps' size by removing the size selection UI.
 function createCollectionCard(collection, size = 'default') {
-    const currencySymbol = '₦'; 
-    const defaultFrontImage = ''; 
-    const defaultBackImage = ''; 
-    
-    // --- Conditional Sizing Classes ---
-    const isReduced = size === 'reduced' || size === 'caps';
-    const isCaps = size === 'caps';
-    const isPreorder = size === 'preorder'; // NEW: Flag for Pre-Order specific display
-    
-    // Card Padding
-    const cardPadding = isReduced ? 'p-1 md:p-2' : 'p-2 md:p-3'; 
-    
-    // Name and Description Text Size
-    const nameFontSize = isReduced ? 'text-xs md:text-sm' : 'text-sm md:text-base';
-    const descriptionFontSize = isReduced ? 'text-[0.6rem]' : 'text-xs';
-    
-    // Price Text Size
-    const priceFontSize = isReduced ? 'text-sm font-bold' : 'text-base font-extrabold';
-    
-    // Control Height/Size
-    const controlHeight = isReduced ? 'h-5 md:h-6' : 'h-6 md:h-7';
-    const controlTextSize = isReduced ? 'text-[0.5rem] md:text-xs' : 'text-xs md:text-sm';
-    const quantityControlWidth = isReduced ? 'w-4 md:w-5' : 'w-5 md:w-7';
-    const quantityButtonSize = isReduced ? 'w-6 h-6 md:w-7 md:h-7' : 'w-7 h-7 md:w-8 md:h-8';
-    const quantityInputWidth = isReduced ? 'w-4 md:w-6' : 'w-6 md:w-8';
-    const quantityInputTextSize = isReduced ? 'text-[0.6rem] md:text-xs' : 'text-xs md:text-sm';
-    // --- End Conditional Sizing Classes ---
+    const currencySymbol = '₦'; 
+    const defaultFrontImage = ''; 
+    const defaultBackImage = ''; 
+    
+    // --- Conditional Sizing Classes ---
+    const isReduced = size === 'reduced' || size === 'caps';
+    const isCaps = size === 'caps';
+    const isPreorder = size === 'preorder'; // NEW: Flag for Pre-Order specific display
+    
+    // Card Padding
+    const cardPadding = isReduced ? 'p-1 md:p-2' : 'p-2 md:p-3'; 
+    
+    // Name and Description Text Size
+    const nameFontSize = isReduced ? 'text-xs md:text-sm' : 'text-sm md:text-base';
+    const descriptionFontSize = isReduced ? 'text-[0.6rem]' : 'text-xs';
+    
+    // Price Text Size
+    const priceFontSize = isReduced ? 'text-sm font-bold' : 'text-base font-extrabold';
+    
+    // Control Height/Size
+    const controlHeight = isReduced ? 'h-5 md:h-6' : 'h-6 md:h-7';
+    const controlTextSize = isReduced ? 'text-[0.5rem] md:text-xs' : 'text-xs md:text-sm';
+    const quantityControlWidth = isReduced ? 'w-4 md:w-5' : 'w-5 md:w-7';
+    const quantityButtonSize = isReduced ? 'w-6 h-6 md:w-7 md:h-7' : 'w-7 h-7 md:w-8 md:h-8';
+    const quantityInputWidth = isReduced ? 'w-4 md:w-6' : 'w-6 md:w-8';
+    const quantityInputTextSize = isReduced ? 'text-[0.6rem] md:text-xs' : 'text-xs md:text-sm';
+    // --- End Conditional Sizing Classes ---
 
-    const primaryVariant = collection.variants && collection.variants.length > 0 ? collection.variants[0] : null;
-    
-    // Initial image URLs are the first variant's URLs
-    const frontImageUrl = collection.frontImageUrl || primaryVariant?.frontImageUrl || defaultFrontImage;
-    const backImageUrl = collection.backImageUrl || primaryVariant?.backImageUrl || defaultBackImage;
-    
-    const itemPrice = collection.price; 
-    const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
+    const primaryVariant = collection.variants && collection.variants.length > 0 ? collection.variants[0] : null;
+    
+    // Initial image URLs are the first variant's URLs
+    const frontImageUrl = collection.frontImageUrl || primaryVariant?.frontImageUrl || defaultFrontImage;
+    const backImageUrl = collection.backImageUrl || primaryVariant?.backImageUrl || defaultBackImage;
+    
+    const itemPrice = collection.price; 
+    const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
 
-    // *** Conditional Size List Render ***
-    // Only render size selection for Wears and Pre-Orders, but not Caps
-    const showSizeSelection = !isCaps;
+    // *** Conditional Size List Render ***
+    // Only render size selection for Wears and Pre-Orders, but not Caps
+    const showSizeSelection = !isCaps;
 
-    const sizeListHtml = showSizeSelection ? `
-        <div class="flex flex-wrap items-center gap-1 mt-2 mb-3">
-            <span class="text-xs font-medium text-gray-700">Size:</span>
-            <div class="flex flex-wrap gap-1 text-gray-700">
-                ${createSizeList(collection._id, collection.availableSizes, isReduced)}
-            </div>
-        </div>
-    ` : ''; 
+    const sizeListHtml = showSizeSelection ? `
+        <div class="flex flex-wrap items-center gap-1 mt-2 mb-3">
+            <span class="text-xs font-medium text-gray-700">Size:</span>
+            <div class="flex flex-wrap gap-1 text-gray-700">
+                ${createSizeList(collection._id, collection.availableSizes, isReduced)}
+            </div>
+        </div>
+    ` : ''; 
 
-    const colorListHtml = createColorList(collection._id, collection.variants); 
-    const maxStock = collection.availableStock > 0 ? collection.availableStock : 0; 
+    const colorListHtml = createColorList(collection._id, collection.variants); 
+    const maxStock = collection.availableStock > 0 ? collection.availableStock : 0; 
 
-    // *** Check Stock Status ***
-    const isOutOfStock = maxStock === 0 || collection.availableStock === 0;
+    // *** Check Stock Status ***
+    const isOutOfStock = maxStock === 0 || collection.availableStock === 0;
 
-    // Get the description from the 'tag' field, or use a default
-    const description = collection.tag || 'Exclusive limited edition item.';
-    
-    // --- NEW: Pre-Order specific badge and text ---
-    const preorderAvailableDate = collection.availableDate 
-        ? new Date(collection.availableDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-        : 'TBA';
+    // Get the description from the 'tag' field, or use a default
+    const description = collection.tag || 'Exclusive limited edition item.';
+    
+    // --- NEW: Pre-Order specific badge and text ---
+    const preorderAvailableDate = collection.availableDate 
+        ? new Date(collection.availableDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : 'TBA';
 
-    let stockBadge = '';
-    let cartButtonText = 'Add To Cart';
-    let cartButtonClasses = 'bg-ash-dark text-white hover:bg-ash-red';
+    let stockBadge = '';
+    let cartButtonText = 'Add To Cart';
+    let cartButtonClasses = 'bg-ash-dark text-white hover:bg-ash-red';
 
-    if (isPreorder) {
-        stockBadge = `<span class="absolute top-2 left-2 bg-ash-dark text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">PRE-ORDER</span>`;
-        cartButtonText = 'PRE-ORDER NOW';
-        // Display the expected availability date below the price
-        const preorderInfo = `<p class="${descriptionFontSize} text-green-600 mt-0.5 mb-1 font-semibold">Available: ${preorderAvailableDate}</p>`;
-        // Inject this info after the description in the card body
-        const descriptionLocation = `<p class="${descriptionFontSize} text-red-700 mt-0.5 mb-1 truncate">${description}</p>`;
-        
-        // Replace the standard description line with the description + preorder info
-        // This is a bit tricky to do cleanly in a single template string, but we'll modify the description itself
-        // to prepend the info if it exists.
-        
-        // For simplicity in this template:
-        // We'll use the description tag, and add the Pre-order date info separately.
+    if (isPreorder) {
+        stockBadge = `<span class="absolute top-2 left-2 bg-ash-dark text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">PRE-ORDER</span>`;
+        cartButtonText = 'PRE-ORDER NOW';
+        // Display the expected availability date below the price
+        const preorderInfo = `<p class="${descriptionFontSize} text-green-600 mt-0.5 mb-1 font-semibold">Available: ${preorderAvailableDate}</p>`;
+        // Inject this info after the description in the card body
+        const descriptionLocation = `<p class="${descriptionFontSize} text-red-700 mt-0.5 mb-1 truncate">${description}</p>`;
+        
+        // Replace the standard description line with the description + preorder info
+        // This is a bit tricky to do cleanly in a single template string, but we'll modify the description itself
+        // to prepend the info if it exists.
+        
+        // For simplicity in this template:
+        // We'll use the description tag, and add the Pre-order date info separately.
 
-    } else if (isOutOfStock) {
-        stockBadge = '<span class="absolute top-2 left-2 bg-ash-red text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">OUT OF STOCK</span>';
-        cartButtonText = 'Out Of Stock';
-        cartButtonClasses = 'bg-gray-500 text-white cursor-not-allowed opacity-75';
-    }
-    // *** END NEW LOGIC ***
-    
-    // *** Define Buttons/Labels based on Stock Status ***
-    const cartButtonHtml = isOutOfStock && !isPreorder
-        ? `
-            <button disabled class="flex-1 ${controlTextSize} ${cartButtonClasses} ${controlHeight} rounded-sm font-semibold uppercase tracking-widest flex items-center justify-center cursor-not-allowed">
-                ${cartButtonText}
-            </button>
-        `
-        : `
-            <button class="flex-1 ${controlTextSize} ${cartButtonClasses} ${controlHeight} rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center">
-                ${cartButtonText}
-            </button>
-        `;
+    } else if (isOutOfStock) {
+        stockBadge = '<span class="absolute top-2 left-2 bg-ash-red text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">OUT OF STOCK</span>';
+        cartButtonText = 'Out Of Stock';
+        cartButtonClasses = 'bg-gray-500 text-white cursor-not-allowed opacity-75';
+    }
+    // *** END NEW LOGIC ***
+    
+    // *** Define Buttons/Labels based on Stock Status ***
+    const cartButtonHtml = isOutOfStock && !isPreorder
+        ? `
+            <button disabled class="flex-1 ${controlTextSize} ${cartButtonClasses} ${controlHeight} rounded-sm font-semibold uppercase tracking-widest flex items-center justify-center cursor-not-allowed">
+                ${cartButtonText}
+            </button>
+        `
+        : `
+            <button class="flex-1 ${controlTextSize} ${cartButtonClasses} ${controlHeight} rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center">
+                ${cartButtonText}
+            </button>
+        `;
 
-    const quantityControlHtml = isOutOfStock && !isPreorder
-        ? `<div class="w-20 md:w-24 ${controlHeight} border border-gray-300 rounded-sm flex items-center justify-center text-xs text-gray-500">N/A</div>`
-        : `
-            <div class="flex items-center border border-gray-300 rounded-sm">
-                <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-l-sm font-semibold">
-                    &minus;
-                </button>
-                <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock || 999}" aria-label="Quantity" class="${quantityInputWidth} ${controlHeight} text-center ${quantityInputTextSize} border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
-                <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-r-sm font-semibold">
-                    &plus;
-                </button>
-            </div>
-        `;
+    const quantityControlHtml = isOutOfStock && !isPreorder
+        ? `<div class="w-20 md:w-24 ${controlHeight} border border-gray-300 rounded-sm flex items-center justify-center text-xs text-gray-500">N/A</div>`
+        : `
+            <div class="flex items-center border border-gray-300 rounded-sm">
+                <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-l-sm font-semibold">
+                    &minus;
+                </button>
+                <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock || 999}" aria-label="Quantity" class="${quantityInputWidth} ${controlHeight} text-center ${quantityInputTextSize} border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
+                <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-r-sm font-semibold">
+                    &plus;
+                </button>
+            </div>
+        `;
 
 
-    return `
-        <div class="collection-card border border-gray-100 rounded-lg overflow-hidden bg-white hover:shadow-lg transition duration-300" data-collection-id="${collection._id}">
-            <div class="relative card-image-box">
-                ${stockBadge}
-                
-                <div class="absolute inset-0 transition-opacity duration-300">
-                    <img
-                        class="w-full h-full object-cover bg-gray-50 absolute transition-opacity duration-300 active"
-                        id="front-image-${collection._id}"
-                        src="${frontImageUrl}"
-                        alt="${collection.name} (Front View)"
-                        onerror="this.onerror=null;this.src='${defaultFrontImage}';"
-                        style="opacity: 1;"
-                    >
-                    <img
-                        class="w-full h-full object-cover bg-gray-50 absolute transition-opacity duration-300"
-                        id="back-image-${collection._id}"
-                        src="${backImageUrl}"
-                        alt="${collection.name} (Back View)"
-                        onerror="this.onerror=null;this.src='${defaultBackImage}';"
-                        style="opacity: 0;"
-                    >
-                </div>
+    return `
+        <div class="collection-card border border-gray-100 rounded-lg overflow-hidden bg-white hover:shadow-lg transition duration-300" data-collection-id="${collection._id}">
+            <div class="relative card-image-box">
+                ${stockBadge}
+                
+                <div class="absolute inset-0 transition-opacity duration-300">
+                    <img
+                        class="w-full h-full object-cover bg-gray-50 absolute transition-opacity duration-300 active"
+                        id="front-image-${collection._id}"
+                        src="${frontImageUrl}"
+                        alt="${collection.name} (Front View)"
+                        onerror="this.onerror=null;this.src='${defaultFrontImage}';"
+                        style="opacity: 1;"
+                    >
+                    <img
+                        class="w-full h-full object-cover bg-gray-50 absolute transition-opacity duration-300"
+                        id="back-image-${collection._id}"
+                        src="${backImageUrl}"
+                        alt="${collection.name} (Back View)"
+                        onerror="this.onerror=null;this.src='${defaultBackImage}';"
+                        style="opacity: 0;"
+                    >
+                </div>
 
-                <div class="absolute inset-0 bg-black bg-opacity-10 opacity-0 hover:opacity-100 transition duration-300 flex items-end justify-center p-3">
-                    <button 
-                        id="image-toggle-btn-${collection._id}"
-                        onclick="toggleImage('${collection._id}')" 
-                        class="bg-color-white text-ash-dark text-xs font-semibold py-1 px-3 rounded-full shadow-md hover:bg-gray-200 transition"
-                        title="Show Back View"
-                    >
-                        <i class="fas fa-sync-alt"></i> Back View
-                    </button>
-                </div>
-            </div>
+                <div class="absolute inset-0 bg-black bg-opacity-10 opacity-0 hover:opacity-100 transition duration-300 flex items-end justify-center p-3">
+                    <button 
+                        id="image-toggle-btn-${collection._id}"
+                        onclick="toggleImage('${collection._id}')" 
+                        class="bg-color-white text-ash-dark text-xs font-semibold py-1 px-3 rounded-full shadow-md hover:bg-gray-200 transition"
+                        title="Show Back View"
+                    >
+                        <i class="fas fa-sync-alt"></i> Back View
+                    </button>
+                </div>
+            </div>
 
-            <div class="${cardPadding}">
-                <p class="text-[0.6rem] text-gray-500 uppercase font-semibold">Outflickz</p>
-                <h3 class="${nameFontSize} font-semibold text-color-black truncate">${collection.name}</h3>
-                
-                <p class="${descriptionFontSize} text-red-700 mt-0.5 mb-1 truncate">${description}</p>
+            <div class="${cardPadding}">
+                <p class="text-[0.6rem] text-gray-500 uppercase font-semibold">Outflickz</p>
+                <h3 class="${nameFontSize} font-semibold text-color-black truncate">${collection.name}</h3>
+                
+                <p class="${descriptionFontSize} text-red-700 mt-0.5 mb-1 truncate">${description}</p>
 
-                ${isPreorder ? `<p class="${descriptionFontSize} text-green-600 mt-0.5 mb-1 font-semibold">Available: ${preorderAvailableDate}</p>` : ''}
-                
-                <p class="${priceFontSize} text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
-                
-                <div class="flex items-center gap-2 mt-2">
-                    <span class="text-xs font-medium text-gray-700">Color:</span>
-                    <div class="flex gap-1 text-gray-700">
-                        ${colorListHtml}
-                    </div>
-                </div>
+                ${isPreorder ? `<p class="${descriptionFontSize} text-green-600 mt-0.5 mb-1 font-semibold">Available: ${preorderAvailableDate}</p>` : ''}
+                
+                <p class="${priceFontSize} text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
+                
+                <div class="flex items-center gap-2 mt-2">
+                    <span class="text-xs font-medium text-gray-700">Color:</span>
+                    <div class="flex gap-1 text-gray-700">
+                        ${colorListHtml}
+                    </div>
+                </div>
 
-                ${sizeListHtml} 
-                <div class="flex items-center space-x-2">
-                    ${quantityControlHtml}
+                ${sizeListHtml} 
+                <div class="flex items-center space-x-2">
+                    ${quantityControlHtml}
 
-                    ${cartButtonHtml}
-                </div>
-            </div>
-        </div>
-    `;
+                    ${cartButtonHtml}
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 // --- FETCH AND RENDER COLLECTIONS ---
 async function fetchAndRenderWearsCollections() {
-    const container = document.getElementById('wears-collections-grid');
-    if (!container) return;
+    const container = document.getElementById('wears-collections-grid');
+    if (!container) return;
 
-    const spinnerColor = 'text-gray-900';
-    const textColor = 'text-gray-700';
+    const spinnerColor = 'text-gray-900';
+    const textColor = 'text-gray-700';
 
-    container.innerHTML = `
-        <div class="col-span-full text-center ${textColor} py-10 w-full">
-            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 ${spinnerColor} inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Loading Wears Collections...
-        </div>`;
+    container.innerHTML = `
+        <div class="col-span-full text-center ${textColor} py-10 w-full">
+            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 ${spinnerColor} inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Loading Wears Collections...
+        </div>`;
 
-    try {
-        const wearsApiUrl = `${API_BASE_URL}/api/collections/wears`; 
+    try {
+        const wearsApiUrl = `${API_BASE_URL}/api/collections/wears`; 
 
-        const response = await fetch(wearsApiUrl, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
+        const response = await fetch(wearsApiUrl, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
 
-        if (!response.ok) {
-            // Throw error to trigger fallback/error block
-            throw new Error(`Failed to load collections from server. Status: ${response.status}`);
-        }
+        if (!response.ok) {
+            // Throw error to trigger fallback/error block
+            throw new Error(`Failed to load collections from server. Status: ${response.status}`);
+        }
 
-        const collections = await response.json();
+        const collections = await response.json();
 
-        container.innerHTML = '';
-        
-        // Use real data, no mock fallback here
-        let collectionsToRender = collections && collections.length > 0 ? collections : [];
+        container.innerHTML = '';
+        
+        // Use real data, no mock fallback here
+        let collectionsToRender = collections && collections.length > 0 ? collections : [];
 
-        if (collectionsToRender && collectionsToRender.length > 0) {
-            // Limit to the first 4 collections for the homepage view, matching the image example
-            const limitedCollections = collectionsToRender.slice(0, 4);
-            
-            limitedCollections.forEach(collection => {
-                if (collection.price !== undefined && collection.price !== null) {
-                    // Pass 'default' size for Wears Collections
-                    container.innerHTML += createCollectionCard(collection, 'default');
-                }
-            });
+        if (collectionsToRender && collectionsToRender.length > 0) {
+            // Limit to the first 4 collections for the homepage view, matching the image example
+            const limitedCollections = collectionsToRender.slice(0, 4);
+            
+            limitedCollections.forEach(collection => {
+                if (collection.price !== undefined && collection.price !== null) {
+                    // Pass 'default' size for Wears Collections
+                    container.innerHTML += createCollectionCard(collection, 'default');
+                }
+            });
 
-            // If no items were rendered (e.g., due to missing price)
-            if (container.innerHTML === '') {
-                container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Wears Collections are currently available.</p>`;
-            }
-        } else {
-            container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Wears Collections are currently available.</p>`;
-        }
-    } catch (error) {
-        console.error('Error fetching wears collections:', error);
-        
-        // Clean error message on API failure
-        container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server (502/Down).</p>';
-    }
+            // If no items were rendered (e.g., due to missing price)
+            if (container.innerHTML === '') {
+                container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Wears Collections are currently available.</p>`;
+            }
+        } else {
+            container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Wears Collections are currently available.</p>`;
+        }
+    } catch (error) {
+        console.error('Error fetching wears collections:', error);
+        
+        // Clean error message on API failure
+        container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server (502/Down).</p>';
+    }
 } 
 
 // --- NEW ARRIVALS COLLECTION JS ---
 async function fetchAndRenderNewArrivals() {
-    const container = document.getElementById('new-arrivals-grid');
-    if (!container) return;
+    const container = document.getElementById('new-arrivals-grid');
+    if (!container) return;
 
-    const spinnerColor = 'text-gray-900';
-    const textColor = 'text-gray-700';
+    const spinnerColor = 'text-gray-900';
+    const textColor = 'text-gray-700';
 
-    // Initial loading state for New Arrivals
-    container.innerHTML = `
-        <div class="col-span-full text-center ${textColor} py-10 w-full">
-            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 ${spinnerColor} inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Loading New Arrivals...
-        </div>`;
+    // Initial loading state for New Arrivals
+    container.innerHTML = `
+        <div class="col-span-full text-center ${textColor} py-10 w-full">
+            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 ${spinnerColor} inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Loading New Arrivals...
+        </div>`;
 
-    try {
-        const newArrivalsApiUrl = `${API_BASE_URL}/api/collections/newarrivals`; 
+    try {
+        const newArrivalsApiUrl = `${API_BASE_URL}/api/collections/newarrivals`; 
 
-        const response = await fetch(newArrivalsApiUrl, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
+        const response = await fetch(newArrivalsApiUrl, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
 
-        if (!response.ok) {
-            throw new Error(`Failed to load new arrivals from server. Status: ${response.status}`);
-        }
+        if (!response.ok) {
+            throw new Error(`Failed to load new arrivals from server. Status: ${response.status}`);
+        }
 
-        const products = await response.json();
+        const products = await response.json();
 
-        container.innerHTML = '';
-        
-        let productsToRender = products && products.length > 0 ? products : [];
+        container.innerHTML = '';
+        
+        let productsToRender = products && products.length > 0 ? products : [];
 
-        if (productsToRender && productsToRender.length > 0) {
-            // Limit to the first 2 products for a more exclusive homepage view
-            const limitedProducts = productsToRender.slice(0, 2);
-            
-            limitedProducts.forEach(product => {
-                if (product.price !== undefined && product.price !== null) {
-                    // Pass 'reduced' size for New Arrivals
-                    container.innerHTML += createCollectionCard(product, 'reduced'); 
-                }
-            });
+        if (productsToRender && productsToRender.length > 0) {
+            // Limit to the first 2 products for a more exclusive homepage view
+            const limitedProducts = productsToRender.slice(0, 2);
+            
+            limitedProducts.forEach(product => {
+                if (product.price !== undefined && product.price !== null) {
+                    // Pass 'reduced' size for New Arrivals
+                    container.innerHTML += createCollectionCard(product, 'reduced'); 
+                }
+            });
 
-            if (container.innerHTML === '') {
-                container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No New Arrivals are currently available.</p>`;
-            }
-        } else {
-            container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No New Arrivals are currently available.</p>`;
-        }
-    } catch (error) {
-        console.error('Error fetching new arrivals:', error);
-        
-        // Clean error message on API failure
-        container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server (502/Down).</p>';
-    }
+            if (container.innerHTML === '') {
+                container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No New Arrivals are currently available.</p>`;
+            }
+        } else {
+            container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No New Arrivals are currently available.</p>`;
+        }
+    } catch (error) {
+        console.error('Error fetching new arrivals:', error);
+        
+        // Clean error message on API failure
+        container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server (502/Down).</p>';
+    }
 }
 
 
 // --- CAP COLLECTION JS ---
 async function fetchAndRenderCapsCollection() {
-    // Using the same grid container ID pattern
-    const container = document.getElementById('caps-collections-grid');
-    if (!container) return;
+    // Using the same grid container ID pattern
+    const container = document.getElementById('caps-collections-grid');
+    if (!container) return;
 
-    const spinnerColor = 'text-gray-900';
-    const textColor = 'text-gray-700';
+    const spinnerColor = 'text-gray-900';
+    const textColor = 'text-gray-700';
 
-    // Initial loading state for Caps Collection
-    container.innerHTML = `
-        <div class="col-span-full text-center ${textColor} py-10 w-full">
-            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 ${spinnerColor} inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Loading Caps Collections...
-        </div>`;
+    // Initial loading state for Caps Collection
+    container.innerHTML = `
+        <div class="col-span-full text-center ${textColor} py-10 w-full">
+            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 ${spinnerColor} inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Loading Caps Collections...
+        </div>`;
 
-    try {
-        // NEW ENDPOINT: /api/collections/caps
-        const capsApiUrl = `${API_BASE_URL}/api/collections/caps`; 
+    try {
+        // NEW ENDPOINT: /api/collections/caps
+        const capsApiUrl = `${API_BASE_URL}/api/collections/caps`; 
 
-        const response = await fetch(capsApiUrl, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
+        const response = await fetch(capsApiUrl, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
 
-        if (!response.ok) {
-            throw new Error(`Failed to load caps collections from server. Status: ${response.status}`);
-        }
+        if (!response.ok) {
+            throw new Error(`Failed to load caps collections from server. Status: ${response.status}`);
+        }
 
-        const collections = await response.json();
+        const collections = await response.json();
 
-        container.innerHTML = '';
-        
-        let collectionsToRender = collections && collections.length > 0 ? collections : [];
+        container.innerHTML = '';
+        
+        let collectionsToRender = collections && collections.length > 0 ? collections : [];
 
-        if (collectionsToRender && collectionsToRender.length > 0) {
-            // Limit to the first 4 collections for the homepage view
-            const limitedCollections = collectionsToRender.slice(0, 4);
-            
-            limitedCollections.forEach(collection => {
-                if (collection.price !== undefined && collection.price !== null) {
-                    // IMPORTANT: Pass 'caps' size to remove size selection UI
-                    container.innerHTML += createCollectionCard(collection, 'caps');
-                }
-            });
+        if (collectionsToRender && collectionsToRender.length > 0) {
+            // Limit to the first 4 collections for the homepage view
+            const limitedCollections = collectionsToRender.slice(0, 4);
+            
+            limitedCollections.forEach(collection => {
+                if (collection.price !== undefined && collection.price !== null) {
+                    // IMPORTANT: Pass 'caps' size to remove size selection UI
+                    container.innerHTML += createCollectionCard(collection, 'caps');
+                }
+            });
 
-            if (container.innerHTML === '') {
-                container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Caps Collections are currently available.</p>`;
-            }
-        } else {
-            container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Caps Collections are currently available.</p>`;
-        }
-    } catch (error) {
-        console.error('Error fetching caps collections:', error);
-        
-        // Clean error message on API failure
-        container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server (502/Down).</p>';
-    }
+            if (container.innerHTML === '') {
+                container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Caps Collections are currently available.</p>`;
+            }
+        } else {
+            container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Caps Collections are currently available.</p>`;
+        }
+    } catch (error) {
+        console.error('Error fetching caps collections:', error);
+        
+        // Clean error message on API failure
+        container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server (502/Down).</p>';
+    }
 }
 
 // 🎯 PRE-ORDER COLLECTION JS FUNCTION
 async function fetchAndRenderPreorderCollections() {
-    const container = document.getElementById('preorder-collections-grid');
-    if (!container) return;
+    const container = document.getElementById('preorder-collections-grid');
+    if (!container) return;
 
-    const spinnerColor = 'text-gray-900';
-    const textColor = 'text-gray-700';
+    const spinnerColor = 'text-gray-900';
+    const textColor = 'text-gray-700';
 
-    // Initial loading state for Pre-Order Collection
-    container.innerHTML = `
-        <div class="col-span-full text-center ${textColor} py-10 w-full">
-            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 ${spinnerColor} inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Loading Pre-Order Collections...
-        </div>`;
+    // Initial loading state for Pre-Order Collection
+    container.innerHTML = `
+        <div class="col-span-full text-center ${textColor} py-10 w-full">
+            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 ${spinnerColor} inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Loading Pre-Order Collections...
+        </div>`;
 
-    try {
-        // ENDPOINT: /api/collections/preorder
-        const preorderApiUrl = `${API_BASE_URL}/api/collections/preorder`; 
+    try {
+        // ENDPOINT: /api/collections/preorder
+        const preorderApiUrl = `${API_BASE_URL}/api/collections/preorder`; 
 
-        const response = await fetch(preorderApiUrl, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
+        const response = await fetch(preorderApiUrl, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
 
-        if (!response.ok) {
-            throw new Error(`Failed to load pre-order collections from server. Status: ${response.status}`);
-        }
+        if (!response.ok) {
+            throw new Error(`Failed to load pre-order collections from server. Status: ${response.status}`);
+        }
 
-        const collections = await response.json();
+        const collections = await response.json();
 
-        container.innerHTML = '';
-        
-        let collectionsToRender = collections && collections.length > 0 ? collections : []; 
+        container.innerHTML = '';
+        
+        let collectionsToRender = collections && collections.length > 0 ? collections : []; 
 
-        if (collectionsToRender && collectionsToRender.length > 0) {
-            // Limit to the first 4 collections for the homepage view
-            const limitedCollections = collectionsToRender.slice(0, 4);
-            
-            limitedCollections.forEach(collection => {
-                if (collection.price !== undefined && collection.price !== null) {
-                    // Pass 'preorder' size flag to enable pre-order specific logic/badges
-                    container.innerHTML += createCollectionCard(collection, 'preorder');
-                }
-            });
+        if (collectionsToRender && collectionsToRender.length > 0) {
+            // Limit to the first 4 collections for the homepage view
+            const limitedCollections = collectionsToRender.slice(0, 4);
+            
+            limitedCollections.forEach(collection => {
+                if (collection.price !== undefined && collection.price !== null) {
+                    // Pass 'preorder' size flag to enable pre-order specific logic/badges
+                    container.innerHTML += createCollectionCard(collection, 'preorder');
+                }
+            });
 
-            if (container.innerHTML === '') {
-                container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Pre-Order Collections are currently available.</p>`;
-            }
-        } else {
-            container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Pre-Order Collections are currently available.</p>`;
-        }
-    } catch (error) {
-        console.error('Error fetching pre-order collections:', error);
-        
-        // Clean error message on API failure
-        container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server (502/Down).</p>';
-    }
+            if (container.innerHTML === '') {
+                container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Pre-Order Collections are currently available.</p>`;
+            }
+        } else {
+            container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Pre-Order Collections are currently available.</p>`;
+        }
+    } catch (error) {
+        console.error('Error fetching pre-order collections:', error);
+        
+        // Clean error message on API failure
+        container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server (502/Down).</p>';
+    }
 }
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    fetchAndRenderWearsCollections(); 
-    fetchAndRenderNewArrivals(); 
-    fetchAndRenderCapsCollection();
-    fetchAndRenderPreorderCollections(); // 🎯 NEW FUNCTION CALL
+    fetchAndRenderWearsCollections(); 
+    fetchAndRenderNewArrivals(); 
+    fetchAndRenderCapsCollection();
+    fetchAndRenderPreorderCollections(); // 🎯 NEW FUNCTION CALL
 });
+</script>
 // --- END COLLECTION JS ---
 </script>
 
@@ -877,9 +920,12 @@ document.addEventListener('DOMContentLoaded', () => {
         </nav>
 
         <div class="flex items-center space-x-2 sm:space-x-4">
-           <a href="useraccount.html" class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" aria-label="User Account">
-             <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
-            </a>
+          <button id="profile-icon" 
+        class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" 
+        aria-label="User Account"
+        onclick="redirectToProfileOrLogin()">
+    <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
+</button>
             <button class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" aria-label="Shopping Bag">
                 <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
             </button>

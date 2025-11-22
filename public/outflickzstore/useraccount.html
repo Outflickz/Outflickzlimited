@@ -261,26 +261,23 @@
         </div>
     </div>
 
-   <script>
+ <script>
     // *** 1. CONFIGURATION ***
-    // NOTE: CHANGED to the standard Netlify Functions path: /.netlify/functions
-    const API_BASE_URL = 'https://outflickz.netlify.app/.netlify/functions'; 
+    // FIX: CHANGED BASE URL to use the clean "/api" path defined in netlify.toml, 
+    // which Netlify automatically redirects to the correct function path.
+    const API_BASE_URL = 'https://outflickz.netlify.app/api'; 
     const REGISTER_ENDPOINT = `${API_BASE_URL}/register`; 
     const VERIFY_ENDPOINT = `${API_BASE_URL}/verify`; 
     const RESEND_ENDPOINT = `${API_BASE_URL}/resend`; 
 
     let pendingVerificationEmail = ''; 
     
-    const views = {
-        'login': document.getElementById('login-view'),
-        'create': document.getElementById('create-view'),
-        'verify': document.getElementById('verify-view'),
-        'forgot': document.getElementById('forgot-view'),
-        'profile': document.getElementById('profile-view') 
-    };
-    const headerElement = document.getElementById('auth-header');
-    const messageArea = document.getElementById('message-area');
-    const container = document.getElementById('auth-views');
+    // Initial assignment must happen after DOMContentLoaded for production code, 
+    // but we define the variables here for clarity.
+    let views = {};
+    let headerElement;
+    let messageArea;
+    let container;
 
     /**
      * Switches the active authentication view with a fade transition.
@@ -338,6 +335,18 @@
     }
     
     document.addEventListener('DOMContentLoaded', () => {
+        // Initialize DOM elements after load
+        views = {
+            'login': document.getElementById('login-view'),
+            'create': document.getElementById('create-view'),
+            'verify': document.getElementById('verify-view'),
+            'forgot': document.getElementById('forgot-view'),
+            'profile': document.getElementById('profile-view') 
+        };
+        headerElement = document.getElementById('auth-header');
+        messageArea = document.getElementById('message-area');
+        container = document.getElementById('auth-views');
+
         showView('login');
     });
 
@@ -426,7 +435,6 @@
 
     /**
      * Handles create account form submission and transitions to verification view.
-     * **UPDATED:** Includes robust JSON parsing and correct API path.
      */
     async function handleCreateAccount(event) {
         event.preventDefault();
@@ -447,7 +455,7 @@
 
         createBtn.textContent = 'Creating...';
         createBtn.disabled = true;
-        displayMessage('Attempting to create account...', 'info');
+        displayMessage('Attempting to create account via /api/register...', 'info');
 
         try {
             const response = await fetch(REGISTER_ENDPOINT, {
@@ -463,16 +471,16 @@
                 })
             });
 
-            // *** ROBUST JSON PARSING ADDED HERE ***
+            // ROBUST JSON PARSING
             let data = {};
             const contentType = response.headers.get('content-type');
             if (contentType && contentType.includes('application/json')) {
                 data = await response.json();
             } else if (!response.ok) {
-                 // For 404/500 errors that return HTML/plain text
-                 throw new Error(`Server Error (${response.status}): Could not reach service or expected a JSON response.`);
+                 // Throwing an error here prevents the "Unexpected end of JSON input" error on 404/500
+                 throw new Error(`Server Error (${response.status}): Netlify could not find the function or the server crashed.`);
             }
-            // *** END ROBUST PARSING ***
+            // END ROBUST PARSING
 
 
             if (response.ok) {
@@ -507,7 +515,6 @@
 
     /**
      * Handles account verification code submission.
-     * **UPDATED:** Includes robust JSON parsing.
      */
     async function handleVerification(event) {
         event.preventDefault();
@@ -531,15 +538,15 @@
                 body: JSON.stringify({ email: email, code: code })
             });
 
-            // *** ROBUST JSON PARSING ADDED HERE ***
+            // ROBUST JSON PARSING
             let data = {};
             const contentType = response.headers.get('content-type');
             if (contentType && contentType.includes('application/json')) {
                 data = await response.json();
             } else if (!response.ok) {
-                 throw new Error(`Server Error (${response.status}): Could not reach service or expected a JSON response.`);
+                 throw new Error(`Server Error (${response.status}): Netlify could not find the function or the server crashed.`);
             }
-            // *** END ROBUST PARSING ***
+            // END ROBUST PARSING
 
 
             if (response.ok) {
@@ -590,7 +597,6 @@
 
     /**
      * Handles resending the verification code with cooldown logic.
-     * **UPDATED:** Includes robust JSON parsing.
      */
     async function handleResendCode() {
         const resendBtn = document.getElementById('resend-btn');
@@ -617,15 +623,15 @@
                 body: JSON.stringify({ email: email })
             });
 
-            // *** ROBUST JSON PARSING ADDED HERE ***
+            // ROBUST JSON PARSING
             let data = {};
             const contentType = response.headers.get('content-type');
             if (contentType && contentType.includes('application/json')) {
                 data = await response.json();
             } else if (!response.ok) {
-                 throw new Error(`Server Error (${response.status}): Could not reach service or expected a JSON response.`);
+                 throw new Error(`Server Error (${response.status}): Netlify could not find the function or the server crashed.`);
             }
-            // *** END ROBUST PARSING ***
+            // END ROBUST PARSING
             
             if (response.ok) {
                 displayMessage('New code successfully sent! Check your inbox.', 'success');

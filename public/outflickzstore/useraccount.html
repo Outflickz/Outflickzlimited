@@ -260,22 +260,16 @@
 
         </div>
     </div>
-
- <script>
+<script>
     // *** 1. CONFIGURATION ***
-    // FIX: CHANGED BASE URL to use the clean "/api" path defined in netlify.toml, 
-    // which Netlify automatically redirects to the correct function path.
     const API_BASE_URL = 'https://outflickz.netlify.app/api'; 
     const REGISTER_ENDPOINT = `${API_BASE_URL}/users/register`; 
     const VERIFY_ENDPOINT = `${API_BASE_URL}/users/verify`; 
     const RESEND_ENDPOINT = `${API_BASE_URL}/users/resend-verification`; 
     const LOGIN_ENDPOINT = `${API_BASE_URL}/users/login`; 
 
-
     let pendingVerificationEmail = ''; 
     
-    // Initial assignment must happen after DOMContentLoaded for production code, 
-    // but we define the variables here for clarity.
     let views = {};
     let headerElement;
     let messageArea;
@@ -391,49 +385,103 @@
     }
 
     /**
-     * Placeholder function for handling login form submission to redirect to homepage.html.
+     * Function to handle login form submission with real API call
      */
-    function handleLogin(event) {
+    async function handleLogin(event) {
         event.preventDefault();
         const email = document.getElementById('login-email').value;
         const password = document.getElementById('login-password').value;
         const loginBtn = document.getElementById('login-btn');
         
+        // 1. Show loading state
         loginBtn.textContent = 'Logging in...';
         loginBtn.disabled = true;
+        displayMessage('Attempting to log in via /api/users/login...', 'info');
 
-        // --- Mock Login Logic (Replace with real API call) ---
-        setTimeout(() => {
+        try {
+            // 2. Perform the API call
+            const response = await fetch(LOGIN_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email, password: password })
+            });
+
+            // 3. Robust JSON Parsing
+            let data = {};
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                data = await response.json();
+            } else if (!response.ok) {
+                 throw new Error(`Server Error (${response.status}): Could not reach login service.`);
+            }
+            
+            // 4. Handle API Responses
+            if (response.ok) {
+                // SUCCESS (HTTP 200): Login successful
+                // In a real application, you would store data.token (JWT) in localStorage
+                
+                // Populate profile view and redirect (or just redirect)
+                // For this example, we populate the profile view with the returned user data
+                // NOTE: The backend needs to return the necessary profile data in the 'user' object for this to work.
+                if (data.user) {
+                    populateProfileView(data.user); 
+                } else {
+                    // Mock data for display if backend only returns basic user info (like ID, email)
+                    populateProfileView({
+                        id: 'u-xxxx-logged-in',
+                        email: email,
+                        name: data.user.name || 'User',
+                        username: data.user.username || email.split('@')[0],
+                        role: data.user.role || 'Basic User',
+                        verified: true,
+                        memberSince: 'Today',
+                        lastUpdated: new Date().toLocaleDateString()
+                    });
+                }
+
+                displayMessage('Successfully logged in! Redirecting to homepage...', 'success');
+
+                // Simulate redirect after a short delay
+                setTimeout(() => {
+                    window.location.href = 'homepage.html';
+                    // Alternatively, show profile view: showView('profile');
+                }, 1000); 
+
+            } else if (response.status === 403 && data.needsVerification) {
+                // FAILED (HTTP 403): Account needs verification
+                pendingVerificationEmail = email; // Save the email for the verification view
+                document.getElementById('verify-email-display').textContent = email;
+                
+                displayMessage(data.message || 'Your account needs to be verified. Please enter the code sent to your email.', 'error');
+                
+                // Transition to the verification view
+                setTimeout(() => {
+                    showView('verify');
+                    // Re-enable the resend button immediately since the server would have just sent an email.
+                    setResendCooldown(60); 
+                }, 1000);
+
+            } else if (response.status === 401) {
+                // FAILED (HTTP 401): Invalid credentials
+                displayMessage(data.message || 'Login failed. Please check your email and password.', 'error');
+                
+            } else {
+                // OTHER ERRORS (e.g., 500 Server Error)
+                const errorMessage = data.message || `API Error (${response.status}): An unexpected error occurred.`;
+                displayMessage(`Login Failed: ${errorMessage}`, 'error');
+            }
+
+        } catch (error) {
+            // 5. Handle Network/Parsing Errors
+            console.error('Login network or API call failed:', error);
+            displayMessage(`Connection Error: ${error.message || 'Could not connect to the login service.'}`, 'error');
+        } finally {
+            // 6. Reset button state
             loginBtn.textContent = 'Log In';
             loginBtn.disabled = false;
-
-            // Mock login to show the profile view
-            if (email === 'profile@outflickz.com' && password === 'password') {
-                 populateProfileView({
-                    id: 'u-54321',
-                    email: 'profile@outflickz.com',
-                    name: 'Jane Smith',
-                    username: 'OutflickzPro',
-                    role: 'Premium Member',
-                    verified: true,
-                    memberSince: 'Mar 2023',
-                    lastUpdated: new Date().toLocaleDateString()
-                });
-                showView('profile');
-                displayMessage('Successfully logged in. Viewing profile.', 'success');
-
-            } else if (email === 'test@outflickz.com' && password === 'password') {
-                // Success - display message and redirect
-                displayMessage(`Login successful! Redirecting to homepage...`, 'success');
-                
-                setTimeout(() => {
-                    window.location.href = 'homepage.html'; 
-                }, 500); 
-            } else {
-                displayMessage('Login failed. Please check your email and password.', 'error');
-            }
-        }, 1500); 
+        }
     }
+
 
     /**
      * Handles create account form submission and transitions to verification view.
@@ -479,8 +527,8 @@
             if (contentType && contentType.includes('application/json')) {
                 data = await response.json();
             } else if (!response.ok) {
-                 // Throwing an error here prevents the "Unexpected end of JSON input" error on 404/500
-                 throw new Error(`Server Error (${response.status}): Netlify could not find the function or the server crashed.`);
+                    // Throwing an error here prevents the "Unexpected end of JSON input" error on 404/500
+                    throw new Error(`Server Error (${response.status}): Netlify could not find the function or the server crashed.`);
             }
             // END ROBUST PARSING
 
@@ -546,7 +594,7 @@
             if (contentType && contentType.includes('application/json')) {
                 data = await response.json();
             } else if (!response.ok) {
-                 throw new Error(`Server Error (${response.status}): Netlify could not find the function or the server crashed.`);
+                    throw new Error(`Server Error (${response.status}): Netlify could not find the function or the server crashed.`);
             }
             // END ROBUST PARSING
 
@@ -631,7 +679,7 @@
             if (contentType && contentType.includes('application/json')) {
                 data = await response.json();
             } else if (!response.ok) {
-                 throw new Error(`Server Error (${response.status}): Netlify could not find the function or the server crashed.`);
+                    throw new Error(`Server Error (${response.status}): Netlify could not find the function or the server crashed.`);
             }
             // END ROBUST PARSING
             
@@ -671,14 +719,16 @@
 
     // Mock function to populate the profile view (must be called after successful login in a real app)
     function populateProfileView(user) {
-        document.getElementById('profile-id').textContent = user.id;
-        document.getElementById('profile-email').textContent = user.email;
-        document.getElementById('profile-name').textContent = user.name || 'Not Provided';
+        // Fallback for user properties if they are missing from the API response
+        document.getElementById('profile-id').textContent = user.id || user._id || 'N/A';
+        document.getElementById('profile-email').textContent = user.email || 'N/A';
+        document.getElementById('profile-name').textContent = user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : (user.name || 'Not Provided');
         document.getElementById('profile-username').textContent = user.username || 'Not Provided';
-        document.getElementById('profile-role').textContent = user.role;
-        document.getElementById('profile-verified').textContent = user.verified ? 'Yes ✅' : 'No ❌';
-        document.getElementById('profile-member-since').textContent = user.memberSince;
-        document.getElementById('profile-last-updated').textContent = user.lastUpdated;
+        // Assuming role and verified status are available in user object, possibly nested
+        document.getElementById('profile-role').textContent = user.status?.role || user.role || 'Basic Member';
+        document.getElementById('profile-verified').textContent = user.status?.isVerified || user.verified ? 'Yes ✅' : 'No ❌';
+        document.getElementById('profile-member-since').textContent = user.memberSince || 'N/A';
+        document.getElementById('profile-last-updated').textContent = user.lastUpdated || new Date().toLocaleDateString();
     }
 </script>
 </body>

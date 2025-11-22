@@ -2417,6 +2417,7 @@ app.post('/api/users/resend-verification', async (req, res) => {
         res.status(500).json({ message: 'Failed to resend verification code due to a server error.' });
     }
 });
+
 // --- 2. POST /api/users/verify (Account Verification) ---
 app.post('/api/users/verify', async (req, res) => {
     const { email, code } = req.body;

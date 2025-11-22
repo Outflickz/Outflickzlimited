@@ -2224,6 +2224,7 @@ app.get('/api/collections/preorder', async (req, res) => {
     }
 });
 
+
 // 1. POST /api/users/register (Create Account and Send Verification Code)
 app.post('/api/users/register', async (req, res) => {
     const { email, password, firstName, lastName } = req.body;
@@ -2233,7 +2234,6 @@ app.post('/api/users/register', async (req, res) => {
         return res.status(400).json({ message: 'Invalid input. Email and a password of at least 8 characters are required.' });
     }
 
-    // Initialize newUser outside the main try block for access in catch blocks
     let newUser; 
     let verificationCode;
 
@@ -2248,7 +2248,8 @@ app.post('/api/users/register', async (req, res) => {
         });
 
         // Generate and store the verification code
-        verificationCode = await generateAndSaveVerificationCode(newUser);
+        // FIX: CALLING THE CORRECTLY NAMED FUNCTION
+        verificationCode = await generateHashAndSaveVerificationCode(newUser); // <--- THIS LINE WAS CHANGED
 
         // --- 🛠️ Send Verification Code Email Logic (NOW AWAITED) ---
         const verificationSubject = 'Outflickz: Your Account Verification Code';
@@ -2273,12 +2274,9 @@ app.post('/api/users/register', async (req, res) => {
             </div>
         `;
 
-        // The key change: AWAIT the mail function. 
-        // If it throws an error (e.g., incorrect API key), the code jumps to the catch block.
         await sendMail(email, verificationSubject, verificationHtml);
         console.log(`Verification email sent to ${email} with code ${verificationCode}`);
         
-        // Response indicates success
         res.status(201).json({ 
             message: 'Registration successful. Please check your email for the 6-digit verification code.',
             userId: newUser._id,
@@ -2287,16 +2285,12 @@ app.post('/api/users/register', async (req, res) => {
 
     } catch (error) {
         
-        if (error.code === 11000) { // MongoDB duplicate key error (for email)
+        if (error.code === 11000) { 
             return res.status(409).json({ message: 'This email address is already registered.' });
         }
         
-        // NEW ERROR HANDLING: Catches errors thrown by sendMail (after user creation)
-        // Note: You must ensure 'sendMail' throws a recognizable error (like EmailSendError)
-        // or has error message content related to the email service.
-        if (newUser && (error.name === 'EmailSendError' || error.message.includes('email service') || error.message.includes('SMTP'))) {
+        if (newUser && (error.message.includes('Email service is unconfigured.') || error.message.includes('SMTP'))) {
             console.error(`CRITICAL: Email service failed for ${email}:`, error);
-            // Return 503 (Service Unavailable) to clearly state the account was created but the email service failed.
             return res.status(503).json({ 
                 message: 'Account created, but we failed to send the verification email. Please use the "Resend Code" option or try logging in again.',
                 needsVerification: true,
@@ -2304,7 +2298,6 @@ app.post('/api/users/register', async (req, res) => {
             });
         }
 
-        // Default server error
         console.error("User registration error:", error);
         res.status(500).json({ message: 'Server error during registration.' });
     }

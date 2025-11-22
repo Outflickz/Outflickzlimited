@@ -475,14 +475,16 @@ const isPreorder = size === 'preorder';
     const descriptionFontSize = isReduced ? 'text-[0.5rem]' : 'text-xs';
     
     // Price Text Size
-    const priceFontSize = isReduced ? 'text-xm font-bold' : 'text-base font-semibold';
+    const priceFontSize = isReduced ? 'text-xs font-bold' : 'text-base font-semibold';
     
-    // Control Height/Size
-    const controlHeight = isReduced ? 'h-5 md:h-6' : 'h-6 md:h-7';
-    const controlTextSize = isReduced ? 'text-[0.5rem] md:text-xs' : 'text-xs md:text-sm';
-    const quantityInputWidth = isReduced ? 'w-4 md:w-6' : 'w-6 md:w-8';
-    const quantityButtonSize = isReduced ? 'w-6 h-6 md:w-7 md:h-7' : 'w-7 h-7 md:w-8 md:h-8';
-    const quantityInputTextSize = isReduced ? 'text-[0.6rem] md:text-xs' : 'text-xs md:text-sm';
+  // Control Height/Size
+const controlHeight = isReduced ? 'h-5 md:h-6' : 'h-6 md:h-7';
+// Reduced Button Text Size
+const controlTextSize = isReduced ? 'text-[0.4rem] md:text-[0.6rem]' : 'text-[0.6rem] md:text-xs'; 
+const quantityInputWidth = isReduced ? 'w-4 md:w-6' : 'w-6 md:w-8';
+const quantityButtonSize = isReduced ? 'w-6 h-6 md:w-7 md:h-7' : 'w-7 h-7 md:w-8 md:h-8';
+// Reduced Quantity Text Size
+const quantityInputTextSize = isReduced ? 'text-[0.5rem] md:text-[0.6rem]' : 'text-[0.6rem] md:text-xs';
     
     // NEW: Button flex classes for 50/50 split
     const buttonFlexClasses = 'flex-1';

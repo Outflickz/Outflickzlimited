@@ -261,406 +261,417 @@
         </div>
     </div>
 
-    <script>
-        // *** 1. CONFIGURATION ***
-        // NOTE: REPLACE THIS WITH YOUR ACTUAL NETLIFY FUNCTION ENDPOINT
-        const API_BASE_URL = 'https://outflickz.netlify.app'; 
-        const REGISTER_ENDPOINT = `${API_BASE_URL}/register`; // Example: /api/register
-        const VERIFY_ENDPOINT = `${API_BASE_URL}/verify`; // Example: /api/verify
-        const RESEND_ENDPOINT = `${API_BASE_URL}/resend`; // Example: /api/resend
+   <script>
+    // *** 1. CONFIGURATION ***
+    // NOTE: CHANGED to the standard Netlify Functions path: /.netlify/functions
+    const API_BASE_URL = 'https://outflickz.netlify.app/.netlify/functions'; 
+    const REGISTER_ENDPOINT = `${API_BASE_URL}/register`; 
+    const VERIFY_ENDPOINT = `${API_BASE_URL}/verify`; 
+    const RESEND_ENDPOINT = `${API_BASE_URL}/resend`; 
 
-        let pendingVerificationEmail = ''; 
+    let pendingVerificationEmail = ''; 
+    
+    const views = {
+        'login': document.getElementById('login-view'),
+        'create': document.getElementById('create-view'),
+        'verify': document.getElementById('verify-view'),
+        'forgot': document.getElementById('forgot-view'),
+        'profile': document.getElementById('profile-view') 
+    };
+    const headerElement = document.getElementById('auth-header');
+    const messageArea = document.getElementById('message-area');
+    const container = document.getElementById('auth-views');
+
+    /**
+     * Switches the active authentication view with a fade transition.
+     */
+    function showView(viewName) {
+        let currentView = Object.values(views).find(v => v.classList.contains('opacity-100') && !v.classList.contains('hidden'));
         
-        const views = {
-            'login': document.getElementById('login-view'),
-            'create': document.getElementById('create-view'),
-            'verify': document.getElementById('verify-view'),
-            'forgot': document.getElementById('forgot-view'),
-            'profile': document.getElementById('profile-view') 
+        const headers = {
+            'login': 'Welcome Back',
+            'create': 'Create Your Account',
+            'verify': 'Account Verification',
+            'forgot': 'Reset Your Password',
+            'profile': 'Your Account Dashboard'
         };
-        const headerElement = document.getElementById('auth-header');
-        const messageArea = document.getElementById('message-area');
-        const container = document.getElementById('auth-views');
+        headerElement.textContent = headers[viewName] || 'Authentication';
+        
+        if (viewName !== 'profile') {
+            messageArea.classList.add('hidden');
+            messageArea.innerHTML = '';
+        }
 
-        /**
-         * Switches the active authentication view with a fade transition.
-         */
-        function showView(viewName) {
-            let currentView = Object.values(views).find(v => v.classList.contains('opacity-100') && !v.classList.contains('hidden'));
-            
-            const headers = {
-                'login': 'Welcome Back',
-                'create': 'Create Your Account',
-                'verify': 'Account Verification',
-                'forgot': 'Reset Your Password',
-                'profile': 'Your Account Dashboard'
-            };
-            headerElement.textContent = headers[viewName] || 'Authentication';
-            
-            if (viewName !== 'profile') {
-                messageArea.classList.add('hidden');
-                messageArea.innerHTML = '';
-            }
+        const nextView = views[viewName];
 
-            const nextView = views[viewName];
+        if (currentView) {
+            currentView.classList.remove('opacity-100');
+            currentView.classList.add('opacity-0');
+            container.style.height = `${container.offsetHeight}px`;
 
-            if (currentView) {
-                currentView.classList.remove('opacity-100');
-                currentView.classList.add('opacity-0');
-                container.style.height = `${container.offsetHeight}px`;
+            setTimeout(() => {
+                currentView.classList.add('hidden');
+                currentView.classList.remove('absolute');
+                
+                nextView.classList.remove('hidden');
+                nextView.classList.add('absolute');
+                
+                container.style.height = 'auto';
 
                 setTimeout(() => {
-                    currentView.classList.add('hidden');
-                    currentView.classList.remove('absolute');
-                    
-                    nextView.classList.remove('hidden');
-                    nextView.classList.add('absolute');
-                    
-                    container.style.height = 'auto';
+                    nextView.classList.remove('absolute');
+                    container.style.height = `${container.offsetHeight}px`;
+
+                    nextView.classList.remove('opacity-0');
+                    nextView.classList.add('opacity-100');
 
                     setTimeout(() => {
-                        nextView.classList.remove('absolute');
-                        container.style.height = `${container.offsetHeight}px`;
+                        container.style.height = '';
+                    }, 400); // Wait for the opacity transition to complete
+                }, 50); 
+            }, 400); // Wait for the fade-out to complete
+        } else {
+            nextView.classList.remove('hidden');
+            nextView.classList.remove('opacity-0');
+            nextView.classList.add('opacity-100');
+        }
+    }
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        showView('login');
+    });
 
-                        nextView.classList.remove('opacity-0');
-                        nextView.classList.add('opacity-100');
+    /**
+     * Toggles password input type between 'password' and 'text'.
+     */
+    function togglePasswordVisibility(fieldId) {
+        const field = document.getElementById(fieldId);
+        const button = document.getElementById(`toggle-${fieldId}`);
+        
+        if (field.type === 'password') {
+            field.type = 'text';
+            button.textContent = 'Hide';
+        } else {
+            field.type = 'password';
+            button.textContent = 'View';
+        }
+    }
 
-                        setTimeout(() => {
-                            container.style.height = '';
-                        }, 400); // Wait for the opacity transition to complete
-                    }, 50); 
-                }, 400); // Wait for the fade-out to complete
+    /**
+     * Displays a temporary message.
+     */
+    function displayMessage(message, type = 'info') {
+        const baseClasses = 'mt-6 p-4 text-sm rounded-lg font-medium'; 
+        messageArea.className = baseClasses;
+        messageArea.innerHTML = message;
+        
+        switch (type) {
+            case 'success':
+                messageArea.classList.add('bg-green-100', 'text-green-800', 'border', 'border-green-300');
+                break;
+            case 'error':
+                messageArea.classList.add('bg-red-100', 'text-red-800', 'border', 'border-red-300');
+                break;
+            default: // 'info'
+                messageArea.classList.add('bg-blue-100', 'text-blue-800', 'border', 'border-blue-300');
+                break;
+        }
+        messageArea.classList.remove('hidden');
+    }
+
+    /**
+     * Placeholder function for handling login form submission to redirect to homepage.html.
+     */
+    function handleLogin(event) {
+        event.preventDefault();
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        const loginBtn = document.getElementById('login-btn');
+        
+        loginBtn.textContent = 'Logging in...';
+        loginBtn.disabled = true;
+
+        // --- Mock Login Logic (Replace with real API call) ---
+        setTimeout(() => {
+            loginBtn.textContent = 'Log In';
+            loginBtn.disabled = false;
+
+            // Mock login to show the profile view
+            if (email === 'profile@outflickz.com' && password === 'password') {
+                 populateProfileView({
+                    id: 'u-54321',
+                    email: 'profile@outflickz.com',
+                    name: 'Jane Smith',
+                    username: 'OutflickzPro',
+                    role: 'Premium Member',
+                    verified: true,
+                    memberSince: 'Mar 2023',
+                    lastUpdated: new Date().toLocaleDateString()
+                });
+                showView('profile');
+                displayMessage('Successfully logged in. Viewing profile.', 'success');
+
+            } else if (email === 'test@outflickz.com' && password === 'password') {
+                // Success - display message and redirect
+                displayMessage(`Login successful! Redirecting to homepage...`, 'success');
+                
+                setTimeout(() => {
+                    window.location.href = 'homepage.html'; 
+                }, 500); 
             } else {
-                nextView.classList.remove('hidden');
-                nextView.classList.remove('opacity-0');
-                nextView.classList.add('opacity-100');
+                displayMessage('Login failed. Please check your email and password.', 'error');
             }
+        }, 1500); 
+    }
+
+    /**
+     * Handles create account form submission and transitions to verification view.
+     * **UPDATED:** Includes robust JSON parsing and correct API path.
+     */
+    async function handleCreateAccount(event) {
+        event.preventDefault();
+        const form = event.target;
+        const email = document.getElementById('create-email').value;
+        const password = document.getElementById('create-password').value;
+        const confirmPassword = document.getElementById('confirm-password').value;
+        const createBtn = document.getElementById('create-btn');
+
+        if (password !== confirmPassword) {
+            displayMessage('Passwords do not match.', 'error');
+            return;
+        }
+        if (password.length < 8) {
+            displayMessage('Password must be at least 8 characters.', 'error');
+            return;
+        }
+
+        createBtn.textContent = 'Creating...';
+        createBtn.disabled = true;
+        displayMessage('Attempting to create account...', 'info');
+
+        try {
+            const response = await fetch(REGISTER_ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    firstName: form.firstName.value,
+                    lastName: form.lastName.value,
+                    email: email,
+                    password: password
+                })
+            });
+
+            // *** ROBUST JSON PARSING ADDED HERE ***
+            let data = {};
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                data = await response.json();
+            } else if (!response.ok) {
+                 // For 404/500 errors that return HTML/plain text
+                 throw new Error(`Server Error (${response.status}): Could not reach service or expected a JSON response.`);
+            }
+            // *** END ROBUST PARSING ***
+
+
+            if (response.ok) {
+                // Success: Account created, verification code sent
+                pendingVerificationEmail = email;
+                document.getElementById('verify-email-display').textContent = email;
+                
+                displayMessage(`Success! Account created. Now check ${email} for your 6-digit verification code.`, 'success');
+                
+                form.reset();
+
+                setTimeout(() => {
+                    showView('verify');
+                    setResendCooldown(60); 
+                }, 2000); 
+
+            } else {
+                // Handle API errors (4xx, 5xx with JSON body)
+                const errorMessage = data.message || `API Error (${response.status}): An unexpected error occurred.`;
+                displayMessage(`Registration Failed: ${errorMessage}`, 'error');
+            }
+
+        } catch (error) {
+            // Handle network errors or the Error thrown by robust parsing
+            console.error('Network or API call failed:', error);
+            displayMessage(`Connection Error: ${error.message || 'Could not connect to the registration service. Check endpoint configuration.'}`, 'error');
+        } finally {
+            createBtn.textContent = 'Create Account';
+            createBtn.disabled = false;
+        }
+    }
+
+    /**
+     * Handles account verification code submission.
+     * **UPDATED:** Includes robust JSON parsing.
+     */
+    async function handleVerification(event) {
+        event.preventDefault();
+        const code = document.getElementById('verify-code').value;
+        const verifyBtn = document.getElementById('verify-btn');
+        const email = pendingVerificationEmail;
+        
+        if (!email) {
+            displayMessage('Error: No pending email found. Please create an account.', 'error');
+            showView('create');
+            return;
+        }
+
+        verifyBtn.textContent = 'Verifying...';
+        verifyBtn.disabled = true;
+        
+        try {
+            const response = await fetch(VERIFY_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email, code: code })
+            });
+
+            // *** ROBUST JSON PARSING ADDED HERE ***
+            let data = {};
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                data = await response.json();
+            } else if (!response.ok) {
+                 throw new Error(`Server Error (${response.status}): Could not reach service or expected a JSON response.`);
+            }
+            // *** END ROBUST PARSING ***
+
+
+            if (response.ok) {
+                displayMessage('Account verified successfully! You can now log in.', 'success');
+                
+                pendingVerificationEmail = ''; 
+                document.getElementById('verify-code').value = '';
+                
+                setTimeout(() => {
+                    showView('login');
+                    document.getElementById('login-email').value = email; // Pre-fill email
+                }, 2000);
+
+            } else {
+                const errorMessage = data.message || `Verification API Error (${response.status}).`;
+                displayMessage(`Verification Failed: ${errorMessage}`, 'error');
+            }
+
+        } catch (error) {
+            console.error('Verification network failed:', error);
+            displayMessage(`Connection Error: ${error.message || 'Could not connect to the verification service.'}`, 'error');
+        } finally {
+            verifyBtn.textContent = 'Verify Account';
+            verifyBtn.disabled = false;
+        }
+    }
+
+    /**
+     * Starts a cooldown timer for the Resend Code button.
+     */
+    function setResendCooldown(durationSeconds = 60) {
+        const resendBtn = document.getElementById('resend-btn');
+        resendBtn.disabled = true;
+        let timer = durationSeconds;
+        resendBtn.textContent = `Resend Code (${timer}s)`;
+
+        const interval = setInterval(() => {
+            timer--;
+            if (timer > 0) {
+                resendBtn.textContent = `Resend Code (${timer}s)`;
+            } else {
+                clearInterval(interval);
+                resendBtn.textContent = 'Resend Code';
+                resendBtn.disabled = false;
+            }
+        }, 1000);
+    }
+
+    /**
+     * Handles resending the verification code with cooldown logic.
+     * **UPDATED:** Includes robust JSON parsing.
+     */
+    async function handleResendCode() {
+        const resendBtn = document.getElementById('resend-btn');
+        const email = pendingVerificationEmail;
+
+        if (resendBtn.disabled) {
+            // Cooldown is active, just return
+            return;
         }
         
-        document.addEventListener('DOMContentLoaded', () => {
-            showView('login');
-        });
+        if (!email) {
+            showView('create');
+            displayMessage('Please create an account first.', 'error');
+            return;
+        }
 
-        /**
-         * Toggles password input type between 'password' and 'text'.
-         */
-        function togglePasswordVisibility(fieldId) {
-            const field = document.getElementById(fieldId);
-            const button = document.getElementById(`toggle-${fieldId}`);
+        setResendCooldown(60); 
+        displayMessage(`Resending code to ${email}...`, 'info');
+
+        try {
+            const response = await fetch(RESEND_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email })
+            });
+
+            // *** ROBUST JSON PARSING ADDED HERE ***
+            let data = {};
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                data = await response.json();
+            } else if (!response.ok) {
+                 throw new Error(`Server Error (${response.status}): Could not reach service or expected a JSON response.`);
+            }
+            // *** END ROBUST PARSING ***
             
-            if (field.type === 'password') {
-                field.type = 'text';
-                button.textContent = 'Hide';
+            if (response.ok) {
+                displayMessage('New code successfully sent! Check your inbox.', 'success');
             } else {
-                field.type = 'password';
-                button.textContent = 'View';
+                const errorMessage = data.message || `Resend API Error (${response.status}).`;
+                displayMessage(`Resend Failed: ${errorMessage}`, 'error');
             }
+        } catch (error) {
+            console.error('Resend network failed:', error);
+            displayMessage(`Connection Error: ${error.message || 'Could not connect to the resend service.'}`, 'error');
         }
+    }
 
-        /**
-         * Displays a temporary message.
-         */
-        function displayMessage(message, type = 'info') {
-            const baseClasses = 'mt-6 p-4 text-sm rounded-lg font-medium'; // Increased padding
-            messageArea.className = baseClasses;
-            messageArea.innerHTML = message;
-            
-            switch (type) {
-                case 'success':
-                    messageArea.classList.add('bg-green-100', 'text-green-800', 'border', 'border-green-300');
-                    break;
-                case 'error':
-                    messageArea.classList.add('bg-red-100', 'text-red-800', 'border', 'border-red-300');
-                    break;
-                default: // 'info'
-                    messageArea.classList.add('bg-blue-100', 'text-blue-800', 'border', 'border-blue-300');
-                    break;
-            }
-            messageArea.classList.remove('hidden');
-        }
-
-        /**
-         * Placeholder function for handling login form submission to redirect to homepage.html.
-         */
-        function handleLogin(event) {
-            event.preventDefault();
-            const email = document.getElementById('login-email').value;
-            const password = document.getElementById('login-password').value;
-            const loginBtn = document.getElementById('login-btn');
-            
-            loginBtn.textContent = 'Logging in...';
-            loginBtn.disabled = true;
-
-            // --- Mock Login Logic (Replace with real API call) ---
-            setTimeout(() => {
-                loginBtn.textContent = 'Log In';
-                loginBtn.disabled = false;
-
-                if (email === 'test@outflickz.com' && password === 'password') {
-                    // Success - display message and redirect
-                    displayMessage(`Login successful! Redirecting to homepage...`, 'success');
-                    
-                    setTimeout(() => {
-                        window.location.href = 'homepage.html'; 
-                    }, 500); 
-                } else {
-                    displayMessage('Login failed. Please check your email and password.', 'error');
-                }
-            }, 1500); 
-        }
-
-        /**
-         * Handles create account form submission and transitions to verification view.
-         * INTEGRATED WITH API CALL AND ERROR HANDLING
-         */
-        async function handleCreateAccount(event) {
-            event.preventDefault();
-            const form = event.target;
-            const email = document.getElementById('create-email').value;
-            const password = document.getElementById('create-password').value;
-            const confirmPassword = document.getElementById('confirm-password').value;
-            const createBtn = document.getElementById('create-btn');
-
-            if (password !== confirmPassword) {
-                displayMessage('Passwords do not match.', 'error');
-                return;
-            }
-            if (password.length < 8) {
-                displayMessage('Password must be at least 8 characters.', 'error');
-                return;
-            }
-
-            createBtn.textContent = 'Creating...';
-            createBtn.disabled = true;
-            displayMessage('Attempting to create account...', 'info');
-
-            try {
-                const response = await fetch(REGISTER_ENDPOINT, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        firstName: form.firstName.value,
-                        lastName: form.lastName.value,
-                        email: email,
-                        password: password
-                    })
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    // Success: Account created, verification code sent
-                    pendingVerificationEmail = email;
-                    document.getElementById('verify-email-display').textContent = email;
-                    
-                    displayMessage(`Success! Account created. Now check ${email} for your 6-digit verification code.`, 'success');
-                    
-                    // Clear the form after success
-                    form.reset();
-
-                    // Transition to verification view after a brief delay
-                    setTimeout(() => {
-                        showView('verify');
-                        setResendCooldown(60); // Start cooldown for first email
-                    }, 2000); 
-
-                } else {
-                    // Handle server-side errors (e.g., email already exists, failed email service)
-                    const errorMessage = data.message || 'An unexpected error occurred during registration.';
-                    
-                    // CRITICAL: Display the server error, which should now contain the email failure reason.
-                    displayMessage(`Registration Failed: ${errorMessage}`, 'error');
-                }
-
-            } catch (error) {
-                // Handle network errors or issues with the fetch call itself
-                console.error('Network or API call failed:', error);
-                displayMessage('Network error: Could not connect to the registration service. Please try again later.', 'error');
-            } finally {
-                createBtn.textContent = 'Create Account';
-                createBtn.disabled = false;
-            }
-        }
-
-        /**
-         * NEW: Handles account verification code submission.
-         * INTEGRATED WITH API CALL AND ERROR HANDLING
-         */
-        async function handleVerification(event) {
-            event.preventDefault();
-            const code = document.getElementById('verify-code').value;
-            const verifyBtn = document.getElementById('verify-btn');
-            const email = pendingVerificationEmail;
-            
-            if (!email) {
-                displayMessage('Error: No pending email found. Please create an account.', 'error');
-                showView('create');
-                return;
-            }
-
-            verifyBtn.textContent = 'Verifying...';
-            verifyBtn.disabled = true;
-            
-            try {
-                const response = await fetch(VERIFY_ENDPOINT, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: email, code: code })
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    displayMessage('Account verified successfully! You can now log in.', 'success');
-                    
-                    // Clear pending status and transition
-                    pendingVerificationEmail = ''; 
-                    document.getElementById('verify-code').value = '';
-                    
-                    setTimeout(() => {
-                        showView('login');
-                        document.getElementById('login-email').value = email; // Pre-fill email
-                    }, 2000);
-
-                } else {
-                    const errorMessage = data.message || 'Invalid verification code.';
-                    displayMessage(`Verification Failed: ${errorMessage}`, 'error');
-                }
-
-            } catch (error) {
-                console.error('Verification network failed:', error);
-                displayMessage('Network error: Could not connect to the verification service.', 'error');
-            } finally {
-                verifyBtn.textContent = 'Verify Account';
-                verifyBtn.disabled = false;
-            }
-        }
-
-        /**
-         * NEW: Starts a cooldown timer for the Resend Code button.
-         */
-        function setResendCooldown(durationSeconds = 60) {
-            const resendBtn = document.getElementById('resend-btn');
-            resendBtn.disabled = true;
-            let timer = durationSeconds;
-            resendBtn.textContent = `Resend Code (${timer}s)`;
-
-            const interval = setInterval(() => {
-                timer--;
-                if (timer > 0) {
-                    resendBtn.textContent = `Resend Code (${timer}s)`;
-                } else {
-                    clearInterval(interval);
-                    resendBtn.textContent = 'Resend Code';
-                    resendBtn.disabled = false;
-                }
-            }, 1000);
-        }
-
-        /**
-         * NEW: Handles resending the verification code with cooldown logic.
-         * INTEGRATED WITH API CALL AND ERROR HANDLING
-         */
-        async function handleResendCode() {
-            const resendBtn = document.getElementById('resend-btn');
-            const email = pendingVerificationEmail;
-
-            if (resendBtn.disabled) {
-                // Cooldown is active, just return
-                return;
-            }
-            
-            if (!email) {
-                showView('create');
-                displayMessage('Please create an account first.', 'error');
-                return;
-            }
-
-            // Start cooldown immediately to prevent double-click
-            setResendCooldown(60); 
-            displayMessage(`Resending code to ${email}...`, 'info');
-
-            try {
-                const response = await fetch(RESEND_ENDPOINT, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: email })
-                });
-
-                const data = await response.json();
-                
-                if (response.ok) {
-                    displayMessage('New code successfully sent! Check your inbox.', 'success');
-                } else {
-                    const errorMessage = data.message || 'Failed to resend code.';
-                    displayMessage(`Resend Failed: ${errorMessage}`, 'error');
-                    // Re-enable button quickly on failure if the error is not a rate limit
-                    // Note: setResendCooldown already handles rate limiting if it was a success.
-                    if (resendBtn.textContent.includes('0s')) { 
-                        resendBtn.disabled = false;
-                        resendBtn.textContent = 'Resend Code';
-                    }
-                }
-            } catch (error) {
-                console.error('Resend network failed:', error);
-                displayMessage('Network error: Could not connect to the resend service.', 'error');
-                // Re-enable button on network failure
-                if (resendBtn.textContent.includes('0s')) {
-                    resendBtn.disabled = false;
-                    resendBtn.textContent = 'Resend Code';
-                }
-            }
-        }
-
-        /**
-         * Placeholder function for handling forgot password form submission.
-         */
-        function handleForgotPassword(event) {
-            event.preventDefault();
-            const email = document.getElementById('forgot-email').value;
-            // In a real app, send API call to trigger password reset email
-            displayMessage(`If an account exists for ${email}, a password reset link has been sent.`, 'success');
-            setTimeout(() => {
-                showView('login');
-            }, 5000);
-        }
-
-        /**
-         * Placeholder function for handling user logout.
-         */
-        function handleLogout() {
-            // In a real app, clear the token from localStorage here
-            displayMessage('You have been successfully logged out.', 'info');
+    /**
+     * Placeholder function for handling forgot password form submission.
+     */
+    function handleForgotPassword(event) {
+        event.preventDefault();
+        const email = document.getElementById('forgot-email').value;
+        // In a real app, send API call to trigger password reset email
+        displayMessage(`If an account exists for ${email}, a password reset link has been sent.`, 'success');
+        setTimeout(() => {
             showView('login');
-        }
+        }, 5000);
+    }
 
-        // Mock function to populate the profile view (must be called after successful login in a real app)
-        function populateProfileView(user) {
-            document.getElementById('profile-id').textContent = user.id;
-            document.getElementById('profile-email').textContent = user.email;
-            document.getElementById('profile-name').textContent = user.name || 'Not Provided';
-            document.getElementById('profile-username').textContent = user.username || 'Not Provided';
-            document.getElementById('profile-role').textContent = user.role;
-            document.getElementById('profile-verified').textContent = user.verified ? 'Yes ✅' : 'No ❌';
-            document.getElementById('profile-member-since').textContent = user.memberSince;
-            document.getElementById('profile-last-updated').textContent = user.lastUpdated;
-        }
+    /**
+     * Placeholder function for handling user logout.
+     */
+    function handleLogout() {
+        // In a real app, clear the token from localStorage here
+        displayMessage('You have been successfully logged out.', 'info');
+        showView('login');
+    }
 
-        // Example data to populate profile after a mock login (for testing profile view)
-        /*
-        populateProfileView({
-            id: 'u-12345',
-            email: 'test@outflickz.com',
-            name: 'Test User',
-            username: 'OutflickzFan',
-            role: 'Subscriber',
-            verified: true,
-            memberSince: 'Oct 2023',
-            lastUpdated: 'Nov 2025'
-        });
-        */
-    </script>
+    // Mock function to populate the profile view (must be called after successful login in a real app)
+    function populateProfileView(user) {
+        document.getElementById('profile-id').textContent = user.id;
+        document.getElementById('profile-email').textContent = user.email;
+        document.getElementById('profile-name').textContent = user.name || 'Not Provided';
+        document.getElementById('profile-username').textContent = user.username || 'Not Provided';
+        document.getElementById('profile-role').textContent = user.role;
+        document.getElementById('profile-verified').textContent = user.verified ? 'Yes ✅' : 'No ❌';
+        document.getElementById('profile-member-since').textContent = user.memberSince;
+        document.getElementById('profile-last-updated').textContent = user.lastUpdated;
+    }
+</script>
 </body>
 </html>

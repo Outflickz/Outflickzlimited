@@ -534,13 +534,11 @@ const quantityInputTextSize = isReduced ? 'text-[0.5rem] md:text-[0.6rem]' : 'te
 
     if (isPreorder) {
         stockBadge = `<span class="absolute top-2 left-2 bg-ash-dark text-white text-xm font-bold px-2 py-0.5 rounded shadow-lg z-40">PRE-ORDER</span>`;
-        cartButtonText = 'PRE-ORDER';
         buyNowButtonText = 'PRE-ORDER NOW';
         buyNowButtonClasses = 'bg-ash-red text-white hover:bg-red-700';
         cartButtonClasses = 'bg-gray-700 text-white hover:bg-gray-800';
     } else if (isOutOfStock) {
         stockBadge = '<span class="absolute top-2 left-2 bg-ash-red text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">OUT OF STOCK</span>';
-        cartButtonText = 'Out Of Stock';
         buyNowButtonText = 'N/A';
         cartButtonClasses = 'bg-gray-500 text-white cursor-not-allowed opacity-75';
         buyNowButtonClasses = 'bg-gray-500 text-white cursor-not-allowed opacity-75';

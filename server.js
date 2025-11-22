@@ -2254,7 +2254,7 @@ app.post('/api/users/register', async (req, res) => {
         // --- 🛠️ Send Verification Code Email Logic (NOW AWAITED) ---
         const verificationSubject = 'Outflickz: Your Account Verification Code';
         const verificationHtml = `
-            <div style="background-color: #f7f7f7; padding: 30px; border: 1px solid #e0e0e0; max-width: 500px; margin: 0 auto; font-family: sans-serif; border-radius: 8px;">
+            <div style="background-color: #ffffffff; padding: 30px; border: 1px solid #ffffffff; max-width: 500px; margin: 0 auto; font-family: sans-serif; border-radius: 8px;">
                 <div style="text-align: center; padding-bottom: 20px;">
                     <img src="https://i.imgur.com/1Rxhi9q.jpeg" alt="Outflickz Limited Logo" style="max-width: 120px; height: auto; display: block; margin: 0 auto;">
                 </div>
@@ -2361,7 +2361,6 @@ app.post('/api/users/resend-verification', async (req, res) => {
         res.status(500).json({ message: 'Failed to resend verification code due to a server error.' });
     }
 });
-
 // --- 2. POST /api/users/verify (Account Verification) ---
 app.post('/api/users/verify', async (req, res) => {
     const { email, code } = req.body;
@@ -2372,7 +2371,9 @@ app.post('/api/users/verify', async (req, res) => {
     }
 
     try {
-        const user = await User.findOne({ email });
+        // FIX: Explicitly select the hidden fields for the verification check
+        const user = await User.findOne({ email })
+            .select('+verificationCode +verificationCodeExpires'); // <-- ADDED THIS LINE
 
         if (!user) {
             return res.status(404).json({ message: 'User not found.' });
@@ -2382,14 +2383,19 @@ app.post('/api/users/verify', async (req, res) => {
         if (user.isVerified) {
              return res.status(400).json({ message: 'Account is already verified.' });
         }
+        
+        // CRITICAL CHECK: Ensure the hash field exists before comparing
+        if (!user.verificationCode) {
+            console.error(`Verification hash missing for ${email}. User may need to resend code.`);
+            return res.status(400).json({ message: 'No verification code is pending for this user. Please resend the code.' });
+        }
 
         // 2. Check Expiration
         if (new Date() > user.verificationCodeExpires) {
             return res.status(400).json({ message: 'Verification code has expired. Please request a new one.' });
         }
 
-        // 3. Compare Code (using the hashed version)
-        // Ensure the plaintext code is compared against the stored hash
+        // 3. Compare Code (This line now receives the actual hash string)
         const isMatch = await bcrypt.compare(code, user.verificationCode); 
 
         if (!isMatch) {

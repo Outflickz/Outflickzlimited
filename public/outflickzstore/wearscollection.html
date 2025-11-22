@@ -61,7 +61,7 @@
 
         /* --- NEW MOBILE SLIDER STYLE FOR COLLECTIONS (NOT APPLICABLE TO COLLECTION PAGE GRID) --- */
         /* Removing the mobile scroll styling as this page should be a standard grid.
-           The media query is deleted, and the grid-cols will handle all sizes.
+            The media query is deleted, and the grid-cols will handle all sizes.
         */
     </style>
     <script>
@@ -179,7 +179,7 @@
                 if (frontImageElement) {
                     frontImageElement.src = newImageUrls.frontImageUrl;
                 }
-                 // Update Back Image
+                   // Update Back Image
                 if (backImageElement) {
                     backImageElement.src = newImageUrls.backImageUrl;
                 }
@@ -290,7 +290,10 @@
                     <button class="flex-1 text-xs md:text-sm bg-ash-dark text-white h-7 md:h-8 rounded-sm hover:bg-ash-red transition font-semibold uppercase tracking-widest flex items-center justify-center">
                         Add To Cart
                     </button>
-                `;
+                    <button class="flex-1 text-xs md:text-sm bg-ash-red text-white h-7 md:h-8 rounded-sm hover:bg-red-700 transition font-semibold uppercase tracking-widest flex items-center justify-center">
+                        Buy Now
+                    </button>
+                `; // ADDED BUY NOW BUTTON
 
             const quantityControlHtml = isOutOfStock
                 ? `<div class="w-20 md:w-24 h-7 md:h-8 border border-gray-300 rounded-sm flex items-center justify-center text-xs text-gray-500">N/A</div>`
@@ -369,7 +372,9 @@
                         <div class="flex items-center space-x-2">
                             ${quantityControlHtml}
 
-                            ${cartButtonHtml}
+                            <div class="flex flex-1 space-x-2">
+                                ${cartButtonHtml}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -455,9 +460,9 @@
         </nav>
 
         <div class="flex items-center space-x-2 sm:space-x-4">
-              <a href="useraccount.html" class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" aria-label="User Account">
+             <a href="useraccount.html" class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" aria-label="User Account">
              <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
-            </a>
+           </a>
             <button class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" aria-label="Shopping Bag">
                 <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
             </button>

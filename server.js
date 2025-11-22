@@ -542,6 +542,66 @@ const OrderSchema = new mongoose.Schema({
 
 const Order = mongoose.models.Order || mongoose.model('Order', OrderSchema);
 
+const cartItemSchema = new mongoose.Schema({
+    collectionId: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'Collection', // Assuming 'Collection' is a generic parent ref
+        required: true 
+    },
+    // NEW FIELD: Crucial for linking the item back to the correct inventory model
+    productType: { 
+        type: String, 
+        required: true, 
+        enum: ['WearsCollection', 'CapCollection', 'NewArrivals', 'PreOrderCollection'] 
+    },
+    name: { type: String, required: true },
+    
+    // VARIATION FIELDS: Stored for clarity and order creation
+    variantKey: { // e.g., 'Black-XL'
+        type: String, 
+        required: true 
+    }, 
+    size: { // e.g., 'XL'
+        type: String 
+    },
+    color: { // e.g., '#000000'
+        type: String 
+    }, 
+    
+    price: { 
+        type: Number, 
+        required: true, 
+        min: 0.01 
+    },
+    quantity: { 
+        type: Number, 
+        required: true, 
+        min: 1, 
+        default: 1 
+    },
+    imageUrl: { 
+        type: String 
+    } 
+}, { _id: true }); // Ensure sub-documents have IDs for easy update/removal
+
+const cartSchema = new mongoose.Schema({
+    userId: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'User', 
+        required: true, 
+        unique: true // A user should only have one cart document
+    },
+    items: {
+        type: [cartItemSchema],
+        default: []
+    },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+
+const Cart = mongoose.models.Cart || mongoose.model('Cart', cartSchema);
+module.exports = Cart;
+
 // --- DATABASE INTERACTION FUNCTIONS (Unchanged) ---
 async function findAdminUserByEmail(email) {
     const adminUser = await Admin.findOne({ email }).select('+password').lean();
@@ -2634,6 +2694,86 @@ app.get('/api/auth/status', verifyUserToken, (req, res) => {
     // We don't need to query the database here.
     // We just return a success status.
     res.status(200).json({ message: 'Authenticated', isAuthenticated: true });
+});
+
+// POST /api/cart
+// Adds a new item/variant to the cart or updates quantity if it exists.
+app.post('/api/cart', verifyUserToken, async (req, res) => {
+    // Input: { collectionId, productType, variantKey, quantity, name, price, imageUrl, size, color }
+    const { 
+        collectionId, 
+        productType, 
+        variantKey, 
+        quantity, 
+        name, 
+        price, 
+        imageUrl, 
+        size, 
+        color 
+    } = req.body;
+
+    // 1. Basic Input Validation
+    if (!req.userId) {
+        return res.status(401).json({ message: "Authentication failed. User ID missing." });
+    }
+    if (!collectionId || !productType || !variantKey || !name || !price || !quantity || quantity < 1) {
+        return res.status(400).json({ message: "Missing required item details for cart: collectionId, productType, variantKey, name, price, or quantity." });
+    }
+
+    // Prepare the item data object
+    const newItemData = {
+        collectionId, 
+        productType, 
+        variantKey, 
+        quantity, 
+        name, 
+        price, 
+        imageUrl, 
+        size, 
+        color
+    };
+
+    try {
+        // 2. Find the user's cart using the ID set by the middleware
+        let cart = await Cart.findOne({ userId: req.userId });
+
+        // --- Handle New Cart Creation ---
+        if (!cart) {
+            cart = await Cart.create({ 
+                userId: req.userId, 
+                items: [newItemData]
+            });
+            // Return the cart object in a consistent structure
+            return res.status(201).json({ message: "Item added, new cart created.", cart });
+        }
+
+        // --- Check for Existing Item (matching product and variant) ---
+        const existingItem = cart.items.find(
+            item => item.collectionId.toString() === collectionId && item.variantKey === variantKey
+        );
+
+        if (existingItem) {
+            // 3. If it exists, update the quantity (and possibly price/image for freshness)
+            existingItem.quantity += quantity;
+            existingItem.price = price; 
+            existingItem.imageUrl = imageUrl;
+            
+        } else {
+            // 4. If it doesn't exist, push a new item to the array
+            cart.items.push(newItemData);
+        }
+
+        // 5. Save and return the updated cart
+        cart.updatedAt = new Date(); // Update the timestamp
+        await cart.save();
+        
+        // Return the cart object in a consistent structure
+        res.status(200).json({ message: "Cart updated successfully.", cart });
+        
+    } catch (error) {
+        console.error("Error processing cart add item:", error);
+        res.status(500).json({ message: "Failed to process request due to a server error." });
+    }
 });
 
 module.exports = {

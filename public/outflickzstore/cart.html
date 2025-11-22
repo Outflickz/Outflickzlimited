@@ -1,0 +1,567 @@
+const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outflickz | Shopping Cart</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --color-white: #ffffff;
+            --color-black: #111827; /* Dark Gray / Near Black */
+            --color-ash-red: #D22B27; /* Prominent Red */
+            --color-ash-dark: #1F2937; /* Dark Grey */
+            --color-racing-grey: #4B5563; /* Medium Grey */
+        }
+
+        /* Custom Tailwind Configuration */
+        .bg-color-white { background-color: var(--color-white); }
+        .text-color-black { color: var(--color-black); }
+        .text-ash-red { color: var(--color-ash-red); }
+        .bg-ash-red { background-color: var(--color-ash-red); }
+        .hover\:bg-ash-red:hover { background-color: var(--color-ash-red); }
+        .hover\:text-ash-red:hover { color: var(--color-ash-red); }
+        .text-ash-dark { color: var(--color-ash-dark); }
+        .border-ash-red { border-color: var(--color-ash-red); }
+        .border-racing-grey { border-color: var(--color-racing-grey); }
+
+        /* Font Setup */
+        body { font-family: 'Inter', sans-serif; }
+
+        /* Animation for Cart Alert */
+        .cart-alert-show {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+        
+        /* Custom scrollbar for better aesthetics */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #d1d5db; /* light gray */
+            border-radius: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background-color: #f3f4f6; /* extra light gray */
+        }
+        
+        /* Hide number input arrows */
+        input[type='number']::-webkit-inner-spin-button,
+        input[type='number']::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type='number'] {
+            -moz-appearance: textfield;
+        }
+    </style>
+
+</head>
+<body class="bg-gray-50 text-color-black min-h-screen flex flex-col">
+
+    <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
+            <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
+                <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-10 sm:h-12 lg:h-10">
+            </a>
+
+            <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
+                <a href="preorder.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
+                <a href="newarrivals.html" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
+                <a href="wearscollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Wears Collections</a>
+                <a href="capcollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Cap Collections</a>
+            </nav>
+
+            <div class="flex items-center space-x-2 sm:space-x-4">
+                <button id="profile-icon" 
+                class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" 
+                aria-label="User Account"
+                onclick="redirectToProfileOrLogin()">
+                    <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
+                </button>
+                <a href="cart.html" class="relative p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" aria-label="Shopping Bag">
+                    <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
+                    <span id="cart-badge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-ash-red rounded-full hidden">
+                        0
+                    </span>
+                </a>
+                <button class="md:hidden p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
+                    <i class="fas fa-bars w-5 h-5 sm:w-6 sm:h-6"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div id="mobile-menu" class="hidden md:hidden bg-color-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
+        <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
+            <a href="preorder.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
+            <a href="newarrivals.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">New Arrivals</a>
+            <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Wears Collection</a>
+            <a href="capcollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cap Collection</a>
+            <a href="useraccount.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Account</a>
+        </div>
+    </div>
+    
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-color-black mb-8 sm:mb-12 border-b-2 border-ash-red inline-block pb-2 uppercase tracking-wider">
+            Your Shopping Bag
+        </h1>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+            
+            <div id="cart-items-container" class="lg:col-span-2 bg-color-white p-6 sm:p-8 rounded-lg shadow-lg">
+                <div id="cart-loading-state" class="text-center py-20">
+                    <svg class="animate-spin h-8 w-8 text-ash-red inline-block mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p class="text-gray-600">Loading your cart...</p>
+                </div>
+            </div>
+
+            <div id="cart-summary" class="lg:col-span-1 bg-color-white p-6 sm:p-8 rounded-lg shadow-lg h-fit sticky top-20 hidden">
+                <h2 class="text-xl font-bold text-color-black mb-6 border-b pb-3">Order Summary</h2>
+                
+                <div class="space-y-4 text-gray-700">
+                    <div class="flex justify-between text-sm">
+                        <span>Subtotal (<span id="item-count">0</span> items)</span>
+                        <span id="cart-subtotal" class="font-medium">$0.00</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span>Shipping Estimate</span>
+                        <span id="cart-shipping" class="font-medium">$7.99</span>
+                    </div>
+                    <div id="free-shipping-note" class="text-xs text-green-600 hidden">
+                        🥳 You qualify for **FREE SHIPPING**!
+                    </div>
+                    <div class="flex justify-between pt-4 border-t border-gray-200 text-lg font-extrabold text-color-black">
+                        <span>Order Total</span>
+                        <span id="cart-total">$0.00</span>
+                    </div>
+                </div>
+
+                <button class="mt-8 w-full bg-ash-red text-white hover:bg-red-700 transition duration-300 font-bold py-3 px-6 rounded-md shadow-lg uppercase text-sm tracking-widest">
+                    Proceed to Checkout
+                </button>
+                <div class="mt-4 text-center text-xs text-gray-500">
+                    Shipping is calculated as $7.99 or free on orders over $100.
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-gray-900 text-gray-300 py-10 sm:py-14 border-t border-gray-800 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
+                
+                <div class="col-span-2 lg:col-span-1">
+                    <a href="homepage.html" class="flex items-center mb-4">
+                        <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-8 filter grayscale invert">
+                    </a>
+                    <p class="text-sm text-gray-500">
+                        The home of exclusive street wear and limited edition drops. Elevate your style.
+                    </p>
+                    <div class="flex space-x-4 mt-4 text-gray-400">
+                        <a href="#" aria-label="Instagram" class="hover:text-ash-red transition"><i class="fab fa-instagram"></i></a>
+                        <a href="#" aria-label="Twitter" class="hover:text-ash-red transition"><i class="fab fa-twitter"></i></a>
+                        <a href="#" aria-label="Facebook" class="hover:text-ash-red transition"><i class="fab fa-facebook-f"></i></a>
+                    </div>
+                </div>
+
+                <div class="col-span-1">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Quick Links</h3>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="wearscollection.html" class="text-gray-400 hover:text-ash-red transition">Wears</a></li>
+                        <li><a href="capcollection.html" class="text-gray-400 hover:text-ash-red transition">Caps</a></li>
+                        <li><a href="newarrivals.html" class="text-gray-400 hover:text-ash-red transition">New Arrivals</a></li>
+                        <li><a href="preorder.html" class="text-gray-400 hover:text-ash-red transition">Pre-Order</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-span-1">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Customer Care</h3>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Contact Us</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Shipping & Returns</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">FAQ</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Size Guide</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-span-2 md:col-span-1">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Get In Touch</h3>
+                    <address class="text-sm not-italic space-y-2">
+                        <p class="text-gray-400">
+                            <i class="fas fa-map-marker-alt mr-2 text-ash-red"></i> 123 Streetwear Ave, City, Country
+                        </p>
+                        <p class="text-gray-400">
+                            <i class="fas fa-envelope mr-2 text-ash-red"></i> support@outflickz.com
+                        </p>
+                        <p class="text-gray-400">
+                            <i class="fas fa-phone mr-2 text-ash-red"></i> +1 (555) 123-4567
+                        </p>
+                    </address>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-800 mt-10 pt-6">
+                <p class="text-center text-xs text-gray-500">
+                    &copy; 2025 Outflickz. All rights reserved. | <a href="#" class="hover:text-ash-red">Privacy Policy</a> | <a href="#" class="hover:text-ash-red">Terms of Use</a>
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <a href="https://wa.me/2347042882706?text=HELLO!%20WELCOME%20TO%20OUTFLICKZ!%20HOW%20CAN%20WE%20HELP%20YOU" 
+        target="_blank" 
+        class="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-3 sm:p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105" 
+        aria-label="Chat with us on WhatsApp">
+        <i class="fab fa-whatsapp text-2xl sm:text-3xl"></i>
+    </a>
+
+    <script>
+        // --- CONSTANTS (Updated to use the real AUTH token) ---
+        const API_BASE_URL = 'https://outflickz.netlify.app'; 
+        // Get the real user token from localStorage
+        const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken'); 
+        
+        // Internal state for the cart data (replaces DOM scraping)
+        let CART_ITEMS = []; 
+
+        // --- UTILITY FUNCTIONS ---
+
+        // Helper to format currency
+        function formatCurrency(amount) {
+            return `$${amount.toFixed(2)}`;
+        }
+
+        // --- CART RENDERING FUNCTIONS ---
+        
+        // Function to create the HTML structure for a single cart item
+        function createCartItemHTML(item) {
+            const itemTotal = item.price * item.quantity;
+            
+            // NOTE: The ID and quantity input are now linked to the item's unique ID and size variant.
+            return `
+                <div id="cart-item-${item.id}-${item.size}" class="flex items-center border-b py-4 sm:py-6 last:border-b-0">
+                    
+                    <div class="flex-shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden border border-gray-100 mr-4 sm:mr-6">
+                        <img src="${item.image_url}" alt="${item.name}" class="w-full h-full object-cover">
+                    </div>
+
+                    <div class="flex-grow min-w-0">
+                        <h3 class="text-base sm:text-lg font-bold text-ash-dark truncate">${item.name}</h3>
+                        <p class="text-sm text-gray-500 mt-1">
+                            <span class="font-semibold text-gray-700">Size:</span> ${item.size.toUpperCase()}
+                        </p>
+                        <p class="text-base font-semibold text-ash-red mt-1 sm:hidden item-unit-price" data-price="${item.price.toFixed(2)}">${formatCurrency(item.price)}</p>
+                    </div>
+
+                    <div class="flex items-center space-x-2 mx-4 sm:mx-6">
+                        <label for="quantity-${item.id}-${item.size}" class="sr-only">Quantity</label>
+                        <button onclick="updateCartItemQuantity('${item.id}', '${item.size}', -1)" 
+                            class="w-6 h-6 sm:w-8 sm:h-8 border border-gray-300 text-gray-700 rounded-full hover:bg-gray-100 transition flex items-center justify-center text-base p-1" aria-label="Decrease quantity">
+                            <i class="fas fa-minus text-xs"></i>
+                        </button>
+                        <input id="quantity-${item.id}-${item.size}" 
+                            type="number" 
+                            min="1" 
+                            value="${item.quantity}" 
+                            data-item-id="${item.id}"
+                            data-item-size="${item.size}"
+                            onchange="handleManualQuantityChange(this)"
+                            class="w-10 sm:w-12 text-center text-sm font-semibold border border-gray-300 rounded-md focus:ring-ash-red focus:border-ash-red p-1">
+                        <button onclick="updateCartItemQuantity('${item.id}', '${item.size}', 1)" 
+                            class="w-6 h-6 sm:w-8 sm:h-8 border border-gray-300 text-gray-700 rounded-full hover:bg-gray-100 transition flex items-center justify-center text-base p-1" aria-label="Increase quantity">
+                            <i class="fas fa-plus text-xs"></i>
+                        </button>
+                    </div>
+
+                    <div class="flex flex-col items-end min-w-[5rem] space-y-2">
+                        <p id="item-total-${item.id}-${item.size}" class="text-lg font-bold text-color-black hidden sm:block">
+                            ${formatCurrency(itemTotal)}
+                        </p>
+                        <button onclick="removeCartItem('${item.id}', '${item.size}')" 
+                            class="text-gray-400 hover:text-ash-red transition text-sm flex items-center" aria-label="Remove item">
+                            <i class="fas fa-trash-alt mr-1 text-xs"></i> Remove
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- CART LOGIC FUNCTIONS (AUTHENTICATED) ---
+        
+        /**
+         * Fetches cart data from the API using the USER_AUTH_TOKEN.
+         * @returns {Array} An array of cart items.
+         */
+        async function fetchCartData() {
+            if (!USER_AUTH_TOKEN) {
+                console.warn("User not authenticated. Cart may be empty or unauthorized.");
+                // In a real app, this should redirect to login: window.location.href = 'login.html';
+                return [];
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/cart`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${USER_AUTH_TOKEN}`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                if (response.status === 401) {
+                    console.error("Token unauthorized or expired.");
+                    // window.location.href = 'login.html';
+                    return [];
+                }
+
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch cart data. Status: ${response.status}`);
+                }
+                
+                // Assuming the API returns an array of cart items (product_id, name, price, quantity, size, image_url)
+                return await response.json(); 
+            } catch (error) {
+                console.error('API Error fetching cart:', error);
+                // Return an empty array on error to prevent rendering broken data
+                return []; 
+            }
+        }
+
+        /**
+         * Renders all cart items and updates the summary panel.
+         */
+        async function renderCart() {
+            const container = document.getElementById('cart-items-container');
+            const summary = document.getElementById('cart-summary');
+            const loadingState = document.getElementById('cart-loading-state');
+
+            // Show loading state and clear previous content
+            if(loadingState) {
+                container.innerHTML = ''; // Clear previous content
+                container.appendChild(loadingState);
+                loadingState.classList.remove('hidden');
+            }
+            summary.classList.add('hidden'); // Hide summary until data is loaded
+
+            try {
+                // Fetch the real data from the authenticated API
+                CART_ITEMS = await fetchCartData();
+                
+                // Hide loading state
+                if(loadingState) loadingState.classList.add('hidden');
+                container.innerHTML = ''; // Final clear before rendering content
+                
+                if (CART_ITEMS && CART_ITEMS.length > 0) {
+                    summary.classList.remove('hidden');
+
+                    let subtotal = 0;
+                    let totalItems = 0;
+                    
+                    CART_ITEMS.forEach(item => {
+                        container.innerHTML += createCartItemHTML(item);
+                        subtotal += item.price * item.quantity;
+                        totalItems += item.quantity;
+                    });
+
+                    updateCartSummary(subtotal, totalItems);
+
+                } else {
+                    // Empty cart state
+                    summary.classList.add('hidden');
+                    container.innerHTML = `
+                        <div class="text-center py-20 text-gray-600">
+                            <i class="fas fa-shopping-bag text-6xl mb-4 text-gray-300"></i>
+                            <p class="text-xl font-semibold mb-2">Your Bag Is Empty</p>
+                            <p>Looks like you haven't added any items yet.</p>
+                            <a href="homepage.html" class="mt-6 inline-block bg-ash-dark text-white hover:bg-gray-700 py-2 px-6 rounded-md transition text-sm font-medium">
+                                Start Shopping
+                            </a>
+                        </div>
+                    `;
+                    updateCartBadge(0);
+                }
+            } catch (error) {
+                console.error('Error rendering cart:', error);
+                container.innerHTML = `<p class="text-center text-red-600 py-20 font-semibold">Error loading cart items. Please try again.</p>`;
+                summary.classList.add('hidden');
+                updateCartBadge(0);
+            }
+        }
+
+        // Function to update the summary panel and badge
+        function updateCartSummary(subtotal, totalItems) {
+            const shippingCost = subtotal >= 100 ? 0.00 : 7.99;
+            const orderTotal = subtotal + shippingCost;
+
+            document.getElementById('item-count').textContent = totalItems;
+            document.getElementById('cart-subtotal').textContent = formatCurrency(subtotal);
+            document.getElementById('cart-shipping').textContent = shippingCost === 0.00 ? 'FREE' : formatCurrency(shippingCost);
+            document.getElementById('cart-total').textContent = formatCurrency(orderTotal);
+            
+            const freeShippingNote = document.getElementById('free-shipping-note');
+            if (shippingCost === 0.00) {
+                freeShippingNote.classList.remove('hidden');
+            } else {
+                freeShippingNote.classList.add('hidden');
+            }
+
+            updateCartBadge(totalItems);
+        }
+
+        // Function to update the cart badge in the header
+        function updateCartBadge(count) {
+            const badge = document.getElementById('cart-badge');
+            if (count > 0) {
+                badge.textContent = count;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        // --- INTERACTION HANDLERS (REAL API) ---
+
+        /**
+         * Sends an API request to update the quantity of a cart item.
+         */
+        async function updateCartItemQuantity(itemId, itemSize, change) {
+            const input = document.getElementById(`quantity-${itemId}-${itemSize}`);
+            const currentQuantity = parseInt(input.value) || 0;
+            let newQuantity = currentQuantity + change;
+
+            if (newQuantity < 1) {
+                // If attempting to decrease below 1, treat as a remove action
+                if (newQuantity === 0) {
+                    removeCartItem(itemId, itemSize);
+                    return;
+                }
+                // Don't allow quantity less than 1
+                newQuantity = 1;
+            }
+
+            // Optimistic update (optional)
+            input.value = newQuantity; 
+            
+            // API Call to update quantity
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/cart/${itemId}`, {
+                    method: 'PATCH', // Use PATCH/PUT to update existing item
+                    headers: {
+                        'Authorization': `Bearer ${USER_AUTH_TOKEN}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        quantity: newQuantity,
+                        size: itemSize // Necessary for product variants
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to update cart item quantity.');
+                }
+
+                // Refresh the entire cart/summary from the backend's source of truth
+                await renderCart(); 
+                
+            } catch (error) {
+                console.error('Quantity update failed:', error);
+                alert('Failed to update cart quantity. Please try again.');
+                // Revert UI change on failure
+                input.value = currentQuantity; 
+                await renderCart(); // Force re-render from backend to ensure synchronization
+            }
+        }
+
+        /**
+         * Sends an API request to remove a cart item.
+         */
+        async function removeCartItem(itemId, itemSize) {
+            if (!confirm('Are you sure you want to remove this item from your cart?')) {
+                return;
+            }
+
+            // API Call to remove item
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/cart/${itemId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${USER_AUTH_TOKEN}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        size: itemSize // Necessary for identifying the specific variant to remove
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to remove cart item.');
+                }
+
+                // Refresh the entire cart after successful removal
+                await renderCart(); 
+            } catch (error) {
+                console.error('Item removal failed:', error);
+                alert('Failed to remove item. Please try again.');
+            }
+        }
+
+        /**
+         * Handles manual input change on the quantity field.
+         */
+        function handleManualQuantityChange(inputElement) {
+            let newQuantity = parseInt(inputElement.value);
+            const itemId = inputElement.getAttribute('data-item-id');
+            const itemSize = inputElement.getAttribute('data-item-size');
+
+            if (isNaN(newQuantity) || newQuantity < 1) {
+                newQuantity = 1;
+                inputElement.value = 1;
+            }
+
+            // Find the item's original quantity from the CART_ITEMS state
+            const cartItem = CART_ITEMS.find(item => item.id === itemId && item.size === itemSize);
+            const originalQuantity = cartItem ? cartItem.quantity : 1;
+
+            if (newQuantity !== originalQuantity) {
+                // The new quantity is different, trigger the API update logic
+                const change = newQuantity - originalQuantity;
+                updateCartItemQuantity(itemId, itemSize, change);
+            }
+        }
+        
+        // --- MISC HEADER UTILITIES ---
+        function toggleMenu() {
+            const mobileMenu = document.getElementById('mobile-menu');
+            const isExpanded = mobileMenu.classList.contains('hidden');
+            if (isExpanded) {
+                mobileMenu.classList.remove('hidden');
+            } else {
+                mobileMenu.classList.add('hidden');
+            }
+        }
+        
+        function redirectToProfileOrLogin() {
+            console.log('Redirecting to Profile/Login Page');
+            window.location.href = 'useraccount.html'; 
+        }
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            renderCart(); 
+        });
+
+    </script>
+</body>
+</html>

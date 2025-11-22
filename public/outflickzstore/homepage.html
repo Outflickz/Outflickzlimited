@@ -714,6 +714,7 @@ const quantityInputTextSize = isReduced ? 'text-[0.5rem] md:text-[0.6rem]' : 'te
         </div>
     `;
 }
+
 // --- FETCH AND RENDER COLLECTIONS (Existing functions) ---
 async function fetchAndRenderWearsCollections() {
     const container = document.getElementById('wears-collections-grid');
@@ -996,24 +997,23 @@ document.addEventListener('DOMContentLoaded', () => {
             <a href="capcollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Cap Collections</a>
         </nav>
 
-        <div class="flex items-center space-x-2 sm:space-x-4">
-          <button id="profile-icon" 
-        class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" 
-        aria-label="User Account"
-        onclick="redirectToProfileOrLogin()">
-            <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
-        </button>
-        <button class="relative p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" aria-label="Shopping Bag">
-                <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
-                <span id="cart-badge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-ash-red rounded-full hidden">
-                    0
-                </span>
-            </button>
-            <button class="md:hidden p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
-                <i class="fas fa-bars w-5 h-5 sm:w-6 sm:h-6"></i>
-            </button>
-        </div>
-    </div>
+      <div class="flex items-center space-x-2 sm:space-x-4">
+    <button id="profile-icon" 
+    class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" 
+    aria-label="User Account"
+    onclick="redirectToProfileOrLogin()">
+        <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
+    </button>
+    <a href="cart.html" class="relative p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" aria-label="Shopping Bag">
+        <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
+        <span id="cart-badge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-ash-red rounded-full hidden">
+            0
+        </span>
+    </a>
+    <button class="md:hidden p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
+        <i class="fas fa-bars w-5 h-5 sm:w-6 sm:h-6"></i>
+    </button>
+</div>
 </header>
 <div id="cart-alert" class="hidden fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 bg-green-500 text-white text-sm px-4 py-2 rounded-lg shadow-xl z-50 transition-all duration-500 opacity-0 -translate-y-10">
     Item(s) added to cart!

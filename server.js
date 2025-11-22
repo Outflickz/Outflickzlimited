@@ -2232,7 +2232,6 @@ app.get('/api/collections/preorder', async (req, res) => {
         });
     }
 });
-
 // 1. POST /api/users/register (Create Account and Send Verification Code)
 app.post('/api/users/register', async (req, res) => {
     const { email, password, firstName, lastName } = req.body;
@@ -2246,19 +2245,21 @@ app.post('/api/users/register', async (req, res) => {
     let verificationCode;
 
     try {
-        
-        // Mongoose pre-save middleware handles hashing the password
-        newUser = await User.create({
+        // --- 🛠️ FIX: Use new User() and .save() to trigger the pre('save') hook ---
+        newUser = new User({
             email,
-            password, 
+            password, // Password is now passed to the pre-save hook
             profile: { firstName, lastName },
-            isVerified: false 
+            status: { isVerified: false } // Set nested status field
         });
+        
+        await newUser.save(); // <-- THIS IS THE CRITICAL CHANGE that hashes the password!
+        // --------------------------------------------------------------------------
 
-        // Generate and store the verification code
+        // Generate and store the verification code (this updates the user again)
         verificationCode = await generateHashAndSaveVerificationCode(newUser);
 
-        // --- 🛠️ Send Verification Code Email Logic (NOW AWAITED) ---
+        // --- Send Verification Code Email Logic ---
         const verificationSubject = 'Outflickz: Your Account Verification Code';
         const verificationHtml = `
             <div style="background-color: #ffffffff; padding: 30px; border: 1px solid #ffffffff; max-width: 500px; margin: 0 auto; font-family: sans-serif; border-radius: 8px;">
@@ -2274,8 +2275,6 @@ app.post('/api/users/register', async (req, res) => {
                 <div style="text-align: center; margin: 30px 0; padding: 15px; background-color: #ffffff; border: 2px dashed #9333ea; border-radius: 4px;">
                     <strong style="font-size: 28px; letter-spacing: 5px; color: #000000;">${verificationCode}</strong>
                 </div>
-
-                <p style="font-family: sans-serif; margin-top: 20px; line-height: 1.6; font-size: 14px; color: #555555;">If you did not create this account, please ignore this email.</p>
 
                 <p style="font-size: 10px; margin-top: 30px; border-top: 1px solid #e0e0e0; padding-top: 10px; color: #888888; text-align: center;">&copy; ${new Date().getFullYear()} Outflickz Limited.</p>
             </div>
@@ -2297,7 +2296,7 @@ app.post('/api/users/register', async (req, res) => {
             const existingUser = await User.findOne({ email });
 
             // Check if the existing user is NOT verified
-            if (existingUser && !existingUser.isVerified) {
+            if (existingUser && existingUser.status && !existingUser.status.isVerified) { // Added status check for robustness
                 try {
                     // Re-trigger the code generation and email send for the existing user
                     const newVerificationCode = await generateHashAndSaveVerificationCode(existingUser);
@@ -2306,7 +2305,6 @@ app.post('/api/users/register', async (req, res) => {
                     const verificationSubject = 'Outflickz: Your Account Verification Code';
                     const verificationHtml = `
                         <div style="background-color: #ffffffff; padding: 30px; border: 1px solid #ffffffff; max-width: 500px; margin: 0 auto; font-family: sans-serif; border-radius: 8px;">
-                            <!-- Re-insert the rest of your HTML template here, ensuring it uses newVerificationCode -->
                             <div style="text-align: center; padding-bottom: 20px;">
                                 <img src="[https://i.imgur.com/1Rxhi9q.jpeg](https://i.imgur.com/1Rxhi9q.jpeg)" alt="Outflickz Limited Logo" style="max-width: 120px; height: auto; display: block; margin: 0 auto;">
                             </div>
@@ -2319,8 +2317,6 @@ app.post('/api/users/register', async (req, res) => {
                             <div style="text-align: center; margin: 30px 0; padding: 15px; background-color: #ffffff; border: 2px dashed #9333ea; border-radius: 4px;">
                                 <strong style="font-size: 28px; letter-spacing: 5px; color: #000000;">${newVerificationCode}</strong>
                             </div>
-
-                            <p style="font-family: sans-serif; margin-top: 20px; line-height: 1.6; font-size: 14px; color: #555555;">If you did not create this account, please ignore this email.</p>
 
                             <p style="font-size: 10px; margin-top: 30px; border-top: 1px solid #e0e0e0; padding-top: 10px; color: #888888; text-align: center;">&copy; ${new Date().getFullYear()} Outflickz Limited.</p>
                         </div>
@@ -2336,12 +2332,12 @@ app.post('/api/users/register', async (req, res) => {
                     });
 
                 } catch (emailError) {
-                     console.error(`CRITICAL: Resending email failed for existing unverified user ${email}:`, emailError);
-                     return res.status(503).json({ 
-                         message: 'Account exists but failed to resend verification email. Please use the "Resend Code" option directly.',
-                         needsVerification: true,
-                         userId: existingUser._id
-                     });
+                    console.error(`CRITICAL: Resending email failed for existing unverified user ${email}:`, emailError);
+                    return res.status(503).json({ 
+                        message: 'Account exists but failed to resend verification email. Please use the "Resend Code" option directly.',
+                        needsVerification: true,
+                        userId: existingUser._id
+                    });
                 }
             }
             // If user exists and is verified, return the 409 conflict
@@ -2361,6 +2357,7 @@ app.post('/api/users/register', async (req, res) => {
         res.status(500).json({ message: 'Server error during registration.' });
     }
 });
+
 // 5. POST /api/users/resend-verification (New Endpoint)
 app.post('/api/users/resend-verification', async (req, res) => {
     const { email } = req.body;

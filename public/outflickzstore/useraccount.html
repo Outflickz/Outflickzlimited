@@ -183,7 +183,7 @@
                         >
                     </div>
                     
-                    <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition duration-300 ease-in-out focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-purple-500/50">
+                    <button type="submit" id="verify-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition duration-300 ease-in-out focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-purple-500/50">
                         Verify Account
                     </button>
                 </form>
@@ -262,7 +262,13 @@
     </div>
 
     <script>
-        // ... (Existing variables and showView, togglePasswordVisibility, displayMessage functions) ...
+        // *** 1. CONFIGURATION ***
+        // NOTE: REPLACE THIS WITH YOUR ACTUAL NETLIFY FUNCTION ENDPOINT
+        const API_BASE_URL = 'YOUR_NETLIFY_FUNCTION_URL_HERE'; 
+        const REGISTER_ENDPOINT = `${API_BASE_URL}/register`; // Example: /api/register
+        const VERIFY_ENDPOINT = `${API_BASE_URL}/verify`; // Example: /api/verify
+        const RESEND_ENDPOINT = `${API_BASE_URL}/resend`; // Example: /api/resend
+
         let pendingVerificationEmail = ''; 
         
         const views = {
@@ -385,6 +391,7 @@
             loginBtn.textContent = 'Logging in...';
             loginBtn.disabled = true;
 
+            // --- Mock Login Logic (Replace with real API call) ---
             setTimeout(() => {
                 loginBtn.textContent = 'Log In';
                 loginBtn.disabled = false;
@@ -404,11 +411,12 @@
 
         /**
          * Handles create account form submission and transitions to verification view.
+         * INTEGRATED WITH API CALL AND ERROR HANDLING
          */
-        function handleCreateAccount(event) {
+        async function handleCreateAccount(event) {
             event.preventDefault();
+            const form = event.target;
             const email = document.getElementById('create-email').value;
-            // Removed other unused variables for brevity, keep if needed for real data
             const password = document.getElementById('create-password').value;
             const confirmPassword = document.getElementById('confirm-password').value;
             const createBtn = document.getElementById('create-btn');
@@ -417,43 +425,116 @@
                 displayMessage('Passwords do not match.', 'error');
                 return;
             }
+            if (password.length < 8) {
+                displayMessage('Password must be at least 8 characters.', 'error');
+                return;
+            }
 
             createBtn.textContent = 'Creating...';
             createBtn.disabled = true;
-            
-            // --- Mock Server-side account creation logic (Replace with real API call) ---
-            setTimeout(() => {
+            displayMessage('Attempting to create account...', 'info');
+
+            try {
+                const response = await fetch(REGISTER_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        firstName: form.firstName.value,
+                        lastName: form.lastName.value,
+                        email: email,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Success: Account created, verification code sent
+                    pendingVerificationEmail = email;
+                    document.getElementById('verify-email-display').textContent = email;
+                    
+                    displayMessage(`Success! Account created. Now check ${email} for your 6-digit verification code.`, 'success');
+                    
+                    // Clear the form after success
+                    form.reset();
+
+                    // Transition to verification view after a brief delay
+                    setTimeout(() => {
+                        showView('verify');
+                        setResendCooldown(60); // Start cooldown for first email
+                    }, 2000); 
+
+                } else {
+                    // Handle server-side errors (e.g., email already exists, failed email service)
+                    const errorMessage = data.message || 'An unexpected error occurred during registration.';
+                    
+                    // CRITICAL: Display the server error, which should now contain the email failure reason.
+                    displayMessage(`Registration Failed: ${errorMessage}`, 'error');
+                }
+
+            } catch (error) {
+                // Handle network errors or issues with the fetch call itself
+                console.error('Network or API call failed:', error);
+                displayMessage('Network error: Could not connect to the registration service. Please try again later.', 'error');
+            } finally {
                 createBtn.textContent = 'Create Account';
                 createBtn.disabled = false;
-
-                // Mock Success: Store email and transition to verification
-                pendingVerificationEmail = email;
-                document.getElementById('verify-email-display').textContent = email;
-                
-                displayMessage(`Account created! Now check ${email} for your 6-digit verification code.`, 'info');
-                showView('verify');
-                
-            }, 2000); 
+            }
         }
 
         /**
          * NEW: Handles account verification code submission.
+         * INTEGRATED WITH API CALL AND ERROR HANDLING
          */
-        function handleVerification(event) {
+        async function handleVerification(event) {
             event.preventDefault();
             const code = document.getElementById('verify-code').value;
+            const verifyBtn = document.getElementById('verify-btn');
+            const email = pendingVerificationEmail;
             
-            // In a real app, send pendingVerificationEmail and code to the server API
+            if (!email) {
+                displayMessage('Error: No pending email found. Please create an account.', 'error');
+                showView('create');
+                return;
+            }
+
+            verifyBtn.textContent = 'Verifying...';
+            verifyBtn.disabled = true;
             
-            if (code === '123456') { // Mock correct code
-                displayMessage('Account verified successfully! You can now log in.', 'success');
-                setTimeout(() => {
-                    showView('login');
-                    document.getElementById('login-email').value = pendingVerificationEmail; // Pre-fill email
-                    pendingVerificationEmail = '';
-                }, 2000);
-            } else {
-                displayMessage('Invalid verification code. Please try again.', 'error');
+            try {
+                const response = await fetch(VERIFY_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email, code: code })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    displayMessage('Account verified successfully! You can now log in.', 'success');
+                    
+                    // Clear pending status and transition
+                    pendingVerificationEmail = ''; 
+                    document.getElementById('verify-code').value = '';
+                    
+                    setTimeout(() => {
+                        showView('login');
+                        document.getElementById('login-email').value = email; // Pre-fill email
+                    }, 2000);
+
+                } else {
+                    const errorMessage = data.message || 'Invalid verification code.';
+                    displayMessage(`Verification Failed: ${errorMessage}`, 'error');
+                }
+
+            } catch (error) {
+                console.error('Verification network failed:', error);
+                displayMessage('Network error: Could not connect to the verification service.', 'error');
+            } finally {
+                verifyBtn.textContent = 'Verify Account';
+                verifyBtn.disabled = false;
             }
         }
 
@@ -480,26 +561,56 @@
 
         /**
          * NEW: Handles resending the verification code with cooldown logic.
+         * INTEGRATED WITH API CALL AND ERROR HANDLING
          */
-        function handleResendCode() {
+        async function handleResendCode() {
             const resendBtn = document.getElementById('resend-btn');
+            const email = pendingVerificationEmail;
 
             if (resendBtn.disabled) {
                 // Cooldown is active, just return
                 return;
             }
-
-            if (pendingVerificationEmail) {
-                displayMessage(`Resending code to ${pendingVerificationEmail}...`, 'info');
-                setResendCooldown(60); // Start a 60-second cooldown
-
-                // In a real app, trigger the resend API call here
-                setTimeout(() => {
-                    displayMessage('New code sent! Check your inbox.', 'success');
-                }, 1500);
-            } else {
+            
+            if (!email) {
                 showView('create');
                 displayMessage('Please create an account first.', 'error');
+                return;
+            }
+
+            // Start cooldown immediately to prevent double-click
+            setResendCooldown(60); 
+            displayMessage(`Resending code to ${email}...`, 'info');
+
+            try {
+                const response = await fetch(RESEND_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayMessage('New code successfully sent! Check your inbox.', 'success');
+                } else {
+                    const errorMessage = data.message || 'Failed to resend code.';
+                    displayMessage(`Resend Failed: ${errorMessage}`, 'error');
+                    // Re-enable button quickly on failure if the error is not a rate limit
+                    // Note: setResendCooldown already handles rate limiting if it was a success.
+                    if (resendBtn.textContent.includes('0s')) { 
+                        resendBtn.disabled = false;
+                        resendBtn.textContent = 'Resend Code';
+                    }
+                }
+            } catch (error) {
+                console.error('Resend network failed:', error);
+                displayMessage('Network error: Could not connect to the resend service.', 'error');
+                // Re-enable button on network failure
+                if (resendBtn.textContent.includes('0s')) {
+                    resendBtn.disabled = false;
+                    resendBtn.textContent = 'Resend Code';
+                }
             }
         }
 
@@ -509,6 +620,7 @@
         function handleForgotPassword(event) {
             event.preventDefault();
             const email = document.getElementById('forgot-email').value;
+            // In a real app, send API call to trigger password reset email
             displayMessage(`If an account exists for ${email}, a password reset link has been sent.`, 'success');
             setTimeout(() => {
                 showView('login');

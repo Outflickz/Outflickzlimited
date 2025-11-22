@@ -37,10 +37,9 @@
             transition: opacity 0.3s ease-in-out;
         }
 
-        /* --- CARD STYLES (MODIFIED for smaller card) --- */
+        /* --- CARD STYLES --- */
         .card-image-box {
-            /* Reduced aspect ratio to make the card slightly shorter overall */
-            aspect-ratio: 1/1.05; 
+            aspect-ratio: 1/1.1;
             overflow: hidden;
         }
         .card-image-box img {
@@ -117,10 +116,8 @@
             const card = document.querySelector(`.collection-card[data-collection-id="${collectionId}"]`);
             if (!card) return;
 
-            // Get the currently active image element (either front or back)
-            const currentImage = card.querySelector(`#front-image-${collectionId}.active`) || card.querySelector(`#back-image-${collectionId}.active`);
-            
-            // The image to view in the modal is always the currently displayed image
+            // The image to view in the modal is always the currently displayed front image
+            const currentImage = card.querySelector(`#front-image-${collectionId}`);
             const imageUrl = currentImage ? currentImage.src : 'https://i.imgur.com/RFkkvwa.jpeg'; 
             const itemName = card.querySelector('h3').textContent;
 
@@ -154,7 +151,7 @@
 
             // Adjusted classes for smaller mobile size buttons
             return sizes.map(size => `
-                <label for="size-${collectionId}-${size}" class="size-label text-xs border border-gray-300 px-1.5 py-0.5 md:px-2 md:py-0.5 cursor-pointer hover:border-ash-dark transition-all rounded-sm">
+                <label for="size-${collectionId}-${size}" class="size-label text-xs border border-gray-300 px-2 py-0.5 md:px-2 md:py-1 cursor-pointer hover:border-ash-dark transition-all rounded-sm">
                     <input type="radio" id="size-${collectionId}-${size}" name="size-${collectionId}" value="${size}" class="hidden" ${size === sizes[0] ? 'checked' : ''}>
                     <span>${size}</span>
                 </label>
@@ -195,12 +192,7 @@
             const backImage = document.getElementById(`back-image-${collectionId}`);
             const toggleButton = document.getElementById(`image-toggle-btn-${collectionId}`);
 
-            // Note: In the DOM, we use 'style.opacity' for the transition effect 
-            // and the 'active' class to keep track of which one is currently visible 
-            // for the 'viewItem' function.
-
             if (frontImage.classList.contains('active')) {
-                // Switch to Back
                 frontImage.classList.remove('active');
                 frontImage.style.opacity = '0';
                 backImage.classList.add('active');
@@ -208,7 +200,6 @@
                 toggleButton.innerHTML = `<i class="fas fa-undo"></i> Front View`;
                 toggleButton.title = "Show Front View";
             } else {
-                // Switch to Front
                 backImage.classList.remove('active');
                 backImage.style.opacity = '0';
                 frontImage.classList.add('active');
@@ -259,7 +250,7 @@
 
 
         // --- REDESIGNED WEARS COLLECTION CARD JS (MATCHES IMAGE LAYOUT) ---
-        // UPDATED: Reduced button size and font size, and ADDED 'View Item' button.
+        // UPDATED: Now includes two image elements and the toggle button.
         function createCollectionCard(collection) {
             const currencySymbol = '₦'; 
             const defaultFrontImage = 'https://i.imgur.com/RFkkvwa.jpeg'; 
@@ -284,39 +275,34 @@
             // Get the description from the 'tag' field, or use a default
             const description = collection.tag || 'Exclusive limited edition wear.';
 
-            // *** Define Buttons/Labels based on Stock Status (REDUCED SIZE/FONT) ***
+            // *** Define Buttons/Labels based on Stock Status ***
             const stockBadge = isOutOfStock
                 ? '<span class="absolute top-2 left-2 bg-ash-red text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">OUT OF STOCK</span>'
                 : '';
-           
-            // Combined the buy/cart buttons into a flex container for better layout control
-            const actionButtonsHtml = isOutOfStock
+           const cartButtonHtml = isOutOfStock
                 ? `
-                    <button disabled class="flex-1 text-[0.6rem] md:text-xs bg-gray-500 text-white h-5 md:h-6 rounded-sm font-semibold uppercase tracking-widest flex items-center justify-center cursor-not-allowed opacity-75">
+                    <button disabled class="flex-1 text-xs md:text-sm bg-gray-500 text-white h-6 md:h-7 rounded-sm font-semibold uppercase tracking-widest flex items-center justify-center cursor-not-allowed opacity-75">
                         Out Of Stock
-                    </button>
-                    <button disabled class="flex-1 text-[0.6rem] md:text-xs bg-gray-400 text-white h-5 md:h-6 rounded-sm font-semibold uppercase tracking-widest flex items-center justify-center cursor-not-allowed opacity-75">
-                        View Item
                     </button>
                 `
                 : `
-                    <button class="flex-1 text-[0.6rem] md:text-xs bg-ash-dark text-white h-5 md:h-6 rounded-sm hover:bg-ash-red transition font-semibold uppercase tracking-widest flex items-center justify-center">
+                    <button class="flex-1 text-[0.65rem] md:text-xs bg-ash-dark text-white h-6 md:h-7 rounded-sm hover:bg-ash-red transition font-semibold uppercase tracking-widest flex items-center justify-center">
                         Add To Cart
                     </button>
-                    <button onclick="viewItem('${collection._id}')" class="flex-1 text-[0.6rem] md:text-xs bg-racing-grey text-white h-5 md:h-6 rounded-sm hover:bg-gray-600 transition font-semibold uppercase tracking-widest flex items-center justify-center">
-                        View Item
+                    <button class="flex-1 text-[0.65rem] md:text-xs bg-ash-red text-white h-6 md:h-7 rounded-sm hover:bg-red-700 transition font-semibold uppercase tracking-widest flex items-center justify-center">
+                        Buy Now
                     </button>
                 `;
 
             const quantityControlHtml = isOutOfStock
-                ? `<div class="w-16 md:w-20 h-6 md:h-7 border border-gray-300 rounded-sm flex items-center justify-center text-xs text-gray-500">N/A</div>`
+                ? `<div class="w-20 md:w-24 h-7 md:h-8 border border-gray-300 rounded-sm flex items-center justify-center text-xs text-gray-500">N/A</div>`
                 : `
                     <div class="flex items-center border border-gray-300 rounded-sm">
-                        <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="text-xs text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-5 h-6 md:w-6 md:h-7 rounded-l-sm font-semibold">
+                        <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="text-sm md:text-base text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-l-sm font-semibold">
                             &minus;
                         </button>
-                        <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock}" aria-label="Quantity" class="w-4 md:w-6 h-6 md:h-7 text-center text-xs border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
-                        <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="text-xs text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-5 h-6 md:w-6 md:h-7 rounded-r-sm font-semibold">
+                        <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock}" aria-label="Quantity" class="w-6 md:w-8 h-7 md:h-8 text-center text-xs md:text-sm border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
+                        <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="text-sm md:text-base text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-r-sm font-semibold">
                             &plus;
                         </button>
                     </div>
@@ -348,11 +334,11 @@
                             >
                         </div>
 
-                        <div class="absolute inset-0 bg-black bg-opacity-10 opacity-0 hover:opacity-100 transition duration-300 flex items-end justify-center p-2">
+                        <div class="absolute inset-0 bg-black bg-opacity-10 opacity-0 hover:opacity-100 transition duration-300 flex items-end justify-center p-3">
                             <button 
                                 id="image-toggle-btn-${collection._id}"
                                 onclick="toggleImage('${collection._id}')" 
-                                class="bg-color-white text-ash-dark text-xs font-semibold py-0.5 px-2 rounded-full shadow-md hover:bg-gray-200 transition"
+                                class="bg-color-white text-ash-dark text-xs font-semibold py-1 px-3 rounded-full shadow-md hover:bg-gray-200 transition"
                                 title="Show Back View"
                             >
                                 <i class="fas fa-sync-alt"></i> Back View
@@ -360,13 +346,13 @@
                         </div>
                     </div>
 
-                    <div class="p-2">
-                        <p class="text-[0.6rem] text-gray-500 uppercase font-semibold">Outflickz</p>
-                        <h3 class="text-sm font-semibold text-color-black truncate">${collection.name}</h3>
+                    <div class="p-2 md:p-3">
+                        <p class="text-[0.6rem] md:text-[0.6rem] text-gray-500 uppercase font-semibold">Outflickz</p>
+                        <h3 class="text-sm md:text-base font-semibold text-color-black truncate">${collection.name}</h3>
                         
                         <p class="text-xs text-red-700 mt-0.5 mb-1 truncate">${description}</p>
                         
-                        <p class="text-base font-extrabold text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
+                        <p class="text-lg font-extrabold text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
                         
                         <div class="flex items-center gap-2 mt-2">
                             <span class="text-xs font-medium text-gray-700">Color:</span>
@@ -375,7 +361,7 @@
                             </div>
                         </div>
 
-                        <div class="flex flex-wrap items-center gap-1 mt-2 mb-2">
+                        <div class="flex flex-wrap items-center gap-1 mt-2 mb-3">
                             <span class="text-xs font-medium text-gray-700">Size:</span>
                             <div class="flex flex-wrap gap-1 text-gray-700">
                                 ${sizeListHtml}
@@ -386,7 +372,7 @@
                             ${quantityControlHtml}
 
                             <div class="flex flex-1 space-x-2">
-                                ${actionButtonsHtml}
+                                ${cartButtonHtml}
                             </div>
                         </div>
                     </div>
@@ -415,116 +401,18 @@
                 // Use the API_BASE_URL prefix
                 const wearsApiUrl = `${API_BASE_URL}/api/collections/wears`; 
 
-                // Dummy data for demonstration if API_BASE_URL is empty
-                const dummyCollections = [
-                    {
-                        "_id": "60c72b2f9e4b1a0015b6c3f3",
-                        "name": "Velocity Hoodie",
-                        "tag": "Limited Edition Drop",
-                        "price": 45000.00,
-                        "availableStock": 15,
-                        "availableSizes": ["S", "M", "L", "XL"],
-                        "variants": [
-                            {
-                                "color": "#000000",
-                                "colorName": "Black",
-                                "frontImageUrl": "https://i.imgur.com/RFkkvwa.jpeg",
-                                "backImageUrl": "https://i.imgur.com/S74DrsC.jpeg"
-                            },
-                            {
-                                "color": "#FFFFFF",
-                                "colorName": "White",
-                                "frontImageUrl": "https://i.imgur.com/vH1Wf4c.jpeg",
-                                "backImageUrl": "https://i.imgur.com/XqT7hJz.jpeg"
-                            },
-                            {
-                                "color": "#a80000",
-                                "colorName": "Ash Red",
-                                "frontImageUrl": "https://i.imgur.com/Qh1S8Ld.jpeg",
-                                "backImageUrl": "https://i.imgur.com/mJ2bA9N.jpeg"
-                            }
-                        ]
-                    },
-                    {
-                        "_id": "60c72b2f9e4b1a0015b6c3f4",
-                        "name": "Street Joggers",
-                        "tag": "Comfort Fit",
-                        "price": 32500.00,
-                        "availableStock": 0, // Out of Stock example
-                        "availableSizes": ["M", "L", "XL"],
-                        "variants": [
-                            {
-                                "color": "#333333",
-                                "colorName": "Dark Grey",
-                                "frontImageUrl": "https://i.imgur.com/u3lM8nO.jpeg",
-                                "backImageUrl": "https://i.imgur.com/E8T6gJt.jpeg"
-                            },
-                            {
-                                "color": "#000000",
-                                "colorName": "Black",
-                                "frontImageUrl": "https://i.imgur.com/t2r0dZJ.jpeg",
-                                "backImageUrl": "https://i.imgur.com/Bf1oOQk.jpeg"
-                            }
-                        ]
-                    },
-                    {
-                        "_id": "60c72b2f9e4b1a0015b6c3f5",
-                        "name": "OG T-Shirt",
-                        "tag": "Classic Design",
-                        "price": 15000.00,
-                        "availableStock": 50,
-                        "availableSizes": ["XS", "S", "M", "L", "XL", "XXL"],
-                        "variants": [
-                            {
-                                "color": "#000000",
-                                "colorName": "Black",
-                                "frontImageUrl": "https://i.imgur.com/G5u0qWk.jpeg",
-                                "backImageUrl": "https://i.imgur.com/D4s6p7L.jpeg"
-                            },
-                            {
-                                "color": "#FFFFFF",
-                                "colorName": "White",
-                                "frontImageUrl": "https://i.imgur.com/H1t2kPq.jpeg",
-                                "backImageUrl": "https://i.imgur.com/I3j4rLd.jpeg"
-                            }
-                        ]
-                    },
-                    {
-                        "_id": "60c72b2f9e4b1a0015b6c3f6",
-                        "name": "Apex Windbreaker",
-                        "tag": "Weather Ready",
-                        "price": 58000.00,
-                        "availableStock": 2,
-                        "availableSizes": ["L", "XL"],
-                        "variants": [
-                            {
-                                "color": "#444444",
-                                "colorName": "Charcoal",
-                                "frontImageUrl": "https://i.imgur.com/K5m6nFz.jpeg",
-                                "backImageUrl": "https://i.imgur.com/L7o8pXa.jpeg"
-                            }
-                        ]
+                const response = await fetch(wearsApiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
                     }
-                ];
+                });
 
-                let collections = [];
-                if (API_BASE_URL) {
-                    const response = await fetch(wearsApiUrl, {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        }
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`Failed to load collections from server. Status: ${response.status}`);
-                    }
-                    collections = await response.json();
-                } else {
-                    // Use dummy data if API_BASE_URL is not set
-                    console.warn("API_BASE_URL is empty. Using dummy collections data.");
-                    collections = dummyCollections;
+                if (!response.ok) {
+                    throw new Error(`Failed to load collections from server. Status: ${response.status}`);
                 }
+
+                const collections = await response.json();
 
                 container.innerHTML = '';
 
@@ -538,7 +426,7 @@
 
                     // If no items were rendered (e.g., due to missing price)
                     if (container.innerHTML === '') {
-                                 container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Wears Collections are currently available.</p>`;
+                             container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Wears Collections are currently available.</p>`;
                     }
                 } else {
                     container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Wears Collections are currently available.</p>`;

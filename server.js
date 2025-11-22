@@ -2362,6 +2362,59 @@ app.post('/api/users/resend-verification', async (req, res) => {
     }
 });
 
+// --- 2. POST /api/users/verify (Account Verification) ---
+app.post('/api/users/verify', async (req, res) => {
+    const { email, code } = req.body;
+
+    // Basic Validation
+    if (!email || !code) {
+        return res.status(400).json({ message: 'Email and verification code are required.' });
+    }
+
+    try {
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+
+        // 1. Check if already verified
+        if (user.isVerified) {
+             return res.status(400).json({ message: 'Account is already verified.' });
+        }
+
+        // 2. Check Expiration
+        if (new Date() > user.verificationCodeExpires) {
+            return res.status(400).json({ message: 'Verification code has expired. Please request a new one.' });
+        }
+
+        // 3. Compare Code (using the hashed version)
+        // Ensure the plaintext code is compared against the stored hash
+        const isMatch = await bcrypt.compare(code, user.verificationCode); 
+
+        if (!isMatch) {
+            return res.status(401).json({ message: 'Invalid verification code.' });
+        }
+
+        // 4. Verification Success: Update the user record
+        await User.updateOne(
+            { _id: user._id },
+            { 
+                $set: { isVerified: true },
+                // Clear the hash and expiry after successful verification
+                $unset: { verificationCode: "", verificationCodeExpires: "" }
+            }
+        );
+        
+        console.log(`User ${email} successfully verified.`);
+        
+        res.status(200).json({ message: 'Account successfully verified. You can now log in.' });
+
+    } catch (error) {
+        console.error("User verification error:", error);
+        res.status(500).json({ message: 'Server error during verification.' });
+    }
+});
 
 // 2. POST /api/users/login (Login)
 app.post('/api/users/login', async (req, res) => {

@@ -459,12 +459,11 @@ function createCollectionCard(collection, size = 'default') {
     const defaultFrontImage = ''; 
     const defaultBackImage = ''; 
     
-    // --- Conditional Sizing Classes ---
-    const isReduced = size === 'reduced' || size === 'caps';
-    const isCaps = size === 'caps';
-    const isPreorder = size === 'preorder'; 
-    const isWears = size === 'wears'; 
-    const isNewarrivals = size === 'newarrivals'; 
+// --- Conditional Sizing Classes ---
+const reducedSizes = ['reduced', 'caps', 'wears', 'newarrivals'];
+const isReduced = reducedSizes.includes(size);
+const isCaps = size === 'caps';
+const isPreorder = size === 'preorder';
 
 
     

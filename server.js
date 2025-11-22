@@ -732,6 +732,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/', (req, res) => { res.redirect('/outflickzstore/homepage.html'); });
 app.get('/useraccount', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'useraccount.html')); }); 
+app.get('/userprofile', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'userprofile.html')); }); 
 app.get('/capscollection', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'capscollection.html')); }); 
 app.get('/newarrivals', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'newarrivals.html')); }); 
 app.get('/wearscollection', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'wearscollection.html')); }); 

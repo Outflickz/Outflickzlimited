@@ -455,190 +455,189 @@ function createColorList(collectionId, variants) {
 // --- REDESIGNED WEARS COLLECTION CARD JS (MATCHES IMAGE LAYOUT) ---
 // UPDATED: Now handles the 'caps' size by removing the size selection UI.
 function createCollectionCard(collection, size = 'default') {
-    const currencySymbol = '₦'; 
-    const defaultFrontImage = ''; 
-    const defaultBackImage = ''; 
-    
-    // --- Conditional Sizing Classes ---
-    const isReduced = size === 'reduced' || size === 'caps';
-    const isCaps = size === 'caps';
-    const isPreorder = size === 'preorder'; // NEW: Flag for Pre-Order specific display
-    
-    // Card Padding
-    const cardPadding = isReduced ? 'p-1 md:p-2' : 'p-2 md:p-3'; 
-    
-    // Name and Description Text Size
-    const nameFontSize = isReduced ? 'text-xs md:text-sm' : 'text-sm md:text-base';
-    const descriptionFontSize = isReduced ? 'text-[0.6rem]' : 'text-xs';
-    
-    // Price Text Size
-    const priceFontSize = isReduced ? 'text-sm font-bold' : 'text-base font-extrabold';
-    
-    // Control Height/Size
-    const controlHeight = isReduced ? 'h-5 md:h-6' : 'h-6 md:h-7';
-    const controlTextSize = isReduced ? 'text-[0.5rem] md:text-xs' : 'text-xs md:text-sm';
-    const quantityInputWidth = isReduced ? 'w-4 md:w-6' : 'w-6 md:w-8';
-    const quantityButtonSize = isReduced ? 'w-6 h-6 md:w-7 md:h-7' : 'w-7 h-7 md:w-8 md:h-8';
-    const quantityInputTextSize = isReduced ? 'text-[0.6rem] md:text-xs' : 'text-xs md:text-sm';
+    const currencySymbol = '₦'; 
+    const defaultFrontImage = ''; 
+    const defaultBackImage = ''; 
+    
+    // --- Conditional Sizing Classes ---
+    const isReduced = size === 'reduced' || size === 'caps';
+    const isCaps = size === 'caps';
+    const isPreorder = size === 'preorder'; // NEW: Flag for Pre-Order specific display
+    
+    // Card Padding
+    const cardPadding = isReduced ? 'p-1 md:p-2' : 'p-2 md:p-3'; 
+    
+    // Name and Description Text Size
+    const nameFontSize = isReduced ? 'text-xs md:text-sm' : 'text-sm md:text-base';
+    const descriptionFontSize = isReduced ? 'text-[0.6rem]' : 'text-xs';
+    
+    // Price Text Size
+    const priceFontSize = isReduced ? 'text-sm font-bold' : 'text-base font-extrabold';
+    
+    // Control Height/Size
+    const controlHeight = isReduced ? 'h-5 md:h-6' : 'h-6 md:h-7';
+    const controlTextSize = isReduced ? 'text-[0.5rem] md:text-xs' : 'text-xs md:text-sm';
+    const quantityInputWidth = isReduced ? 'w-4 md:w-6' : 'w-6 md:w-8';
+    const quantityButtonSize = isReduced ? 'w-6 h-6 md:w-7 md:h-7' : 'w-7 h-7 md:w-8 md:h-8';
+    const quantityInputTextSize = isReduced ? 'text-[0.6rem] md:text-xs' : 'text-xs md:text-sm';
     
     // NEW: Button flex classes for 50/50 split
     const buttonFlexClasses = 'flex-1';
-    // --- End Conditional Sizing Classes ---
+    // --- End Conditional Sizing Classes ---
 
-    const primaryVariant = collection.variants && collection.variants.length > 0 ? collection.variants[0] : null;
-    
-    // Initial image URLs are the first variant's URLs
-    const frontImageUrl = collection.frontImageUrl || primaryVariant?.frontImageUrl || defaultFrontImage;
-    const backImageUrl = collection.backImageUrl || primaryVariant?.backImageUrl || defaultBackImage;
-    
-    const itemPrice = collection.price; 
-    const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
+    const primaryVariant = collection.variants && collection.variants.length > 0 ? collection.variants[0] : null;
+    
+    // Initial image URLs are the first variant's URLs
+    const frontImageUrl = collection.frontImageUrl || primaryVariant?.frontImageUrl || defaultFrontImage;
+    const backImageUrl = collection.backImageUrl || primaryVariant?.backImageUrl || defaultBackImage;
+    
+    const itemPrice = collection.price; 
+    const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
 
-    // *** Conditional Size List Render ***
-    // Only render size selection for Wears and Pre-Orders, but not Caps
-    const showSizeSelection = !isCaps;
+    // *** Conditional Size List Render ***
+    // Only render size selection for Wears and Pre-Orders, but not Caps
+    const showSizeSelection = !isCaps;
 
-    const sizeListHtml = showSizeSelection ? `
-        <div class="flex flex-wrap items-center gap-1 mt-2 mb-3">
-            <span class="text-xs font-medium text-gray-700">Size:</span>
-            <div class="flex flex-wrap gap-1 text-gray-700">
-                ${createSizeList(collection._id, collection.availableSizes, isReduced)}
-            </div>
-        </div>
-    ` : ''; 
+    const sizeListHtml = showSizeSelection ? `
+        <div class="flex flex-wrap items-center gap-1 mt-2 mb-3">
+            <span class="text-xs font-medium text-gray-700">Size:</span>
+            <div class="flex flex-wrap gap-1 text-gray-700">
+                ${createSizeList(collection._id, collection.availableSizes, isReduced)}
+            </div>
+        </div>
+    ` : ''; 
 
-    const colorListHtml = createColorList(collection._id, collection.variants); 
-    const maxStock = collection.availableStock > 0 ? collection.availableStock : 0; 
+    const colorListHtml = createColorList(collection._id, collection.variants); 
+    const maxStock = collection.availableStock > 0 ? collection.availableStock : 0; 
 
-    // *** Check Stock Status ***
-    const isOutOfStock = maxStock === 0 || collection.availableStock === 0;
+    // *** Check Stock Status ***
+    const isOutOfStock = maxStock === 0 || collection.availableStock === 0;
 
-    // Get the description from the 'tag' field, or use a default
-    const description = collection.tag || 'Exclusive limited edition item.';
-    
-    // --- NEW: Pre-Order specific badge and text ---
-    const preorderAvailableDate = collection.availableDate 
-        ? new Date(collection.availableDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-        : 'TBA';
+    // Get the description from the 'tag' field, or use a default
+    const description = collection.tag || 'Exclusive limited edition item.';
+    
+    // --- NEW: Pre-Order specific badge and text ---
+    const preorderAvailableDate = collection.availableDate 
+        ? new Date(collection.availableDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : 'TBA';
 
-    let stockBadge = '';
-    let cartButtonText = 'Add To Cart';
+    let stockBadge = '';
+    let cartButtonText = 'Add To Cart';
     let buyNowButtonText = 'Buy Now'; // NEW
-    let cartButtonClasses = 'bg-ash-dark text-white hover:bg-ash-red';
+    let cartButtonClasses = 'bg-ash-dark text-white hover:bg-ash-red';
     let buyNowButtonClasses = 'bg-ash-red text-white hover:bg-red-700'; // NEW: Distinct styling for "Buy Now"
 
-    if (isPreorder) {
-        stockBadge = `<span class="absolute top-2 left-2 bg-ash-dark text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">PRE-ORDER</span>`;
-        cartButtonText = 'PRE-ORDER';
+    if (isPreorder) {
+        stockBadge = `<span class="absolute top-2 left-2 bg-ash-dark text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">PRE-ORDER</span>`;
+        cartButtonText = 'PRE-ORDER';
         buyNowButtonText = 'PRE-ORDER NOW';
         buyNowButtonClasses = 'bg-ash-red text-white hover:bg-red-700';
         cartButtonClasses = 'bg-gray-700 text-white hover:bg-gray-800';
-    } else if (isOutOfStock) {
-        stockBadge = '<span class="absolute top-2 left-2 bg-ash-red text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">OUT OF STOCK</span>';
-        cartButtonText = 'Out Of Stock';
+    } else if (isOutOfStock) {
+        stockBadge = '<span class="absolute top-2 left-2 bg-ash-red text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">OUT OF STOCK</span>';
+        cartButtonText = 'Out Of Stock';
         buyNowButtonText = 'N/A';
-        cartButtonClasses = 'bg-gray-500 text-white cursor-not-allowed opacity-75';
+        cartButtonClasses = 'bg-gray-500 text-white cursor-not-allowed opacity-75';
         buyNowButtonClasses = 'bg-gray-500 text-white cursor-not-allowed opacity-75';
-    }
-    // *** END NEW LOGIC ***
-    
-    // *** Define Buttons/Labels based on Stock Status ***
-    const isButtonDisabled = isOutOfStock && !isPreorder;
+    }
+    // *** END NEW LOGIC ***
+    
+    // *** Define Buttons/Labels based on Stock Status ***
+    const isButtonDisabled = isOutOfStock && !isPreorder;
     
     // Button to add to cart
-    const cartButtonHtml = `
-        <button ${isButtonDisabled ? 'disabled' : ''} class="${buttonFlexClasses} ${controlTextSize} ${cartButtonClasses} ${controlHeight} rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center">
-            ${cartButtonText}
-        </button>
-    `;
+    const cartButtonHtml = `
+        <button ${isButtonDisabled ? 'disabled' : ''} class="${buttonFlexClasses} ${controlTextSize} ${cartButtonClasses} ${controlHeight} rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center">
+            ${cartButtonText}
+        </button>
+    `;
 
     // NEW: Buy Now Button
     const buyNowButtonHtml = `
-        <button ${isButtonDisabled ? 'disabled' : ''} class="${buttonFlexClasses} ${controlTextSize} ${buyNowButtonClasses} ${controlHeight} rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center">
-            ${buyNowButtonText}
-        </button>
-    `;
+        <button ${isButtonDisabled ? 'disabled' : ''} class="${buttonFlexClasses} ${controlTextSize} ${buyNowButtonClasses} ${controlHeight} rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center">
+            ${buyNowButtonText}
+        </button>
+    `;
 
-    const quantityControlHtml = isOutOfStock && !isPreorder
-        ? `<div class="w-16 md:w-20 ${controlHeight} border border-gray-300 rounded-sm flex items-center justify-center text-xs text-gray-500">N/A</div>`
-        : `
-            <div class="flex items-center border border-gray-300 rounded-sm">
-                <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-l-sm font-semibold">
-                    &minus;
-                </button>
-                <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock || 999}" aria-label="Quantity" class="${quantityInputWidth} ${controlHeight} text-center ${quantityInputTextSize} border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
-                <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-r-sm font-semibold">
-                    &plus;
-                </button>
-            </div>
-        `;
+    const quantityControlHtml = isOutOfStock && !isPreorder
+        ? `<div class="w-16 md:w-20 ${controlHeight} border border-gray-300 rounded-sm flex items-center justify-center text-xs text-gray-500">N/A</div>`
+        : `
+            <div class="flex items-center border border-gray-300 rounded-sm">
+                <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-l-sm font-semibold">
+                    &minus;
+                </button>
+                <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock || 999}" aria-label="Quantity" class="${quantityInputWidth} ${controlHeight} text-center ${quantityInputTextSize} border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
+                <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-r-sm font-semibold">
+                    &plus;
+                </button>
+            </div>
+        `;
 
 
-    return `
-        <div class="collection-card border border-gray-100 rounded-lg overflow-hidden bg-white hover:shadow-lg transition duration-300" data-collection-id="${collection._id}">
-            <div class="relative card-image-box">
-                ${stockBadge}
-                
-                <div class="absolute inset-0 transition-opacity duration-300">
-                    <img
-                        class="w-full h-full object-cover bg-gray-50 absolute transition-opacity duration-300 active"
-                        id="front-image-${collection._id}"
-                        src="${frontImageUrl}"
-                        alt="${collection.name} (Front View)"
-                        onerror="this.onerror=null;this.src='${defaultFrontImage}';"
-                        style="opacity: 1;"
-                    >
-                    <img
-                        class="w-full h-full object-cover bg-gray-50 absolute transition-opacity duration-300"
-                        id="back-image-${collection._id}"
-                        src="${backImageUrl}"
-                        alt="${collection.name} (Back View)"
-                        onerror="this.onerror=null;this.src='${defaultBackImage}';"
-                        style="opacity: 0;"
-                    >
-                </div>
+    return `
+        <div class="collection-card border border-gray-100 rounded-lg overflow-hidden bg-white hover:shadow-lg transition duration-300" data-collection-id="${collection._id}">
+            <div class="relative card-image-box">
+                ${stockBadge}
+                
+                <div class="absolute inset-0 transition-opacity duration-300">
+                    <img
+                        class="w-full h-full object-cover bg-gray-50 absolute transition-opacity duration-300 active"
+                        id="front-image-${collection._id}"
+                        src="${frontImageUrl}"
+                        alt="${collection.name} (Front View)"
+                        onerror="this.onerror=null;this.src='${defaultFrontImage}';"
+                        style="opacity: 1;"
+                    >
+                    <img
+                        class="w-full h-full object-cover bg-gray-50 absolute transition-opacity duration-300"
+                        id="back-image-${collection._id}"
+                        src="${backImageUrl}"
+                        alt="${collection.name} (Back View)"
+                        onerror="this.onerror=null;this.src='${defaultBackImage}';"
+                        style="opacity: 0;"
+                    >
+                </div>
 
-                <div class="absolute inset-0 bg-black bg-opacity-10 opacity-0 hover:opacity-100 transition duration-300 flex items-end justify-center p-3">
-                    <button 
-                        id="image-toggle-btn-${collection._id}"
-                        onclick="toggleImage('${collection._id}')" 
-                        class="bg-color-white text-ash-dark text-xs font-semibold py-1 px-3 rounded-full shadow-md hover:bg-gray-200 transition"
-                        title="Show Back View"
-                    >
-                        <i class="fas fa-sync-alt"></i> Back View
-                    </button>
-                </div>
-            </div>
+                <div class="absolute inset-0 bg-black bg-opacity-10 opacity-0 hover:opacity-100 transition duration-300 flex items-end justify-center p-3">
+                    <button 
+                        id="image-toggle-btn-${collection._id}"
+                        onclick="toggleImage('${collection._id}')" 
+                        class="bg-color-white text-ash-dark text-xs font-semibold py-1 px-3 rounded-full shadow-md hover:bg-gray-200 transition"
+                        title="Show Back View"
+                    >
+                        <i class="fas fa-sync-alt"></i> Back View
+                    </button>
+                </div>
+            </div>
+            <div class="${cardPadding}">
+                <p class="text-[0.6rem] text-gray-500 uppercase font-semibold">Outflickz</p>
+                <h3 class="${nameFontSize} font-semibold text-color-black truncate">${collection.name}</h3>
+                
+                <p class="${descriptionFontSize} text-red-700 mt-0.5 mb-1 truncate">${description}</p>
 
-            <div class="${cardPadding}">
-                <p class="text-[0.6rem] text-gray-500 uppercase font-semibold">Outflickz</p>
-                <h3 class="${nameFontSize} font-semibold text-color-black truncate">${collection.name}</h3>
-                
-                <p class="${descriptionFontSize} text-red-700 mt-0.5 mb-1 truncate">${description}</p>
+                ${isPreorder ? `<p class="${descriptionFontSize} text-green-600 mt-0.5 mb-1 font-semibold">Available: ${preorderAvailableDate}</p>` : ''}
+                
+                <p class="${priceFontSize} text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
+                
+                <div class="flex items-center gap-2 mt-2">
+                    <span class="text-xs font-medium text-gray-700">Color:</span>
+                    <div class="flex gap-1 text-gray-700">
+                        ${colorListHtml}
+                    </div>
+                </div>
 
-                ${isPreorder ? `<p class="${descriptionFontSize} text-green-600 mt-0.5 mb-1 font-semibold">Available: ${preorderAvailableDate}</p>` : ''}
-                
-                <p class="${priceFontSize} text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
-                
-                <div class="flex items-center gap-2 mt-2">
-                    <span class="text-xs font-medium text-gray-700">Color:</span>
-                    <div class="flex gap-1 text-gray-700">
-                        ${colorListHtml}
-                    </div>
-                </div>
-
-                ${sizeListHtml} 
-                
+                ${sizeListHtml} 
+                
                 <div class="flex items-center space-x-2 mt-2">
-                    ${quantityControlHtml}
+                    ${quantityControlHtml}
                     <div class="flex flex-1 space-x-2"> 
-                        ${cartButtonHtml}
+                        ${cartButtonHtml}
                         ${buyNowButtonHtml}
                     </div>
-                </div>
-                            </div>
-        </div>
-    `;
+                </div>
+                            </div>
+        </div>
+    `;
 }
 
 // --- FETCH AND RENDER COLLECTIONS ---
@@ -919,8 +918,8 @@ document.addEventListener('DOMContentLoaded', () => {
         </a>
 
         <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
-            <a href="newarrivals.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
-            <a href="preorder.html" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
+            <a href="preorder.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
+            <a href="newarrivals.html" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
             <a href="wearscollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Wears Collections</a>
             <a href="capcollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Cap Collections</a>
         </nav>
@@ -1063,7 +1062,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
     </section>
 
-     <section id="caps-collections-section" class="py-10 sm:py-12 bg-color-white text-color-black border-t border-b border-gray-200">
+      <section id="caps-collections-section" class="py-10 sm:py-12 bg-color-white text-color-black border-t border-b border-gray-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-start mb-6 sm:mb-8">
                 <div>

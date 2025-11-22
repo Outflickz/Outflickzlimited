@@ -2490,38 +2490,44 @@ app.post('/api/users/login', async (req, res) => {
     const { email, password } = req.body;
 
     try {
-        // Fetch user, selecting the password field, and return as a plain JS object
         const user = await User.findOne({ email }).select('+password').lean();
         
-        // Check for user existence and password match
+        // 1. Check for user existence and password match
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ message: 'Invalid email or password.' });
         }
         
-        // --- 🛠️ FIX: Check if the account is verified before login ---
-        // Access the nested field using dot notation: user.status.isVerified
+        // 2. Check verification status
         if (!user.status.isVerified) {
-            // Block login and prompt user to verify
             return res.status(403).json({ 
                 message: 'Account not verified. Please verify your email to log in.',
                 needsVerification: true,
                 userId: user._id
             });
         }
-        // -----------------------------------------------------------
 
-        // Create the user token
+        // 3. Create the JWT token
         const token = jwt.sign(
             { id: user._id, email: user.email, role: user.status.role || 'user' }, 
             JWT_SECRET, 
-            { expiresIn: '7d' }
+            { expiresIn: '7d' } // Expires in 7 days
         );
         
-        // Remove password before sending the rest of the user object
+        // --- 🔑 CRITICAL FIX: Set the Token as an HTTP-only Cookie ---
+        const isProduction = process.env.NODE_ENV === 'production';
+        
+        res.cookie('outflickzToken', token, {
+            httpOnly: true, // Prevents client-side JS access (security)
+            secure: isProduction, // Use 'secure' flag ONLY in production (HTTPS)
+            sameSite: isProduction ? 'strict' : 'lax', // Security setting
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days (matches JWT expiry)
+        });
+        // -------------------------------------------------------------
+
+        // 4. Send the successful JSON response (without the token in the body)
         delete user.password; 
 
         res.status(200).json({ 
-            token, 
             message: 'Login successful',
             user: user
         });

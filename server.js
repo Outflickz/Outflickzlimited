@@ -2224,7 +2224,6 @@ app.get('/api/collections/preorder', async (req, res) => {
     }
 });
 
-
 // 1. POST /api/users/register (Create Account and Send Verification Code)
 app.post('/api/users/register', async (req, res) => {
     const { email, password, firstName, lastName } = req.body;
@@ -2248,15 +2247,14 @@ app.post('/api/users/register', async (req, res) => {
         });
 
         // Generate and store the verification code
-        // FIX: CALLING THE CORRECTLY NAMED FUNCTION
-        verificationCode = await generateHashAndSaveVerificationCode(newUser); // <--- THIS LINE WAS CHANGED
+        verificationCode = await generateHashAndSaveVerificationCode(newUser);
 
         // --- 🛠️ Send Verification Code Email Logic (NOW AWAITED) ---
         const verificationSubject = 'Outflickz: Your Account Verification Code';
         const verificationHtml = `
             <div style="background-color: #ffffffff; padding: 30px; border: 1px solid #ffffffff; max-width: 500px; margin: 0 auto; font-family: sans-serif; border-radius: 8px;">
                 <div style="text-align: center; padding-bottom: 20px;">
-                    <img src="https://i.imgur.com/1Rxhi9q.jpeg" alt="Outflickz Limited Logo" style="max-width: 120px; height: auto; display: block; margin: 0 auto;">
+                    <img src="[https://i.imgur.com/1Rxhi9q.jpeg](https://i.imgur.com/1Rxhi9q.jpeg)" alt="Outflickz Limited Logo" style="max-width: 120px; height: auto; display: block; margin: 0 auto;">
                 </div>
                 
                 <h2 style="color: #000000; font-weight: 600; text-align: center;">Verify Your Account</h2>
@@ -2286,6 +2284,58 @@ app.post('/api/users/register', async (req, res) => {
     } catch (error) {
         
         if (error.code === 11000) { 
+            // Handle duplicate key error (email already exists)
+            const existingUser = await User.findOne({ email });
+
+            // Check if the existing user is NOT verified
+            if (existingUser && !existingUser.isVerified) {
+                try {
+                    // Re-trigger the code generation and email send for the existing user
+                    const newVerificationCode = await generateHashAndSaveVerificationCode(existingUser);
+                    
+                    // Re-use HTML template structure from the try block
+                    const verificationSubject = 'Outflickz: Your Account Verification Code';
+                    const verificationHtml = `
+                        <div style="background-color: #ffffffff; padding: 30px; border: 1px solid #ffffffff; max-width: 500px; margin: 0 auto; font-family: sans-serif; border-radius: 8px;">
+                            <!-- Re-insert the rest of your HTML template here, ensuring it uses newVerificationCode -->
+                            <div style="text-align: center; padding-bottom: 20px;">
+                                <img src="[https://i.imgur.com/1Rxhi9q.jpeg](https://i.imgur.com/1Rxhi9q.jpeg)" alt="Outflickz Limited Logo" style="max-width: 120px; height: auto; display: block; margin: 0 auto;">
+                            </div>
+                            
+                            <h2 style="color: #000000; font-weight: 600; text-align: center;">Verify Your Account</h2>
+
+                            <p style="font-family: sans-serif; line-height: 1.6;">Hello ${existingUser.profile?.firstName || 'New Member'},</p>
+                            <p style="font-family: sans-serif; line-height: 1.6;">A new verification code was sent for your existing account. Use the 6-digit code below to activate your account. This code will expire in 10 minutes.</p>
+                            
+                            <div style="text-align: center; margin: 30px 0; padding: 15px; background-color: #ffffff; border: 2px dashed #9333ea; border-radius: 4px;">
+                                <strong style="font-size: 28px; letter-spacing: 5px; color: #000000;">${newVerificationCode}</strong>
+                            </div>
+
+                            <p style="font-family: sans-serif; margin-top: 20px; line-height: 1.6; font-size: 14px; color: #555555;">If you did not create this account, please ignore this email.</p>
+
+                            <p style="font-size: 10px; margin-top: 30px; border-top: 1px solid #e0e0e0; padding-top: 10px; color: #888888; text-align: center;">&copy; ${new Date().getFullYear()} Outflickz Limited.</p>
+                        </div>
+                    `;
+
+                    await sendMail(email, verificationSubject, verificationHtml);
+                    console.log(`Verification code re-sent to unverified existing user ${email}`);
+
+                    return res.status(202).json({ 
+                        message: 'This email is already registered but unverified. A new verification code has been sent.',
+                        userId: existingUser._id,
+                        needsVerification: true
+                    });
+
+                } catch (emailError) {
+                     console.error(`CRITICAL: Resending email failed for existing unverified user ${email}:`, emailError);
+                     return res.status(503).json({ 
+                         message: 'Account exists but failed to resend verification email. Please use the "Resend Code" option directly.',
+                         needsVerification: true,
+                         userId: existingUser._id
+                     });
+                }
+            }
+            // If user exists and is verified, return the 409 conflict
             return res.status(409).json({ message: 'This email address is already registered.' });
         }
         
@@ -2302,7 +2352,6 @@ app.post('/api/users/register', async (req, res) => {
         res.status(500).json({ message: 'Server error during registration.' });
     }
 });
-
 // 5. POST /api/users/resend-verification (New Endpoint)
 app.post('/api/users/resend-verification', async (req, res) => {
     const { email } = req.body;
@@ -2324,12 +2373,13 @@ app.post('/api/users/resend-verification', async (req, res) => {
         }
         
         // 1. Generate and store a new code
-        const verificationCode = await generateAndSaveVerificationCode(user);
+        // FIX: Corrected function name to generateHashAndSaveVerificationCode
+        const verificationCode = await generateHashAndSaveVerificationCode(user); 
         
         // 2. Send the new code email
         const verificationSubject = 'Outflickz: Your NEW Account Verification Code';
         const verificationHtml = `
-            <div style="background-color: #f7f7f7; padding: 30px; border: 1px solid #e0e0e0; max-width: 500px; margin: 0 auto; font-family: sans-serif; border-radius: 8px;">
+            <div style="background-color: #ffffffff; padding: 30px; border: 1px solid #e0e0e0; max-width: 500px; margin: 0 auto; font-family: sans-serif; border-radius: 8px;">
                 <div style="text-align: center; padding-bottom: 20px;">
                     <img src="https://i.imgur.com/1Rxhi9q.jpeg" alt="Outflickz Limited Logo" style="max-width: 120px; height: auto; display: block; margin: 0 auto;">
                 </div>
@@ -2361,6 +2411,7 @@ app.post('/api/users/resend-verification', async (req, res) => {
         res.status(500).json({ message: 'Failed to resend verification code due to a server error.' });
     }
 });
+
 // --- 2. POST /api/users/verify (Account Verification) ---
 app.post('/api/users/verify', async (req, res) => {
     const { email, code } = req.body;

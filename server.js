@@ -208,10 +208,14 @@ async function generateHashAndSaveVerificationCode(user) {
     await User.updateOne(
         { _id: user._id },
         { 
-            // Store the HASH, assuming model field is now named 'verificationCodeHash'
-            verificationCode: hashedVerificationCode, 
-            verificationCodeExpires: verificationCodeExpires,
-            isVerified: false
+            // FIX: Wrap all field updates in $set operator 
+            $set: { 
+                // Store the HASH in the newly added schema field
+                verificationCode: hashedVerificationCode, 
+                verificationCodeExpires: verificationCodeExpires,
+                // FIX: Use dot notation to update the nested field
+                'status.isVerified': false 
+            }
         }
     );
     
@@ -241,10 +245,15 @@ const Admin = mongoose.models.Admin || mongoose.model('Admin', adminSchema);
 
 
 // --- User Schema for Customer Authentication (Compacted) ---
-
 const userSchema = new mongoose.Schema({
     email: { type: String, required: [true, 'Email is required'], unique: true, trim: true, lowercase: true },
     password: { type: String, required: [true, 'Password is required'], select: false },
+    
+    // --- 🔑 ADDED: VERIFICATION FIELDS ---
+    verificationCode: { type: String, select: false },
+    verificationCodeExpires: { type: Date, select: false },
+    // -------------------------------------
+    
     profile: {
         firstName: { type: String, trim: true },
         lastName: { type: String, trim: true },
@@ -2411,7 +2420,6 @@ app.post('/api/users/resend-verification', async (req, res) => {
         res.status(500).json({ message: 'Failed to resend verification code due to a server error.' });
     }
 });
-
 // --- 2. POST /api/users/verify (Account Verification) ---
 app.post('/api/users/verify', async (req, res) => {
     const { email, code } = req.body;
@@ -2424,14 +2432,17 @@ app.post('/api/users/verify', async (req, res) => {
     try {
         // FIX: Explicitly select the hidden fields for the verification check
         const user = await User.findOne({ email })
-            .select('+verificationCode +verificationCodeExpires'); // <-- ADDED THIS LINE
+            .select('+verificationCode +verificationCodeExpires');
 
         if (!user) {
             return res.status(404).json({ message: 'User not found.' });
         }
 
         // 1. Check if already verified
-        if (user.isVerified) {
+        // NOTE: Mongoose might return user.isVerified as undefined here 
+        // if status.isVerified was not set, but the logical check below covers it.
+        // For accurate pre-check, you might need to select 'status.isVerified' as well.
+        if (user.status && user.status.isVerified) { 
              return res.status(400).json({ message: 'Account is already verified.' });
         }
         
@@ -2446,7 +2457,7 @@ app.post('/api/users/verify', async (req, res) => {
             return res.status(400).json({ message: 'Verification code has expired. Please request a new one.' });
         }
 
-        // 3. Compare Code (This line now receives the actual hash string)
+        // 3. Compare Code
         const isMatch = await bcrypt.compare(code, user.verificationCode); 
 
         if (!isMatch) {
@@ -2457,7 +2468,10 @@ app.post('/api/users/verify', async (req, res) => {
         await User.updateOne(
             { _id: user._id },
             { 
-                $set: { isVerified: true },
+                $set: { 
+                    // 🎉 FIXED: Using dot notation to update the nested 'status.isVerified' field
+                    'status.isVerified': true 
+                },
                 // Clear the hash and expiry after successful verification
                 $unset: { verificationCode: "", verificationCodeExpires: "" }
             }
@@ -2561,7 +2575,7 @@ app.post('/api/users/forgot-password', async (req, res) => {
             // await User.updateOne({ _id: user._id }, { resetPasswordToken: resetToken, resetPasswordExpires: Date.now() + 3600000 }); // 1 hour
 
             // 3. Construct the actual reset link
-            const resetLink = `http://your-frontend-domain.com/reset-password?token=${resetToken}&email=${email}`;
+            const resetLink = `https://outflickz.netlify.app//reset-password?token=${resetToken}&email=${email}`;
 
             // 🛠️ NEW: Updated HTML template with Logo and Styling
             const resetSubject = 'Outflickz Limited: Password Reset Request';

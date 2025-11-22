@@ -31,6 +31,11 @@
         }
 
         /* --- CARD STYLES (Reduced size for high-density collection view) --- */
+        .collection-card {
+            /* Ensuring borders are thin for smaller cards */
+            border-width: 1px;
+        }
+
         .card-image-box {
             /* Aspect ratio adjusted slightly for caps */
             aspect-ratio: 1/1.1; 
@@ -87,7 +92,7 @@
         // Intersection Observer setup
         let observer;
 
-        // --- UTILITY FUNCTIONS ---
+        // --- UTILITY FUNCTIONS (unchanged) ---
 
         function toggleMenu() {
             document.getElementById('mobile-menu').classList.toggle('hidden');
@@ -136,8 +141,6 @@
             }
         }
 
-        // REMOVED: createSizeList function
-
         function createColorList(collectionId, variants) {
             if (!variants || variants.length === 0) return '';
             
@@ -164,7 +167,7 @@
                             onchange="changeVariantImage('${collectionId}', this.value)" 
                             ${index === 0 ? 'checked' : ''}
                         >
-                        <span class="block w-4 h-4 rounded-full border ${extraClass}" style="${style}"></span>
+                        <span class="block w-3 h-3 rounded-full border ${extraClass}" style="${style}"></span>
                     </label>
                 `;
             }).join('');
@@ -172,20 +175,23 @@
             return mapHtml + buttonsHtml;
         }
 
+        // --- NEW createCollectionCard FUNCTION ---
         function createCollectionCard(collection) {
             const currencySymbol = '₦'; 
             const defaultFrontImage = 'https://placehold.co/400x440/e0e0e0/555?text=CAP+FRONT'; 
             const defaultBackImage = 'https://placehold.co/400x440/e0e0e0/555?text=CAP+BACK'; 
             
             // Reduced size classes
-            const cardPadding = 'p-2'; 
-            const nameFontSize = 'text-xs md:text-sm';
+            const cardPadding = 'p-1.5'; // Reduced padding
+            const nameFontSize = 'text-[0.7rem] md:text-xs'; // Smaller font size
             const descriptionFontSize = 'text-[0.6rem]';
-            const priceFontSize = 'text-base font-bold';
-            const controlHeight = 'h-6';
-            const controlTextSize = 'text-xs';
-            const quantityButtonSize = 'w-6 h-6';
-            const quantityInputWidth = 'w-6';
+            const priceFontSize = 'text-sm font-bold'; // Reduced price size
+            
+            // Quantity Control and Button adjustments for smaller size
+            const controlHeight = 'h-5'; // Reduced height from h-6
+            const controlTextSize = 'text-[0.65rem]'; // Smaller text for labels
+            const quantityButtonSize = 'w-5 h-5'; // Reduced size from w-6 h-6
+            const quantityInputWidth = 'w-5'; 
             const quantityInputTextSize = 'text-[0.6rem]';
 
             const primaryVariant = collection.variants && collection.variants.length > 0 ? collection.variants[0] : null;
@@ -196,34 +202,35 @@
             const itemPrice = collection.price; 
             const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
 
-            // REMOVED: Size list generation
             const colorListHtml = createColorList(collection._id, collection.variants); 
             const maxStock = collection.availableStock > 0 ? collection.availableStock : 0; 
             const isOutOfStock = maxStock === 0 || collection.availableStock === 0;
             const description = collection.tag || 'Exclusive Cap Design.';
 
-
+            // Reduced stock badge font size
             const stockBadge = isOutOfStock
-                ? '<span class="absolute top-2 left-2 bg-ash-red text-white text-[0.65rem] font-bold px-2 py-0.5 rounded shadow-lg z-40">OUT OF STOCK</span>'
+                ? '<span class="absolute top-1 left-1 bg-ash-red text-white text-[0.6rem] font-bold px-1.5 py-0.5 rounded shadow-lg z-40">OUT OF STOCK</span>'
                 : '';
                 
-const cartButtonHtml = isOutOfStock
+            // FURTHER REDUCED BUTTON FONT SIZE
+            const cartButtonHtml = isOutOfStock
                 ? `
-                    <button disabled class="flex-1 text-xs md:text-sm bg-gray-500 text-white h-6 md:h-7 rounded-sm font-semibold uppercase tracking-widest flex items-center justify-center cursor-not-allowed opacity-75">
+                    <button disabled class="flex-1 text-xs md:text-xs bg-gray-500 text-white ${controlHeight} rounded-sm font-semibold uppercase tracking-widest flex items-center justify-center cursor-not-allowed opacity-75">
                         Out Of Stock
                     </button>
                 `
                 : `
-                    <button class="flex-1 text-[0.65rem] md:text-xs bg-ash-dark text-white h-6 md:h-7 rounded-sm hover:bg-ash-red transition font-semibold uppercase tracking-widest flex items-center justify-center">
+                    <button class="flex-1 text-[0.6rem] md:text-[0.65rem] bg-ash-dark text-white ${controlHeight} rounded-sm hover:bg-ash-red transition font-semibold uppercase tracking-widest flex items-center justify-center">
                         Add To Cart
                     </button>
-                    <button class="flex-1 text-[0.65rem] md:text-xs bg-ash-red text-white h-6 md:h-7 rounded-sm hover:bg-red-700 transition font-semibold uppercase tracking-widest flex items-center justify-center">
+                    <button class="flex-1 text-[0.6rem] md:text-[0.65rem] bg-ash-red text-white ${controlHeight} rounded-sm hover:bg-red-700 transition font-semibold uppercase tracking-widest flex items-center justify-center">
                         Buy Now
                     </button>
                 `;
 
+            // Quantity control updated with new sizes
             const quantityControlHtml = isOutOfStock
-                ? `<div class="w-16 ${controlHeight} border border-gray-300 rounded-sm flex items-center justify-center text-xs text-gray-500">N/A</div>`
+                ? `<div class="w-14 ${controlHeight} border border-gray-300 rounded-sm flex items-center justify-center text-xs text-gray-500">N/A</div>`
                 : `
                     <div class="flex items-center border border-gray-300 rounded-sm">
                         <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-l-sm font-semibold">
@@ -260,11 +267,11 @@ const cartButtonHtml = isOutOfStock
                             >
                         </div>
 
-                        <div class="absolute inset-0 bg-black bg-opacity-10 opacity-0 hover:opacity-100 transition duration-300 flex items-end justify-center p-3">
+                        <div class="absolute inset-0 bg-black bg-opacity-10 opacity-0 hover:opacity-100 transition duration-300 flex items-end justify-center p-2">
                             <button 
                                 id="image-toggle-btn-${collection._id}"
                                 onclick="toggleImage('${collection._id}')" 
-                                class="bg-color-white text-ash-dark text-xs font-semibold py-1 px-3 rounded-full shadow-md hover:bg-gray-200 transition"
+                                class="bg-color-white text-ash-dark text-[0.6rem] font-semibold py-0.5 px-2 rounded-full shadow-md hover:bg-gray-200 transition"
                                 title="Show Back View"
                             >
                                 <i class="fas fa-sync-alt"></i> Back View
@@ -280,22 +287,28 @@ const cartButtonHtml = isOutOfStock
                         
                         <p class="${priceFontSize} text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
                         
-                        <div class="flex items-center gap-2 mt-2 mb-3">
-                            <span class="text-xs font-medium text-gray-700">Color:</span>
+                        <div class="flex items-center gap-2 mt-1.5 mb-2">
+                            <span class="${controlTextSize} font-medium text-gray-700">Color:</span>
                             <div class="flex gap-1 text-gray-700">
                                 ${colorListHtml}
                             </div>
                         </div>
 
-                        <div class="flex items-center space-x-2">
-                            ${quantityControlHtml}
+                        <div class="flex items-center space-x-1.5">
+                            <div class="flex flex-1 space-x-1">
+                                ${quantityControlHtml}
+                            </div>
 
-                            ${cartButtonHtml}
+                            <div class="flex flex-1 space-x-1">
+                                ${cartButtonHtml}
+                            </div>
                         </div>
                     </div>
                 </div>
             `;
         }
+
+        // --- REMAINING FUNCTIONS (unchanged) ---
 
         function changeQuantity(collectionId, delta) {
             const input = document.getElementById(`quantity-input-${collectionId}`);
@@ -313,8 +326,6 @@ const cartButtonHtml = isOutOfStock
 
             input.value = newValue;
         }
-
-        // --- FETCH AND RENDER LOGIC ---
 
         function updateLoader(show, message = 'Loading more items...') {
             const loaderElement = document.getElementById('loader-indicator');
@@ -396,7 +407,7 @@ const cartButtonHtml = isOutOfStock
             }
         }
 
-        // --- INTERSECTION OBSERVER SETUP ---
+        // --- INTERSECTION OBSERVER SETUP (unchanged) ---
 
         function setupIntersectionObserver() {
             const observerTarget = document.getElementById('observer-target');
@@ -419,7 +430,7 @@ const cartButtonHtml = isOutOfStock
             }
         }
 
-        // --- INITIALIZATION ---
+        // --- INITIALIZATION (unchanged) ---
         document.addEventListener('DOMContentLoaded', () => {
             fetchAndRenderCaps(); // Initial load
             setupIntersectionObserver();

@@ -2492,20 +2492,23 @@ app.post('/api/users/login', async (req, res) => {
     const { email, password } = req.body;
 
     try {
+        // Fetch user, selecting the password field, and return as a plain JS object
         const user = await User.findOne({ email }).select('+password').lean();
         
+        // Check for user existence and password match
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ message: 'Invalid email or password.' });
         }
         
-        // --- 🛠️ NEW: Check if the account is verified before login ---
-        if (!user.isVerified) {
-             // Block login and prompt user to verify
-             return res.status(403).json({ 
+        // --- 🛠️ FIX: Check if the account is verified before login ---
+        // Access the nested field using dot notation: user.status.isVerified
+        if (!user.status.isVerified) {
+            // Block login and prompt user to verify
+            return res.status(403).json({ 
                 message: 'Account not verified. Please verify your email to log in.',
                 needsVerification: true,
-                userId: user._id // Optionally send ID to help frontend
-             });
+                userId: user._id
+            });
         }
         // -----------------------------------------------------------
 
@@ -2513,7 +2516,7 @@ app.post('/api/users/login', async (req, res) => {
         const token = jwt.sign(
             { id: user._id, email: user.email, role: user.status.role || 'user' }, 
             JWT_SECRET, 
-            { expiresIn: '7d' } // User tokens can often last longer than admin tokens
+            { expiresIn: '7d' }
         );
         
         // Remove password before sending the rest of the user object
@@ -2530,7 +2533,6 @@ app.post('/api/users/login', async (req, res) => {
         res.status(500).json({ message: 'Server error during login.' });
     }
 });
-
 
 // 3. GET /api/users/account (Fetch Profile - Protected)
 app.get('/api/users/account', verifyUserToken, async (req, res) => {

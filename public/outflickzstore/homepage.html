@@ -164,26 +164,34 @@ function toggleMenu() {
     document.getElementById('mobile-menu').classList.toggle('hidden');
 }
 
-// --- USER AUTHENTICATION & REDIRECTION FUNCTIONS (NEW) ---
+/// --- USER AUTHENTICATION & REDIRECTION FUNCTIONS (SECURE FIX) ---
 
 /**
- * Checks the user's authentication status and redirects them accordingly.
+ * Checks the user's authentication status via the API (/api/auth/status) 
+ * and relies on the HTTP-only cookie for proof of session.
  */
-function redirectToProfileOrLogin() {
-    // 1. Check for the login status flag (must be set on successful login)
-    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+async function redirectToProfileOrLogin() {
+    try {
+        // Fetch status - the browser automatically sends the secure HTTP-only cookie.
+        const response = await fetch('/api/auth/status', {
+            method: 'GET'
+        });
 
-    // 2. Conditional Redirection
-    if (isLoggedIn) {
-        // User is signed in: direct them to their profile page
-        console.log("User is logged in. Redirecting to Profile.");
-        window.location.href = 'userprofile.html'; 
-    } else {
-        // User is NOT signed in: direct them to the login/account page
-        console.log("User is NOT logged in. Redirecting to Account page.");
+        if (response.status === 200) {
+            // Server confirms user is authenticated (Cookie is valid)
+            window.location.href = 'userprofile.html'; 
+        } else {
+            // Server returned 401/403 (Cookie is missing or expired)
+            window.location.href = 'useraccount.html';
+        }
+
+    } catch (error) {
+        // Handle network errors
+        console.error('Authentication status check failed:', error);
         window.location.href = 'useraccount.html';
     }
 }
+// -----------------------------------------------------------------
 
 /**
  * CONCEPTUAL: This function should be called ONLY after a successful login API response 

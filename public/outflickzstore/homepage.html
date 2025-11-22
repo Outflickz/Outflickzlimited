@@ -462,17 +462,21 @@ function createCollectionCard(collection, size = 'default') {
     // --- Conditional Sizing Classes ---
     const isReduced = size === 'reduced' || size === 'caps';
     const isCaps = size === 'caps';
-    const isPreorder = size === 'preorder'; // NEW: Flag for Pre-Order specific display
+    const isPreorder = size === 'preorder'; 
+    const isWears = size === 'wears'; 
+    const isNewarrivals = size === 'newarrivals'; 
+
+
     
     // Card Padding
     const cardPadding = isReduced ? 'p-1 md:p-2' : 'p-2 md:p-3'; 
     
     // Name and Description Text Size
     const nameFontSize = isReduced ? 'text-xs md:text-sm' : 'text-sm md:text-base';
-    const descriptionFontSize = isReduced ? 'text-[0.6rem]' : 'text-xs';
+    const descriptionFontSize = isReduced ? 'text-[0.5rem]' : 'text-xs';
     
     // Price Text Size
-    const priceFontSize = isReduced ? 'text-sm font-bold' : 'text-base font-extrabold';
+    const priceFontSize = isReduced ? 'text-xm font-bold' : 'text-base font-semibold';
     
     // Control Height/Size
     const controlHeight = isReduced ? 'h-5 md:h-6' : 'h-6 md:h-7';
@@ -528,7 +532,7 @@ function createCollectionCard(collection, size = 'default') {
     let buyNowButtonClasses = 'bg-ash-red text-white hover:bg-red-700'; // NEW: Distinct styling for "Buy Now"
 
     if (isPreorder) {
-        stockBadge = `<span class="absolute top-2 left-2 bg-ash-dark text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">PRE-ORDER</span>`;
+        stockBadge = `<span class="absolute top-2 left-2 bg-ash-dark text-white text-xm font-bold px-2 py-0.5 rounded shadow-lg z-40">PRE-ORDER</span>`;
         cartButtonText = 'PRE-ORDER';
         buyNowButtonText = 'PRE-ORDER NOW';
         buyNowButtonClasses = 'bg-ash-red text-white hover:bg-red-700';

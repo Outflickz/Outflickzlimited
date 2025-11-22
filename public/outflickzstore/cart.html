@@ -1,71 +1,221 @@
-const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="text-[90%] sm:text-[95%] md:text-[100%]">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Outflickz | Shopping Cart</title>
+    <title>Shopping Bag - Outflickz</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
-    
+    <link rel="icon" type="image/png" href="https://i.imgur.com/ioWFyQB.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        :root {
-            --color-white: #ffffff;
-            --color-black: #111827; /* Dark Gray / Near Black */
-            --color-ash-red: #D22B27; /* Prominent Red */
-            --color-ash-dark: #1F2937; /* Dark Grey */
-            --color-racing-grey: #4B5563; /* Medium Grey */
+        /* Load Inter (main font) and Playfair Display (for "OUTFLICKZ" logo) */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+
+        /* Custom styles */
+        body {
+            font-family: 'Inter', sans-serif;
         }
 
-        /* Custom Tailwind Configuration */
-        .bg-color-white { background-color: var(--color-white); }
-        .text-color-black { color: var(--color-black); }
-        .text-ash-red { color: var(--color-ash-red); }
-        .bg-ash-red { background-color: var(--color-ash-red); }
-        .hover\:bg-ash-red:hover { background-color: var(--color-ash-red); }
-        .hover\:text-ash-red:hover { color: var(--color-ash-red); }
-        .text-ash-dark { color: var(--color-ash-dark); }
-        .border-ash-red { border-color: var(--color-ash-red); }
-        .border-racing-grey { border-color: var(--color-racing-grey); }
-
-        /* Font Setup */
-        body { font-family: 'Inter', sans-serif; }
-
-        /* Animation for Cart Alert */
-        .cart-alert-show {
-            opacity: 1;
-            transform: translate(-50%, 0);
-        }
-        
-        /* Custom scrollbar for better aesthetics */
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background-color: #d1d5db; /* light gray */
-            border-radius: 4px;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background-color: #f3f4f6; /* extra light gray */
-        }
-        
-        /* Hide number input arrows */
-        input[type='number']::-webkit-inner-spin-button,
-        input[type='number']::-webkit-outer-spin-button {
+        /* Hide number input arrows/spinners */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
             -webkit-appearance: none;
             margin: 0;
         }
-        input[type='number'] {
+        input[type="number"] {
             -moz-appearance: textfield;
         }
+
+        /* Custom style for the cart items list on mobile/tablet */
+        @media (max-width: 1023px) {
+            .cart-item-card {
+                /* Add a subtle bottom border for separation */
+                border-bottom: 1px solid #e5e7eb; /* gray-200 */
+                padding-bottom: 1rem;
+                margin-bottom: 1rem;
+            }
+        }
     </style>
+<script>
+// Customizing Tailwind colors to match the theme
+tailwind.config = {
+    theme: {
+        extend: {
+            colors: {
+                'ash-dark': '#111111',
+                'ash-red': '#a80000',
+                'color-white': '#FFFFFF',
+                'color-black': '#000000',
+                'racing-grey': '#333333',
+                'racing-silver': '#AAAAAA',
+            }
+        }
+    }
+}
+
+// Global Constants
+const CART_STORAGE_KEY = 'outflickzCartCount';
+const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
+const API_BASE_URL = ''; 
+
+// --- USER AUTHENTICATION & REDIRECTION FUNCTIONS ---
+async function redirectToProfileOrLogin() {
+    try {
+        // Fetch status - relies on the browser automatically sending the secure HTTP-only cookie.
+        const response = await fetch('/api/auth/status', {
+            method: 'GET'
+        });
+
+        if (response.status === 200) {
+            window.location.href = 'userprofile.html'; 
+        } else {
+            window.location.href = 'useraccount.html';
+        }
+
+    } catch (error) {
+        console.error('Authentication status check failed:', error);
+        window.location.href = 'useraccount.html';
+    }
+}
+// ---------------------------------------------------
+
+// --- CART MANAGEMENT JS (Copied from homepage.html) ---
+/**
+ * Reads the current cart item count from Local Storage.
+ * @returns {number} The total number of items in the cart.
+ */
+function getCartCount() {
+    const count = localStorage.getItem(CART_STORAGE_KEY);
+    return parseInt(count) || 0;
+}
+
+/**
+ * Updates the Shopping Bag icon badge with the current cart count.
+ */
+function updateCartBadge() {
+    const count = getCartCount();
+    const badge = document.getElementById('cart-badge');
+    
+    if (badge) {
+        badge.textContent = count;
+        if (count > 0) {
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+}
+
+/**
+ * Simulates clearing the cart and updates the badge.
+ */
+function clearCart() {
+    localStorage.setItem(CART_STORAGE_KEY, '0');
+    updateCartBadge();
+    
+    // Placeholder logic for the cart items container
+    const cartList = document.getElementById('cart-items-list');
+    if (cartList) {
+        cartList.innerHTML = '<div class="text-center py-10 text-gray-500">Your shopping bag is empty. <a href="homepage.html" class="text-ash-red hover:underline font-semibold">Start shopping now!</a></div>';
+    }
+
+    // Update totals to zero
+    document.getElementById('subtotal').textContent = '₦0.00';
+    document.getElementById('shipping-cost').textContent = '₦0.00';
+    document.getElementById('estimated-total').textContent = '₦0.00';
+    
+    // Disable checkout button
+    document.getElementById('checkout-btn').disabled = true;
+    document.getElementById('checkout-btn').classList.remove('bg-ash-red', 'hover:bg-red-700');
+    document.getElementById('checkout-btn').classList.add('bg-gray-400', 'cursor-not-allowed');
+
+    // Show a confirmation message
+    alert('All items removed from your cart. Cart cleared.');
+}
+// ---------------------------------------------------
+
+// --- Quantity Change Function for Cart Items ---
+function changeCartQuantity(itemId, delta) {
+    const input = document.getElementById(`cart-quantity-${itemId}`);
+    let currentValue = parseInt(input.value) || 1;
+    let newValue = currentValue + delta;
+
+    if (newValue < 1) {
+        // If decreasing below 1, simulate item removal or set to 1
+        if (confirm('Are you sure you want to remove this item?')) {
+            // In a real application, you would call an API here to remove the item.
+            removeItemFromCart(itemId);
+            return;
+        } else {
+             newValue = 1; // Prevent going below 1 if user cancels removal
+        }
+    }
+    
+    input.value = newValue;
+    // In a real application, call an API to update item quantity in the session/database
+    console.log(`Updated item ${itemId} quantity to ${newValue}`);
+    
+    // Re-calculate totals (Placeholder function call)
+    updateCartSummary();
+}
+
+// --- Item Removal Function ---
+function removeItemFromCart(itemId) {
+    const itemElement = document.getElementById(`cart-item-${itemId}`);
+    if (itemElement) {
+        itemElement.remove();
+        console.log(`Item ${itemId} removed from cart.`);
+        
+        // Decrement the global cart count (Placeholder logic)
+        let currentCount = getCartCount();
+        let newCount = currentCount > 0 ? currentCount - 1 : 0;
+        localStorage.setItem(CART_STORAGE_KEY, newCount.toString());
+        
+        // Update the badge and summary
+        updateCartBadge();
+        updateCartSummary(); 
+    }
+}
+
+// --- Cart Summary & Total Update (Placeholder) ---
+function updateCartSummary() {
+    // In a real app, this would fetch the cart state from the API, 
+    // but here we use placeholder values based on presence of items.
+    const cartList = document.getElementById('cart-items-list');
+    const hasItems = cartList.children.length > 0 && cartList.children[0].id.startsWith('cart-item-');
+    
+    const subtotal = 45000; // Placeholder value
+    const shipping = 5000;  // Placeholder value
+    const total = subtotal + shipping;
+    
+    const currencySymbol = '₦';
+
+    document.getElementById('subtotal').textContent = hasItems ? `${currencySymbol}${subtotal.toLocaleString()}` : `${currencySymbol}0.00`;
+    document.getElementById('shipping-cost').textContent = hasItems ? `${currencySymbol}${shipping.toLocaleString()}` : `${currencySymbol}0.00`;
+    document.getElementById('estimated-total').textContent = hasItems ? `${currencySymbol}${total.toLocaleString()}` : `${currencySymbol}0.00`;
+
+    const checkoutBtn = document.getElementById('checkout-btn');
+    if (hasItems) {
+         checkoutBtn.disabled = false;
+         checkoutBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+         checkoutBtn.classList.add('bg-ash-red', 'hover:bg-red-700');
+    } else {
+         checkoutBtn.disabled = true;
+         checkoutBtn.classList.remove('bg-ash-red', 'hover:bg-red-700');
+         checkoutBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+    }
+}
+
+
+// --- Main Initialization ---
+document.addEventListener('DOMContentLoaded', () => {
+    updateCartBadge();
+    updateCartSummary(); // Initialize totals on load
+});
+</script>
 
 </head>
-<body class="bg-gray-50 text-color-black min-h-screen flex flex-col">
+<body class="bg-gray-50 text-color-black min-h-screen">
 
     <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
@@ -87,7 +237,7 @@ const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
                 onclick="redirectToProfileOrLogin()">
                     <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
                 </button>
-                <a href="cart.html" class="relative p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" aria-label="Shopping Bag">
+                <a href="cart.html" class="relative p-1 sm:p-2 text-ash-dark transition rounded-full" aria-label="Shopping Bag">
                     <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
                     <span id="cart-badge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-ash-red rounded-full hidden">
                         0
@@ -109,56 +259,179 @@ const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
             <a href="useraccount.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Account</a>
         </div>
     </div>
-    
-    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
-        <h1 class="text-3xl sm:text-4xl font-extrabold text-color-black mb-8 sm:mb-12 border-b-2 border-ash-red inline-block pb-2 uppercase tracking-wider">
-            Your Shopping Bag
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-ash-dark mb-8 uppercase tracking-wide">
+            🛒 Your Shopping Bag
         </h1>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+        <div class="lg:grid lg:grid-cols-3 lg:gap-10">
             
-            <div id="cart-items-container" class="lg:col-span-2 bg-color-white p-6 sm:p-8 rounded-lg shadow-lg">
-                <div id="cart-loading-state" class="text-center py-20">
-                    <svg class="animate-spin h-8 w-8 text-ash-red inline-block mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <p class="text-gray-600">Loading your cart...</p>
+            <div class="lg:col-span-2">
+                
+                <div id="cart-items-list" class="bg-white p-4 sm:p-6 rounded-lg shadow-md border border-gray-100 divide-y divide-gray-100">
+                    
+                    <div id="cart-item-1" class="cart-item-card flex py-4 sm:py-6 first:pt-0 last:pb-0">
+                        <div class="flex-shrink-0 w-24 h-24 sm:w-32 sm:h-32 rounded-lg overflow-hidden border border-gray-200">
+                            <img src="https://i.imgur.com/r6s71rL.jpeg" alt="Outflickz Red Logo T-Shirt" class="w-full h-full object-cover object-center">
+                        </div>
+
+                        <div class="ml-4 flex flex-1 flex-col justify-between">
+                            <div class="relative pr-9 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:pr-0">
+                                <div>
+                                    <h3 class="text-sm">
+                                        <a href="#" class="font-semibold text-gray-900 hover:text-ash-red">Outflickz Ash-Red Logo Tee</a>
+                                    </h3>
+                                    <p class="mt-1 text-xs text-gray-500">Color: Black</p>
+                                    <p class="text-xs text-gray-500">Size: M</p>
+                                </div>
+
+                                <p class="mt-1 text-base font-bold text-gray-900 sm:mt-0 text-right sm:text-left">₦15,000.00</p>
+                            </div>
+                            
+                            <div class="flex items-center justify-between mt-3 sm:mt-0">
+                                <div class="flex items-center border border-gray-300 rounded-sm w-fit">
+                                    <button onclick="changeCartQuantity('1', -1)" aria-label="Decrease quantity" class="text-xs text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-l-sm font-semibold">
+                                        &minus;
+                                    </button>
+                                    <input type="number" id="cart-quantity-1" value="1" min="1" max="5" aria-label="Quantity" class="w-6 h-6 sm:w-8 sm:h-8 text-center text-sm border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
+                                    <button onclick="changeCartQuantity('1', 1)" aria-label="Increase quantity" class="text-xs text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-r-sm font-semibold">
+                                        &plus;
+                                    </button>
+                                </div>
+                                
+                                <button onclick="removeItemFromCart('1')" type="button" class="ml-4 text-xs font-medium text-gray-700 hover:text-ash-red transition">
+                                    <i class="fas fa-trash-alt mr-1"></i> Remove
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="cart-item-2" class="cart-item-card flex py-4 sm:py-6 last:pb-0">
+                        <div class="flex-shrink-0 w-24 h-24 sm:w-32 sm:h-32 rounded-lg overflow-hidden border border-gray-200">
+                            <img src="https://i.imgur.com/7bW5vVw.jpeg" alt="Outflickz Dark Grey Cap" class="w-full h-full object-cover object-center">
+                        </div>
+
+                        <div class="ml-4 flex flex-1 flex-col justify-between">
+                            <div class="relative pr-9 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:pr-0">
+                                <div>
+                                    <h3 class="text-sm">
+                                        <a href="#" class="font-semibold text-gray-900 hover:text-ash-red">Outflickz Signature Snapback</a>
+                                    </h3>
+                                    <p class="mt-1 text-xs text-gray-500">Color: Dark Grey</p>
+                                    <p class="text-xs text-gray-500">Size: One Size</p>
+                                </div>
+
+                                <p class="mt-1 text-base font-bold text-gray-900 sm:mt-0 text-right sm:text-left">₦10,000.00</p>
+                            </div>
+                            
+                            <div class="flex items-center justify-between mt-3 sm:mt-0">
+                                <div class="flex items-center border border-gray-300 rounded-sm w-fit">
+                                    <button onclick="changeCartQuantity('2', -1)" aria-label="Decrease quantity" class="text-xs text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-l-sm font-semibold">
+                                        &minus;
+                                    </button>
+                                    <input type="number" id="cart-quantity-2" value="2" min="1" max="5" aria-label="Quantity" class="w-6 h-6 sm:w-8 sm:h-8 text-center text-sm border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
+                                    <button onclick="changeCartQuantity('2', 1)" aria-label="Increase quantity" class="text-xs text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-r-sm font-semibold">
+                                        &plus;
+                                    </button>
+                                </div>
+                                
+                                <button onclick="removeItemFromCart('2')" type="button" class="ml-4 text-xs font-medium text-gray-700 hover:text-ash-red transition">
+                                    <i class="fas fa-trash-alt mr-1"></i> Remove
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="cart-item-3" class="cart-item-card flex py-4 sm:py-6 last:pb-0">
+                        <div class="flex-shrink-0 w-24 h-24 sm:w-32 sm:h-32 rounded-lg overflow-hidden border border-gray-200">
+                            <img src="https://i.imgur.com/rO9T1wU.jpeg" alt="Outflickz Dark Blue Hoodie" class="w-full h-full object-cover object-center">
+                        </div>
+
+                        <div class="ml-4 flex flex-1 flex-col justify-between">
+                            <div class="relative pr-9 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:pr-0">
+                                <div>
+                                    <h3 class="text-sm">
+                                        <a href="#" class="font-semibold text-gray-900 hover:text-ash-red">Outflickz Heavyweight Hoodie</a>
+                                    </h3>
+                                    <p class="mt-1 text-xs text-gray-500">Color: Ash Blue</p>
+                                    <p class="text-xs text-gray-500">Size: L</p>
+                                </div>
+
+                                <p class="mt-1 text-base font-bold text-gray-900 sm:mt-0 text-right sm:text-left">₦20,000.00</p>
+                            </div>
+                            
+                            <div class="flex items-center justify-between mt-3 sm:mt-0">
+                                <div class="flex items-center border border-gray-300 rounded-sm w-fit">
+                                    <button onclick="changeCartQuantity('3', -1)" aria-label="Decrease quantity" class="text-xs text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-l-sm font-semibold">
+                                        &minus;
+                                    </button>
+                                    <input type="number" id="cart-quantity-3" value="1" min="1" max="5" aria-label="Quantity" class="w-6 h-6 sm:w-8 sm:h-8 text-center text-sm border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
+                                    <button onclick="changeCartQuantity('3', 1)" aria-label="Increase quantity" class="text-xs text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-r-sm font-semibold">
+                                        &plus;
+                                    </button>
+                                </div>
+                                
+                                <button onclick="removeItemFromCart('3')" type="button" class="ml-4 text-xs font-medium text-gray-700 hover:text-ash-red transition">
+                                    <i class="fas fa-trash-alt mr-1"></i> Remove
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                </div>
+                
+                <div class="mt-6 flex justify-between items-center bg-white p-4 sm:p-6 rounded-lg shadow-md border border-gray-100">
+                    <button onclick="clearCart()" class="text-xs sm:text-sm font-semibold text-ash-red hover:text-red-700 transition">
+                        <i class="fas fa-trash-alt mr-1"></i> Clear Shopping Bag
+                    </button>
+                    <p class="text-sm sm:text-base text-gray-700">Continue Shopping at <a href="homepage.html" class="font-semibold text-ash-dark hover:text-ash-red">Outflickz</a></p>
                 </div>
             </div>
 
-            <div id="cart-summary" class="lg:col-span-1 bg-color-white p-6 sm:p-8 rounded-lg shadow-lg h-fit sticky top-20 hidden">
-                <h2 class="text-xl font-bold text-color-black mb-6 border-b pb-3">Order Summary</h2>
-                
-                <div class="space-y-4 text-gray-700">
-                    <div class="flex justify-between text-sm">
-                        <span>Subtotal (<span id="item-count">0</span> items)</span>
-                        <span id="cart-subtotal" class="font-medium">$0.00</span>
-                    </div>
-                    <div class="flex justify-between text-sm">
-                        <span>Shipping Estimate</span>
-                        <span id="cart-shipping" class="font-medium">$7.99</span>
-                    </div>
-                    <div id="free-shipping-note" class="text-xs text-green-600 hidden">
-                        🥳 You qualify for **FREE SHIPPING**!
-                    </div>
-                    <div class="flex justify-between pt-4 border-t border-gray-200 text-lg font-extrabold text-color-black">
-                        <span>Order Total</span>
-                        <span id="cart-total">$0.00</span>
-                    </div>
-                </div>
+            <div class="mt-8 lg:mt-0 lg:col-span-1">
+                <div class="bg-color-white p-6 rounded-lg shadow-xl border border-gray-100 sticky top-20">
+                    <h2 class="text-xl font-bold text-ash-dark mb-6">Order Summary</h2>
 
-                <button class="mt-8 w-full bg-ash-red text-white hover:bg-red-700 transition duration-300 font-bold py-3 px-6 rounded-md shadow-lg uppercase text-sm tracking-widest">
-                    Proceed to Checkout
-                </button>
-                <div class="mt-4 text-center text-xs text-gray-500">
-                    Shipping is calculated as $7.99 or free on orders over $100.
+                    <div class="space-y-4">
+                        <div class="flex justify-between text-sm text-gray-700">
+                            <span>Subtotal</span>
+                            <span id="subtotal" class="font-semibold">₦0.00</span>
+                        </div>
+                        <div class="flex justify-between text-sm text-gray-700">
+                            <span>Shipping Estimate</span>
+                            <span id="shipping-cost" class="font-semibold">₦0.00</span>
+                        </div>
+                        <div class="flex justify-between text-sm text-gray-700 border-t border-gray-200 pt-4">
+                            <span>Tax Estimate (5%)</span>
+                            <span class="font-semibold">₦2,250.00</span>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-gray-300 pt-4 mt-6 flex justify-between items-center">
+                        <p class="text-lg font-bold text-ash-dark">Estimated Total</p>
+                        <p id="estimated-total" class="text-xl font-extrabold text-ash-red">₦0.00</p>
+                    </div>
+
+                    <p class="text-xs text-gray-500 mt-2 text-right">Taxes and shipping calculated at checkout.</p>
+
+                    <button id="checkout-btn" class="mt-6 w-full bg-ash-red text-white hover:bg-red-700 transition duration-300 font-semibold py-3 rounded-sm shadow-md uppercase tracking-widest text-sm" onclick="alert('Proceeding to checkout...');" disabled>
+                        Proceed to Checkout
+                    </button>
+                    
+                    <div class="mt-6 border-t border-gray-100 pt-6">
+                        <h3 class="text-sm font-semibold text-ash-dark mb-3">Estimated Delivery</h3>
+                        <div class="flex items-center text-sm text-gray-700">
+                            <i class="fas fa-truck text-lg text-green-600 mr-3"></i>
+                            <p>Standard Shipping: **3 - 5 business days**</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </main>
-
-    <footer class="bg-gray-900 text-gray-300 py-10 sm:py-14 border-t border-gray-800 mt-auto">
+    
+    <footer class="bg-gray-900 text-gray-300 py-10 sm:py-14 border-t border-gray-800 mt-12">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
                 
@@ -219,349 +492,13 @@ const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
             </div>
         </div>
     </footer>
-
+    
     <a href="https://wa.me/2347042882706?text=HELLO!%20WELCOME%20TO%20OUTFLICKZ!%20HOW%20CAN%20WE%20HELP%20YOU" 
         target="_blank" 
         class="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-3 sm:p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105" 
         aria-label="Chat with us on WhatsApp">
         <i class="fab fa-whatsapp text-2xl sm:text-3xl"></i>
     </a>
-
-    <script>
-        // --- CONSTANTS (Updated to use the real AUTH token) ---
-        const API_BASE_URL = 'https://outflickz.netlify.app'; 
-        // Get the real user token from localStorage
-        const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken'); 
-        
-        // Internal state for the cart data (replaces DOM scraping)
-        let CART_ITEMS = []; 
-
-        // --- UTILITY FUNCTIONS ---
-
-        // Helper to format currency
-        function formatCurrency(amount) {
-            return `$${amount.toFixed(2)}`;
-        }
-
-        // --- CART RENDERING FUNCTIONS ---
-        
-        // Function to create the HTML structure for a single cart item
-        function createCartItemHTML(item) {
-            const itemTotal = item.price * item.quantity;
-            
-            // NOTE: The ID and quantity input are now linked to the item's unique ID and size variant.
-            return `
-                <div id="cart-item-${item.id}-${item.size}" class="flex items-center border-b py-4 sm:py-6 last:border-b-0">
-                    
-                    <div class="flex-shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden border border-gray-100 mr-4 sm:mr-6">
-                        <img src="${item.image_url}" alt="${item.name}" class="w-full h-full object-cover">
-                    </div>
-
-                    <div class="flex-grow min-w-0">
-                        <h3 class="text-base sm:text-lg font-bold text-ash-dark truncate">${item.name}</h3>
-                        <p class="text-sm text-gray-500 mt-1">
-                            <span class="font-semibold text-gray-700">Size:</span> ${item.size.toUpperCase()}
-                        </p>
-                        <p class="text-base font-semibold text-ash-red mt-1 sm:hidden item-unit-price" data-price="${item.price.toFixed(2)}">${formatCurrency(item.price)}</p>
-                    </div>
-
-                    <div class="flex items-center space-x-2 mx-4 sm:mx-6">
-                        <label for="quantity-${item.id}-${item.size}" class="sr-only">Quantity</label>
-                        <button onclick="updateCartItemQuantity('${item.id}', '${item.size}', -1)" 
-                            class="w-6 h-6 sm:w-8 sm:h-8 border border-gray-300 text-gray-700 rounded-full hover:bg-gray-100 transition flex items-center justify-center text-base p-1" aria-label="Decrease quantity">
-                            <i class="fas fa-minus text-xs"></i>
-                        </button>
-                        <input id="quantity-${item.id}-${item.size}" 
-                            type="number" 
-                            min="1" 
-                            value="${item.quantity}" 
-                            data-item-id="${item.id}"
-                            data-item-size="${item.size}"
-                            onchange="handleManualQuantityChange(this)"
-                            class="w-10 sm:w-12 text-center text-sm font-semibold border border-gray-300 rounded-md focus:ring-ash-red focus:border-ash-red p-1">
-                        <button onclick="updateCartItemQuantity('${item.id}', '${item.size}', 1)" 
-                            class="w-6 h-6 sm:w-8 sm:h-8 border border-gray-300 text-gray-700 rounded-full hover:bg-gray-100 transition flex items-center justify-center text-base p-1" aria-label="Increase quantity">
-                            <i class="fas fa-plus text-xs"></i>
-                        </button>
-                    </div>
-
-                    <div class="flex flex-col items-end min-w-[5rem] space-y-2">
-                        <p id="item-total-${item.id}-${item.size}" class="text-lg font-bold text-color-black hidden sm:block">
-                            ${formatCurrency(itemTotal)}
-                        </p>
-                        <button onclick="removeCartItem('${item.id}', '${item.size}')" 
-                            class="text-gray-400 hover:text-ash-red transition text-sm flex items-center" aria-label="Remove item">
-                            <i class="fas fa-trash-alt mr-1 text-xs"></i> Remove
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
-
-        // --- CART LOGIC FUNCTIONS (AUTHENTICATED) ---
-        
-        /**
-         * Fetches cart data from the API using the USER_AUTH_TOKEN.
-         * @returns {Array} An array of cart items.
-         */
-        async function fetchCartData() {
-            if (!USER_AUTH_TOKEN) {
-                console.warn("User not authenticated. Cart may be empty or unauthorized.");
-                // In a real app, this should redirect to login: window.location.href = 'login.html';
-                return [];
-            }
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/cart`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${USER_AUTH_TOKEN}`,
-                        'Content-Type': 'application/json',
-                    }
-                });
-
-                if (response.status === 401) {
-                    console.error("Token unauthorized or expired.");
-                    // window.location.href = 'login.html';
-                    return [];
-                }
-
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch cart data. Status: ${response.status}`);
-                }
-                
-                // Assuming the API returns an array of cart items (product_id, name, price, quantity, size, image_url)
-                return await response.json(); 
-            } catch (error) {
-                console.error('API Error fetching cart:', error);
-                // Return an empty array on error to prevent rendering broken data
-                return []; 
-            }
-        }
-
-        /**
-         * Renders all cart items and updates the summary panel.
-         */
-        async function renderCart() {
-            const container = document.getElementById('cart-items-container');
-            const summary = document.getElementById('cart-summary');
-            const loadingState = document.getElementById('cart-loading-state');
-
-            // Show loading state and clear previous content
-            if(loadingState) {
-                container.innerHTML = ''; // Clear previous content
-                container.appendChild(loadingState);
-                loadingState.classList.remove('hidden');
-            }
-            summary.classList.add('hidden'); // Hide summary until data is loaded
-
-            try {
-                // Fetch the real data from the authenticated API
-                CART_ITEMS = await fetchCartData();
-                
-                // Hide loading state
-                if(loadingState) loadingState.classList.add('hidden');
-                container.innerHTML = ''; // Final clear before rendering content
-                
-                if (CART_ITEMS && CART_ITEMS.length > 0) {
-                    summary.classList.remove('hidden');
-
-                    let subtotal = 0;
-                    let totalItems = 0;
-                    
-                    CART_ITEMS.forEach(item => {
-                        container.innerHTML += createCartItemHTML(item);
-                        subtotal += item.price * item.quantity;
-                        totalItems += item.quantity;
-                    });
-
-                    updateCartSummary(subtotal, totalItems);
-
-                } else {
-                    // Empty cart state
-                    summary.classList.add('hidden');
-                    container.innerHTML = `
-                        <div class="text-center py-20 text-gray-600">
-                            <i class="fas fa-shopping-bag text-6xl mb-4 text-gray-300"></i>
-                            <p class="text-xl font-semibold mb-2">Your Bag Is Empty</p>
-                            <p>Looks like you haven't added any items yet.</p>
-                            <a href="homepage.html" class="mt-6 inline-block bg-ash-dark text-white hover:bg-gray-700 py-2 px-6 rounded-md transition text-sm font-medium">
-                                Start Shopping
-                            </a>
-                        </div>
-                    `;
-                    updateCartBadge(0);
-                }
-            } catch (error) {
-                console.error('Error rendering cart:', error);
-                container.innerHTML = `<p class="text-center text-red-600 py-20 font-semibold">Error loading cart items. Please try again.</p>`;
-                summary.classList.add('hidden');
-                updateCartBadge(0);
-            }
-        }
-
-        // Function to update the summary panel and badge
-        function updateCartSummary(subtotal, totalItems) {
-            const shippingCost = subtotal >= 100 ? 0.00 : 7.99;
-            const orderTotal = subtotal + shippingCost;
-
-            document.getElementById('item-count').textContent = totalItems;
-            document.getElementById('cart-subtotal').textContent = formatCurrency(subtotal);
-            document.getElementById('cart-shipping').textContent = shippingCost === 0.00 ? 'FREE' : formatCurrency(shippingCost);
-            document.getElementById('cart-total').textContent = formatCurrency(orderTotal);
-            
-            const freeShippingNote = document.getElementById('free-shipping-note');
-            if (shippingCost === 0.00) {
-                freeShippingNote.classList.remove('hidden');
-            } else {
-                freeShippingNote.classList.add('hidden');
-            }
-
-            updateCartBadge(totalItems);
-        }
-
-        // Function to update the cart badge in the header
-        function updateCartBadge(count) {
-            const badge = document.getElementById('cart-badge');
-            if (count > 0) {
-                badge.textContent = count;
-                badge.classList.remove('hidden');
-            } else {
-                badge.classList.add('hidden');
-            }
-        }
-
-        // --- INTERACTION HANDLERS (REAL API) ---
-
-        /**
-         * Sends an API request to update the quantity of a cart item.
-         */
-        async function updateCartItemQuantity(itemId, itemSize, change) {
-            const input = document.getElementById(`quantity-${itemId}-${itemSize}`);
-            const currentQuantity = parseInt(input.value) || 0;
-            let newQuantity = currentQuantity + change;
-
-            if (newQuantity < 1) {
-                // If attempting to decrease below 1, treat as a remove action
-                if (newQuantity === 0) {
-                    removeCartItem(itemId, itemSize);
-                    return;
-                }
-                // Don't allow quantity less than 1
-                newQuantity = 1;
-            }
-
-            // Optimistic update (optional)
-            input.value = newQuantity; 
-            
-            // API Call to update quantity
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/cart/${itemId}`, {
-                    method: 'PATCH', // Use PATCH/PUT to update existing item
-                    headers: {
-                        'Authorization': `Bearer ${USER_AUTH_TOKEN}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        quantity: newQuantity,
-                        size: itemSize // Necessary for product variants
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to update cart item quantity.');
-                }
-
-                // Refresh the entire cart/summary from the backend's source of truth
-                await renderCart(); 
-                
-            } catch (error) {
-                console.error('Quantity update failed:', error);
-                alert('Failed to update cart quantity. Please try again.');
-                // Revert UI change on failure
-                input.value = currentQuantity; 
-                await renderCart(); // Force re-render from backend to ensure synchronization
-            }
-        }
-
-        /**
-         * Sends an API request to remove a cart item.
-         */
-        async function removeCartItem(itemId, itemSize) {
-            if (!confirm('Are you sure you want to remove this item from your cart?')) {
-                return;
-            }
-
-            // API Call to remove item
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/cart/${itemId}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${USER_AUTH_TOKEN}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        size: itemSize // Necessary for identifying the specific variant to remove
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to remove cart item.');
-                }
-
-                // Refresh the entire cart after successful removal
-                await renderCart(); 
-            } catch (error) {
-                console.error('Item removal failed:', error);
-                alert('Failed to remove item. Please try again.');
-            }
-        }
-
-        /**
-         * Handles manual input change on the quantity field.
-         */
-        function handleManualQuantityChange(inputElement) {
-            let newQuantity = parseInt(inputElement.value);
-            const itemId = inputElement.getAttribute('data-item-id');
-            const itemSize = inputElement.getAttribute('data-item-size');
-
-            if (isNaN(newQuantity) || newQuantity < 1) {
-                newQuantity = 1;
-                inputElement.value = 1;
-            }
-
-            // Find the item's original quantity from the CART_ITEMS state
-            const cartItem = CART_ITEMS.find(item => item.id === itemId && item.size === itemSize);
-            const originalQuantity = cartItem ? cartItem.quantity : 1;
-
-            if (newQuantity !== originalQuantity) {
-                // The new quantity is different, trigger the API update logic
-                const change = newQuantity - originalQuantity;
-                updateCartItemQuantity(itemId, itemSize, change);
-            }
-        }
-        
-        // --- MISC HEADER UTILITIES ---
-        function toggleMenu() {
-            const mobileMenu = document.getElementById('mobile-menu');
-            const isExpanded = mobileMenu.classList.contains('hidden');
-            if (isExpanded) {
-                mobileMenu.classList.remove('hidden');
-            } else {
-                mobileMenu.classList.add('hidden');
-            }
-        }
-        
-        function redirectToProfileOrLogin() {
-            console.log('Redirecting to Profile/Login Page');
-            window.location.href = 'useraccount.html'; 
-        }
-
-        // --- Initialization ---
-        document.addEventListener('DOMContentLoaded', () => {
-            renderCart(); 
-        });
-
-    </script>
+    
 </body>
 </html>

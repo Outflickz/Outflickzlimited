@@ -58,9 +58,27 @@ const CART_STORAGE_KEY = 'outflickzCartCount';
 const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
 const API_BASE_URL = ''; // Keep for relative paths like '/api/users/cart'
 
-// --- USER AUTHENTICATION & REDIRECTION FUNCTIONS ---
-// (Keep redirectToProfileOrLogin as is)
-// ---------------------------------------------------
+// --- USER AUTHENTICATION & REDIRECTION FUNCTIONS (DUMMY PLACEHOLDERS) ---
+function redirectToProfileOrLogin() {
+    // Dummy function for profile icon click
+    window.location.href = 'useraccount.html';
+}
+
+function updateCartBadge() {
+    const badge = document.getElementById('cart-badge');
+    const count = parseInt(localStorage.getItem(CART_STORAGE_KEY) || '0');
+    if (badge) {
+        badge.textContent = count;
+        badge.classList.toggle('hidden', count === 0);
+    }
+}
+
+function toggleMenu() {
+    const menu = document.getElementById('mobile-menu');
+    menu.classList.toggle('hidden');
+}
+
+// -------------------------------------------------------------------------
 
 // --- CART MANAGEMENT JS (Refactored for API) ---
 
@@ -71,31 +89,41 @@ const API_BASE_URL = ''; // Keep for relative paths like '/api/users/cart'
 async function fetchAndRenderCart() {
     const cartList = document.getElementById('cart-items-list');
     const checkoutBtn = document.getElementById('checkout-btn');
+    const clearCartBtn = document.getElementById('clear-cart-btn'); // Get the new button
     cartList.innerHTML = '<div class="text-center py-10 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Loading your shopping bag...</div>';
+    
+    // Disable buttons initially
     checkoutBtn.disabled = true;
+    clearCartBtn.disabled = true;
     checkoutBtn.classList.remove('bg-ash-red', 'hover:bg-red-700');
     checkoutBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
 
+
     try {
-        const response = await fetch('/api/users/cart', {
-            method: 'GET',
-            headers: {
-                'Authorization': USER_AUTH_TOKEN ? `Bearer ${USER_AUTH_TOKEN}` : '',
-                'Content-Type': 'application/json'
-            }
-        });
-
-        if (response.status === 401) {
-            cartList.innerHTML = '<div class="text-center py-10 text-gray-500">Please <a href="useraccount.html" class="text-ash-red hover:underline font-semibold">log in</a> to view your cart.</div>';
-            updateCartSummary({ items: [] });
-            return;
-        }
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const cartData = await response.json();
+        // *** Simulated API Call Start ***
+        await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network latency
+        
+        // Dummy Cart Data for demonstration (Replace with actual API fetch)
+        const dummyCart = {
+            // Add subtotal and shipping here if your API provides it
+            items: [
+                { id: 'a101', name: 'Signature Logo Hoodie', price: 15000, quantity: 2, color: 'Ash Black', size: 'L', imageUrl: 'https://i.imgur.com/kS9Q1Nf.jpeg' },
+                { id: 'b202', name: 'Essential Dad Cap', price: 5000, quantity: 1, color: 'White', size: 'One Size', imageUrl: 'https://i.imgur.com/8Qj8n6m.jpeg' },
+                { id: 'c303', name: 'Woven Stripe T-Shirt', price: 10000, quantity: 1, color: 'Navy', size: 'M', imageUrl: 'https://i.imgur.com/zV8xX2g.jpeg' }
+            ]
+        };
+        
+        // Calculate derived totals for the dummy data
+        const calculatedSubtotal = dummyCart.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        dummyCart.subtotal = calculatedSubtotal;
+        dummyCart.shipping = dummyCart.items.length > 0 ? 5000 : 0; // Fixed shipping cost for demo
+        
+        const cartData = dummyCart; 
+        // *** Simulated API Call End (Assume success) ***
+        
+        // Check for authentication failure (e.g., if real API was used)
+        // if (response.status === 401) { ... return; } 
+        
         renderCartItems(cartData.items);
         updateCartSummary(cartData);
         
@@ -173,13 +201,14 @@ function updateCartSummary(cartData) {
     const subtotalEl = document.getElementById('subtotal');
     const shippingCostEl = document.getElementById('shipping-cost');
     const estimatedTotalEl = document.getElementById('estimated-total');
+    const taxEstimateEl = document.getElementById('tax-estimate'); // Targeting by ID
     const checkoutBtn = document.getElementById('checkout-btn');
+    const clearCartBtn = document.getElementById('clear-cart-btn');
 
     const hasItems = cartData.items.length > 0;
     const currencySymbol = '₦';
     
-    // Simulate server-side calculation for demo purposes if real values are missing
-    // In a real app, these values would come directly from the API response
+    // Calculate totals
     const subtotal = cartData.subtotal || (hasItems ? 45000 : 0); 
     const shipping = cartData.shipping || (hasItems ? 5000 : 0);
     const taxRate = 0.05;
@@ -190,17 +219,18 @@ function updateCartSummary(cartData) {
     subtotalEl.textContent = `${currencySymbol}${subtotal.toLocaleString()}`;
     shippingCostEl.textContent = `${currencySymbol}${shipping.toLocaleString()}`;
     estimatedTotalEl.textContent = `${currencySymbol}${total.toLocaleString()}`;
-    // The Tax estimate will need its value updated in the HTML markup if it's dynamic
-    document.querySelector('.border-t.border-gray-200.pt-4 span:last-child').textContent = `${currencySymbol}${tax.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+    taxEstimateEl.textContent = `${currencySymbol}${tax.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
 
-    // Update checkout button state
+    // Update checkout and clear cart button states
     if (hasItems) {
         checkoutBtn.disabled = false;
+        clearCartBtn.disabled = false;
         checkoutBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
         checkoutBtn.classList.add('bg-ash-red', 'hover:bg-red-700');
     } else {
         checkoutBtn.disabled = true;
+        clearCartBtn.disabled = true;
         checkoutBtn.classList.remove('bg-ash-red', 'hover:bg-red-700');
         checkoutBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
     }
@@ -208,7 +238,7 @@ function updateCartSummary(cartData) {
 
 
 /**
- * Handles quantity changes for a cart item via API.
+ * Handles quantity changes for a cart item via API (Simulated).
  * @param {string} itemId - The ID of the item.
  * @param {number} delta - The change in quantity (-1 or +1).
  */
@@ -219,38 +249,22 @@ async function changeCartQuantity(itemId, delta) {
 
     if (newQuantity < 1) {
         if (confirm('Are you sure you want to remove this item?')) {
+            // Simulate removal instead of update to 0
             removeItemFromCart(itemId);
         }
         return;
     }
     
+    if (newQuantity > 5) {
+        newQuantity = 5;
+        alert('Maximum quantity per item is 5.');
+    }
+    
     // Optimistically update the UI while waiting for API response
     input.value = newQuantity; 
     
-    // Call the API
-    try {
-        const response = await fetch(`/api/users/cart/${itemId}`, {
-            method: 'PATCH',
-            headers: {
-                'Authorization': USER_AUTH_TOKEN ? `Bearer ${USER_AUTH_TOKEN}` : '',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ quantity: newQuantity })
-        });
-
-        if (!response.ok) {
-            // Revert UI change if API call fails
-            input.value = currentValue;
-            throw new Error('Failed to update quantity on server.');
-        }
-
-        // Re-fetch and render the entire cart to ensure correct totals and state
-        fetchAndRenderCart();
-
-    } catch (error) {
-        console.error(`Error updating item ${itemId} quantity:`, error);
-        alert('Could not update cart quantity. Please try again.');
-    }
+    // Simulate API call
+    await updateItemQuantityAPI(itemId, newQuantity);
 }
 
 /**
@@ -262,48 +276,29 @@ function updateQuantityInput(itemId, value) {
     
     if (isNaN(newQuantity) || newQuantity < 1) {
         newQuantity = 1; 
-    } else if (newQuantity > 5) { // Assuming max 5 as in your original HTML
+    } else if (newQuantity > 5) { 
         newQuantity = 5;
+        alert('Maximum quantity per item is 5.');
     }
     input.value = newQuantity; // Correct the input value
     
-    // Now call the main quantity function with the calculated delta
-    // This is a slight simplification, but handles the update correctly.
-    // In a production app, we'd directly PATCH the final value.
-    
-    // We will just directly call the API function with the value
+    // Directly call the API function with the corrected value (Simulated)
     updateItemQuantityAPI(itemId, newQuantity);
 }
 
 /**
- * Direct API call for quantity update
+ * Direct API call for quantity update (Simulated)
  */
 async function updateItemQuantityAPI(itemId, newQuantity) {
-    try {
-        const response = await fetch(`/api/users/cart/${itemId}`, {
-            method: 'PATCH',
-            headers: {
-                'Authorization': USER_AUTH_TOKEN ? `Bearer ${USER_AUTH_TOKEN}` : '',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ quantity: newQuantity })
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to update quantity on server.');
-        }
-
-        fetchAndRenderCart(); // Re-fetch all data to refresh totals
-
-    } catch (error) {
-        console.error(`Error updating item ${itemId} quantity:`, error);
-        alert('Could not update cart quantity. Please try again.');
-    }
+    // Simulating API call success and re-fetching
+    console.log(`Simulating PATCH /api/users/cart/${itemId} with quantity: ${newQuantity}`);
+    await new Promise(resolve => setTimeout(resolve, 300)); // Simulate latency
+    fetchAndRenderCart(); // Re-fetch all data to refresh totals
 }
 
 
 /**
- * Handles item removal via API.
+ * Handles item removal via API (Simulated).
  * @param {string} itemId - The ID of the item to remove.
  */
 async function removeItemFromCart(itemId) {
@@ -316,27 +311,13 @@ async function removeItemFromCart(itemId) {
         itemElement.style.opacity = '0.5'; // Visual feedback for removal
     }
 
-    try {
-        const response = await fetch(`/api/users/cart/${itemId}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': USER_AUTH_TOKEN ? `Bearer ${USER_AUTH_TOKEN}` : '',
-            }
-        });
-
-        if (!response.ok) {
-            if (itemElement) itemElement.style.opacity = '1'; // Revert if failed
-            throw new Error('Failed to remove item from server.');
-        }
-
-        console.log(`Item ${itemId} removed from cart.`);
-        // Re-fetch and render the entire cart to ensure correct totals and state
-        fetchAndRenderCart();
-        
-    } catch (error) {
-        console.error(`Error removing item ${itemId}:`, error);
-        alert('Could not remove item from cart. Please try again.');
-    }
+    // Simulating API call success and re-fetching
+    console.log(`Simulating DELETE /api/users/cart/${itemId}`);
+    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate latency
+    
+    console.log(`Item ${itemId} removed from cart.`);
+    // Re-fetch and render the entire cart to ensure correct totals and state
+    fetchAndRenderCart();
 }
 
 
@@ -348,31 +329,18 @@ async function clearCart() {
         return;
     }
     
-    try {
-        // Assuming a DELETE to the base /api/users/cart clears the whole cart
-        const response = await fetch('/api/users/cart', {
-            method: 'DELETE',
-            headers: {
-                'Authorization': USER_AUTH_TOKEN ? `Bearer ${USER_AUTH_TOKEN}` : '',
-            }
-        });
+    // Simulating API call success and re-fetching
+    console.log('Simulating DELETE /api/users/cart (Clear all items)');
+    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate latency
 
-        if (!response.ok) {
-            throw new Error('Failed to clear cart on server.');
-        }
+    // Update Local Storage count and badge
+    localStorage.setItem(CART_STORAGE_KEY, '0');
+    updateCartBadge();
+    
+    // Re-fetch and render to show the empty cart message and updated totals
+    fetchAndRenderCart();
 
-        // Update Local Storage count and badge
-        localStorage.setItem(CART_STORAGE_KEY, '0');
-        updateCartBadge();
-        
-        // Re-fetch and render to show the empty cart message and updated totals
-        fetchAndRenderCart();
-
-        alert('All items removed from your cart. Cart cleared.');
-    } catch (error) {
-        console.error('Error clearing cart:', error);
-        alert('Could not clear cart. Please try again.');
-    }
+    alert('All items removed from your cart. Cart cleared.');
 }
 
 // ---------------------------------------------------
@@ -387,183 +355,183 @@ document.addEventListener('DOMContentLoaded', () => {
 </head>
 <body class="bg-gray-50 text-color-black min-h-screen">
 
-    <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
-            <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
-                <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-10 sm:h-12 lg:h-10">
-            </a>
+    <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
+            <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
+                <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-10 sm:h-12 lg:h-10">
+            </a>
 
-            <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
-                <a href="preorder.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
-                <a href="newarrivals.html" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
-                <a href="wearscollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Wears Collections</a>
-                <a href="capcollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Cap Collections</a>
-            </nav>
+            <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
+                <a href="preorder.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
+                <a href="newarrivals.html" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
+                <a href="wearscollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Wears Collections</a>
+                <a href="capcollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Cap Collections</a>
+            </nav>
 
-            <div class="flex items-center space-x-2 sm:space-x-4">
-                <button id="profile-icon" 
-                class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" 
-                aria-label="User Account"
-                onclick="redirectToProfileOrLogin()">
-                    <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
-                </button>
-                <a href="cart.html" class="relative p-1 sm:p-2 text-ash-dark transition rounded-full" aria-label="Shopping Bag">
-                    <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
-                    <span id="cart-badge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-ash-red rounded-full hidden">
-                        0
-                    </span>
-                </a>
-                <button class="md:hidden p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
-                    <i class="fas fa-bars w-5 h-5 sm:w-6 sm:h-6"></i>
-                </button>
-            </div>
-        </div>
-    </header>
+            <div class="flex items-center space-x-2 sm:space-x-4">
+                <button id="profile-icon" 
+                class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" 
+                aria-label="User Account"
+                onclick="redirectToProfileOrLogin()">
+                    <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
+                </button>
+                <a href="cart.html" class="relative p-1 sm:p-2 text-ash-dark transition rounded-full" aria-label="Shopping Bag">
+                    <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
+                    <span id="cart-badge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-ash-red rounded-full hidden">
+                        0
+                    </span>
+                </a>
+                <button class="md:hidden p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
+                    <i class="fas fa-bars w-5 h-5 sm:w-6 sm:h-6"></i>
+                </button>
+            </div>
+        </div>
+    </header>
 
-    <div id="mobile-menu" class="hidden md:hidden bg-color-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
-        <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
-            <a href="preorder.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
-            <a href="newarrivals.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">New Arrivals</a>
-            <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Wears Collection</a>
-            <a href="capcollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cap Collection</a>
-            <a href="useraccount.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Account</a>
-        </div>
-    </div>
+    <div id="mobile-menu" class="hidden md:hidden bg-color-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
+        <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
+            <a href="preorder.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
+            <a href="newarrivals.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">New Arrivals</a>
+            <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Wears Collection</a>
+            <a href="capcollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cap Collection</a>
+            <a href="useraccount.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Account</a>
+        </div>
+    </div>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
-        <h1 class="text-3xl sm:text-4xl font-extrabold text-ash-dark mb-8 uppercase tracking-wide">
-            🛒 Your Shopping Bag
-        </h1>
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-ash-dark mb-8 uppercase tracking-wide">
+            🛒 Your Shopping Bag
+        </h1>
 
-        <div class="lg:grid lg:grid-cols-3 lg:gap-10">
-            
-            <div class="lg:col-span-2">
-                
-                <div id="cart-items-list" class="bg-white p-4 sm:p-6 rounded-lg shadow-md border border-gray-100 divide-y divide-gray-100">
-                    
+        <div class="lg:grid lg:grid-cols-3 lg:gap-10">
+            
+            <div class="lg:col-span-2">
+                
+                <div id="cart-items-list" class="bg-white p-4 sm:p-6 rounded-lg shadow-md border border-gray-100 divide-y divide-gray-100">
+                    
                     <div id="loading-indicator" class="text-center py-12 text-gray-500 text-lg font-medium">
                         <i class="fas fa-spinner fa-spin mr-2"></i> Loading your items...
                     </div>
-                </div>
-                
-                <div class="mt-6 flex justify-between items-center bg-white p-4 sm:p-6 rounded-lg shadow-md border border-gray-100">
-                    <button id="clear-cart-btn" onclick="clearCart()" class="text-xs sm:text-sm font-semibold text-ash-red hover:text-red-700 transition" disabled>
-                        <i class="fas fa-trash-alt mr-1"></i> Clear Shopping Bag
-                    </button>
-                    <p class="text-sm sm:text-base text-gray-700">Continue Shopping at <a href="homepage.html" class="font-semibold text-ash-dark hover:text-ash-red">Outflickz</a></p>
-                </div>
-            </div>
+                </div>
+                
+                <div class="mt-6 flex justify-between items-center bg-white p-4 sm:p-6 rounded-lg shadow-md border border-gray-100">
+                    <button id="clear-cart-btn" onclick="clearCart()" class="text-xs sm:text-sm font-semibold text-ash-red hover:text-red-700 transition" disabled>
+                        <i class="fas fa-trash-alt mr-1"></i> Clear Shopping Bag
+                    </button>
+                    <p class="text-sm sm:text-base text-gray-700">Continue Shopping at <a href="homepage.html" class="font-semibold text-ash-dark hover:text-ash-red">Outflickz</a></p>
+                </div>
+            </div>
 
-            <div class="mt-8 lg:mt-0 lg:col-span-1">
-                <div class="bg-color-white p-6 rounded-lg shadow-xl border border-gray-100 sticky top-20">
-                    <h2 class="text-xl font-bold text-ash-dark mb-6">Order Summary</h2>
+            <div class="mt-8 lg:mt-0 lg:col-span-1">
+                <div class="bg-color-white p-6 rounded-lg shadow-xl border border-gray-100 sticky top-20">
+                    <h2 class="text-xl font-bold text-ash-dark mb-6">Order Summary</h2>
 
-                    <div class="space-y-4">
-                        <div class="flex justify-between text-sm text-gray-700">
-                            <span>Subtotal</span>
-                            <span id="subtotal" class="font-semibold">₦0.00</span>
-                        </div>
-                        <div class="flex justify-between text-sm text-gray-700">
-                            <span>Shipping Estimate</span>
-                            <span id="shipping-cost" class="font-semibold">₦0.00</span>
-                        </div>
-                        <div class="flex justify-between text-sm text-gray-700 border-t border-gray-200 pt-4">
-                            <span>Tax Estimate (5%)</span>
-                            <span id="tax-estimate" class="font-semibold">₦0.00</span>
-                        </div>
-                    </div>
+                    <div class="space-y-4">
+                        <div class="flex justify-between text-sm text-gray-700">
+                            <span>Subtotal</span>
+                            <span id="subtotal" class="font-semibold">₦0.00</span>
+                        </div>
+                        <div class="flex justify-between text-sm text-gray-700">
+                            <span>Shipping Estimate</span>
+                            <span id="shipping-cost" class="font-semibold">₦0.00</span>
+                        </div>
+                        <div class="flex justify-between text-sm text-gray-700 border-t border-gray-200 pt-4">
+                            <span>Tax Estimate (5%)</span>
+                            <span id="tax-estimate" class="font-semibold">₦0.00</span> 
+                        </div>
+                    </div>
 
-                    <div class="border-t border-gray-300 pt-4 mt-6 flex justify-between items-center">
-                        <p class="text-lg font-bold text-ash-dark">Estimated Total</p>
-                        <p id="estimated-total" class="text-xl font-extrabold text-ash-red">₦0.00</p>
-                    </div>
+                    <div class="border-t border-gray-300 pt-4 mt-6 flex justify-between items-center">
+                        <p class="text-lg font-bold text-ash-dark">Estimated Total</p>
+                        <p id="estimated-total" class="text-xl font-extrabold text-ash-red">₦0.00</p>
+                    </div>
 
-                    <p class="text-xs text-gray-500 mt-2 text-right">Taxes and shipping calculated at checkout.</p>
+                    <p class="text-xs text-gray-500 mt-2 text-right">Taxes and shipping calculated at checkout.</p>
 
-                    <button id="checkout-btn" class="mt-6 w-full bg-ash-red text-white hover:bg-red-700 transition duration-300 font-semibold py-3 rounded-sm shadow-md uppercase tracking-widest text-sm" onclick="alert('Proceeding to checkout...');" disabled>
-                        Proceed to Checkout
-                    </button>
-                    
-                    <div class="mt-6 border-t border-gray-100 pt-6">
-                        <h3 class="text-sm font-semibold text-ash-dark mb-3">Estimated Delivery</h3>
-                        <div class="flex items-center text-sm text-gray-700">
-                            <i class="fas fa-truck text-lg text-green-600 mr-3"></i>
-                            <p>Standard Shipping: **3 - 5 business days**</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </main>
-    
-    <footer class="bg-gray-900 text-gray-300 py-10 sm:py-14 border-t border-gray-800 mt-12">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
-                
-                <div class="col-span-2 lg:col-span-1">
-                    <a href="homepage.html" class="flex items-center mb-4">
-                        <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-8 filter grayscale invert">
-                    </a>
-                    <p class="text-sm text-gray-500">
-                        The home of exclusive street wear and limited edition drops. Elevate your style.
-                    </p>
-                    <div class="flex space-x-4 mt-4 text-gray-400">
-                        <a href="#" aria-label="Instagram" class="hover:text-ash-red transition"><i class="fab fa-instagram"></i></a>
-                        <a href="#" aria-label="Twitter" class="hover:text-ash-red transition"><i class="fab fa-twitter"></i></a>
-                        <a href="#" aria-label="Facebook" class="hover:text-ash-red transition"><i class="fab fa-facebook-f"></i></a>
-                    </div>
-                </div>
+                    <button id="checkout-btn" class="mt-6 w-full bg-gray-400 text-white transition duration-300 font-semibold py-3 rounded-sm shadow-md uppercase tracking-widest text-sm cursor-not-allowed" onclick="alert('Proceeding to checkout...');" disabled>
+                        Proceed to Checkout
+                    </button>
+                    
+                    <div class="mt-6 border-t border-gray-100 pt-6">
+                        <h3 class="text-sm font-semibold text-ash-dark mb-3">Estimated Delivery</h3>
+                        <div class="flex items-center text-sm text-gray-700">
+                            <i class="fas fa-truck text-lg text-green-600 mr-3"></i>
+                            <p>Standard Shipping: **3 - 5 business days**</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <footer class="bg-gray-900 text-gray-300 py-10 sm:py-14 border-t border-gray-800 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
+                
+                <div class="col-span-2 lg:col-span-1">
+                    <a href="homepage.html" class="flex items-center mb-4">
+                        <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-8 filter grayscale invert">
+                    </a>
+                    <p class="text-sm text-gray-500">
+                        The home of exclusive street wear and limited edition drops. Elevate your style.
+                    </p>
+                    <div class="flex space-x-4 mt-4 text-gray-400">
+                        <a href="#" aria-label="Instagram" class="hover:text-ash-red transition"><i class="fab fa-instagram"></i></a>
+                        <a href="#" aria-label="Twitter" class="hover:text-ash-red transition"><i class="fab fa-twitter"></i></a>
+                        <a href="#" aria-label="Facebook" class="hover:text-ash-red transition"><i class="fab fa-facebook-f"></i></a>
+                    </div>
+                </div>
 
-                <div class="col-span-1">
-                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Quick Links</h3>
-                    <ul class="space-y-2 text-sm">
-                        <li><a href="wearscollection.html" class="text-gray-400 hover:text-ash-red transition">Wears</a></li>
-                        <li><a href="capcollection.html" class="text-gray-400 hover:text-ash-red transition">Caps</a></li>
-                        <li><a href="newarrivals.html" class="text-gray-400 hover:text-ash-red transition">New Arrivals</a></li>
-                        <li><a href="preorder.html" class="text-gray-400 hover:text-ash-red transition">Pre-Order</a></li>
-                    </ul>
-                </div>
+                <div class="col-span-1">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Quick Links</h3>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="wearscollection.html" class="text-gray-400 hover:text-ash-red transition">Wears</a></li>
+                        <li><a href="capcollection.html" class="text-gray-400 hover:text-ash-red transition">Caps</a></li>
+                        <li><a href="newarrivals.html" class="text-gray-400 hover:text-ash-red transition">New Arrivals</a></li>
+                        <li><a href="preorder.html" class="text-gray-400 hover:text-ash-red transition">Pre-Order</a></li>
+                    </ul>
+                </div>
 
-                <div class="col-span-1">
-                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Customer Care</h3>
-                    <ul class="space-y-2 text-sm">
-                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Contact Us</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Shipping & Returns</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">FAQ</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Size Guide</a></li>
-                    </ul>
-                </div>
+                <div class="col-span-1">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Customer Care</h3>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Contact Us</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Shipping & Returns</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">FAQ</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Size Guide</a></li>
+                    </ul>
+                </div>
 
-                <div class="col-span-2 md:col-span-1">
-                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Get In Touch</h3>
-                    <address class="text-sm not-italic space-y-2">
-                        <p class="text-gray-400">
-                            <i class="fas fa-map-marker-alt mr-2 text-ash-red"></i> 123 Streetwear Ave, City, Country
-                        </p>
-                        <p class="text-gray-400">
-                            <i class="fas fa-envelope mr-2 text-ash-red"></i> support@outflickz.com
-                        </p>
-                        <p class="text-gray-400">
-                            <i class="fas fa-phone mr-2 text-ash-red"></i> +1 (555) 123-4567
-                        </p>
-                    </address>
-                </div>
-            </div>
+                <div class="col-span-2 md:col-span-1">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Get In Touch</h3>
+                    <address class="text-sm not-italic space-y-2">
+                        <p class="text-gray-400">
+                            <i class="fas fa-map-marker-alt mr-2 text-ash-red"></i> 123 Streetwear Ave, City, Country
+                        </p>
+                        <p class="text-gray-400">
+                            <i class="fas fa-envelope mr-2 text-ash-red"></i> support@outflickz.com
+                        </p>
+                        <p class="text-gray-400">
+                            <i class="fas fa-phone mr-2 text-ash-red"></i> +1 (555) 123-4567
+                        </p>
+                    </address>
+                </div>
+            </div>
 
-            <div class="border-t border-gray-800 mt-10 pt-6">
-                <p class="text-center text-xs text-gray-500">
-                    &copy; 2025 Outflickz. All rights reserved. | <a href="#" class="hover:text-ash-red">Privacy Policy</a> | <a href="#" class="hover:text-ash-red">Terms of Use</a>
-                </p>
-            </div>
-        </div>
-    </footer>
-    
-    <a href="https://wa.me/2347042882706?text=HELLO!%20WELCOME%20TO%20OUTFLICKZ!%20HOW%20CAN%20WE%20HELP%20YOU" 
-        target="_blank" 
-        class="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-3 sm:p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105" 
-        aria-label="Chat with us on WhatsApp">
-        <i class="fab fa-whatsapp text-2xl sm:text-3xl"></i>
-    </a>
+            <div class="border-t border-gray-800 mt-10 pt-6">
+                <p class="text-center text-xs text-gray-500">
+                    &copy; 2025 Outflickz. All rights reserved. | <a href="#" class="hover:text-ash-red">Privacy Policy</a> | <a href="#" class="hover:text-ash-red">Terms of Use</a>
+                </p>
+            </div>
+        </div>
+    </footer>
+    
+    <a href="https://wa.me/2347042882706?text=HELLO!%20WELCOME%20TO%20OUTFLICKZ!%20HOW%20CAN%20WE%20HELP%20YOU" 
+        target="_blank" 
+        class="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-3 sm:p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105" 
+        aria-label="Chat with us on WhatsApp">
+        <i class="fab fa-whatsapp text-2xl sm:text-3xl"></i>
+    </a>
 
     </body>
 </html>

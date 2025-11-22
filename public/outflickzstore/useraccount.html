@@ -482,6 +482,28 @@
         }
     }
 
+    // Frontend JavaScript (Simplified)
+async function redirectToProfileOrLogin() {
+    try {
+        // The browser automatically attaches the secure HTTP-only cookie here
+        const response = await fetch('/api/auth/status', {
+            method: 'GET'
+            // Headers object is omitted if using secure cookies
+        });
+
+        if (response.status === 200) {
+            // User is authenticated
+            window.location.href = '/account-profile.html';
+        } else {
+            // Token/Cookie was missing or invalid (401/403 response from middleware)
+            window.location.href = '/login.html';
+        }
+
+    } catch (error) {
+        console.error('Authentication status check failed:', error);
+        window.location.href = '/login.html';
+    }
+}
 
     /**
      * Handles create account form submission and transitions to verification view.

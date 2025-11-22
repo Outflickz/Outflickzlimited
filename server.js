@@ -2617,7 +2617,18 @@ app.post('/api/users/forgot-password', async (req, res) => {
     }
 });
 
-// --- NETLIFY EXPORTS for api.js wrapper ---
+// 4. GET /api/auth/status (Check Authentication Status - Protected)
+app.get('/api/auth/status', verifyUserToken, (req, res) => {
+    // If verifyUserToken successfully executed, it means:
+    // 1. The request had a token/session.
+    // 2. The token/session was valid.
+    // 3. The user is logged in.
+    
+    // We don't need to query the database here.
+    // We just return a success status.
+    res.status(200).json({ message: 'Authenticated', isAuthenticated: true });
+});
+
 module.exports = {
     app,
     mongoose,

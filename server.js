@@ -542,29 +542,28 @@ const OrderSchema = new mongoose.Schema({
 
 const Order = mongoose.models.Order || mongoose.model('Order', OrderSchema);
 
+// Schema for individual items within the cart
 const cartItemSchema = new mongoose.Schema({
-    collectionId: { 
+    // Corresponds to item.id in frontend
+    productId: { 
         type: mongoose.Schema.Types.ObjectId, 
-        ref: 'Collection', // Assuming 'Collection' is a generic parent ref
         required: true 
     },
-    // NEW FIELD: Crucial for linking the item back to the correct inventory model
+    name: { type: String, required: true },
+    
+    // Links back to the correct product model/collection
     productType: { 
         type: String, 
         required: true, 
         enum: ['WearsCollection', 'CapCollection', 'NewArrivals', 'PreOrderCollection'] 
     },
-    name: { type: String, required: true },
     
-    // VARIATION FIELDS: Stored for clarity and order creation
-    variantKey: { // e.g., 'Black-XL'
+    // Used with productId to uniquely identify the variant
+    size: { 
         type: String, 
         required: true 
-    }, 
-    size: { // e.g., 'XL'
-        type: String 
     },
-    color: { // e.g., '#000000'
+    color: { 
         type: String 
     }, 
     
@@ -579,17 +578,19 @@ const cartItemSchema = new mongoose.Schema({
         min: 1, 
         default: 1 
     },
+    // Corresponds to item.image_url in frontend
     imageUrl: { 
         type: String 
     } 
-}, { _id: true }); // Ensure sub-documents have IDs for easy update/removal
+}, { _id: true }); 
 
+// Main Cart Schema
 const cartSchema = new mongoose.Schema({
     userId: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'User', 
         required: true, 
-        unique: true // A user should only have one cart document
+        unique: true 
     },
     items: {
         type: [cartItemSchema],
@@ -780,6 +781,39 @@ async function populateInitialData() {
     } catch (error) {
         console.error('Error during initial data population:', error);
     }
+}
+
+
+const SHIPPING_COST = 3000;
+const TAX_RATE = 0.01;
+
+/**
+ * Calculates cart totals based on the array of items from Mongoose.
+ * @param {Array<Object>} cartItems - The cart.items array from the Mongoose document.
+ * @returns {Object} Calculated totals.
+ */
+function calculateCartTotals(cartItems) {
+    // 1. Calculate Subtotal
+    const subtotal = cartItems.reduce((acc, item) => 
+        acc + (item.price * item.quantity), 0);
+    
+    // 2. Calculate Tax
+    const tax = subtotal * TAX_RATE;
+
+    // 3. Determine Shipping
+    // Only charge shipping if there are items in the cart
+    const shipping = cartItems.length > 0 ? SHIPPING_COST : 0;
+    
+    // 4. Calculate Final Total
+    const estimatedTotal = subtotal + tax + shipping;
+
+    // Format for easy frontend consumption
+    return {
+        subtotal: subtotal,
+        shipping: shipping,
+        tax: tax,
+        estimatedTotal: estimatedTotal,
+    };
 }
 
 // --- EXPRESS CONFIGURATION AND MIDDLEWARE ---
@@ -2696,83 +2730,138 @@ app.get('/api/auth/status', verifyUserToken, (req, res) => {
     res.status(200).json({ message: 'Authenticated', isAuthenticated: true });
 });
 
-// POST /api/cart
-// Adds a new item/variant to the cart or updates quantity if it exists.
-app.post('/api/cart', verifyUserToken, async (req, res) => {
-    // Input: { collectionId, productType, variantKey, quantity, name, price, imageUrl, size, color }
-    const { 
-        collectionId, 
-        productType, 
-        variantKey, 
-        quantity, 
-        name, 
-        price, 
-        imageUrl, 
-        size, 
-        color 
-    } = req.body;
-
-    // 1. Basic Input Validation
-    if (!req.userId) {
-        return res.status(401).json({ message: "Authentication failed. User ID missing." });
-    }
-    if (!collectionId || !productType || !variantKey || !name || !price || !quantity || quantity < 1) {
-        return res.status(400).json({ message: "Missing required item details for cart: collectionId, productType, variantKey, name, price, or quantity." });
-    }
-
-    // Prepare the item data object
-    const newItemData = {
-        collectionId, 
-        productType, 
-        variantKey, 
-        quantity, 
-        name, 
-        price, 
-        imageUrl, 
-        size, 
-        color
-    };
-
+// =========================================================
+// 1. GET /api/users/cart - Retrieve Cart (Protected)
+// =========================================================
+app.get('/api/users/cart', verifyUserToken, async (req, res) => {
     try {
-        // 2. Find the user's cart using the ID set by the middleware
-        let cart = await Cart.findOne({ userId: req.userId });
+        // req.userId is set by verifyUserToken middleware
+        const userId = req.userId;
+        
+        // Find the cart for the user
+        const cart = await Cart.findOne({ userId }).lean();
 
-        // --- Handle New Cart Creation ---
         if (!cart) {
-            cart = await Cart.create({ 
-                userId: req.userId, 
-                items: [newItemData]
+            // If no cart found, return an empty cart structure
+            return res.status(200).json({
+                items: [],
+                ...calculateCartTotals([]),
             });
-            // Return the cart object in a consistent structure
-            return res.status(201).json({ message: "Item added, new cart created.", cart });
         }
+        
+        const totals = calculateCartTotals(cart.items);
 
-        // --- Check for Existing Item (matching product and variant) ---
-        const existingItem = cart.items.find(
-            item => item.collectionId.toString() === collectionId && item.variantKey === variantKey
+        // Respond with the items and calculated totals
+        res.status(200).json({
+            items: cart.items, 
+            ...totals,
+        });
+
+    } catch (error) {
+        console.error('Error fetching cart:', error);
+        res.status(500).json({ message: 'Failed to retrieve shopping bag.' });
+    }
+});
+
+// =========================================================
+// 2. PATCH /api/users/cart/:itemId - Update Quantity (Protected)
+// =========================================================
+app.patch('/api/users/cart/:itemId', verifyUserToken, async (req, res) => {
+    try {
+        const userId = req.userId;
+        // The itemId is the Mongoose _id of the item sub-document
+        const itemId = req.params.itemId; 
+        const { quantity } = req.body;
+
+        const newQuantity = parseInt(quantity);
+        if (isNaN(newQuantity) || newQuantity < 1) {
+            return res.status(400).json({ message: 'Invalid quantity provided.' });
+        }
+        
+        // Find cart by userId and update the specific item's quantity using the positional operator ($)
+        const cart = await Cart.findOneAndUpdate(
+            { userId, 'items._id': itemId },
+            { 
+                '$set': { 
+                    'items.$.quantity': newQuantity, 
+                    'updatedAt': Date.now() 
+                } 
+            },
+            { new: true } // Return the updated document
         );
 
-        if (existingItem) {
-            // 3. If it exists, update the quantity (and possibly price/image for freshness)
-            existingItem.quantity += quantity;
-            existingItem.price = price; 
-            existingItem.imageUrl = imageUrl;
-            
-        } else {
-            // 4. If it doesn't exist, push a new item to the array
-            cart.items.push(newItemData);
+        if (!cart) {
+            return res.status(404).json({ message: 'Item not found in your cart.' });
         }
 
-        // 5. Save and return the updated cart
-        cart.updatedAt = new Date(); // Update the timestamp
-        await cart.save();
-        
-        // Return the cart object in a consistent structure
-        res.status(200).json({ message: "Cart updated successfully.", cart });
-        
+        res.status(200).json({ message: 'Quantity updated successfully.' });
+
     } catch (error) {
-        console.error("Error processing cart add item:", error);
-        res.status(500).json({ message: "Failed to process request due to a server error." });
+        console.error('Error updating item quantity:', error);
+        res.status(500).json({ message: 'Failed to update item quantity.' });
+    }
+});
+
+// =========================================================
+// 3. DELETE /api/users/cart/:itemId - Remove Single Item (Protected)
+// =========================================================
+app.delete('/api/users/cart/:itemId', verifyUserToken, async (req, res) => {
+    try {
+        const userId = req.userId;
+        const itemId = req.params.itemId;
+
+        // Pull the specific item sub-document from the items array
+        const cart = await Cart.findOneAndUpdate(
+            { userId },
+            { 
+                '$pull': { 
+                    items: { _id: itemId } 
+                },
+                '$set': { 
+                    'updatedAt': Date.now() 
+                } 
+            },
+            { new: true }
+        );
+
+        if (!cart) {
+            return res.status(404).json({ message: 'Cart not found.' });
+        }
+
+        res.status(200).json({ message: 'Item removed successfully.' });
+
+    } catch (error) {
+        console.error('Error removing item:', error);
+        res.status(500).json({ message: 'Failed to remove item.' });
+    }
+});
+
+// =========================================================
+// 4. DELETE /api/users/cart - Clear All Items (Protected)
+// =========================================================
+app.delete('/api/users/cart', verifyUserToken, async (req, res) => {
+    try {
+        const userId = req.userId;
+        
+        // Set the entire items array to an empty array
+        const cart = await Cart.findOneAndUpdate(
+            { userId },
+            { 
+                items: [],
+                updatedAt: Date.now() 
+            },
+            { new: true }
+        );
+
+        if (!cart) {
+            return res.status(404).json({ message: 'Cart not found to clear.' });
+        }
+
+        res.status(200).json({ message: 'Shopping bag cleared successfully.' });
+
+    } catch (error) {
+        console.error('Error clearing cart:', error);
+        res.status(500).json({ message: 'Failed to clear shopping bag.' });
     }
 });
 

@@ -207,17 +207,17 @@
                 ? '<span class="absolute top-2 left-2 bg-ash-red text-white text-[0.65rem] font-bold px-2 py-0.5 rounded shadow-lg z-40">OUT OF STOCK</span>'
                 : '';
                 
-            const cartButtonHtml = isOutOfStock
+const cartButtonHtml = isOutOfStock
                 ? `
-                    <button disabled class="flex-1 ${controlTextSize} bg-gray-500 text-white ${controlHeight} rounded-sm font-semibold uppercase tracking-widest flex items-center justify-center cursor-not-allowed opacity-75">
-                        Sold Out
+                    <button disabled class="flex-1 text-xs md:text-sm bg-gray-500 text-white h-6 md:h-7 rounded-sm font-semibold uppercase tracking-widest flex items-center justify-center cursor-not-allowed opacity-75">
+                        Out Of Stock
                     </button>
                 `
                 : `
-                    <button class="flex-1 ${controlTextSize} bg-ash-dark text-white ${controlHeight} rounded-sm hover:bg-ash-red transition font-semibold uppercase tracking-widest flex items-center justify-center">
+                    <button class="flex-1 text-[0.65rem] md:text-xs bg-ash-dark text-white h-6 md:h-7 rounded-sm hover:bg-ash-red transition font-semibold uppercase tracking-widest flex items-center justify-center">
                         Add To Cart
                     </button>
-                     <button class="flex-1 text-xs md:text-sm bg-ash-red text-white h-7 md:h-8 rounded-sm hover:bg-red-700 transition font-semibold uppercase tracking-widest flex items-center justify-center">
+                    <button class="flex-1 text-[0.65rem] md:text-xs bg-ash-red text-white h-6 md:h-7 rounded-sm hover:bg-red-700 transition font-semibold uppercase tracking-widest flex items-center justify-center">
                         Buy Now
                     </button>
                 `;

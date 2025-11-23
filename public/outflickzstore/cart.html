@@ -184,7 +184,7 @@ function renderCartItems(items) {
     }
 
     cartList.innerHTML = items.map(item => `
-        <div id="cart-item-${item.id}" class="cart-item-card flex py-4 sm:py-6 first:pt-0 last:pb-0">
+        <div id="cart-item-${item._id}" class="cart-item-card flex py-4 sm:py-6 first:pt-0 last:pb-0">
             <div class="flex-shrink-0 w-24 h-24 sm:w-32 sm:h-32 rounded-lg overflow-hidden border border-gray-200">
                 <img src="${item.imageUrl}" alt="${item.name}" class="w-full h-full object-cover object-center">
             </div>
@@ -206,16 +206,16 @@ function renderCartItems(items) {
                 
                 <div class="flex items-center justify-between mt-3 sm:mt-4">
                     <div class="flex items-center border border-gray-300 rounded-sm w-fit">
-                        <button onclick="changeCartQuantity('${item.id}', -1)" aria-label="Decrease quantity" class="text-sm text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-l-sm font-semibold">
+                        <button onclick="changeCartQuantity('${item._id}', -1)" aria-label="Decrease quantity" class="text-sm text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-l-sm font-semibold">
                             &minus;
                         </button>
-                        <input type="number" id="cart-quantity-${item.id}" value="${item.quantity}" min="1" max="5" aria-label="Quantity" class="w-8 h-6 sm:w-10 sm:h-8 text-center text-sm border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" onchange="updateQuantityInput('${item.id}', this.value)" />
-                        <button onclick="changeCartQuantity('${item.id}', 1)" aria-label="Increase quantity" class="text-sm text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-r-sm font-semibold">
+                        <input type="number" id="cart-quantity-${item._id}" value="${item.quantity}" min="1" max="5" aria-label="Quantity" class="w-8 h-6 sm:w-10 sm:h-8 text-center text-sm border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" onchange="updateQuantityInput('${item._id}', this.value)" />
+                        <button onclick="changeCartQuantity('${item._id}', 1)" aria-label="Increase quantity" class="text-sm text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-r-sm font-semibold">
                             &plus;
                         </button>
                     </div>
                     
-                    <button onclick="removeItemFromCart('${item.id}')" type="button" class="ml-4 text-xs sm:text-sm font-medium text-gray-700 hover:text-ash-red transition">
+                    <button onclick="removeItemFromCart('${item._id}')" type="button" class="ml-4 text-xs sm:text-sm font-medium text-gray-700 hover:text-ash-red transition">
                         <i class="fas fa-trash-alt mr-1"></i> Remove
                     </button>
                 </div>

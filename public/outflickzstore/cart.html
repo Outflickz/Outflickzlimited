@@ -71,7 +71,43 @@ function redirectToProfileOrLogin() {
 }
 // ---------------------------------------------------
 
-// --- CART MANAGEMENT JS (Refactored for API) ---
+// This function would be called when a user clicks 'Add to Cart' on a product page.
+async function simulateAddToCart(productDetails) {
+    if (!USER_AUTH_TOKEN) {
+        alert('Please log in to add items to your cart.');
+        redirectToProfileOrLogin();
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/users/cart', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${USER_AUTH_TOKEN}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(productDetails)
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            console.log('Item added successfully:', data);
+            // Update local storage and cart badge immediately
+            localStorage.setItem(CART_STORAGE_KEY, data.items.length.toString());
+            updateCartBadge();
+            // Optional: Alert user and redirect them to the cart page
+            // alert('Item added to your shopping bag!');
+            // window.location.href = 'cart.html'; 
+        } else {
+            throw new Error(data.message || 'Failed to add item.');
+        }
+    } catch (error) {
+        console.error('Error in addToCart:', error);
+        alert('Could not add item to cart. Please try logging in again.');
+    }
+}
+// ---------------------------------------------------
 
 /**
  * Renders the entire cart contents and updates the summary.
@@ -189,51 +225,47 @@ function renderCartItems(items) {
 }
 
 
-/**
- * Updates the Cart Summary section (Subtotal, Shipping, Total) based on API data.
- * @param {Object} cartData - Object containing total fields (e.g., { subtotal: 45000, shipping: 5000, items: [...] })
- */
 function updateCartSummary(cartData) {
     const subtotalEl = document.getElementById('subtotal');
     const shippingCostEl = document.getElementById('shipping-cost');
     const estimatedTotalEl = document.getElementById('estimated-total');
     const checkoutBtn = document.getElementById('checkout-btn');
-    const clearCartBtn = document.getElementById('clear-cart-btn'); // Get the clear cart button
-    const taxEstimateEl = document.getElementById('tax-estimate'); // Get the tax estimate span
+    const clearCartBtn = document.getElementById('clear-cart-btn');
+    const taxEstimateEl = document.getElementById('tax-estimate');
+    const taxLabelEl = document.getElementById('tax-label'); // Placeholder for updating tax label
 
     const hasItems = cartData.items.length > 0;
     const currencySymbol = '₦';
     
-    // Simulate server-side calculation for demo purposes if real values are missing
-    // In a real app, these values would come directly from the API response
-    const subtotal = cartData.subtotal || (hasItems ? 45000 : 0); 
-    const shipping = cartData.shipping || (hasItems ? 5000 : 0);
-    const taxRate = 0.05;
-    const tax = subtotal * taxRate;
-    const total = subtotal + shipping + tax; 
+    // Use actual server-side calculated totals from the API response
+    // FALLBACKS ARE REMOVED/CORRECTED to use API data structure
+    const subtotal = cartData.subtotal || 0; 
+    const shipping = cartData.shipping || 0;
+    const tax = cartData.tax || 0; // Use tax value from API (calculated with 1% rate)
+    const total = cartData.estimatedTotal || subtotal + shipping + tax; 
 
     // Update display
     subtotalEl.textContent = `${currencySymbol}${subtotal.toLocaleString()}`;
     shippingCostEl.textContent = `${currencySymbol}${shipping.toLocaleString()}`;
     estimatedTotalEl.textContent = `${currencySymbol}${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-    // Update the Tax estimate value
+    // Correct the Tax estimate value and label to reflect the 1% TAX_RATE in the backend
     taxEstimateEl.textContent = `${currencySymbol}${tax.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-
+    // Optional: Update the label text to reflect the actual rate (1%)
+    // taxLabelEl.textContent = 'Tax Estimate (1%)'; 
 
     // Update checkout button state
     if (hasItems) {
         checkoutBtn.disabled = false;
         checkoutBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
         checkoutBtn.classList.add('bg-ash-red', 'hover:bg-red-700');
-        clearCartBtn.disabled = false; // Enable clear cart button
+        clearCartBtn.disabled = false;
     } else {
         checkoutBtn.disabled = true;
         checkoutBtn.classList.remove('bg-ash-red', 'hover:bg-red-700');
         checkoutBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
-        clearCartBtn.disabled = true; // Disable clear cart button
+        clearCartBtn.disabled = true;
     }
 }
-
 
 /**
  * Handles quantity changes for a cart item via API.

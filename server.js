@@ -2731,6 +2731,76 @@ app.get('/api/auth/status', verifyUserToken, (req, res) => {
 });
 
 // =========================================================
+// 5. POST /api/users/cart - Add Item to Cart (Protected)
+// =========================================================
+app.post('/api/users/cart', verifyUserToken, async (req, res) => {
+    // Expected request body for a new item:
+    const { productId, name, productType, size, color, price, quantity, imageUrl } = req.body;
+    const userId = req.userId;
+
+    // Basic Input Validation
+    if (!productId || !name || !productType || !size || !price || !quantity || price <= 0 || quantity < 1) {
+        return res.status(400).json({ message: 'Missing or invalid item details.' });
+    }
+
+    // New item object based on cartItemSchema (Mongoose automatically assigns _id)
+    const newItem = {
+        productId,
+        name,
+        productType,
+        size,
+        color: color || 'N/A', // Allow color to be optional
+        price,
+        quantity,
+        imageUrl,
+    };
+
+    try {
+        // 1. Find the cart for the user
+        let cart = await Cart.findOne({ userId });
+
+        // 2. If no cart exists, create a new one
+        if (!cart) {
+            cart = await Cart.create({ userId, items: [newItem] });
+            return res.status(201).json({ message: 'Cart created and item added.', cart: cart.items });
+        }
+
+        // 3. Check if the item variant already exists in the cart (same productId, size, and color)
+        const existingItemIndex = cart.items.findIndex(item =>
+            item.productId.equals(productId) &&
+            item.size === size &&
+            item.color === newItem.color
+        );
+
+        if (existingItemIndex > -1) {
+            // Item exists: Update quantity
+            cart.items[existingItemIndex].quantity += quantity;
+            cart.items[existingItemIndex].updatedAt = Date.now();
+        } else {
+            // Item does not exist: Add new item
+            cart.items.push(newItem);
+        }
+
+        // 4. Save the updated cart
+        await cart.save();
+        
+        // Return the current cart contents and totals (optional, but useful for frontend sync)
+        const updatedCart = await Cart.findOne({ userId }).lean();
+        const totals = calculateCartTotals(updatedCart.items);
+
+        res.status(200).json({ 
+            message: 'Item added/quantity updated successfully.', 
+            items: updatedCart.items,
+            ...totals
+        });
+
+    } catch (error) {
+        console.error('Error adding item to cart:', error);
+        res.status(500).json({ message: 'Failed to add item to shopping bag.' });
+    }
+});
+
+// =========================================================
 // 1. GET /api/users/cart - Retrieve Cart (Protected)
 // =========================================================
 app.get('/api/users/cart', verifyUserToken, async (req, res) => {

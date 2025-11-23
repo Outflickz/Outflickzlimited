@@ -11,7 +11,8 @@
     
     <script>
         // Assuming the necessary global constants and functions are available or defined here.
-        const API_BASE_URL = 'https://outflickzltd.netlify.app/api';
+        const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
+        const API_BASE_URL = 'https://outflickzltd.netlify.app';
 
         function redirectToProfileOrLogin() {
             window.location.href = 'useraccount.html';

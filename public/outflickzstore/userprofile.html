@@ -9,135 +9,100 @@
 </head>
 <body class="bg-gray-100 min-h-screen text-color-black">
     
-    <script>
-        // Assuming the necessary global constants and functions are available or defined here.
-        const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
-        const API_BASE_URL = 'https://outflickzltd.netlify.app';
+   <script>
+    // Note: The USER_AUTH_TOKEN constant has been removed as we are now relying
+    // entirely on HTTP-only cookies for authentication, which are inaccessible
+    // to client-side JavaScript but automatically sent by the browser.
+    const API_BASE_URL = 'https://outflickzltd.netlify.app';
 
-        function redirectToProfileOrLogin() {
-            window.location.href = 'useraccount.html';
-        }
-        function toggleMenu() {
-            const mobileMenu = document.getElementById('mobile-menu');
-            mobileMenu.classList.toggle('hidden');
-        }
-
-        function logoutUser() {
-            localStorage.removeItem('outflickzToken');
-            window.location.replace('useraccount.html');
-        }
-
-        function enforceAuthGate() {
-            const mainContent = document.getElementById('main-profile-content');
-            const loadingIndicator = document.getElementById('loading-indicator');
-            
-            if (loadingIndicator) loadingIndicator.classList.remove('hidden');
-            if (mainContent) mainContent.classList.add('hidden');
-
-            if (!USER_AUTH_TOKEN) {
-                window.location.replace('useraccount.html');
-                return;
-            }
-            
-            fetchUserData()
-                .then(() => {
-                    if (loadingIndicator) loadingIndicator.classList.add('hidden');
-                    if (mainContent) mainContent.classList.remove('hidden');
-                })
-                .catch(() => {
-                    console.error('Authentication or Fetch Failed. Redirecting...');
-                    window.location.replace('useraccount.html');
-                });
-        }
-        
-        /**
-         * 🚀 UPDATED: Fetch and display user data using the new schema structure.
-         */
-        /* TEMPORARY DEBUGGING VERSION - DO NOT KEEP IN PRODUCTION */
-async function fetchUserData() {
-    if (!USER_AUTH_TOKEN) {
-        console.error('No token, forcing redirect.');
-        return Promise.reject(new Error('No authentication token found.'));
+    function redirectToProfileOrLogin() {
+        window.location.href = 'useraccount.html';
+    }
+    function toggleMenu() {
+        const mobileMenu = document.getElementById('mobile-menu');
+        mobileMenu.classList.toggle('hidden');
     }
 
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/users/account`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${USER_AUTH_TOKEN}`,
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        // 🚨 CRITICAL DEBUGGING LINE: Log the status
-        console.log(`Fetch Status: ${response.status}`); 
-
-        if (!response.ok) {
-            // Log the error detail and status
-            const errorBody = await response.text();
-            console.error(`Fetch Failed. Status: ${response.status}. Body:`, errorBody);
-
-            if (response.status === 401 || response.status === 403) {
-                localStorage.removeItem('outflickzToken');
-            }
-            // Throw the error, but the parent catch block is modified to handle it.
-            throw new Error(`Auth Failed: ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log('User Data fetched successfully:', data);
-
-        // Continue with DOM population (assuming data structure is correct)...
-        const fullName = `${data.profile.firstName || ''} ${data.profile.lastName || ''}`.trim() || 'Guest User';
-        const emailAddress = data.email || 'Email Not Available'; 
-        const userRole = data.status.role || 'user';
-        const isVerified = data.status.isVerified;
-        const memberSince = new Date(data.membership.memberSince).toLocaleDateString();
-
-        document.getElementById('user-name').textContent = fullName;
-        document.getElementById('user-email').textContent = emailAddress;
-        document.getElementById('user-role').textContent = userRole.toUpperCase();
-        document.getElementById('user-verification').innerHTML = isVerified 
-             ? '<span class="text-green-600 font-bold">Verified <i class="fas fa-check-circle"></i></span>'
-             : '<span class="text-red-600 font-bold">Unverified <i class="fas fa-times-circle"></i></span>';
-        document.getElementById('member-since').textContent = memberSince;
-
-        return data; 
-    } catch (error) {
-        console.error("Fetch user data error:", error);
-        throw error; 
-    }
-}
-
-// 🚨 TEMPORARILY MODIFY enforceAuthGate to stop immediate redirect on crash:
-function enforceAuthGate() {
-    const mainContent = document.getElementById('main-profile-content');
-    const loadingIndicator = document.getElementById('loading-indicator');
-    
-    if (loadingIndicator) loadingIndicator.classList.remove('hidden');
-    if (mainContent) mainContent.classList.add('hidden');
-
-    if (!USER_AUTH_TOKEN) {
+    function logoutUser() {
+        // Clear any possible old local storage item, but the main logout
+        // should also hit a backend endpoint to clear the secure HTTP-only cookie.
+        localStorage.removeItem('outflickzToken');
         window.location.replace('useraccount.html');
-        return;
+    }
+
+    /**
+     * Attempts to fetch user data and redirects to login on failure (401/403).
+     */
+    function enforceAuthGate() {
+        const mainContent = document.getElementById('main-profile-content');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        
+        if (loadingIndicator) loadingIndicator.classList.remove('hidden');
+        if (mainContent) mainContent.classList.add('hidden');
+        
+        // We now rely on the API request to confirm the session status (via cookie).
+        fetchUserData()
+            .then(() => {
+                // SUCCESS: Cookie was valid, profile data retrieved
+                if (loadingIndicator) loadingIndicator.classList.add('hidden');
+                if (mainContent) mainContent.classList.remove('hidden');
+            })
+            .catch((error) => {
+                // FAILURE: API returned 401/403 (invalid cookie) or network error
+                console.error('Session check failed. Redirecting to login.', error);
+                window.location.replace('useraccount.html');
+            });
     }
     
-    fetchUserData()
-        .then(() => {
-            if (loadingIndicator) loadingIndicator.classList.add('hidden');
-            if (mainContent) mainContent.classList.remove('hidden');
-        })
-        .catch((error) => {
-            // 🛑 STOPPED REDIRECT: Log and stop execution to allow inspection!
-            console.error('Authentication or Fetch Failed. Inspect the console for the status code.', error);
-            if (loadingIndicator) loadingIndicator.classList.add('hidden');
-            // Do NOT call window.location.replace('useraccount.html') here temporarily
-        });
-}
+    /**
+     * Fetches user data using the HTTP-only cookie for authorization.
+     */
+    async function fetchUserData() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/users/account`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                // CRITICAL: This ensures the browser automatically attaches the HTTP-only cookie.
+                credentials: 'include' 
+            });
+            
+            console.log(`Fetch Status: ${response.status}`); 
 
-        document.addEventListener('DOMContentLoaded', enforceAuthGate);
-    </script>
-    
+            if (!response.ok) {
+                // If 401 (Unauthorized) or 403 (Forbidden), we treat it as an expired/invalid session.
+                throw new Error(`Authentication Failed: ${response.status} - ${response.statusText}`); 
+            }
+
+            const data = await response.json();
+            console.log('User Data fetched successfully:', data);
+
+            // --- DOM population ---
+            const fullName = `${data.profile.firstName || ''} ${data.profile.lastName || ''}`.trim() || 'Guest User';
+            const emailAddress = data.email || 'Email Not Available'; 
+            const userRole = data.status.role || 'user';
+            const isVerified = data.status.isVerified;
+            const memberSince = new Date(data.membership.memberSince).toLocaleDateString();
+
+            document.getElementById('user-name').textContent = fullName;
+            document.getElementById('user-email').textContent = emailAddress;
+            document.getElementById('user-role').textContent = userRole.toUpperCase();
+            document.getElementById('user-verification').innerHTML = isVerified 
+                ? '<span class="text-green-600 font-bold">Verified <i class="fas fa-check-circle"></i></span>'
+                : '<span class="text-red-600 font-bold">Unverified <i class="fas fa-times-circle"></i></span>';
+            document.getElementById('member-since').textContent = memberSince;
+
+            return data; 
+        } catch (error) {
+            console.error("Fetch user data error:", error);
+            throw error; 
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', enforceAuthGate);
+</script>
+
     <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
             <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">

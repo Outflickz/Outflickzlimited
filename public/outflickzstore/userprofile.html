@@ -53,72 +53,87 @@
         /**
          * 🚀 UPDATED: Fetch and display user data using the new schema structure.
          */
-        async function fetchUserData() {
-            if (!USER_AUTH_TOKEN) {
-                return Promise.reject(new Error('No authentication token found.'));
+        /* TEMPORARY DEBUGGING VERSION - DO NOT KEEP IN PRODUCTION */
+async function fetchUserData() {
+    if (!USER_AUTH_TOKEN) {
+        console.error('No token, forcing redirect.');
+        return Promise.reject(new Error('No authentication token found.'));
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/users/account`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${USER_AUTH_TOKEN}`,
+                'Content-Type': 'application/json'
             }
+        });
+        
+        // 🚨 CRITICAL DEBUGGING LINE: Log the status
+        console.log(`Fetch Status: ${response.status}`); 
 
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/users/account`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${USER_AUTH_TOKEN}`, // CRITICAL: Send the token
-                        'Content-Type': 'application/json'
-                    }
-                });
+        if (!response.ok) {
+            // Log the error detail and status
+            const errorBody = await response.text();
+            console.error(`Fetch Failed. Status: ${response.status}. Body:`, errorBody);
 
-                if (response.status === 404) {
-                     throw new Error('User data not found (404).');
-                }
-
-                if (!response.ok) {
-                    if (response.status === 401 || response.status === 403) {
-                        localStorage.removeItem('outflickzToken');
-                    }
-                    throw new Error(`Failed to fetch user data: ${response.statusText}`);
-                }
-
-                const data = await response.json();
-
-                // --- DATA MAPPING BASED ON NEW SCHEMA ---
-                
-                // Assuming the backend response structure is { id, profile: {firstName, lastName}, status: {role, isVerified}, membership: {...} } 
-                // and that the top-level 'email' is included in the response (a common omission, but necessary for a user profile)
-                
-                // 1. Get the Full Name
-                const fullName = `${data.profile.firstName || ''} ${data.profile.lastName || ''}`.trim() || 'Guest User';
-                
-                // 2. Get the Email (Assuming top-level email is included in the backend response or mapped there)
-                // Note: The backend code snippet didn't explicitly include 'email', but it's vital. 
-                // We'll optimistically use data.email, or fall back to a placeholder.
-                const emailAddress = data.email || 'Email Not Available'; 
-
-                // 3. Get Status and Membership
-                const userRole = data.status.role || 'user';
-                const isVerified = data.status.isVerified;
-                const memberSince = new Date(data.membership.memberSince).toLocaleDateString();
-
-                // 4. Populate the DOM elements
-                document.getElementById('user-name').textContent = fullName;
-                document.getElementById('user-email').textContent = emailAddress;
-                // Add new display fields
-                document.getElementById('user-role').textContent = userRole.toUpperCase();
-                document.getElementById('user-verification').innerHTML = isVerified 
-                    ? '<span class="text-green-600 font-bold">Verified <i class="fas fa-check-circle"></i></span>'
-                    : '<span class="text-red-600 font-bold">Unverified <i class="fas fa-times-circle"></i></span>';
-                document.getElementById('member-since').textContent = memberSince;
-
-
-                // The 'user-phone' field from the original HTML doesn't map to a field 
-                // in the new schema. We'll leave it as 'Not Set' unless you add it to the schema.
-                // document.getElementById('user-phone').textContent = 'Not Set'; 
-
-                return data; 
-            } catch (error) {
-                console.error("Fetch user data error:", error);
-                throw error; 
+            if (response.status === 401 || response.status === 403) {
+                localStorage.removeItem('outflickzToken');
             }
+            // Throw the error, but the parent catch block is modified to handle it.
+            throw new Error(`Auth Failed: ${response.status}`);
         }
+
+        const data = await response.json();
+        console.log('User Data fetched successfully:', data);
+
+        // Continue with DOM population (assuming data structure is correct)...
+        const fullName = `${data.profile.firstName || ''} ${data.profile.lastName || ''}`.trim() || 'Guest User';
+        const emailAddress = data.email || 'Email Not Available'; 
+        const userRole = data.status.role || 'user';
+        const isVerified = data.status.isVerified;
+        const memberSince = new Date(data.membership.memberSince).toLocaleDateString();
+
+        document.getElementById('user-name').textContent = fullName;
+        document.getElementById('user-email').textContent = emailAddress;
+        document.getElementById('user-role').textContent = userRole.toUpperCase();
+        document.getElementById('user-verification').innerHTML = isVerified 
+             ? '<span class="text-green-600 font-bold">Verified <i class="fas fa-check-circle"></i></span>'
+             : '<span class="text-red-600 font-bold">Unverified <i class="fas fa-times-circle"></i></span>';
+        document.getElementById('member-since').textContent = memberSince;
+
+        return data; 
+    } catch (error) {
+        console.error("Fetch user data error:", error);
+        throw error; 
+    }
+}
+
+// 🚨 TEMPORARILY MODIFY enforceAuthGate to stop immediate redirect on crash:
+function enforceAuthGate() {
+    const mainContent = document.getElementById('main-profile-content');
+    const loadingIndicator = document.getElementById('loading-indicator');
+    
+    if (loadingIndicator) loadingIndicator.classList.remove('hidden');
+    if (mainContent) mainContent.classList.add('hidden');
+
+    if (!USER_AUTH_TOKEN) {
+        window.location.replace('useraccount.html');
+        return;
+    }
+    
+    fetchUserData()
+        .then(() => {
+            if (loadingIndicator) loadingIndicator.classList.add('hidden');
+            if (mainContent) mainContent.classList.remove('hidden');
+        })
+        .catch((error) => {
+            // 🛑 STOPPED REDIRECT: Log and stop execution to allow inspection!
+            console.error('Authentication or Fetch Failed. Inspect the console for the status code.', error);
+            if (loadingIndicator) loadingIndicator.classList.add('hidden');
+            // Do NOT call window.location.replace('useraccount.html') here temporarily
+        });
+}
 
         document.addEventListener('DOMContentLoaded', enforceAuthGate);
     </script>

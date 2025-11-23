@@ -2636,6 +2636,7 @@ app.get('/api/users/account', verifyUserToken, async (req, res) => {
         // The structure of the returned user object must match what the frontend expects (profile-view)
         res.status(200).json({
             id: user._id,
+            email: user.email,
             profile: user.profile,
             status: user.status,
             membership: user.membership

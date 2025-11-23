@@ -11,6 +11,7 @@
   "dependencies": {
     "@aws-sdk/s3-request-presigner": "^3.932.0",
     "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
     "dotenv": "^17.2.3",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",

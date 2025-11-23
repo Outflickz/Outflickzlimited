@@ -4,12 +4,69 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User Profile</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     </head>
-<body>
-    <div class="container mx-auto p-8">
-        <h1 class="text-3xl font-bold">Welcome to your Profile!</h1>
-        <p>If you see this page, your login check was successful. 🎉</p>
-        <a href="homepage.html" class="text-blue-500 hover:underline mt-4 block">Go Home</a>
-    </div>
+<body class="bg-gray-100 min-h-screen">
+    
+    <script>
+        // NOTE: If API_BASE_URL is defined in a separate file, you must ensure it's loaded first.
+        // Assuming API_BASE_URL is globally available or you define the full path here.
+        const API_BASE_URL = ''; // Set this if your API is on a different domain
+
+        /**
+         * CRITICAL SECURITY GATE: Enforces redirect immediately on page load
+         * if the user is not authenticated.
+         * This function relies on the browser automatically sending the HTTP-only cookie.
+         */
+        function enforceAuthGate() {
+            // Check the authentication status
+            fetch(`${API_BASE_URL}/api/auth/status`, { method: 'GET' })
+                .then(response => {
+                    if (response.status !== 200) {
+                        // If not authenticated, redirect to the login page
+                        // using replace() to prevent using the back button to view the page
+                        window.location.replace('useraccount.html');
+                    }
+                    // If 200 OK, authentication is successful, the user stays on the page
+                })
+                .catch(error => {
+                    // Treat network failure as unauthenticated/unverified
+                    console.error('Initial Auth Check Failed:', error);
+                    window.location.replace('useraccount.html');
+                });
+        }
+
+        // Execute the security gate check when the page loads
+        document.addEventListener('DOMContentLoaded', enforceAuthGate);
+    </script>
+
+    <header class="bg-white shadow-md py-4">
+        <div class="max-w-7xl mx-auto px-4">
+            <h1 class="text-2xl font-semibold text-gray-800">Your Account</h1>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4 sm:p-8 mt-10 bg-white shadow-lg rounded-lg max-w-2xl">
+        <h2 class="text-3xl font-bold text-gray-900 mb-4">Welcome to your Profile! 🎉</h2>
+        <p class="text-gray-600 mb-6">
+            Your session is active and verified by the server. This secure area is for your personal details and order history.
+        </p>
+        
+        <div class="space-y-4">
+            <div class="p-4 border border-gray-200 rounded-md bg-gray-50">
+                <h3 class="font-bold text-lg text-ash-red">Profile Details</h3>
+                <p class="text-sm text-gray-700">Information loading here...</p>
+            </div>
+            <div class="p-4 border border-gray-200 rounded-md bg-gray-50">
+                <h3 class="font-bold text-lg text-ash-red">Order History</h3>
+                <p class="text-sm text-gray-700">No recent orders found.</p>
+            </div>
+        </div>
+
+        <a href="homepage.html" class="mt-8 inline-block bg-ash-red text-white hover:bg-red-700 transition duration-300 font-semibold py-2 px-6 rounded-sm uppercase text-sm tracking-wider">
+            Go Back to Homepage
+        </a>
+    </main>
+
 </body>
 </html>

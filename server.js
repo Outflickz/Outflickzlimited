@@ -7,6 +7,7 @@ const path = require('path');
 const mongoose = require('mongoose');
 const multer = require('multer');
 const nodemailer = require('nodemailer');
+const cookieParser = require('cookie-parser');
 
 
 // --- BACKBLAZE B2 INTEGRATION (USING AWS SDK v3) ---
@@ -762,7 +763,6 @@ async function populateInitialData() {
     }
 }
 
-
 const SHIPPING_COST = 3000;
 const TAX_RATE = 0.01;
 
@@ -800,6 +800,7 @@ const app = express();
 // Ensure express.json() is used BEFORE the update route, but after the full form route
 // To allow both JSON and multipart/form-data parsing
 app.use(express.json()); 
+app.use(cookieParser());
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -850,20 +851,30 @@ const uploadFields = Array.from({ length: 4 }, (_, i) => [
 // --- USER AUTHENTICATION API ROUTES ---
 
 const verifyUserToken = (req, res, next) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ message: 'Access denied. Please log in.' });
+    // 1. Read the token from the HTTP-only cookie
+    const token = req.cookies.outflickzToken; 
+
+    // 2. Check if the cookie/token exists
+    if (!token) {
+        // Clear the cookie to ensure a clean slate if one was attempted but failed
+        res.clearCookie('outflickzToken');
+        return res.status(401).json({ message: 'Access denied. No session token found.' });
     }
-    const token = authHeader.split(' ')[1];
+
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
-        // Ensure this is a regular user token, not an admin token (optional check)
+        
+        // Ensure this is a regular user token (optional, but good practice)
         if (decoded.role !== 'user') {
              return res.status(403).json({ message: 'Forbidden. Access limited to users.' });
         }
+        
+        // Attach the user ID to the request object for use in subsequent handlers
         req.userId = decoded.id; 
         next();
     } catch (err) {
+        // Token is invalid (expired, tampered, etc.) - Force logout by clearing cookie
+        res.clearCookie('outflickzToken');
         res.status(401).json({ message: 'Invalid or expired session. Please log in again.' });
     }
 };

@@ -480,21 +480,6 @@ function toggleMenu() {
     document.querySelector('[aria-controls="mobile-menu"]').setAttribute('aria-expanded', isExpanded);
 }
 
-// Sample product details to be used by the "Add to Cart" button in the suggested collection
-const sampleProduct = {
-    productId: '66a1a823c6f49635b43a9d45', // Use a valid ObjectId from a product (must match backend Product model)
-    name: 'Outflickz Signature Tee',
-    productType: 'WearsCollection', 
-    size: 'L',
-    color: 'Black',
-    price: 9950.00,
-    quantity: 1,
-    imageUrl: 'https://i.imgur.com/example-tshirt.png' // Replace with a real image URL
-};
-
-
-// ---------------------------------------------------
-
 // --- Main Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
     // Simulate setting the USER_AUTH_TOKEN for testing the logged-in view

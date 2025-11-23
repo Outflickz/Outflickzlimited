@@ -11,255 +11,308 @@
         :focus:not(:focus-visible) {
             outline: none;
         }
-        /* Custom transition for view switching - slightly faster and smoother */
+        /* Custom transition for view switching - smoother, but adjusted for the new layout */
         .view-transition {
-            transition: opacity 0.4s ease-in-out;
-        }
-        /* Hide default clear button for password field in some browsers */
-        input[type=password]::-ms-reveal,
-        input[type=password]::-ms-clear {
-            display: none;
+            transition: opacity 0.4s ease-in-out, transform 0.4s ease-in-out;
         }
 
-        /* Responsive Body Background with Subtle Gradient for Desktop */
+        /* --- 1. NEW BODY/CONTAINER STYLING FOR SPLIT SCREEN --- */
         body {
-            background-color: #f3f4f6; /* bg-gray-100 fallback */
-            background-image: linear-gradient(135deg, #f7f9fb 0%, #eef1f5 100%);
+            /* Clean black/deep gray background for the full canvas */
+            background-color: #1f2937; /* bg-gray-800 */
         }
 
-        /* Enhanced Container Styling */
-        .auth-container {
-            /* Max width remains 448px (max-w-md) to keep it focused */
-            /* Add a subtle 3D lift */
-            box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); 
-            border: 1px solid #e5e7eb; /* border-gray-200 */
+        /* Desktop Container: Grid Layout */
+        @media (min-width: 768px) {
+            .app-container {
+                /* Set up the 2/3 (form) and 1/3 (branding) split */
+                grid-template-columns: 2fr 1fr; /* Form is 2/3, Branding is 1/3 */
+                max-width: 1100px; /* Wider desktop canvas */
+                min-height: 80vh; 
+            }
+        }
+        
+        /* Form Section Styling (Right Side on Desktop) */
+        .form-section {
+            background-color: #ffffff; 
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1); 
+        }
+
+        /* Branding Sidebar Styling (Left Side on Desktop) */
+        .branding-sidebar {
+            background: linear-gradient(135deg, #374151 0%, #111827 100%); /* bg-gray-700 to bg-gray-900 */
         }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4 sm:p-6 md:p-8">
+<body class="min-h-screen flex items-center justify-center p-0 md:p-8">
 
-    <div class="w-full max-w-sm sm:max-w-md bg-white shadow-xl rounded-xl p-6 sm:p-8 md:p-10 auth-container">
+    <div class="app-container w-full h-screen md:h-auto md:grid rounded-xl overflow-hidden">
         
-        <div class="flex flex-col items-center mb-8">
+        <div class="branding-sidebar hidden md:flex flex-col items-center justify-center p-8 text-white order-2">
+            
             <img 
                 src="https://i.imgur.com/1Rxhi9q.jpeg" 
-                alt="Outflickz Logo" 
-                class="w-16 h-auto mb-3 rounded-full shadow-md"
+                alt="Outflickz Background" 
+                class="w-32 h-32 object-cover mb-6 rounded-full border-4 border-white/30 shadow-2xl"
             >
-            <h1 class="text-3xl font-extrabold text-gray-900 tracking-wider">
+            <h2 class="text-4xl font-extrabold mb-3 tracking-widest text-white">
                 OUTFLICKZ
-            </h1>
-            <p id="auth-header" class="text-gray-500 mt-1 text-base sm:text-lg font-medium">Welcome Back</p>
+            </h2>
+            <p class="text-white/80 text-center text-lg font-light max-w-xs">
+                Your Digital Fashion & Movie Hub. Seamless access to exclusive content and styling.
+            </p>
+            <div class="mt-8 space-y-2 text-sm text-white/70">
+                <p>✨ Fast. Secure. Modern.</p>
+                <p>🛒 Cart Sync Included.</p>
+            </div>
         </div>
 
-        <div id="auth-views" class="relative overflow-hidden">
+        <div class="form-section w-full max-w-full md:max-w-none p-6 sm:p-10 lg:p-14 md:order-1 flex flex-col justify-center">
             
-            <div id="login-view" class="view-transition">
-                <form id="login-form" onsubmit="handleLogin(event)">
-                    <div class="mb-4">
-                        <label for="login-email" class="block text-sm font-semibold text-gray-700 mb-1">Email Address</label>
-                        <input type="email" id="login-email" name="email" required 
-                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out placeholder-gray-400"
-                            placeholder="you@example.com"
-                        >
-                    </div>
-                    <div class="mb-6">
-                        <label for="login-password" class="block text-sm font-semibold text-gray-700 mb-1">Password</label>
-                        <div class="relative">
-                            <input type="password" id="login-password" name="password" required 
-                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out pr-16 placeholder-gray-400"
-                                placeholder="••••••••"
-                            >
-                            <button type="button" onclick="togglePasswordVisibility('login-password')" 
-                                class="absolute inset-y-0 right-0 px-3 py-1 my-1 mr-1 text-xs font-medium text-gray-600 bg-gray-200 rounded-lg hover:bg-gray-300 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                id="toggle-login-password"
-                                aria-label="Toggle password visibility"
-                            >
-                                View
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <button type="submit" id="login-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition duration-300 ease-in-out focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-blue-500/50">
-                        Log In
-                    </button>
-                </form>
-
-                <div class="mt-6 text-center text-sm">
-                    <button onclick="showView('forgot')" class="text-blue-600 hover:text-blue-800 transition duration-150 ease-in-out font-medium focus:outline-none focus:underline">
-                        Forgot Password?
-                    </button>
-                    <span class="text-gray-400 mx-2">|</span>
-                    <button onclick="showView('create')" class="text-blue-600 hover:text-blue-800 transition duration-150 ease-in-out font-medium focus:outline-none focus:underline">
-                        Create an Account
-                    </button>
-                </div>
+            <div class="flex flex-col items-center mb-10">
+                <img 
+                    src="https://i.imgur.com/1Rxhi9q.jpeg" 
+                    alt="Outflickz Logo" 
+                    class="w-12 h-auto mb-2 rounded-full shadow-md md:hidden"
+                >
+                <h1 class="text-4xl font-black text-gray-900 tracking-tight">
+                    <span id="auth-header" class="text-gray-900">Sign In</span>
+                </h1>
+                <p class="text-gray-500 mt-2 text-md font-medium">
+                    Welcome Back to Outflickz
+                </p>
             </div>
 
-            <div id="create-view" class="view-transition hidden absolute top-0 w-full opacity-0">
-                <form id="create-form" onsubmit="handleCreateAccount(event)">
-                    
-                    <div class="mb-4 flex space-x-4">
-                        <div class="w-1/2">
-                            <label for="create-firstName" class="block text-sm font-semibold text-gray-700 mb-1">First Name (Optional)</label>
-                            <input type="text" id="create-firstName" name="firstName" 
-                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out placeholder-gray-400"
-                                placeholder="John"
-                            >
-                        </div>
-                        <div class="w-1/2">
-                            <label for="create-lastName" class="block text-sm font-semibold text-gray-700 mb-1">Last Name (Optional)</label>
-                            <input type="text" id="create-lastName" name="lastName" 
-                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out placeholder-gray-400"
-                                placeholder="Doe"
-                            >
-                        </div>
-                    </div>
-
-                    <div class="mb-4">
-                        <label for="create-email" class="block text-sm font-semibold text-gray-700 mb-1">Email Address <span class="text-red-500">*</span></label>
-                        <input type="email" id="create-email" name="email" required 
-                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out placeholder-gray-400"
-                            placeholder="your.new@example.com"
-                        >
-                    </div>
-                    <div class="mb-4">
-                        <label for="create-password" class="block text-sm font-semibold text-gray-700 mb-1">Password <span class="text-red-500">*</span></label>
-                        <div class="relative">
-                            <input type="password" id="create-password" name="password" required 
-                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out pr-16 placeholder-gray-400"
-                                placeholder="Min 8 characters"
-                            >
-                            <button type="button" onclick="togglePasswordVisibility('create-password')" 
-                                class="absolute inset-y-0 right-0 px-3 py-1 my-1 mr-1 text-xs font-medium text-gray-600 bg-gray-200 rounded-lg hover:bg-gray-300 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                id="toggle-create-password"
-                                aria-label="Toggle password visibility"
-                            >
-                                View
-                            </button>
-                        </div>
-                    </div>
-                    <div class="mb-6">
-                        <label for="confirm-password" class="block text-sm font-semibold text-gray-700 mb-1">Confirm Password <span class="text-red-500">*</span></label>
-                        <div class="relative">
-                            <input type="password" id="confirm-password" name="confirmPassword" required 
-                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out pr-16 placeholder-gray-400"
-                                placeholder="Re-enter password"
-                            >
-                            <button type="button" onclick="togglePasswordVisibility('confirm-password')" 
-                                class="absolute inset-y-0 right-0 px-3 py-1 my-1 mr-1 text-xs font-medium text-gray-600 bg-gray-200 rounded-lg hover:bg-gray-300 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                id="toggle-confirm-password"
-                                aria-label="Toggle password visibility"
-                            >
-                                View
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <button type="submit" id="create-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition duration-300 ease-in-out focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-green-500/50">
-                        Create Account
-                    </button>
-                </form>
-
-                <div class="mt-6 text-center text-sm">
-                    <button onclick="showView('login')" class="text-blue-600 hover:text-blue-800 transition duration-150 ease-in-out font-medium focus:outline-none focus:underline">
-                        Back to Login
-                    </button>
-                </div>
-            </div>
-
-            <div id="verify-view" class="view-transition hidden absolute top-0 w-full opacity-0">
-                <form id="verify-form" onsubmit="handleVerification(event)">
-                    <p class="text-sm text-gray-600 mb-6 text-center">
-                        A verification code has been sent to 
-                        <strong id="verify-email-display" class="text-gray-800"></strong>. Please enter the 6-digit code below to activate your account.
-                    </p>
-                    <div class="mb-6">
-                        <label for="verify-code" class="sr-only">Verification Code</label>
-                        <input type="text" id="verify-code" name="code" required minlength="6" maxlength="6"
-                            class="w-full px-4 py-3 text-center text-2xl font-extrabold border-2 border-gray-300 rounded-lg tracking-widest focus:ring-purple-500 focus:border-purple-500 transition duration-150 ease-in-out"
-                            placeholder="000000"
-                            inputmode="numeric"
-                        >
-                    </div>
-                    
-                    <button type="submit" id="verify-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition duration-300 ease-in-out focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-purple-500/50">
-                        Verify Account
-                    </button>
-                </form>
-
-                <div class="mt-6 text-center text-sm">
-                    <button onclick="handleResendCode()" id="resend-btn" class="text-purple-600 hover:text-purple-800 transition duration-150 ease-in-out font-medium focus:outline-none focus:underline">
-                        Resend Code
-                    </button>
-                </div>
-            </div>
-            
-            <div id="forgot-view" class="view-transition hidden absolute top-0 w-full opacity-0">
-                <form id="forgot-form" onsubmit="handleForgotPassword(event)">
-                    <p class="text-sm text-gray-600 mb-6 text-center">
-                        Enter your email address and we'll send you a link to reset your password.
-                    </p>
-                    <div class="mb-6">
-                        <label for="forgot-email" class="block text-sm font-semibold text-gray-700 mb-1">Email Address</label>
-                        <input type="email" id="forgot-email" name="email" required 
-                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out placeholder-gray-400"
-                            placeholder="you@example.com"
-                        >
-                    </div>
-                    
-                    <button type="submit" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition duration-300 ease-in-out focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-yellow-500/50">
-                        Send Reset Link
-                    </button>
-                </form>
-
-                <div class="mt-6 text-center text-sm">
-                    <button onclick="showView('login')" class="text-blue-600 hover:text-blue-800 transition duration-150 ease-in-out font-medium focus:outline-none focus:underline">
-                        Back to Login
-                    </button>
-                </div>
-            </div>
-
-            <div id="profile-view" class="view-transition hidden absolute top-0 w-full opacity-0">
-                <h2 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-3 flex items-center">
-                    <span class="mr-2 text-blue-600">👤</span>Your Profile
-                </h2>
+            <div id="auth-views" class="relative overflow-hidden w-full max-w-md mx-auto">
                 
-                <div id="profile-details">
-                    <div class="space-y-4">
-                        <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg shadow-sm">
-                            <h3 class="font-bold text-blue-800 mb-1">Personal Information</h3>
-                            <p class="text-sm text-gray-600"><span class="font-semibold text-gray-700">ID:</span> <span id="profile-id" class="font-medium">N/A</span></p>
-                            <p class="text-sm text-gray-600"><span class="font-semibold text-gray-700">Email:</span> <span id="profile-email" class="font-medium">N/A</span></p>
-                            <p class="text-sm text-gray-600"><span class="font-semibold text-gray-700">Name:</span> <span id="profile-name" class="font-medium">N/A</span></p>
-                            <p class="text-sm text-gray-600"><span class="font-semibold text-gray-700">Username:</span> <span id="profile-username" class="font-medium">N/A</span></p>
+                <div id="login-view" class="view-transition opacity-100">
+                    <form id="login-form" onsubmit="handleLogin(event)">
+                        <div class="mb-5">
+                            <label for="login-email" class="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
+                            <input type="email" id="login-email" name="email" required 
+                                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition duration-150 ease-in-out placeholder-gray-400 text-gray-800"
+                                placeholder="Enter your registered email"
+                            >
                         </div>
-
-                        <div class="p-4 bg-green-50 border border-green-200 rounded-lg shadow-sm">
-                            <h3 class="font-bold text-green-800 mb-1">Account Status</h3>
-                            <p class="text-sm text-gray-600"><span class="font-semibold text-gray-700">Role:</span> <span id="profile-role" class="font-medium">N/A</span></p>
-                            <p class="text-sm text-gray-600"><span class="font-semibold text-gray-700">Verified:</span> <span id="profile-verified" class="font-medium">N/A</span></p>
+                        <div class="mb-4">
+                            <label for="login-password" class="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+                            <div class="relative">
+                                <input type="password" id="login-password" name="password" required 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition duration-150 ease-in-out pr-16 placeholder-gray-400 text-gray-800"
+                                    placeholder="••••••••"
+                                >
+                                <button type="button" onclick="togglePasswordVisibility('login-password')" 
+                                    class="absolute inset-y-0 right-0 px-3 py-1 my-1 mr-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    id="toggle-login-password"
+                                    aria-label="Toggle password visibility"
+                                >
+                                    View
+                                </button>
+                            </div>
+                            <div class="text-right mt-2">
+                                <button type="button" onclick="showView('forgot')" class="text-sm font-medium text-blue-600 hover:text-blue-800 focus:outline-none focus:underline">
+                                    Forgot Password?
+                                </button>
+                            </div>
                         </div>
                         
-                        <div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg shadow-sm">
-                            <h3 class="font-bold text-yellow-800 mb-1">Membership</h3>
-                            <p class="text-sm text-gray-600"><span class="font-semibold text-gray-700">Member Since:</span> <span id="profile-member-since" class="font-medium">N/A</span></p>
-                            <p class="text-sm text-gray-600"><span class="font-semibold text-gray-700">Last Updated:</span> <span id="profile-last-updated" class="font-medium">N/A</span></p>
-                        </div>
+                        <button type="submit" id="login-btn" class="w-full bg-black hover:bg-gray-800 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg transition duration-300 ease-in-out focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-gray-700/50 mt-4">
+                            Sign In
+                        </button>
+                    </form>
+
+                    <div class="mt-8 text-center text-sm">
+                        <p class="text-gray-600">
+                            Don't have an account? 
+                            <button onclick="showView('create')" class="text-blue-600 hover:text-blue-800 transition duration-150 ease-in-out font-semibold focus:outline-none focus:underline">
+                                Create an Account
+                            </button>
+                        </p>
                     </div>
                 </div>
 
-                <div class="mt-6 text-center">
-                    <button onclick="handleLogout()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition duration-300 ease-in-out focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-red-500/50">
-                        Log Out
-                    </button>
-                </div>
-            </div>
-            
-            <div id="message-area" class="mt-6 p-3 text-sm rounded-lg hidden" role="alert" aria-live="polite"></div>
+                <div id="create-view" class="view-transition hidden absolute top-0 w-full opacity-0">
+                    <form id="create-form" onsubmit="handleCreateAccount(event)">
+                        
+                        <div class="mb-4 flex space-x-4">
+                            <div class="w-1/2">
+                                <label for="create-firstName" class="block text-sm font-semibold text-gray-700 mb-2">First Name (Optional)</label>
+                                <input type="text" id="create-firstName" name="firstName" 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition duration-150 ease-in-out placeholder-gray-400 text-gray-800"
+                                    placeholder="John"
+                                >
+                            </div>
+                            <div class="w-1/2">
+                                <label for="create-lastName" class="block text-sm font-semibold text-gray-700 mb-2">Last Name (Optional)</label>
+                                <input type="text" id="create-lastName" name="lastName" 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition duration-150 ease-in-out placeholder-gray-400 text-gray-800"
+                                    placeholder="Doe"
+                                >
+                            </div>
+                        </div>
 
+                        <div class="mb-5">
+                            <label for="create-email" class="block text-sm font-semibold text-gray-700 mb-2">Email Address <span class="text-red-500">*</span></label>
+                            <input type="email" id="create-email" name="email" required 
+                                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition duration-150 ease-in-out placeholder-gray-400 text-gray-800"
+                                placeholder="your.new@example.com"
+                            >
+                        </div>
+                        <div class="mb-4">
+                            <label for="create-password" class="block text-sm font-semibold text-gray-700 mb-2">Password <span class="text-red-500">*</span></label>
+                            <div class="relative">
+                                <input type="password" id="create-password" name="password" required 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition duration-150 ease-in-out pr-16 placeholder-gray-400 text-gray-800"
+                                    placeholder="Min 8 characters"
+                                >
+                                <button type="button" onclick="togglePasswordVisibility('create-password')" 
+                                    class="absolute inset-y-0 right-0 px-3 py-1 my-1 mr-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    id="toggle-create-password"
+                                    aria-label="Toggle password visibility"
+                                >
+                                    View
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mb-6">
+                            <label for="confirm-password" class="block text-sm font-semibold text-gray-700 mb-2">Confirm Password <span class="text-red-500">*</span></label>
+                            <div class="relative">
+                                <input type="password" id="confirm-password" name="confirmPassword" required 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition duration-150 ease-in-out pr-16 placeholder-gray-400 text-gray-800"
+                                    placeholder="Re-enter password"
+                                >
+                                <button type="button" onclick="togglePasswordVisibility('confirm-password')" 
+                                    class="absolute inset-y-0 right-0 px-3 py-1 my-1 mr-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    id="toggle-confirm-password"
+                                    aria-label="Toggle password visibility"
+                                >
+                                    View
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" id="create-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg transition duration-300 ease-in-out focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-blue-500/50">
+                            Create Account
+                        </button>
+                    </form>
+
+                    <div class="mt-8 text-center text-sm">
+                        <p class="text-gray-600">
+                            Already have an account? 
+                            <button onclick="showView('login')" class="text-blue-600 hover:text-blue-800 transition duration-150 ease-in-out font-semibold focus:outline-none focus:underline">
+                                Back to Sign In
+                            </button>
+                        </p>
+                    </div>
+                </div>
+
+                <div id="verify-view" class="view-transition hidden absolute top-0 w-full opacity-0">
+                    <form id="verify-form" onsubmit="handleVerification(event)">
+                        <p class="text-md text-gray-600 mb-6 text-center">
+                            A 6-digit verification code has been sent to 
+                            <strong id="verify-email-display" class="text-gray-800 block mt-1"></strong>.
+                        </p>
+                        <div class="mb-6">
+                            <label for="verify-code" class="sr-only">Verification Code</label>
+                            <input type="text" id="verify-code" name="code" required minlength="6" maxlength="6"
+                                class="w-full px-4 py-4 text-center text-3xl font-extrabold border-2 border-gray-400 rounded-xl tracking-widest focus:ring-blue-600 focus:border-blue-600 transition duration-150 ease-in-out text-gray-900"
+                                placeholder="000000"
+                                inputmode="numeric"
+                            >
+                        </div>
+                        
+                        <button type="submit" id="verify-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg transition duration-300 ease-in-out focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-green-500/50">
+                            Verify Account
+                        </button>
+                    </form>
+
+                    <div class="mt-8 text-center text-sm">
+                        <p>
+                            <button onclick="handleResendCode()" id="resend-btn" class="text-green-600 hover:text-green-800 transition duration-150 ease-in-out font-semibold focus:outline-none focus:underline disabled:opacity-50 disabled:cursor-not-allowed">
+                                Resend Code
+                            </button>
+                            <span class="text-gray-400 mx-2">|</span>
+                            <button onclick="showView('login')" class="text-gray-600 hover:text-gray-800 transition duration-150 ease-in-out font-semibold focus:outline-none focus:underline">
+                                Cancel & Return to Login
+                            </button>
+                        </p>
+                    </div>
+                </div>
+                
+                <div id="forgot-view" class="view-transition hidden absolute top-0 w-full opacity-0">
+                    <form id="forgot-form" onsubmit="handleForgotPassword(event)">
+                        <p class="text-md text-gray-600 mb-6 text-center">
+                            Enter your email address to receive a link to reset your password.
+                        </p>
+                        <div class="mb-6">
+                            <label for="forgot-email" class="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
+                            <input type="email" id="forgot-email" name="email" required 
+                                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition duration-150 ease-in-out placeholder-gray-400 text-gray-800"
+                                placeholder="you@example.com"
+                            >
+                        </div>
+                        
+                        <button type="submit" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg transition duration-300 ease-in-out focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-yellow-500/50">
+                            Send Reset Link
+                        </button>
+                    </form>
+
+                    <div class="mt-8 text-center text-sm">
+                        <button onclick="showView('login')" class="text-blue-600 hover:text-blue-800 transition duration-150 ease-in-out font-semibold focus:outline-none focus:underline">
+                            Back to Sign In
+                        </button>
+                    </div>
+                </div>
+
+                <div id="profile-view" class="view-transition hidden absolute top-0 w-full opacity-0">
+                    <h2 class="text-2xl font-black text-gray-800 mb-6 pb-3 border-b-2 border-gray-100">
+                        <span class="mr-2 text-blue-600">⚙️</span>Account Settings
+                    </h2>
+                    
+                    <div id="profile-details" class="space-y-6">
+                        
+                        <div class="p-5 bg-gray-50 border border-gray-200 rounded-xl shadow-sm">
+                            <h3 class="font-bold text-lg text-gray-800 mb-3 flex items-center">
+                                <span class="mr-2 text-blue-500">👤</span>Personal Details
+                            </h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                                <div><span class="font-semibold text-gray-700 block">Full Name:</span> <span id="profile-name" class="font-medium text-gray-600">N/A</span></div>
+                                <div><span class="font-semibold text-gray-700 block">Username:</span> <span id="profile-username" class="font-medium text-gray-600">N/A</span></div>
+                                <div class="col-span-1 sm:col-span-2"><span class="font-semibold text-gray-700 block">Email:</span> <span id="profile-email" class="font-medium text-gray-600">N/A</span></div>
+                            </div>
+                        </div>
+
+                        <div class="p-5 bg-gray-50 border border-gray-200 rounded-xl shadow-sm">
+                            <h3 class="font-bold text-lg text-gray-800 mb-3 flex items-center">
+                                <span class="mr-2 text-green-500">🛡️</span>Account Status & Security
+                            </h3>
+                            <div class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                                <div><span class="font-semibold text-gray-700 block">Role:</span> <span id="profile-role" class="font-medium text-gray-600">N/A</span></div>
+                                <div><span class="font-semibold text-gray-700 block">Verified:</span> <span id="profile-verified" class="font-medium text-gray-600">N/A</span></div>
+                                <div><span class="font-semibold text-gray-700 block">Member Since:</span> <span id="profile-member-since" class="font-medium text-gray-600">N/A</span></div>
+                                <div><span class="font-semibold text-gray-700 block">Last Updated:</span> <span id="profile-last-updated" class="font-medium text-gray-600">N/A</span></div>
+                            </div>
+                        </div>
+                        
+                        <button class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-xl transition duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400">
+                            Edit Profile Details
+                        </button>
+                    </div>
+
+                    <div class="mt-8 text-center">
+                        <button onclick="handleLogout()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg transition duration-300 ease-in-out focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-red-500/50">
+                            Log Out
+                        </button>
+                    </div>
+                </div>
+
+                <div id="message-area" class="mt-8 p-4 text-sm rounded-xl hidden" role="alert" aria-live="polite"></div>
+
+            </div>
         </div>
+        
     </div>
+    
 <script>
     // *** 1. CONFIGURATION ***
     const API_BASE_URL = 'https://outflickzltd.netlify.app/api'; 
@@ -282,11 +335,11 @@
         let currentView = Object.values(views).find(v => v.classList.contains('opacity-100') && !v.classList.contains('hidden'));
         
         const headers = {
-            'login': 'Welcome Back',
-            'create': 'Create Your Account',
-            'verify': 'Account Verification',
-            'forgot': 'Reset Your Password',
-            'profile': 'Your Account Dashboard'
+            'login': 'Sign In',
+            'create': 'Create Account',
+            'verify': 'Verify Account',
+            'forgot': 'Reset Password',
+            'profile': 'Account Settings'
         };
         headerElement.textContent = headers[viewName] || 'Authentication';
         
@@ -297,10 +350,12 @@
 
         const nextView = views[viewName];
 
-        if (currentView) {
+        if (currentView && currentView !== nextView) {
             currentView.classList.remove('opacity-100');
             currentView.classList.add('opacity-0');
-            container.style.height = `${container.offsetHeight}px`;
+            
+            // Adjust height for smooth transition between views of different sizes
+            container.style.height = `${currentView.offsetHeight}px`; 
 
             setTimeout(() => {
                 currentView.classList.add('hidden');
@@ -309,21 +364,21 @@
                 nextView.classList.remove('hidden');
                 nextView.classList.add('absolute');
                 
-                container.style.height = 'auto';
+                // Calculate and set the target height before showing
+                container.style.height = `${nextView.offsetHeight}px`; 
 
                 setTimeout(() => {
                     nextView.classList.remove('absolute');
-                    container.style.height = `${container.offsetHeight}px`;
-
                     nextView.classList.remove('opacity-0');
                     nextView.classList.add('opacity-100');
-
+                    
+                    // Reset height after transition to allow responsive growth
                     setTimeout(() => {
                         container.style.height = '';
-                    }, 400); // Wait for the opacity transition to complete
+                    }, 400); 
                 }, 50); 
-            }, 400); // Wait for the fade-out to complete
-        } else {
+            }, 400); 
+        } else if (nextView) {
             nextView.classList.remove('hidden');
             nextView.classList.remove('opacity-0');
             nextView.classList.add('opacity-100');
@@ -366,7 +421,7 @@
      * Displays a temporary message.
      */
     function displayMessage(message, type = 'info') {
-        const baseClasses = 'mt-6 p-4 text-sm rounded-lg font-medium'; 
+        const baseClasses = 'mt-8 p-4 text-sm rounded-xl font-medium'; 
         messageArea.className = baseClasses;
         messageArea.innerHTML = message;
         
@@ -386,6 +441,7 @@
 
     /**
      * Function to handle login form submission with real API call
+     * MODIFIED: Now includes local cart data in the payload.
      */
     async function handleLogin(event) {
         event.preventDefault();
@@ -393,17 +449,40 @@
         const password = document.getElementById('login-password').value;
         const loginBtn = document.getElementById('login-btn');
         
+        // --- 🔑 CART MERGE LOGIC - STEP 1: READ LOCAL CART ---
+        let localCartItems = [];
+        try {
+            const localCartJson = localStorage.getItem('outflickzLocalCart');
+            if (localCartJson) {
+                localCartItems = JSON.parse(localCartJson);
+                // Ensure it's an array before sending
+                if (!Array.isArray(localCartItems)) {
+                    localCartItems = [];
+                }
+            }
+        } catch (e) {
+            console.warn('Could not parse local cart data from localStorage:', e);
+            localCartItems = [];
+        }
+        // -----------------------------------------------------
+
         // 1. Show loading state
-        loginBtn.textContent = 'Logging in...';
+        loginBtn.textContent = 'Signing in...';
         loginBtn.disabled = true;
-        displayMessage('Attempting to log in via /api/users/login...', 'info');
+        displayMessage(`Attempting to log in. Local items found: ${localCartItems.length}`, 'info');
 
         try {
             // 2. Perform the API call
             const response = await fetch(LOGIN_ENDPOINT, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: email, password: password })
+                // --- 🔑 CART MERGE LOGIC - STEP 2: INCLUDE IN PAYLOAD ---
+                body: JSON.stringify({ 
+                    email: email, 
+                    password: password, 
+                    localCartItems: localCartItems // Pass local cart to the backend
+                })
+                // -------------------------------------------------------
             });
 
             // 3. Robust JSON Parsing
@@ -412,63 +491,65 @@
             if (contentType && contentType.includes('application/json')) {
                 data = await response.json();
             } else if (!response.ok) {
-                 throw new Error(`Server Error (${response.status}): Could not reach login service.`);
+                throw new Error(`Server Error (${response.status}): Could not reach login service.`);
             }
             
             // 4. Handle API Responses
             if (response.ok) {
                 // SUCCESS (HTTP 200): Login successful
-                // In a real application, you would store data.token (JWT) in localStorage
                 
-                // Populate profile view and redirect (or just redirect)
-                // For this example, we populate the profile view with the returned user data
-                // NOTE: The backend needs to return the necessary profile data in the 'user' object for this to work.
+                // --- 🔑 CART MERGE LOGIC - STEP 3: CLEAR LOCAL STORAGE ---
+                if (localCartItems.length > 0) {
+                    localStorage.removeItem('outflickzLocalCart');
+                    console.log('Local cart cleared upon successful merge.');
+                }
+                // ----------------------------------------------------------
+
+                // Populate profile view 
                 if (data.user) {
                     populateProfileView(data.user); 
                 } else {
-                    // Mock data for display if backend only returns basic user info (like ID, email)
+                    // Mock data fallback... (keep the existing logic)
                     populateProfileView({
                         id: 'u-xxxx-logged-in',
                         email: email,
-                        name: data.user.name || 'User',
-                        username: data.user.username || email.split('@')[0],
-                        role: data.user.role || 'Basic User',
-                        verified: true,
+                        name: data.user?.name || 'User',
+                        username: data.user?.username || email.split('@')[0],
+                        role: data.user?.status?.role || 'Basic User',
+                        verified: data.user?.status?.isVerified || true,
                         memberSince: 'Today',
                         lastUpdated: new Date().toLocaleDateString()
                     });
                 }
 
-                displayMessage('Successfully logged in! Redirecting to homepage...', 'success');
+                displayMessage('Successfully signed in! Your cart was merged. Redirecting to homepage...', 'success');
 
                 // Simulate redirect after a short delay
                 setTimeout(() => {
-                    window.location.href = 'homepage.html';
-                    // Alternatively, show profile view: showView('profile');
+                    // window.location.href = 'homepage.html';
+                    showView('profile'); // Show profile view instead of redirecting immediately for demo
                 }, 1000); 
 
             } else if (response.status === 403 && data.needsVerification) {
                 // FAILED (HTTP 403): Account needs verification
-                pendingVerificationEmail = email; // Save the email for the verification view
+                pendingVerificationEmail = email; 
                 document.getElementById('verify-email-display').textContent = email;
                 
                 displayMessage(data.message || 'Your account needs to be verified. Please enter the code sent to your email.', 'error');
                 
-                // Transition to the verification view
                 setTimeout(() => {
                     showView('verify');
-                    // Re-enable the resend button immediately since the server would have just sent an email.
                     setResendCooldown(60); 
                 }, 1000);
 
             } else if (response.status === 401) {
                 // FAILED (HTTP 401): Invalid credentials
-                displayMessage(data.message || 'Login failed. Please check your email and password.', 'error');
+                displayMessage(data.message || 'Sign In failed. Please check your email and password.', 'error');
                 
             } else {
                 // OTHER ERRORS (e.g., 500 Server Error)
                 const errorMessage = data.message || `API Error (${response.status}): An unexpected error occurred.`;
-                displayMessage(`Login Failed: ${errorMessage}`, 'error');
+                displayMessage(`Sign In Failed: ${errorMessage}`, 'error');
             }
 
         } catch (error) {
@@ -477,33 +558,10 @@
             displayMessage(`Connection Error: ${error.message || 'Could not connect to the login service.'}`, 'error');
         } finally {
             // 6. Reset button state
-            loginBtn.textContent = 'Log In';
+            loginBtn.textContent = 'Sign In';
             loginBtn.disabled = false;
         }
     }
-
-    // Frontend JavaScript (Simplified)
-async function redirectToProfileOrLogin() {
-    try {
-        // The browser automatically attaches the secure HTTP-only cookie here
-        const response = await fetch('/api/auth/status', {
-            method: 'GET'
-            // Headers object is omitted if using secure cookies
-        });
-
-        if (response.status === 200) {
-            // User is authenticated
-            window.location.href = '/account-profile.html';
-        } else {
-            // Token/Cookie was missing or invalid (401/403 response from middleware)
-            window.location.href = '/login.html';
-        }
-
-    } catch (error) {
-        console.error('Authentication status check failed:', error);
-        window.location.href = '/login.html';
-    }
-}
 
     /**
      * Handles create account form submission and transitions to verification view.
@@ -622,7 +680,7 @@ async function redirectToProfileOrLogin() {
 
 
             if (response.ok) {
-                displayMessage('Account verified successfully! You can now log in.', 'success');
+                displayMessage('Account verified successfully! You can now sign in.', 'success');
                 
                 pendingVerificationEmail = ''; 
                 document.getElementById('verify-code').value = '';
@@ -734,8 +792,10 @@ async function redirectToProfileOrLogin() {
      * Placeholder function for handling user logout.
      */
     function handleLogout() {
-        // In a real app, clear the token from localStorage here
+        // In a real app, clear the token from localStorage/cookies here
         displayMessage('You have been successfully logged out.', 'info');
+        // Clear all input fields for security/fresh start
+        document.getElementById('login-form').reset();
         showView('login');
     }
 

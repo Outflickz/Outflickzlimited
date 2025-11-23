@@ -795,6 +795,85 @@ function calculateCartTotals(cartItems) {
     };
 }
 
+/**
+ * Merges unauthenticated local cart items into the user's permanent database cart.
+ * The product details are verified against the Mongoose schema before saving.
+ * @param {ObjectId} userId - The authenticated user's ID.
+ * @param {Array<Object>} localItems - Items from the client's local storage.
+ */
+async function mergeLocalCart(userId, localItems) {
+    // Import Cart model and Mongoose at the top of your file
+    // const Cart = require('./path/to/CartModel'); 
+
+    try {
+        let cart = await Cart.findOne({ userId });
+
+        // Iterate through each item from the frontend's local storage
+        localItems.forEach(localItem => {
+            // A. Define the unique identifier for the item variant: productId, size, and color
+            const matchKey = {
+                productId: localItem.productId,
+                size: localItem.size,
+                color: localItem.color || 'N/A'
+            };
+
+            // B. Prepare the item structure to ensure it matches the Mongoose schema
+            const itemData = {
+                ...matchKey,
+                name: localItem.name,
+                productType: localItem.productType || 'WearsCollection', // Ensure a valid enum value
+                price: localItem.price,
+                quantity: localItem.quantity || 1,
+                imageUrl: localItem.imageUrl,
+            };
+
+            if (!cart) {
+                // If cart doesn't exist, we'll create it with all local items later
+                return;
+            }
+
+            // C. Check if the item variant already exists in the permanent cart
+            const existingItemIndex = cart.items.findIndex(dbItem =>
+                dbItem.productId.equals(itemData.productId) && // Use .equals for ObjectIds
+                dbItem.size === itemData.size &&
+                dbItem.color === itemData.color
+            );
+
+            if (existingItemIndex > -1) {
+                // Item exists: Add the local quantity to the database quantity
+                cart.items[existingItemIndex].quantity += itemData.quantity;
+            } else {
+                // Item does not exist: Push the new item data
+                cart.items.push(itemData);
+            }
+        });
+
+        if (!cart) {
+            // Case 1: No cart existed, and we have items to add.
+            // Create the new cart with the processed items.
+            const initialItems = localItems.map(localItem => ({
+                productId: localItem.productId,
+                name: localItem.name,
+                productType: localItem.productType || 'WearsCollection',
+                size: localItem.size,
+                color: localItem.color || 'N/A',
+                price: localItem.price,
+                quantity: localItem.quantity || 1,
+                imageUrl: localItem.imageUrl,
+            }));
+            await Cart.create({ userId, items: initialItems });
+        } else {
+            // Case 2: Cart existed. Save the merged/updated cart.
+            cart.updatedAt = Date.now();
+            await cart.save();
+        }
+        
+    } catch (error) {
+        console.error('CRITICAL: Error during cart merge process:', error);
+        // The login succeeded, so we log the error but allow the login response to proceed.
+    }
+}
+
 // --- EXPRESS CONFIGURATION AND MIDDLEWARE ---
 const app = express();
 // Ensure express.json() is used BEFORE the update route, but after the full form route
@@ -876,6 +955,41 @@ const verifyUserToken = (req, res, next) => {
         // Token is invalid (expired, tampered, etc.) - Force logout by clearing cookie
         res.clearCookie('outflickzToken');
         res.status(401).json({ message: 'Invalid or expired session. Please log in again.' });
+    }
+};
+
+/**
+ * Verifies the user token if present, but allows the request to proceed if absent.
+ * Sets req.userId if the user is authenticated.
+ */
+const verifyOptionalToken = (req, res, next) => {
+    // 1. Read the token from the HTTP-only cookie
+    const token = req.cookies.outflickzToken; 
+
+    // 2. If no token, treat as unauthenticated and continue
+    if (!token) {
+        req.userId = null; // Explicitly set to null/undefined
+        return next();
+    }
+
+    // 3. If token exists, attempt verification
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        
+        // Ensure this is a regular user token
+        if (decoded.role !== 'user') {
+            req.userId = null; // Invalid role, treat as unauthenticated
+            return next();
+        }
+        
+        // Attach the user ID and proceed
+        req.userId = decoded.id; 
+        next();
+    } catch (err) {
+        // Token is invalid/expired. Clear cookie, but still proceed to the route handler
+        res.clearCookie('outflickzToken');
+        req.userId = null; // Explicitly set to null
+        next();
     }
 };
 
@@ -2570,9 +2684,13 @@ app.post('/api/users/verify', async (req, res) => {
     }
 });
 
-// 2. POST /api/users/login (Login)
+// =========================================================
+// 2. POST /api/users/login (Login) - MODIFIED
+// =========================================================
 app.post('/api/users/login', async (req, res) => {
-    const { email, password } = req.body;
+    // ⚠️ New: Extract localCartItems from the request body 
+    // The frontend should send this payload on login
+    const { email, password, localCartItems } = req.body; 
 
     try {
         const user = await User.findOne({ email }).select('+password').lean();
@@ -2595,21 +2713,29 @@ app.post('/api/users/login', async (req, res) => {
         const token = jwt.sign(
             { id: user._id, email: user.email, role: user.status.role || 'user' }, 
             JWT_SECRET, 
-            { expiresIn: '7d' } // Expires in 7 days
+            { expiresIn: '7d' } 
         );
         
-        // --- 🔑 CRITICAL FIX: Set the Token as an HTTP-only Cookie ---
+        // --- 🔑 Set the Token as an HTTP-only Cookie ---
         const isProduction = process.env.NODE_ENV === 'production';
         
         res.cookie('outflickzToken', token, {
-            httpOnly: true, // Prevents client-side JS access (security)
-            secure: isProduction, // Use 'secure' flag ONLY in production (HTTPS)
-            sameSite: isProduction ? 'strict' : 'lax', // Security setting
-            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days (matches JWT expiry)
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? 'strict' : 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000 
         });
-        // -------------------------------------------------------------
+        // -------------------------------------------------
 
-        // 4. Send the successful JSON response (without the token in the body)
+        // 4. ✨ CRITICAL NEW STEP: Merge Local Cart Items into the Database Cart ✨
+        if (localCartItems && Array.isArray(localCartItems) && localCartItems.length > 0) {
+            // This function handles finding the user's permanent cart and merging/updating quantities
+            await mergeLocalCart(user._id, localCartItems);
+            console.log(`Cart merged for user: ${user._id}`);
+        }
+        // -----------------------------------------------------------------------
+
+        // 5. Send the successful JSON response 
         delete user.password; 
 
         res.status(200).json({ 

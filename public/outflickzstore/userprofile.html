@@ -22,44 +22,102 @@
             mobileMenu.classList.toggle('hidden');
         }
 
-        /**
-         * CRITICAL SECURITY GATE: Enforces redirect or reveals content.
-         */
+        function logoutUser() {
+            localStorage.removeItem('outflickzToken');
+            window.location.replace('useraccount.html');
+        }
+
         function enforceAuthGate() {
             const mainContent = document.getElementById('main-profile-content');
             const loadingIndicator = document.getElementById('loading-indicator');
             
-            // 1. Show loading indicator and hide main content initially
             if (loadingIndicator) loadingIndicator.classList.remove('hidden');
             if (mainContent) mainContent.classList.add('hidden');
 
-            fetch(`${API_BASE_URL}/api/auth/status`, { method: 'GET' })
-                .then(response => {
-                    if (response.status === 200) {
-                        // 2. SUCCESS: Hide loading, show main content
-                        if (loadingIndicator) loadingIndicator.classList.add('hidden');
-                        if (mainContent) mainContent.classList.remove('hidden');
-                        // Optionally, call a function here to fetch and render user data:
-                        fetchUserData();
-                    } else {
-                        // 3. FAILURE (401/403): Redirect to login
-                        window.location.replace('useraccount.html');
-                    }
+            if (!USER_AUTH_TOKEN) {
+                window.location.replace('useraccount.html');
+                return;
+            }
+            
+            fetchUserData()
+                .then(() => {
+                    if (loadingIndicator) loadingIndicator.classList.add('hidden');
+                    if (mainContent) mainContent.classList.remove('hidden');
                 })
-                .catch(error => {
-                    // 4. NETWORK FAILURE: Treat as unauthenticated/unverified and redirect
-                    console.error('Initial Auth Check Failed:', error);
+                .catch(() => {
+                    console.error('Authentication or Fetch Failed. Redirecting...');
                     window.location.replace('useraccount.html');
                 });
         }
         
-        // Placeholder function to fetch and display actual user data
-        function fetchUserData() {
-            // This function would call app.get('/api/users/account') 
-            // and populate the #user-name, #user-email, etc. spans.
-            console.log("Fetching user data...");
-            // Example of how you would update the DOM after a successful fetch:
-            // document.getElementById('user-name').textContent = fetchedData.profile.name;
+        /**
+         * 🚀 UPDATED: Fetch and display user data using the new schema structure.
+         */
+        async function fetchUserData() {
+            if (!USER_AUTH_TOKEN) {
+                return Promise.reject(new Error('No authentication token found.'));
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/users/account`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${USER_AUTH_TOKEN}`, // CRITICAL: Send the token
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.status === 404) {
+                     throw new Error('User data not found (404).');
+                }
+
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        localStorage.removeItem('outflickzToken');
+                    }
+                    throw new Error(`Failed to fetch user data: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+
+                // --- DATA MAPPING BASED ON NEW SCHEMA ---
+                
+                // Assuming the backend response structure is { id, profile: {firstName, lastName}, status: {role, isVerified}, membership: {...} } 
+                // and that the top-level 'email' is included in the response (a common omission, but necessary for a user profile)
+                
+                // 1. Get the Full Name
+                const fullName = `${data.profile.firstName || ''} ${data.profile.lastName || ''}`.trim() || 'Guest User';
+                
+                // 2. Get the Email (Assuming top-level email is included in the backend response or mapped there)
+                // Note: The backend code snippet didn't explicitly include 'email', but it's vital. 
+                // We'll optimistically use data.email, or fall back to a placeholder.
+                const emailAddress = data.email || 'Email Not Available'; 
+
+                // 3. Get Status and Membership
+                const userRole = data.status.role || 'user';
+                const isVerified = data.status.isVerified;
+                const memberSince = new Date(data.membership.memberSince).toLocaleDateString();
+
+                // 4. Populate the DOM elements
+                document.getElementById('user-name').textContent = fullName;
+                document.getElementById('user-email').textContent = emailAddress;
+                // Add new display fields
+                document.getElementById('user-role').textContent = userRole.toUpperCase();
+                document.getElementById('user-verification').innerHTML = isVerified 
+                    ? '<span class="text-green-600 font-bold">Verified <i class="fas fa-check-circle"></i></span>'
+                    : '<span class="text-red-600 font-bold">Unverified <i class="fas fa-times-circle"></i></span>';
+                document.getElementById('member-since').textContent = memberSince;
+
+
+                // The 'user-phone' field from the original HTML doesn't map to a field 
+                // in the new schema. We'll leave it as 'Not Set' unless you add it to the schema.
+                // document.getElementById('user-phone').textContent = 'Not Set'; 
+
+                return data; 
+            } catch (error) {
+                console.error("Fetch user data error:", error);
+                throw error; 
+            }
         }
 
         document.addEventListener('DOMContentLoaded', enforceAuthGate);
@@ -126,7 +184,7 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8 pt-8">
             <aside class="md:col-span-1">
                 <nav class="space-y-2">
-                    <a href="#profile-details" class="block p-3 rounded-md bg-ash-red text-white font-semibold transition duration-150">
+                    <a href="userprofile.html" class="block p-3 rounded-md bg-ash-red text-white font-semibold transition duration-150">
                         <i class="fas fa-user-circle mr-2"></i> Profile Details
                     </a>
                     <a href="#order-history" class="block p-3 rounded-md text-gray-700 hover:bg-gray-100 font-medium transition duration-150">
@@ -135,7 +193,7 @@
                     <a href="#settings" class="block p-3 rounded-md text-gray-700 hover:bg-gray-100 font-medium transition duration-150">
                         <i class="fas fa-cog mr-2"></i> Settings
                     </a>
-                    <button onclick="/* Add Logout Functionality Here */" class="w-full text-left p-3 rounded-md text-red-600 hover:bg-red-50 font-medium transition duration-150">
+                    <button onclick="logoutUser()" class="w-full text-left p-3 rounded-md text-red-600 hover:bg-red-50 font-medium transition duration-150">
                         <i class="fas fa-sign-out-alt mr-2"></i> Log Out
                     </button>
                 </nav>
@@ -148,6 +206,9 @@
                     <div class="space-y-3 text-gray-700">
                         <p><strong>Name:</strong> <span id="user-name">Loading...</span></p>
                         <p><strong>Email:</strong> <span id="user-email">Loading...</span></p>
+                        <p><strong>Account Role:</strong> <span id="user-role">Loading...</span></p>
+                        <p><strong>Verification:</strong> <span id="user-verification">Loading...</span></p>
+                        <p><strong>Member Since:</strong> <span id="member-since">Loading...</span></p>
                         <p><strong>Phone:</strong> <span id="user-phone">Not Set</span></p>
                     </div>
                     <button class="mt-4 text-sm text-blue-600 hover:text-blue-800 font-medium">Edit Profile</button>

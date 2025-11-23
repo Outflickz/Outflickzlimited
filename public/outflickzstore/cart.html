@@ -73,17 +73,17 @@ function redirectToProfileOrLogin() {
 
 // This function would be called when a user clicks 'Add to Cart' on a product page.
 async function simulateAddToCart(productDetails) {
-    if (!USER_AUTH_TOKEN) {
-        alert('Please log in to add items to your cart.');
-        redirectToProfileOrLogin();
-        return;
-    }
+    // MODIFIED: Removed the immediate login check. The API will now attempt the call.
+    // NOTE: This call will fail on the backend because it requires a token (401 Unauthorized).
+    // The backend must be modified to handle unauthenticated cart sessions for this to work fully.
 
     try {
         const response = await fetch('/api/users/cart', {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${USER_AUTH_TOKEN}`,
+                // Pass the token if it exists, otherwise pass nothing.
+                // Backend's verifyUserToken will reject this if token is missing/invalid.
+                'Authorization': USER_AUTH_TOKEN ? `Bearer ${USER_AUTH_TOKEN}` : '',
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(productDetails)
@@ -96,15 +96,18 @@ async function simulateAddToCart(productDetails) {
             // Update local storage and cart badge immediately
             localStorage.setItem(CART_STORAGE_KEY, data.items.length.toString());
             updateCartBadge();
-            // Optional: Alert user and redirect them to the cart page
-            // alert('Item added to your shopping bag!');
-            // window.location.href = 'cart.html'; 
+            alert('Item added to your shopping bag!');
+            // After adding, we should refresh the cart view
+            fetchAndRenderCart(); 
+        } else if (response.status === 401) {
+            alert('🚨 Item not added. You must be logged in to modify your cart (Server requirement). Please log in now.');
+            redirectToProfileOrLogin();
         } else {
             throw new Error(data.message || 'Failed to add item.');
         }
     } catch (error) {
         console.error('Error in addToCart:', error);
-        alert('Could not add item to cart. Please try logging in again.');
+        alert('Could not add item to cart. Please try again.');
     }
 }
 // ---------------------------------------------------
@@ -120,8 +123,9 @@ async function fetchAndRenderCart() {
     
     // Check if the user is logged in first (based on the screenshot state)
     if (!USER_AUTH_TOKEN) {
-        cartList.innerHTML = '<div class="text-center py-10 text-gray-500">Please <a href="useraccount.html" class="text-ash-red hover:underline font-semibold">log in</a> to view your cart.</div>';
-        updateCartSummary({ items: [] });
+        // Allow unauthenticated users to view an empty cart and totals
+        cartList.innerHTML = '<div class="text-center py-10 text-gray-500">Your shopping bag is currently empty. Please <a href="useraccount.html" class="text-ash-red hover:underline font-semibold">log in</a> to view saved items.</div>';
+        updateCartSummary({ items: [], subtotal: 0, shipping: 0, tax: 0, estimatedTotal: 0 });
         clearCartBtn.disabled = true;
         return;
     }
@@ -141,9 +145,10 @@ async function fetchAndRenderCart() {
             }
         });
 
+        // The logic for handling 401 on GET request remains, as cart retrieval is protected.
         if (response.status === 401) {
-            cartList.innerHTML = '<div class="text-center py-10 text-gray-500">Please <a href="useraccount.html" class="text-ash-red hover:underline font-semibold">log in</a> to view your cart.</div>';
-            updateCartSummary({ items: [] });
+            cartList.innerHTML = '<div class="text-center py-10 text-gray-500">Your session expired. Please <a href="useraccount.html" class="text-ash-red hover:underline font-semibold">log in</a> to view your cart.</div>';
+            updateCartSummary({ items: [], subtotal: 0, shipping: 0, tax: 0, estimatedTotal: 0 });
             return;
         }
 
@@ -165,8 +170,8 @@ async function fetchAndRenderCart() {
     } catch (error) {
         console.error('Error fetching cart data:', error);
         // Fallback for an empty or failed load when the user is authenticated
-        cartList.innerHTML = '<div class="text-center py-10 text-gray-500">Your shopping bag is empty. <a href="homepage.html" class="text-ash-red hover:underline font-semibold">Start shopping now!</a></div>';
-        updateCartSummary({ items: [] });
+        cartList.innerHTML = '<div class="text-center py-10 text-gray-500">There was an issue loading your cart. <a href="homepage.html" class="text-ash-red hover:underline font-semibold">Start shopping now!</a></div>';
+        updateCartSummary({ items: [], subtotal: 0, shipping: 0, tax: 0, estimatedTotal: 0 });
     }
 }
 
@@ -241,17 +246,17 @@ function updateCartSummary(cartData) {
     // FALLBACKS ARE REMOVED/CORRECTED to use API data structure
     const subtotal = cartData.subtotal || 0; 
     const shipping = cartData.shipping || 0;
-    const tax = cartData.tax || 0; // Use tax value from API (calculated with 1% rate)
+    // NOTE: The backend calculates tax at 1% (0.01) but the frontend label says 5%. 
+    // We stick to the server's calculation for display accuracy.
+    const tax = cartData.tax || 0; 
     const total = cartData.estimatedTotal || subtotal + shipping + tax; 
 
     // Update display
     subtotalEl.textContent = `${currencySymbol}${subtotal.toLocaleString()}`;
     shippingCostEl.textContent = `${currencySymbol}${shipping.toLocaleString()}`;
     estimatedTotalEl.textContent = `${currencySymbol}${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-    // Correct the Tax estimate value and label to reflect the 1% TAX_RATE in the backend
+    // Correct the Tax estimate value
     taxEstimateEl.textContent = `${currencySymbol}${tax.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-    // Optional: Update the label text to reflect the actual rate (1%)
-    // taxLabelEl.textContent = 'Tax Estimate (1%)'; 
 
     // Update checkout button state
     if (hasItems) {
@@ -273,6 +278,11 @@ function updateCartSummary(cartData) {
  * @param {number} delta - The change in quantity (-1 or +1).
  */
 async function changeCartQuantity(itemId, delta) {
+    if (!USER_AUTH_TOKEN) {
+        alert('You must be logged in to update cart quantities.');
+        redirectToProfileOrLogin();
+        return;
+    }
     const input = document.getElementById(`cart-quantity-${itemId}`);
     let currentValue = parseInt(input.value) || 1;
     let newQuantity = currentValue + delta;
@@ -317,6 +327,11 @@ async function changeCartQuantity(itemId, delta) {
  * Handles direct quantity input changes.
  */
 function updateQuantityInput(itemId, value) {
+    if (!USER_AUTH_TOKEN) {
+        alert('You must be logged in to update cart quantities.');
+        redirectToProfileOrLogin();
+        return;
+    }
     let newQuantity = parseInt(value);
     const input = document.getElementById(`cart-quantity-${itemId}`);
     
@@ -335,6 +350,7 @@ function updateQuantityInput(itemId, value) {
  * Direct API call for quantity update
  */
 async function updateItemQuantityAPI(itemId, newQuantity) {
+    // Authentication check is done in parent function
     try {
         const response = await fetch(`/api/users/cart/${itemId}`, {
             method: 'PATCH',
@@ -363,6 +379,11 @@ async function updateItemQuantityAPI(itemId, newQuantity) {
  * @param {string} itemId - The ID of the item to remove.
  */
 async function removeItemFromCart(itemId) {
+    if (!USER_AUTH_TOKEN) {
+        alert('You must be logged in to remove items.');
+        redirectToProfileOrLogin();
+        return;
+    }
     if (!confirm('Are you sure you want to remove this item from your cart?')) {
         return;
     }
@@ -400,6 +421,11 @@ async function removeItemFromCart(itemId) {
  * Simulates clearing the cart by sending a DELETE request to clear all items.
  */
 async function clearCart() {
+    if (!USER_AUTH_TOKEN) {
+        alert('You must be logged in to clear your cart.');
+        redirectToProfileOrLogin();
+        return;
+    }
     if (!confirm('Are you sure you want to clear your entire shopping bag?')) {
         return;
     }
@@ -453,6 +479,18 @@ function toggleMenu() {
     menu.classList.toggle('hidden', !isExpanded);
     document.querySelector('[aria-controls="mobile-menu"]').setAttribute('aria-expanded', isExpanded);
 }
+
+// Sample product details to be used by the "Add to Cart" button in the suggested collection
+const sampleProduct = {
+    productId: '66a1a823c6f49635b43a9d45', // Use a valid ObjectId from a product (must match backend Product model)
+    name: 'Outflickz Signature Tee',
+    productType: 'WearsCollection', 
+    size: 'L',
+    color: 'Black',
+    price: 9950.00,
+    quantity: 1,
+    imageUrl: 'https://i.imgur.com/example-tshirt.png' // Replace with a real image URL
+};
 
 
 // ---------------------------------------------------
@@ -577,7 +615,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </div>
         </div>
-    </main>
+
+        <section id="suggested-products" class="mt-16 pt-8 border-t border-gray-200">
+            <h2 class="text-2xl font-bold text-ash-dark mb-6">You Might Also Like</h2>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                
+                <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300">
+                    <a href="#">
+                        <img src="https://i.imgur.com/example-tshirt.png" alt="Outflickz Signature Tee" class="w-full h-64 object-cover object-center">
+                    </a>
+                    <div class="p-4">
+                        <h3 class="text-lg font-semibold text-gray-900 truncate">Outflickz Signature Tee</h3>
+                        <p class="text-sm text-gray-500 mb-2">WearsCollection - Black</p>
+                        <p class="text-xl font-bold text-ash-red">₦9,950.00</p>
+                        <button 
+                            onclick="simulateAddToCart(sampleProduct)" 
+                            class="mt-3 w-full bg-ash-dark text-white hover:bg-racing-grey transition duration-300 font-semibold py-2 rounded-sm text-sm uppercase"
+                            aria-label="Add Outflickz Signature Tee to Cart">
+                            Add to Bag (L)
+                        </button>
+                    </div>
+                </div>
+                
+                </div>
+        </section>
+        </main>
     
     <footer class="bg-gray-900 text-gray-300 py-10 sm:py-14 border-t border-gray-800 mt-12">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

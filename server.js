@@ -542,49 +542,28 @@ const OrderSchema = new mongoose.Schema({
 
 const Order = mongoose.models.Order || mongoose.model('Order', OrderSchema);
 
-// Schema for individual items within the cart
 const cartItemSchema = new mongoose.Schema({
-    // Corresponds to item.id in frontend
-    productId: { 
-        type: mongoose.Schema.Types.ObjectId, 
-        required: true 
-    },
+    // Item ID / Product Ref
+    productId: { type: mongoose.Schema.Types.ObjectId, required: true },
     name: { type: String, required: true },
-    
-    // Links back to the correct product model/collection
     productType: { 
         type: String, 
         required: true, 
         enum: ['WearsCollection', 'CapCollection', 'NewArrivals', 'PreOrderCollection'] 
     },
     
-    // Used with productId to uniquely identify the variant
-    size: { 
-        type: String, 
-        required: true 
-    },
-    color: { 
-        type: String 
-    }, 
+    // Variant Details
+    size: { type: String, required: true },
+    color: { type: String }, 
     
-    price: { 
-        type: Number, 
-        required: true, 
-        min: 0.01 
-    },
-    quantity: { 
-        type: Number, 
-        required: true, 
-        min: 1, 
-        default: 1 
-    },
-    // Corresponds to item.image_url in frontend
-    imageUrl: { 
-        type: String 
-    } 
-}, { _id: true }); 
+    // Pricing & Quantity
+    price: { type: Number, required: true, min: 0.01 },
+    quantity: { type: Number, required: true, min: 1, default: 1 },
+    
+    // Media
+    imageUrl: { type: String } 
+}, { _id: true });
 
-// Main Cart Schema
 const cartSchema = new mongoose.Schema({
     userId: { 
         type: mongoose.Schema.Types.ObjectId, 

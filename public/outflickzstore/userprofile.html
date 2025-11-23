@@ -13,45 +13,57 @@
         // Assuming the necessary global constants and functions are available or defined here.
         const API_BASE_URL = 'https://outflickzltd.netlify.app/api';
 
-        /**
-         * Placeholder for UI Functions needed by the Header
-         * (These should ideally be in a shared utility JS file)
-         */
         function redirectToProfileOrLogin() {
-            // Function to handle profile/login redirect
             window.location.href = 'useraccount.html';
         }
         function toggleMenu() {
             const mobileMenu = document.getElementById('mobile-menu');
-            const isExpanded = mobileMenu.classList.toggle('hidden');
-            // Update aria-expanded state on the menu button (if you implement the button)
+            mobileMenu.classList.toggle('hidden');
         }
 
         /**
-         * CRITICAL SECURITY GATE: Enforces redirect immediately on page load
-         * if the user is not authenticated.
+         * CRITICAL SECURITY GATE: Enforces redirect or reveals content.
          */
         function enforceAuthGate() {
-            // Check the authentication status
+            const mainContent = document.getElementById('main-profile-content');
+            const loadingIndicator = document.getElementById('loading-indicator');
+            
+            // 1. Show loading indicator and hide main content initially
+            if (loadingIndicator) loadingIndicator.classList.remove('hidden');
+            if (mainContent) mainContent.classList.add('hidden');
+
             fetch(`${API_BASE_URL}/api/auth/status`, { method: 'GET' })
                 .then(response => {
-                    if (response.status !== 200) {
-                        // If not authenticated, redirect to the login page
+                    if (response.status === 200) {
+                        // 2. SUCCESS: Hide loading, show main content
+                        if (loadingIndicator) loadingIndicator.classList.add('hidden');
+                        if (mainContent) mainContent.classList.remove('hidden');
+                        // Optionally, call a function here to fetch and render user data:
+                        fetchUserData();
+                    } else {
+                        // 3. FAILURE (401/403): Redirect to login
                         window.location.replace('useraccount.html');
                     }
-                    // If 200 OK, authentication is successful, user stays on the page
                 })
                 .catch(error => {
-                    // Treat network failure as unauthenticated/unverified
+                    // 4. NETWORK FAILURE: Treat as unauthenticated/unverified and redirect
                     console.error('Initial Auth Check Failed:', error);
                     window.location.replace('useraccount.html');
                 });
         }
+        
+        // Placeholder function to fetch and display actual user data
+        function fetchUserData() {
+            // This function would call app.get('/api/users/account') 
+            // and populate the #user-name, #user-email, etc. spans.
+            console.log("Fetching user data...");
+            // Example of how you would update the DOM after a successful fetch:
+            // document.getElementById('user-name').textContent = fetchedData.profile.name;
+        }
 
-        // Execute the security gate check when the page loads
         document.addEventListener('DOMContentLoaded', enforceAuthGate);
     </script>
-
+    
     <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
             <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
@@ -95,7 +107,11 @@
         </div>
     </div>
     
-    <main class="container mx-auto p-4 sm:p-8 mt-10 bg-white shadow-xl rounded-lg max-w-4xl">
+    <div id="loading-indicator" class="flex justify-center items-center h-48 mt-20 text-gray-600">
+        <i class="fas fa-spinner fa-spin text-2xl mr-3 text-ash-red"></i> Verifying session...
+    </div>
+
+    <main id="main-profile-content" class="hidden container mx-auto p-4 sm:p-8 mt-10 bg-white shadow-xl rounded-lg max-w-4xl">
         
         <div class="pb-6 border-b border-gray-200">
             <h2 class="text-4xl font-extrabold text-gray-900 mb-2 flex items-center">

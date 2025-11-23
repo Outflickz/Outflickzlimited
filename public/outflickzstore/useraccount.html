@@ -474,12 +474,10 @@
                 // Removed populateProfileView() call
                 displayMessage('Successfully signed in! Your cart was merged. Redirecting to homepage...', 'success');
 
-                // Simulate redirect after a short delay (retaining original window.location.href logic)
                 setTimeout(() => {
-                    // window.location.href = 'homepage.html'; // Actual redirect
-                    console.log('Login successful - would redirect now.');
-                    // In the demo, we just stay on the login screen with a success message
-                }, 1000);
+                    window.location.href = 'homepage.html'; // Actual redirect activated
+                    // console.log('Login successful - would redirect now.'); // Optional: Remove the log if redirecting
+                }, 1000);
 
             } else if (response.status === 403 && data.needsVerification) {
                 // FAILED (HTTP 403): Account needs verification

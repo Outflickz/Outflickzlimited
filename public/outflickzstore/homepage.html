@@ -192,7 +192,23 @@ async function redirectToProfileOrLogin() {
         window.location.href = 'useraccount.html';
     }
 }
-// -----------------------------------------------------------------
+
+// 2. **CRITICAL SECURITY GATE**: Enforces redirect immediately on page load
+//    if the user is not authenticated.
+function enforceAuthGate() {
+    fetch(`${API_BASE_URL}/api/auth/status`, { method: 'GET' })
+        .then(response => {
+            if (response.status !== 200) {
+                // If not authenticated, redirect to login page (use replace to disable back button)
+                window.location.replace('useraccount.html');
+            }
+        })
+        .catch(error => {
+            // Treat network failure as unauthenticated/unverified
+            console.error('Initial Auth Check Failed:', error);
+            window.location.replace('useraccount.html');
+        });
+}
 
 /**
  * CONCEPTUAL: This function should be called ONLY after a successful login API response 
@@ -230,7 +246,7 @@ document.addEventListener('click', function(event) {
 
 
 const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
-const API_BASE_URL = ''; 
+const API_BASE_URL = 'https://outflickz.netlify.app'; 
 
 // --- HERO SLIDER JS (SIMPLIFIED FOR STABILITY) ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -301,55 +317,112 @@ function getCartCount() {
     const count = localStorage.getItem(CART_STORAGE_KEY);
     return parseInt(count) || 0;
 }
+ // --- Cart API & Badge Functions (Aligned with Backend) ---
 
-/**
- * Updates the Shopping Bag icon badge with the current cart count.
- */
-function updateCartBadge() {
-    const count = getCartCount();
-    const badge = document.getElementById('cart-badge');
-    
-    if (badge) {
-        badge.textContent = count;
-        if (count > 0) {
-            badge.classList.remove('hidden');
-        } else {
-            badge.classList.add('hidden');
+        // Function to update the cart item count displayed in the header badge
+        async function updateCartBadge() {
+            const badge = document.getElementById('cart-badge');
+            if (!badge) return;
+
+            try {
+                // Fetch the full cart from the backend
+                const response = await fetch(`${API_BASE_URL}/api/users/cart`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (response.ok) {
+                    const cartData = await response.json();
+                    
+                    // The backend should return totalQuantity from calculateCartTotals
+                    let totalItems = cartData.totalQuantity || 0;
+                    
+                    // Fallback: If totalQuantity is missing, calculate it manually
+                    if (totalItems === 0 && cartData.items) {
+                        totalItems = cartData.items.reduce((sum, item) => sum + item.quantity, 0);
+                    }
+
+                    badge.textContent = totalItems;
+                    
+                    if (totalItems > 0) {
+                        badge.classList.remove('hidden');
+                    } else {
+                        badge.classList.add('hidden');
+                    }
+                } else {
+                    // If the API fails or returns an error, assume 0 items
+                    badge.textContent = 0;
+                    badge.classList.add('hidden');
+                }
+            } catch (error) {
+                console.error('Failed to fetch cart summary:', error);
+            }
         }
-    }
-}
+        
+        // Function to add item to cart (Called by Add to Bag button)
+        async function addToCart(productId) {
+            const quantityInput = document.getElementById(`quantity-input-${productId}`);
+            const quantity = parseInt(quantityInput.value) || 1;
+            
+            if (quantity < 1) return;
 
-/**
- * Handles adding an item (or quantity of items) to the cart and updates the badge.
- * @param {string} collectionId - The ID of the item being added (used for logging/future API integration).
- * @param {number} quantity - The number of items to add.
- */
-function addToCart(collectionId, quantity) {
-    let currentCount = getCartCount();
-    let newCount = currentCount + quantity;
-    
-    // Safety clamp
-    if (newCount < 0) newCount = 0;
+            // Find mock product details to send to the backend
+            const product = mockProducts.find(p => p.id === productId);
+            if (!product) return console.error("Product not found locally.");
+            
+            const payload = {
+                productId: product.id,
+                name: product.name,
+                productType: product.type,
+                size: 'L', // Hardcode size/color for simplicity, typically chosen by user
+                color: 'Black',
+                price: product.price,
+                quantity: quantity,
+                imageUrl: product.imageUrl,
+            };
 
-    localStorage.setItem(CART_STORAGE_KEY, newCount.toString());
-    
-    // Update the visual badge
-    updateCartBadge();
-    
-    // Optional: Add a simple confirmation flash/message
-    const alertMessage = document.getElementById('cart-alert');
-    if (alertMessage) {
-        alertMessage.textContent = `${quantity} item(s) added to cart! Total: ${newCount}`;
-        alertMessage.classList.remove('hidden');
-        alertMessage.classList.add('opacity-100', 'translate-y-0');
-        setTimeout(() => {
-            alertMessage.classList.add('hidden');
-            alertMessage.classList.remove('opacity-100', 'translate-y-0');
-        }, 3000);
-    }
+            const alertElement = document.getElementById('cart-alert');
 
-    console.log(`Added ${quantity} of item ${collectionId}. New cart total: ${newCount}`);
-}
+            try {
+                // Use the correct backend endpoint: POST /api/users/cart
+                const response = await fetch(`${API_BASE_URL}/api/users/cart`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    updateCartBadge();
+                    // Show success alert
+                    alertElement.textContent = `Item(s) added to bag!`;
+                    alertElement.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 bg-ash-red text-white font-semibold rounded-lg shadow-xl hidden opacity-0 translate-y-0';
+                    alertElement.classList.remove('hidden', 'opacity-0', '-translate-y-10');
+                    alertElement.classList.add('opacity-100', 'translate-y-0', 'bg-ash-red');
+                    
+                    setTimeout(() => {
+                        alertElement.classList.remove('opacity-100', 'translate-y-0');
+                        alertElement.classList.add('opacity-0', '-translate-y-10');
+                        setTimeout(() => alertElement.classList.add('hidden'), 500);
+                    }, 3000);
+                } else {
+                    const errorData = await response.json();
+                    alertElement.textContent = `Error: ${errorData.message || 'Failed to add item to shopping bag.'}`;
+                    alertElement.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 bg-red-700 text-white font-semibold rounded-lg shadow-xl hidden opacity-0 translate-y-0';
+                    alertElement.classList.remove('hidden', 'opacity-0', '-translate-y-10');
+                    alertElement.classList.add('opacity-100', 'translate-y-0');
+                    
+                    setTimeout(() => {
+                        alertElement.classList.remove('opacity-100', 'translate-y-0');
+                        alertElement.classList.add('opacity-0', '-translate-y-10');
+                        setTimeout(() => alertElement.classList.add('hidden'), 500);
+                    }, 3000);
+                }
+            } catch (error) {
+                console.error('Network Error:', error);
+                alertElement.textContent = 'Network error. Could not connect to service.';
+                alertElement.classList.remove('hidden');
+            }
+        }
 
 // Initialize the cart badge on page load
 document.addEventListener('DOMContentLoaded', updateCartBadge);
@@ -978,6 +1051,11 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchAndRenderNewArrivals(); 
     fetchAndRenderCapsCollection();
     fetchAndRenderPreorderCollections(); // 🎯 NEW FUNCTION CALL
+
+    // NEW UI & AUTH CALLS
+    updateCartBadge(); // Load cart count immediately
+    addCardImageListeners(); // Make card images clickable
+    enforceAuthGate(); // **CRITICAL: Check login status immediately**
 });
 </script>
 

@@ -268,14 +268,14 @@
     
 <script>
     // *** 1. CONFIGURATION ***
-    const API_BASE_URL = 'https://outflickzltd.netlify.app/api'; 
-    const REGISTER_ENDPOINT = `${API_BASE_URL}/users/register`; 
-    const VERIFY_ENDPOINT = `${API_BASE_URL}/users/verify`; 
-    const RESEND_ENDPOINT = `${API_BASE_URL}/users/resend-verification`; 
-    const LOGIN_ENDPOINT = `${API_BASE_URL}/users/login`; 
+    const API_BASE_URL = 'https://outflickzltd.netlify.app/api';
+    const REGISTER_ENDPOINT = `${API_BASE_URL}/users/register`;
+    const VERIFY_ENDPOINT = `${API_BASE_URL}/users/verify`;
+    const RESEND_ENDPOINT = `${API_BASE_URL}/users/resend-verification`;
+    const LOGIN_ENDPOINT = `${API_BASE_URL}/users/login`;
 
-    let pendingVerificationEmail = ''; 
-    
+    let pendingVerificationEmail = '';
+
     let views = {};
     let headerElement;
     let messageArea;
@@ -286,57 +286,62 @@
      */
     function showView(viewName) {
         let currentView = Object.values(views).find(v => v.classList.contains('opacity-100') && !v.classList.contains('hidden'));
-        
+
         const headers = {
             'login': 'Sign In',
             'create': 'Create Account',
             'verify': 'Verify Account',
             'forgot': 'Reset Password',
         };
+        // The error was likely here as 'profile' was not checked:
         headerElement.textContent = headers[viewName] || 'Authentication';
-        
-        if (viewName !== 'profile') {
-            messageArea.classList.add('hidden');
-            messageArea.innerHTML = '';
-        }
+
+        // Simplifed to always clear message on view change
+        messageArea.classList.add('hidden');
+        messageArea.innerHTML = '';
 
         const nextView = views[viewName];
+
+        if (!nextView) {
+            console.error(`View '${viewName}' not found.`);
+            return;
+        }
 
         if (currentView && currentView !== nextView) {
             currentView.classList.remove('opacity-100');
             currentView.classList.add('opacity-0');
-            
+
             // Adjust height for smooth transition between views of different sizes
-            container.style.height = `${currentView.offsetHeight}px`; 
+            container.style.height = `${currentView.offsetHeight}px`;
 
             setTimeout(() => {
                 currentView.classList.add('hidden');
                 currentView.classList.remove('absolute');
-                
+
                 nextView.classList.remove('hidden');
                 nextView.classList.add('absolute');
-                
+
                 // Calculate and set the target height before showing
-                container.style.height = `${nextView.offsetHeight}px`; 
+                container.style.height = `${nextView.offsetHeight}px`;
 
                 setTimeout(() => {
                     nextView.classList.remove('absolute');
                     nextView.classList.remove('opacity-0');
                     nextView.classList.add('opacity-100');
-                    
+
                     // Reset height after transition to allow responsive growth
                     setTimeout(() => {
                         container.style.height = '';
-                    }, 400); 
-                }, 50); 
-            }, 400); 
+                    }, 400);
+                }, 50);
+            }, 400);
         } else if (nextView) {
             nextView.classList.remove('hidden');
             nextView.classList.remove('opacity-0');
             nextView.classList.add('opacity-100');
         }
     }
-    
+
     document.addEventListener('DOMContentLoaded', () => {
         // Initialize DOM elements after load
         views = {
@@ -344,10 +349,18 @@
             'create': document.getElementById('create-view'),
             'verify': document.getElementById('verify-view'),
             'forgot': document.getElementById('forgot-view'),
+            // 'profile' view removed
         };
         headerElement = document.getElementById('auth-header');
         messageArea = document.getElementById('message-area');
         container = document.getElementById('auth-views');
+
+        // Check if all essential elements were found
+        if (!headerElement || !messageArea || !container || !views.login) {
+            console.error("Essential DOM elements for authentication not found. Check HTML IDs.");
+            // Stop execution if main elements are missing to prevent runtime errors
+            return;
+        }
 
         showView('login');
     });
@@ -358,7 +371,7 @@
     function togglePasswordVisibility(fieldId) {
         const field = document.getElementById(fieldId);
         const button = document.getElementById(`toggle-${fieldId}`);
-        
+
         if (field.type === 'password') {
             field.type = 'text';
             button.textContent = 'Hide';
@@ -372,10 +385,10 @@
      * Displays a temporary message.
      */
     function displayMessage(message, type = 'info') {
-        const baseClasses = 'mt-8 p-4 text-sm rounded-xl font-medium'; 
+        const baseClasses = 'mt-8 p-4 text-sm rounded-xl font-medium';
         messageArea.className = baseClasses;
         messageArea.innerHTML = message;
-        
+
         switch (type) {
             case 'success':
                 messageArea.classList.add('bg-green-100', 'text-green-800', 'border', 'border-green-300');
@@ -392,14 +405,13 @@
 
     /**
      * Function to handle login form submission with real API call
-     * MODIFIED: Now includes local cart data in the payload.
      */
     async function handleLogin(event) {
         event.preventDefault();
         const email = document.getElementById('login-email').value;
         const password = document.getElementById('login-password').value;
         const loginBtn = document.getElementById('login-btn');
-        
+
         // --- 🔑 CART MERGE LOGIC - STEP 1: READ LOCAL CART ---
         let localCartItems = [];
         try {
@@ -428,9 +440,9 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 // --- 🔑 CART MERGE LOGIC - STEP 2: INCLUDE IN PAYLOAD ---
-                body: JSON.stringify({ 
-                    email: email, 
-                    password: password, 
+                body: JSON.stringify({
+                    email: email,
+                    password: password,
                     localCartItems: localCartItems // Pass local cart to the backend
                 })
                 // -------------------------------------------------------
@@ -444,11 +456,11 @@
             } else if (!response.ok) {
                 throw new Error(`Server Error (${response.status}): Could not reach login service.`);
             }
-            
+
             // 4. Handle API Responses
             if (response.ok) {
                 // SUCCESS (HTTP 200): Login successful
-                
+
                 // --- 🔑 CART MERGE LOGIC - STEP 3: CLEAR LOCAL STORAGE ---
                 if (localCartItems.length > 0) {
                     localStorage.removeItem('outflickzLocalCart');
@@ -456,47 +468,32 @@
                 }
                 // ----------------------------------------------------------
 
-                // Populate profile view 
-                if (data.user) {
-                    populateProfileView(data.user); 
-                } else {
-                    // Mock data fallback... (keep the existing logic)
-                    populateProfileView({
-                        id: 'u-xxxx-logged-in',
-                        email: email,
-                        name: data.user?.name || 'User',
-                        username: data.user?.username || email.split('@')[0],
-                        role: data.user?.status?.role || 'Basic User',
-                        verified: data.user?.status?.isVerified || true,
-                        memberSince: 'Today',
-                        lastUpdated: new Date().toLocaleDateString()
-                    });
-                }
-
+                // Removed populateProfileView() call
                 displayMessage('Successfully signed in! Your cart was merged. Redirecting to homepage...', 'success');
 
-                // Simulate redirect after a short delay
+                // Simulate redirect after a short delay (retaining original window.location.href logic)
                 setTimeout(() => {
-                    // window.location.href = 'homepage.html';
-                    showView('profile'); // Show profile view instead of redirecting immediately for demo
-                }, 1000); 
+                    // window.location.href = 'homepage.html'; // Actual redirect
+                    console.log('Login successful - would redirect now.');
+                    // In the demo, we just stay on the login screen with a success message
+                }, 1000);
 
             } else if (response.status === 403 && data.needsVerification) {
                 // FAILED (HTTP 403): Account needs verification
-                pendingVerificationEmail = email; 
+                pendingVerificationEmail = email;
                 document.getElementById('verify-email-display').textContent = email;
-                
+
                 displayMessage(data.message || 'Your account needs to be verified. Please enter the code sent to your email.', 'error');
-                
+
                 setTimeout(() => {
                     showView('verify');
-                    setResendCooldown(60); 
+                    setResendCooldown(60);
                 }, 1000);
 
             } else if (response.status === 401) {
                 // FAILED (HTTP 401): Invalid credentials
                 displayMessage(data.message || 'Sign In failed. Please check your email and password.', 'error');
-                
+
             } else {
                 // OTHER ERRORS (e.g., 500 Server Error)
                 const errorMessage = data.message || `API Error (${response.status}): An unexpected error occurred.`;
@@ -558,8 +555,8 @@
             if (contentType && contentType.includes('application/json')) {
                 data = await response.json();
             } else if (!response.ok) {
-                    // Throwing an error here prevents the "Unexpected end of JSON input" error on 404/500
-                    throw new Error(`Server Error (${response.status}): Netlify could not find the function or the server crashed.`);
+                        // Throwing an error here prevents the "Unexpected end of JSON input" error on 404/500
+                        throw new Error(`Server Error (${response.status}): Netlify could not find the function or the server crashed.`);
             }
             // END ROBUST PARSING
 
@@ -568,15 +565,15 @@
                 // Success: Account created, verification code sent
                 pendingVerificationEmail = email;
                 document.getElementById('verify-email-display').textContent = email;
-                
+
                 displayMessage(`Success! Account created. Now check ${email} for your 6-digit verification code.`, 'success');
-                
+
                 form.reset();
 
                 setTimeout(() => {
                     showView('verify');
-                    setResendCooldown(60); 
-                }, 2000); 
+                    setResendCooldown(60);
+                }, 2000);
 
             } else {
                 // Handle API errors (4xx, 5xx with JSON body)
@@ -602,7 +599,7 @@
         const code = document.getElementById('verify-code').value;
         const verifyBtn = document.getElementById('verify-btn');
         const email = pendingVerificationEmail;
-        
+
         if (!email) {
             displayMessage('Error: No pending email found. Please create an account.', 'error');
             showView('create');
@@ -611,7 +608,7 @@
 
         verifyBtn.textContent = 'Verifying...';
         verifyBtn.disabled = true;
-        
+
         try {
             const response = await fetch(VERIFY_ENDPOINT, {
                 method: 'POST',
@@ -625,17 +622,17 @@
             if (contentType && contentType.includes('application/json')) {
                 data = await response.json();
             } else if (!response.ok) {
-                    throw new Error(`Server Error (${response.status}): Netlify could not find the function or the server crashed.`);
+                        throw new Error(`Server Error (${response.status}): Netlify could not find the function or the server crashed.`);
             }
             // END ROBUST PARSING
 
 
             if (response.ok) {
                 displayMessage('Account verified successfully! You can now sign in.', 'success');
-                
-                pendingVerificationEmail = ''; 
+
+                pendingVerificationEmail = '';
                 document.getElementById('verify-code').value = '';
-                
+
                 setTimeout(() => {
                     showView('login');
                     document.getElementById('login-email').value = email; // Pre-fill email
@@ -687,14 +684,14 @@
             // Cooldown is active, just return
             return;
         }
-        
+
         if (!email) {
             showView('create');
             displayMessage('Please create an account first.', 'error');
             return;
         }
 
-        setResendCooldown(60); 
+        setResendCooldown(60);
         displayMessage(`Resending code to ${email}...`, 'info');
 
         try {
@@ -710,10 +707,10 @@
             if (contentType && contentType.includes('application/json')) {
                 data = await response.json();
             } else if (!response.ok) {
-                    throw new Error(`Server Error (${response.status}): Netlify could not find the function or the server crashed.`);
+                        throw new Error(`Server Error (${response.status}): Netlify could not find the function or the server crashed.`);
             }
             // END ROBUST PARSING
-            
+
             if (response.ok) {
                 displayMessage('New code successfully sent! Check your inbox.', 'success');
             } else {
@@ -739,18 +736,8 @@
         }, 5000);
     }
 
-    /**
-     * Placeholder function for handling user logout.
-     */
-    function handleLogout() {
-        // In a real app, clear the token from localStorage/cookies here
-        displayMessage('You have been successfully logged out.', 'info');
-        // Clear all input fields for security/fresh start
-        document.getElementById('login-form').reset();
-        showView('login');
-    }
+    // handleLogout and populateProfileView functions have been removed.
 
-   
 </script>
 </body>
 </html>

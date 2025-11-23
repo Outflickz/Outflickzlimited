@@ -2666,7 +2666,7 @@ app.post('/api/users/forgot-password', async (req, res) => {
             // await User.updateOne({ _id: user._id }, { resetPasswordToken: resetToken, resetPasswordExpires: Date.now() + 3600000 }); // 1 hour
 
             // 3. Construct the actual reset link
-            const resetLink = `https://outflickz.netlify.app//reset-password?token=${resetToken}&email=${email}`;
+            const resetLink = `https://outflickzltd.netlify.app/reset-password?token=${resetToken}&email=${email}`;
 
             // 🛠️ NEW: Updated HTML template with Logo and Styling
             const resetSubject = 'Outflickz Limited: Password Reset Request';

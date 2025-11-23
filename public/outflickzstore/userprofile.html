@@ -3,20 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Profile</title>
+    <title>User Profile | Outflickz</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    </head>
-<body class="bg-gray-100 min-h-screen">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"> 
+</head>
+<body class="bg-gray-100 min-h-screen text-color-black">
     
     <script>
-        // NOTE: If API_BASE_URL is defined in a separate file, you must ensure it's loaded first.
-        // Assuming API_BASE_URL is globally available or you define the full path here.
-        const API_BASE_URL = 'https://outflickzltd.netlify.app/api';  // Set this if your API is on a different domain
+        // Assuming the necessary global constants and functions are available or defined here.
+        const API_BASE_URL = 'https://outflickzltd.netlify.app/api';
+
+        /**
+         * Placeholder for UI Functions needed by the Header
+         * (These should ideally be in a shared utility JS file)
+         */
+        function redirectToProfileOrLogin() {
+            // Function to handle profile/login redirect
+            window.location.href = 'useraccount.html';
+        }
+        function toggleMenu() {
+            const mobileMenu = document.getElementById('mobile-menu');
+            const isExpanded = mobileMenu.classList.toggle('hidden');
+            // Update aria-expanded state on the menu button (if you implement the button)
+        }
 
         /**
          * CRITICAL SECURITY GATE: Enforces redirect immediately on page load
          * if the user is not authenticated.
-         * This function relies on the browser automatically sending the HTTP-only cookie.
          */
         function enforceAuthGate() {
             // Check the authentication status
@@ -24,10 +37,9 @@
                 .then(response => {
                     if (response.status !== 200) {
                         // If not authenticated, redirect to the login page
-                        // using replace() to prevent using the back button to view the page
                         window.location.replace('useraccount.html');
                     }
-                    // If 200 OK, authentication is successful, the user stays on the page
+                    // If 200 OK, authentication is successful, user stays on the page
                 })
                 .catch(error => {
                     // Treat network failure as unauthenticated/unverified
@@ -40,33 +52,181 @@
         document.addEventListener('DOMContentLoaded', enforceAuthGate);
     </script>
 
-    <header class="bg-white shadow-md py-4">
-        <div class="max-w-7xl mx-auto px-4">
-            <h1 class="text-2xl font-semibold text-gray-800">Your Account</h1>
+    <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
+            <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
+                <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-10 sm:h-12 lg:h-10">
+            </a>
+
+            <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
+                <a href="preorder.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
+                <a href="newarrivals.html" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
+                <a href="wearscollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Wears Collections</a>
+                <a href="capcollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Cap Collections</a>
+            </nav>
+
+            <div class="flex items-center space-x-2 sm:space-x-4">
+                <button id="profile-icon" 
+                    class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" 
+                    aria-label="User Account"
+                    onclick="redirectToProfileOrLogin()">
+                    <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
+                </button>
+                <a href="cart.html" class="relative p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" aria-label="Shopping Bag">
+                    <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
+                    <span id="cart-badge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-ash-red rounded-full hidden">
+                        0
+                    </span>
+                </a>
+                <button class="md:hidden p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
+                    <i class="fas fa-bars w-5 h-5 sm:w-6 sm:h-6"></i>
+                </button>
+            </div>
         </div>
     </header>
 
-    <main class="container mx-auto p-4 sm:p-8 mt-10 bg-white shadow-lg rounded-lg max-w-2xl">
-        <h2 class="text-3xl font-bold text-gray-900 mb-4">Welcome to your Profile! 🎉</h2>
-        <p class="text-gray-600 mb-6">
-            Your session is active and verified by the server. This secure area is for your personal details and order history.
-        </p>
+    <div id="mobile-menu" class="hidden md:hidden bg-color-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
+        <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
+            <a href="preorder.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
+            <a href="newarrivals.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">New Arrivals</a>
+            <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Wears Collection</a>
+            <a href="capcollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cap Collection</a>
+            <a href="userprofile.html" class="block px-3 py-2 font-medium text-ash-red bg-gray-100 rounded-md">Account</a>
+        </div>
+    </div>
+    
+    <main class="container mx-auto p-4 sm:p-8 mt-10 bg-white shadow-xl rounded-lg max-w-4xl">
         
-        <div class="space-y-4">
-            <div class="p-4 border border-gray-200 rounded-md bg-gray-50">
-                <h3 class="font-bold text-lg text-ash-red">Profile Details</h3>
-                <p class="text-sm text-gray-700">Information loading here...</p>
-            </div>
-            <div class="p-4 border border-gray-200 rounded-md bg-gray-50">
-                <h3 class="font-bold text-lg text-ash-red">Order History</h3>
-                <p class="text-sm text-gray-700">No recent orders found.</p>
-            </div>
+        <div class="pb-6 border-b border-gray-200">
+            <h2 class="text-4xl font-extrabold text-gray-900 mb-2 flex items-center">
+                User Dashboard 🎉
+            </h2>
+            <p class="text-gray-600">
+                Welcome back! Manage your personal information, track orders, and secure your account.
+            </p>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 pt-8">
+            <aside class="md:col-span-1">
+                <nav class="space-y-2">
+                    <a href="#profile-details" class="block p-3 rounded-md bg-ash-red text-white font-semibold transition duration-150">
+                        <i class="fas fa-user-circle mr-2"></i> Profile Details
+                    </a>
+                    <a href="#order-history" class="block p-3 rounded-md text-gray-700 hover:bg-gray-100 font-medium transition duration-150">
+                        <i class="fas fa-history mr-2"></i> Order History
+                    </a>
+                    <a href="#settings" class="block p-3 rounded-md text-gray-700 hover:bg-gray-100 font-medium transition duration-150">
+                        <i class="fas fa-cog mr-2"></i> Settings
+                    </a>
+                    <button onclick="/* Add Logout Functionality Here */" class="w-full text-left p-3 rounded-md text-red-600 hover:bg-red-50 font-medium transition duration-150">
+                        <i class="fas fa-sign-out-alt mr-2"></i> Log Out
+                    </button>
+                </nav>
+            </aside>
+
+            <section class="md:col-span-2 space-y-8">
+                
+                <div id="profile-details">
+                    <h3 class="font-bold text-2xl text-ash-red border-b pb-2 mb-4">Personal Information</h3>
+                    <div class="space-y-3 text-gray-700">
+                        <p><strong>Name:</strong> <span id="user-name">Loading...</span></p>
+                        <p><strong>Email:</strong> <span id="user-email">Loading...</span></p>
+                        <p><strong>Phone:</strong> <span id="user-phone">Not Set</span></p>
+                    </div>
+                    <button class="mt-4 text-sm text-blue-600 hover:text-blue-800 font-medium">Edit Profile</button>
+                </div>
+
+                <div id="order-history">
+                    <h3 class="font-bold text-2xl text-ash-red border-b pb-2 mb-4">Order History</h3>
+                    <div id="orders-list">
+                        <div class="p-3 bg-gray-50 rounded-md border border-gray-200">
+                            <p class="font-semibold text-gray-800">Order #OFZ1001</p>
+                            <p class="text-sm text-gray-600">Status: <span class="text-green-600 font-bold">Shipped</span> | Date: 2025-11-15 | Total: $85.00</p>
+                            <a href="#" class="text-xs text-blue-500 hover:text-blue-700">View Details</a>
+                        </div>
+                        <div class="p-3 mt-3 bg-gray-50 rounded-md border border-gray-200">
+                            <p class="font-semibold text-gray-800">Order #OFZ1002</p>
+                            <p class="text-sm text-gray-600">Status: <span class="text-yellow-600 font-bold">Processing</span> | Date: 2025-11-20 | Total: $45.00</p>
+                            <a href="#" class="text-xs text-blue-500 hover:text-blue-700">View Details</a>
+                        </div>
+                    </div>
+                    
+                    <a href="#" class="mt-4 inline-block text-sm text-ash-red hover:underline font-medium">View All Orders</a>
+                </div>
+
+            </section>
         </div>
 
-        <a href="homepage.html" class="mt-8 inline-block bg-ash-red text-white hover:bg-red-700 transition duration-300 font-semibold py-2 px-6 rounded-sm uppercase text-sm tracking-wider">
-            Go Back to Homepage
-        </a>
     </main>
+    
+    <footer class="bg-gray-900 text-gray-300 py-10 sm:py-14 border-t border-gray-800 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
+                
+                <div class="col-span-2 lg:col-span-1">
+                    <a href="homepage.html" class="flex items-center mb-4">
+                        <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-8 filter grayscale invert">
+                    </a>
+                    <p class="text-sm text-gray-500">
+                        The home of exclusive street wear and limited edition drops. Elevate your style.
+                    </p>
+                    <div class="flex space-x-4 mt-4 text-gray-400">
+                        <a href="#" aria-label="Instagram" class="hover:text-ash-red transition"><i class="fab fa-instagram"></i></a>
+                        <a href="#" aria-label="Twitter" class="hover:text-ash-red transition"><i class="fab fa-twitter"></i></a>
+                        <a href="#" aria-label="Facebook" class="hover:text-ash-red transition"><i class="fab fa-facebook-f"></i></a>
+                    </div>
+                </div>
 
+                <div class="col-span-1">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Quick Links</h3>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="wearscollection.html" class="text-gray-400 hover:text-ash-red transition">Wears</a></li>
+                        <li><a href="capcollection.html" class="text-gray-400 hover:text-ash-red transition">Caps</a></li>
+                        <li><a href="newarrivals.html" class="text-gray-400 hover:text-ash-red transition">New Arrivals</a></li>
+                        <li><a href="preorder.html" class="text-gray-400 hover:text-ash-red transition">Pre-Order</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-span-1">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Customer Care</h3>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Contact Us</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Shipping & Returns</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">FAQ</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Size Guide</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-span-2 md:col-span-1">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Get In Touch</h3>
+                    <address class="text-sm not-italic space-y-2">
+                        <p class="text-gray-400">
+                            <i class="fas fa-map-marker-alt mr-2 text-ash-red"></i> 123 Streetwear Ave, City, Country
+                        </p>
+                        <p class="text-gray-400">
+                            <i class="fas fa-envelope mr-2 text-ash-red"></i> support@outflickz.com
+                        </p>
+                        <p class="text-gray-400">
+                            <i class="fas fa-phone mr-2 text-ash-red"></i> +1 (555) 123-4567
+                        </p>
+                    </address>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-800 mt-10 pt-6">
+                <p class="text-center text-xs text-gray-500">
+                    &copy; 2025 Outflickz. All rights reserved. | <a href="#" class="hover:text-ash-red">Privacy Policy</a> | <a href="#" class="hover:text-ash-red">Terms of Use</a>
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <a href="https://wa.me/2347042882706?text=HELLO!%20WELCOME%20TO%20OUTFLICKZ!%20HOW%20CAN%20WE%20HELP%20YOU" 
+        target="_blank" 
+        class="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-3 sm:p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105" 
+        aria-label="Chat with us on WhatsApp">
+        <i class="fab fa-whatsapp text-2xl sm:text-3xl"></i>
+    </a>
+    
 </body>
 </html>

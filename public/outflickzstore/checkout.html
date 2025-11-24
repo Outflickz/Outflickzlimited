@@ -23,59 +23,228 @@
 <body class="bg-gray-50 min-h-screen text-gray-900 antialiased">
     
     <script>
+        // --- CONSTANTS AND UTILITIES (Matching cart.html context) ---
+        const LOCAL_CART_KEY = 'outflickz_local_cart';
+        const CART_STORAGE_KEY = 'cart_item_count';
+        const DEFAULT_SHIPPING_COST = 2000; // ₦2,000 for standard delivery
+        
+        // Placeholder utility functions (must be defined for context)
+        function isUserLoggedIn() {
+            // In a real app, this would check for a valid session token/cookie
+            return localStorage.getItem('user_token') === 'logged_in_user'; 
+        }
+
+        function redirectToProfileOrLogin() {
+            window.location.href = isUserLoggedIn() ? 'userprofile.html' : 'login.html';
+        }
+
+        function displayMessage(message) {
+            const modalContainer = document.getElementById('message-modal-container');
+            const modalText = document.getElementById('message-modal-text');
+            if (modalContainer && modalText) {
+                modalText.textContent = message;
+                modalContainer.classList.remove('hidden');
+                setTimeout(() => {
+                    modalContainer.classList.add('hidden');
+                }, 4000); 
+            }
+        }
+        
+        function updateCartBadge(count) {
+            const badge = document.getElementById('cart-badge');
+            const currentCount = count || parseInt(localStorage.getItem(CART_STORAGE_KEY) || '0');
+            
+            if (badge) {
+                if (currentCount > 0) {
+                    badge.textContent = currentCount;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+        }
+
         function toggleMenu() {
             const mobileMenu = document.getElementById('mobile-menu');
             mobileMenu.classList.toggle('hidden');
         }
 
-        // IMPORTANT: This function must be replaced by your actual server-side payment initiation logic.
-        function initiatePayment() {
-            // Placeholder: Replace with actual validation and AJAX call to your server
-            const form = document.getElementById('checkout-form');
-            if (!form.checkValidity()) {
-                // Allows native HTML validation to show errors
+        // --- CORE CHECKOUT LOGIC ---
+        
+        // List of Nigerian states for the dropdown
+        const NIGERIAN_STATES = [
+            "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue", "Borno", 
+            "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu", "FCT - Abuja", "Gombe", 
+            "Imo", "Jigawa", "Kaduna", "Kano", "Katsina", "Kebbi", "Kogi", "Kwara", "Lagos", 
+            "Nasarawa", "Niger", "Ogun", "Ondo", "Osun", "Oyo", "Plateau", "Rivers", "Sokoto", 
+            "Taraba", "Yobe", "Zamfara"
+        ];
+
+        function populateNigerianStates() {
+            const selectElement = document.getElementById('state');
+            if (selectElement) {
+                // Clear existing options first (if any placeholder exists)
+                selectElement.innerHTML = ''; 
+                
+                // Add a default, disabled, selected option
+                const defaultOption = document.createElement('option');
+                defaultOption.value = "";
+                defaultOption.textContent = "Select State";
+                defaultOption.disabled = true;
+                defaultOption.selected = true;
+                selectElement.appendChild(defaultOption);
+
+                NIGERIAN_STATES.forEach(state => {
+                    const option = document.createElement('option');
+                    option.value = state;
+                    option.textContent = state;
+                    selectElement.appendChild(option);
+                });
+            }
+        }
+
+        function formatNaira(amount) {
+            return `₦${(amount / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+        }
+        
+        // Placeholder function to fetch cart data (simulates API/Local Storage fetch)
+        async function fetchCartData() {
+            // Check for local cart first (simplicity for frontend demo)
+            const cartJSON = localStorage.getItem(LOCAL_CART_KEY);
+            let cartItems = [];
+
+            if (cartJSON) {
+                try {
+                    cartItems = JSON.parse(cartJSON);
+                } catch (e) {
+                    console.error('Error parsing local cart JSON:', e);
+                }
+            } else if (isUserLoggedIn()) {
+                // In a real app, this would be an API call
+                // Simulating an item for the summary
+                cartItems = [{ 
+                    id: '12345', 
+                    name: 'HF MESH LONGSLEEVE', 
+                    color: 'Black', 
+                    size: 'S', 
+                    price: 2000000, // Price in kobo/cents (₦20,000.00)
+                    quantity: 1 
+                }];
+            }
+            
+            return cartItems;
+        }
+
+        async function renderOrderSummary() {
+            const cartItems = await fetchCartData();
+            const orderItemsContainer = document.getElementById('order-items');
+            const subtotalEl = document.getElementById('subtotal');
+            const shippingEl = document.getElementById('shipping');
+            const grandTotalEl = document.getElementById('grand-total');
+
+            // Clear previous items
+            orderItemsContainer.innerHTML = ''; 
+
+            if (cartItems.length === 0) {
+                orderItemsContainer.innerHTML = '<p class="text-center text-gray-500 py-6">Your bag is empty. <a href="cart.html" class="text-ash-red font-semibold">Return to cart</a>.</p>';
+                subtotalEl.textContent = formatNaira(0);
+                shippingEl.textContent = formatNaira(0);
+                grandTotalEl.textContent = formatNaira(0);
+                document.getElementById('checkout-form').style.opacity = '0.5';
+                document.querySelector('button[type="submit"]').disabled = true;
                 return;
             }
 
-            alert('Attempting to initiate payment... (This is a frontend placeholder).');
-            // Example of what a real function might do:
-            /* fetch('/api/checkout', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(collectFormData()) 
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.redirect_url) {
-                    window.location.href = data.redirect_url; // Redirect to Paystack/Stripe/etc.
-                } else {
-                    alert('Payment processing error: ' + data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Checkout failed:', error);
-                alert('A network error occurred. Please try again.');
+            let subtotal = 0;
+            const shipping = DEFAULT_SHIPPING_COST;
+
+            cartItems.forEach(item => {
+                const itemTotal = item.price * item.quantity;
+                subtotal += itemTotal;
+                
+                const itemHTML = `
+                    <div class="flex items-start space-x-4" data-item-id="${item.id}" data-price="${item.price}">
+                        <div class="w-16 h-16 bg-gray-300 rounded-lg flex-shrink-0 relative border border-gray-200 overflow-hidden">
+                            <span class="absolute top-[-8px] right-[-8px] bg-ash-red text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">${item.quantity}</span>
+                            <img src="https://i.imgur.com/gKkL2eS.png" alt="${item.name}" class="w-full h-full object-cover">
+                        </div>
+                        <div class="flex-grow">
+                            <p class="font-semibold text-gray-900 truncate">${item.name}</p>
+                            <p class="text-sm text-gray-500">${item.color} / ${item.size}</p>
+                        </div>
+                        <p class="font-semibold text-gray-900">${formatNaira(itemTotal)}</p>
+                    </div>
+                `;
+                orderItemsContainer.innerHTML += itemHTML;
             });
-            */
+
+            const grandTotal = subtotal + shipping;
+
+            // Update DOM
+            subtotalEl.textContent = formatNaira(subtotal);
+            shippingEl.textContent = formatNaira(shipping);
+            document.getElementById('shipping-rate').textContent = formatNaira(shipping); // Update shipping method text
+            grandTotalEl.textContent = formatNaira(grandTotal);
+
+            // Re-enable checkout elements
+            document.getElementById('checkout-form').style.opacity = '1';
+            document.querySelector('button[type="submit"]').disabled = false;
         }
 
-        // Dummy function to update Cart Badge (replace with actual logic)
-        function updateCartBadge(count) {
-            const badge = document.getElementById('cart-badge');
-            if (count > 0) {
-                badge.textContent = count;
-                badge.classList.remove('hidden');
-            } else {
-                badge.classList.add('hidden');
+
+        // IMPORTANT: This function must be replaced by your actual server-side payment initiation logic.
+        function initiatePayment() {
+            const form = document.getElementById('checkout-form');
+            if (!form.checkValidity()) {
+                // Triggers native HTML validation errors (red borders, required messages)
+                form.reportValidity(); 
+                return;
             }
+
+            const grandTotalText = document.getElementById('grand-total').textContent;
+            
+            if (grandTotalText === '₦0.00') {
+                 displayMessage('Your cart is empty. Please add items before checking out.');
+                 window.location.href = 'cart.html';
+                 return;
+            }
+
+            // In a real application, you would collect form data (email, address, etc.)
+            // and send it to your backend (e.g., /api/checkout)
+            
+            // Placeholder for success:
+            alert(`✅ Payment initiated for ${grandTotalText}. Redirecting to Paystack... (Frontend Placeholder).`);
+            
+            // Clear local cart storage items after "successful" initiation
+            localStorage.removeItem(LOCAL_CART_KEY);
+            localStorage.setItem(CART_STORAGE_KEY, '0');
+            updateCartBadge(0);
+
+            // Simulate redirect to a payment gateway success page or order summary
+            // window.location.href = 'order_confirmation.html'; 
         }
-        
+
+        // --- Main Initialization ---
         document.addEventListener('DOMContentLoaded', () => {
-             // Example: Assuming the cart has items
-             updateCartBadge(1);
+            populateNigerianStates();
+            updateCartBadge();
+            renderOrderSummary(); 
+
+            // Attach the hideMessageModal function to the close button (if used)
+            // Note: The message modal container is not defined in this HTML, 
+            // but the displayMessage function is kept for consistency.
         });
     </script>
 
+    <div id="message-modal-container" class="fixed inset-0 z-[100] hidden flex justify-center items-start pt-10" role="alert" aria-live="assertive">
+        <div class="modal-content bg-gray-900 text-white p-4 rounded-lg shadow-2xl max-w-sm w-full relative">
+            <p id="message-modal-text" class="text-sm font-medium"></p>
+            <button id="message-modal-close-btn" class="absolute top-1 right-1 text-gray-400 hover:text-white transition" aria-label="Close message">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+    
     <header class="bg-white sticky top-0 z-50 shadow-md">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
@@ -94,7 +263,7 @@
                 <a href="cart.html" class="relative p-2 text-gray-600 hover:text-ash-red transition rounded-full" aria-label="Shopping Bag">
                     <i class="fas fa-shopping-bag w-5 h-5"></i>
                     <span id="cart-badge" class="absolute top-0 right-0 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-ash-red border border-white rounded-full transform translate-x-1/3 -translate-y-1/3 hidden">
-                        </span>
+                    </span>
                 </a>
                 <button class="md:hidden p-2 text-gray-600 hover:text-ash-red transition rounded-full focus:outline-none" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
                     <i class="fas fa-bars w-5 h-5"></i>
@@ -140,9 +309,6 @@
                             
                             <select id="country" name="country" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-ash-red focus:border-ash-red transition duration-150" required>
                                 <option value="Nigeria" selected>Country/Region: Nigeria</option>
-                                <option value="Ghana">Ghana</option>
-                                <option value="UK">United Kingdom</option>
-                                <option value="US">United States</option>
                             </select>
                             
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -155,7 +321,8 @@
 
                             <div class="grid grid-cols-3 gap-4">
                                 <input type="text" id="city" name="city" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-ash-red focus:border-ash-red transition duration-150" placeholder="City" required>
-                                <input type="text" id="state" name="state" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-ash-red focus:border-ash-red transition duration-150" placeholder="State">
+                                <select id="state" name="state" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-ash-red focus:border-ash-red transition duration-150" required>
+                                    </select>
                                 <input type="text" id="postal-code" name="postal_code" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-ash-red focus:border-ash-red transition duration-150" placeholder="Postal code (optional)">
                             </div>
                             
@@ -201,7 +368,7 @@
                                 </p>
                             </div>
                         </div>
-                        </div>
+                    </div>
                     
                 </form>
             </div>
@@ -211,18 +378,10 @@
                     <h2 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-3">Order Summary</h2>
 
                     <div id="order-items" class="space-y-4 pb-4 border-b border-gray-200">
-                        <div class="flex items-start space-x-4" data-item-id="12345" data-price="20000.00">
-                            <div class="w-16 h-16 bg-gray-300 rounded-lg flex-shrink-0 relative border border-gray-200 overflow-hidden">
-                                <span class="absolute top-[-8px] right-[-8px] bg-ash-red text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">1</span>
-                                <img src="[URL_TO_ITEM_IMAGE]" alt="HF Mesh Longsleeve" class="w-full h-full object-cover">
-                            </div>
-                            <div class="flex-grow">
-                                <p class="font-semibold text-gray-900">HF MESH LONGSLEEVE</p>
-                                <p class="text-sm text-gray-500">Black / S</p>
-                            </div>
-                            <p class="font-semibold text-gray-900" id="item-price-12345">₦20,000.00</p>
+                        <div class="text-center py-6 text-gray-500 text-sm font-medium">
+                            <i class="fas fa-spinner fa-spin mr-2"></i> Loading items...
                         </div>
-                        </div>
+                    </div>
 
                     <div class="space-y-2 py-4 border-b border-gray-200">
                         <div class="flex justify-between text-gray-700">
@@ -240,7 +399,7 @@
                         <span class="text-2xl font-extrabold text-ash-red" id="grand-total">₦0.00</span>
                     </div>
 
-                    <button type="submit" form="checkout-form" class="mt-6 w-full py-3 bg-ash-red text-white font-bold rounded-lg shadow-md hover:bg-ash-red-dark transition duration-150 focus:outline-none focus:ring-2 focus:ring-ash-red focus:ring-opacity-50">
+                    <button type="submit" form="checkout-form" class="mt-6 w-full py-3 bg-ash-red text-white font-bold rounded-lg shadow-md hover:bg-ash-red-dark transition duration-150 focus:outline-none focus:ring-2 focus:ring-ash-red focus:ring-opacity-50" disabled>
                         Pay now
                     </button>
                     <p class="text-xs text-gray-500 text-center mt-2">By placing this order, you agree to our Terms.</p>

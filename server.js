@@ -2732,70 +2732,88 @@ app.post('/api/users/verify', async (req, res) => {
         res.status(500).json({ message: 'Server error during verification.' });
     }
 });
-
 // =========================================================
 // 2. POST /api/users/login (Login) - MODIFIED
 // =========================================================
 app.post('/api/users/login', async (req, res) => {
-    // ⚠️ New: Extract localCartItems from the request body 
-    // The frontend should send this payload on login
-    const { email, password, localCartItems } = req.body; 
+    // ⚠️ New: Extract localCartItems from the request body 
+    // The frontend should send this payload on login
+    const { email, password, localCartItems } = req.body; 
 
-    try {
-        const user = await User.findOne({ email }).select('+password').lean();
-        
-        // 1. Check for user existence and password match
-        if (!user || !(await bcrypt.compare(password, user.password))) {
-            return res.status(401).json({ message: 'Invalid email or password.' });
-        }
-        
-        // 2. Check verification status
-        if (!user.status.isVerified) {
-            return res.status(403).json({ 
-                message: 'Account not verified. Please verify your email to log in.',
-                needsVerification: true,
-                userId: user._id
-            });
-        }
+    try {
+        // NOTE: Ensure you import and have access to the logActivity function here!
+        // const { logActivity } = require('./utils/activityLogger');
+        
+        const user = await User.findOne({ email }).select('+password').lean();
+        
+        // 1. Check for user existence and password match
+        if (!user || !(await bcrypt.compare(password, user.password))) {
+            return res.status(401).json({ message: 'Invalid email or password.' });
+        }
+        
+        // 2. Check verification status
+        if (!user.status.isVerified) {
+            return res.status(403).json({ 
+                message: 'Account not verified. Please verify your email to log in.',
+                needsVerification: true,
+                userId: user._id
+            });
+        }
 
-        // 3. Create the JWT token
-        const token = jwt.sign(
-            { id: user._id, email: user.email, role: user.status.role || 'user' }, 
-            JWT_SECRET, 
-            { expiresIn: '7d' } 
-        );
-        
-        // --- 🔑 Set the Token as an HTTP-only Cookie ---
-        const isProduction = process.env.NODE_ENV === 'production';
-        
-        res.cookie('outflickzToken', token, {
-            httpOnly: true,
-            secure: isProduction,
-            sameSite: isProduction ? 'strict' : 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000 
-        });
-        // -------------------------------------------------
+        // 3. Create the JWT token
+        const token = jwt.sign(
+            { id: user._id, email: user.email, role: user.status.role || 'user' }, 
+            JWT_SECRET, 
+            { expiresIn: '7d' } 
+        );
+        
+        // --- 🔑 Set the Token as an HTTP-only Cookie ---
+        const isProduction = process.env.NODE_ENV === 'production';
+        
+        res.cookie('outflickzToken', token, {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? 'strict' : 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000 
+        });
+        // -------------------------------------------------
 
-        // 4. ✨ CRITICAL NEW STEP: Merge Local Cart Items into the Database Cart ✨
-        if (localCartItems && Array.isArray(localCartItems) && localCartItems.length > 0) {
-            // This function handles finding the user's permanent cart and merging/updating quantities
-            await mergeLocalCart(user._id, localCartItems);
-            console.log(`Cart merged for user: ${user._id}`);
+        // 4. ✨ Merge Local Cart Items into the Database Cart ✨
+        if (localCartItems && Array.isArray(localCartItems) && localCartItems.length > 0) {
+            // This function handles finding the user's permanent cart and merging/updating quantities
+            await mergeLocalCart(user._id, localCartItems);
+            console.log(`Cart merged for user: ${user._id}`);
+        }
+        // -----------------------------------------------------------------------
+        
+        // 5. 🔔 CRITICAL NEW STEP: Log the successful login event 🔔
+        // Ensure you have a 'logActivity' function imported and defined!
+        // This log will appear in the Admin Dashboard.
+        try {
+            await logActivity(
+                'LOGIN',
+                `User **${user.email}** successfully logged in.`,
+                user._id,
+                { ipAddress: req.ip } // Adding context data like IP is often useful
+            );
+        } catch (logErr) {
+            console.warn('Activity logging failed (login success was not affected):', logErr);
+            // This is non-critical, so we continue without erroring out the main request
         }
         // -----------------------------------------------------------------------
 
-        // 5. Send the successful JSON response 
-        delete user.password; 
+        // 6. Send the successful JSON response 
+        delete user.password; 
 
-        res.status(200).json({ 
-            message: 'Login successful',
-            user: user
-        });
+        res.status(200).json({ 
+            message: 'Login successful',
+            user: user
+        });
 
-    } catch (error) {
-        console.error("User login error:", error);
-        res.status(500).json({ message: 'Server error during login.' });
-    }
+    } catch (error) {
+        console.error("User login error:", error);
+        res.status(500).json({ message: 'Server error during login.' });
+    }
 });
 
 // 3. GET /api/users/account (Fetch Profile - Protected)

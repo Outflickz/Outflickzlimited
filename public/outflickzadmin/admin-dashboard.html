@@ -161,7 +161,7 @@
             
            <div class="mt-8 bg-white p-6 rounded-xl shadow-lg border-t-2 border-gray-200">
     <h3 class="text-xl font-semibold mb-4 text-gray-700">Recent Activity Log 🔔</h3>
-    <p class="text-gray-500 text-sm mb-4">Latest actions requiring Node.js/MongoDB interaction.</p>
+    <p class="text-gray-500 text-sm mb-4">Latest actions requiring.</p>
     <ul class="mt-4 space-y-2 text-sm text-gray-600">
             </ul>
 </div>
@@ -397,81 +397,97 @@
                 metricCards.innerHTML = '<div class="md:col-span-3 text-center p-8 bg-red-100 text-red-700 rounded-xl shadow-lg">Failed to load dashboard data. Please check the API connection.</div>';
                 metricCards.classList.remove('hidden');
             }
+ /**
+     * Function to calculate "time ago" string
+     * Defined once for efficiency.
+     */
+    function formatTimeAgo(date) {
+        const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+        let interval = seconds / 31536000;
+        if (interval > 1) return Math.floor(interval) + " years ago";
+        interval = seconds / 2592000;
+        if (interval > 1) return Math.floor(interval) + " months ago";
+        interval = seconds / 86400;
+        if (interval > 1) return Math.floor(interval) + " days ago";
+        interval = seconds / 3600;
+        if (interval > 1) return Math.floor(interval) + " hours ago";
+        interval = seconds / 60;
+        if (interval > 1) return Math.floor(interval) + " minutes ago";
+        return Math.floor(seconds) + " seconds ago";
+    }
 
-            /**
-         * Dynamically renders the recent activity log on the dashboard.
-         * @param {Array<Object>} activities - Array of recent activity objects.
-         */
-        function renderActivityLog(activities) {
-            const logList = document.querySelector('#content-dashboard .mt-8 ul');
-            if (!logList) return; // Exit if the list element isn't found
+    /**
+     * Dynamically renders the recent activity log on the dashboard.
+     * @param {Array<Object>} activities - Array of recent activity objects.
+     */
+    function renderActivityLog(activities) {
+        // Using the selector from your latest snippet
+        const logList = document.querySelector('#content-dashboard .mt-8 ul');
+        if (!logList) return; // Exit if the list element isn't found
 
-            // Clear existing mock content
-            logList.innerHTML = '';
-            
-            if (activities.length === 0) {
-                logList.innerHTML = '<li class="p-3 text-center text-gray-400">No recent activity recorded.</li>';
-                return;
-            }
+        // Clear existing mock content
+        logList.innerHTML = '';
+        
+        if (activities.length === 0) {
+            logList.innerHTML = '<li class="p-3 text-center text-gray-400">No recent activity recorded.</li>';
+            return;
+        }
+        
+        activities.forEach(activity => {
+            const li = document.createElement('li');
+            // Added items-center for vertical alignment and space-y-2 for spacing
+            li.className = 'p-3 border-l-4 rounded-md flex justify-between items-center space-y-2'; 
             
-            activities.forEach(activity => {
-                const li = document.createElement('li');
-                li.className = 'p-3 border-l-4 rounded-md flex justify-between';
-                
-                let borderColor = 'border-gray-200';
-                let bgColor = '';
+            let borderColor = 'border-gray-200';
+            let bgColor = '';
+            let icon = '➡️'; // Default icon
 
-                // Apply colors based on event type for quick visual cues
-                switch (activity.eventType) {
-                    case 'ORDER_PLACED':
-                        borderColor = 'border-emerald-400';
-                        bgColor = 'bg-emerald-50';
-                        break;
-                    case 'REGISTERED':
-                        borderColor = 'border-cyan-400';
-                        bgColor = 'bg-cyan-50';
-                        break;
-                    case 'FORGOT_PASSWORD':
-                        borderColor = 'border-amber-400';
-                        bgColor = 'bg-amber-50';
-                        break;
-                    // Default case handles LOGIN, ADD_TO_CART, and others
-                }
+            // Apply colors based on event type for quick visual cues
+            switch (activity.eventType) {
+                case 'ORDER_PLACED':
+                    borderColor = 'border-emerald-400';
+                    bgColor = 'bg-emerald-50';
+                    icon = '✅';
+                    break;
+                case 'REGISTERED':
+                    borderColor = 'border-cyan-400';
+                    bgColor = 'bg-cyan-50';
+                    icon = '🆕';
+                    break;
+                case 'FORGOT_PASSWORD':
+                    borderColor = 'border-amber-400';
+                    bgColor = 'bg-amber-50';
+                    icon = '⚠️';
+                    break;
+                case 'LOGIN': // <-- ADDED CASE: Handle the successful user login event
+                    borderColor = 'border-purple-400';
+                    bgColor = 'bg-purple-50';
+                    icon = '🔑';
+                    break;
+                case 'PRODUCT_ADDED': // Handling other common event types
+                    borderColor = 'border-yellow-400';
+                    bgColor = 'bg-yellow-50';
+                    icon = '📦';
+                    break;
+                // Default case handles ADD_TO_CART and others
+            }
 
-                li.classList.add(borderColor, bgColor);
-                
-                // Function to calculate "time ago" string
-                const timeAgo = (date) => {
-                    const seconds = Math.floor((new Date() - new Date(date)) / 1000);
-                    let interval = seconds / 31536000;
-                    if (interval > 1) return Math.floor(interval) + " years ago";
-                    interval = seconds / 2592000;
-                    if (interval > 1) return Math.floor(interval) + " months ago";
-                    interval = seconds / 86400;
-                    if (interval > 1) return Math.floor(interval) + " days ago";
-                    interval = seconds / 3600;
-                    if (interval > 1) return Math.floor(interval) + " hours ago";
-                    interval = seconds / 60;
-                    if (interval > 1) return Math.floor(interval) + " minutes ago";
-                    return Math.floor(seconds) + " seconds ago";
-                };
-
-                li.innerHTML = `
-                    <span>${activity.description}</span>
-                    <span class="text-xs text-gray-400">${timeAgo(activity.timestamp)}</span>
-                `;
-                
-                logList.appendChild(li);
-            });
-
-            // Remove the mock log entries from the HTML to be fully dynamic
-            const mockList = document.querySelector('#content-dashboard .mt-8 ul');
-            if (mockList) {
-                // The HTML already contains mock list items. We need to clear them out.
-                // Since the initial HTML structure has a few mock LIs, we'll assume the JavaScript runs *after* those and replaces them.
-                // The clearing is done with logList.innerHTML = ''; earlier.
-            }
-        }
+            li.classList.add(borderColor, bgColor);
+            
+            // Using the efficient formatTimeAgo function defined outside this loop
+            const timeAgo = formatTimeAgo(activity.timestamp);
+            
+            li.innerHTML = `
+                <span class="flex items-center space-x-2">
+                    <span class="text-lg">${icon}</span>
+                    <span>${activity.description}</span>
+                </span>
+                <span class="text-xs text-gray-400">${timeAgo}</span>
+            `;
+            
+            logList.appendChild(li);
+        });
+    }
         }
     </script>
 </body>

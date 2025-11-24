@@ -61,6 +61,7 @@ tailwind.config = {
 
 // Global Constants (Ensure USER_AUTH_TOKEN is defined)
 const CART_STORAGE_KEY = 'outflickzCartCount';
+const LOCAL_CART_KEY = 'outflickzLocalCart';
 const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
 const API_BASE_URL = 'https://outflickzltd.netlify.app'; // Keep for relative paths like '/api/users/cart'
 
@@ -69,21 +70,59 @@ function redirectToProfileOrLogin() {
     // Placeholder function - should navigate based on auth token existence
     window.location.href = 'useraccount.html';
 }
-// ---------------------------------------------------
 
-// This function would be called when a user clicks 'Add to Cart' on a product page.
+/**
+ * Adds an item to the cart. Uses API if authenticated, or local storage if unauthenticated.
+ */
 async function simulateAddToCart(productDetails) {
-    // MODIFIED: Removed the immediate login check. The API will now attempt the call.
-    // NOTE: This call will fail on the backend because it requires a token (401 Unauthorized).
-    // The backend must be modified to handle unauthenticated cart sessions for this to work fully.
+    // 1. --- HANDLE UN-AUTHENTICATED (LOCAL) CART ADDITION ---
+    if (!USER_AUTH_TOKEN) {
+        let localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
+        
+        // Ensure necessary fields are present for unique matching (as required by the backend merge logic)
+        const requiredDetails = {
+            _id: productDetails.productId || Date.now().toString(), // Use productId for backend, unique ID for frontend
+            productId: productDetails.productId,
+            name: productDetails.name,
+            size: productDetails.size,
+            color: productDetails.color || 'N/A',
+            price: productDetails.price,
+            productType: productDetails.productType || 'WearsCollection',
+            imageUrl: productDetails.imageUrl
+        };
 
+        const existingItemIndex = localCart.findIndex(item => 
+            item.productId === requiredDetails.productId && 
+            item.size === requiredDetails.size &&
+            item.color === requiredDetails.color
+        );
+
+        if (existingItemIndex > -1) {
+            localCart[existingItemIndex].quantity += 1;
+        } else {
+            requiredDetails.quantity = 1; 
+            localCart.push(requiredDetails);
+        }
+
+        localStorage.setItem(LOCAL_CART_KEY, JSON.stringify(localCart));
+        localStorage.setItem(CART_STORAGE_KEY, localCart.length.toString());
+        updateCartBadge();
+        alert(`"${requiredDetails.name}" added to your bag! (Sign in to save permanently)`);
+        
+        // If we are on the cart page, refresh the view
+        if (document.getElementById('cart-items-list')) {
+            fetchAndRenderCart(); 
+        }
+        return; 
+    }
+    // --------------------------------------------------------
+
+    // 2. --- HANDLE AUTHENTICATED (API) ADDITION ---
     try {
         const response = await fetch('/api/users/cart', {
             method: 'POST',
             headers: {
-                // Pass the token if it exists, otherwise pass nothing.
-                // Backend's verifyUserToken will reject this if token is missing/invalid.
-                'Authorization': USER_AUTH_TOKEN ? `Bearer ${USER_AUTH_TOKEN}` : '',
+                'Authorization': `Bearer ${USER_AUTH_TOKEN}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(productDetails)
@@ -97,10 +136,12 @@ async function simulateAddToCart(productDetails) {
             localStorage.setItem(CART_STORAGE_KEY, data.items.length.toString());
             updateCartBadge();
             alert('Item added to your shopping bag!');
-            // After adding, we should refresh the cart view
-            fetchAndRenderCart(); 
+            if (document.getElementById('cart-items-list')) {
+                fetchAndRenderCart(); 
+            }
         } else if (response.status === 401) {
-            alert('🚨 Item not added. You must be logged in to modify your cart (Server requirement). Please log in now.');
+            // Server failed auth: likely an expired token
+            alert('🚨 Session expired. Please log in again.');
             redirectToProfileOrLogin();
         } else {
             throw new Error(data.message || 'Failed to add item.');
@@ -110,43 +151,68 @@ async function simulateAddToCart(productDetails) {
         alert('Could not add item to cart. Please try again.');
     }
 }
-// ---------------------------------------------------
 
+// ---------------------------------------------------
 /**
  * Renders the entire cart contents and updates the summary.
- * Fetches data from the API endpoint.
+ * Switches between API fetch (authenticated) and local storage (unauthenticated).
  */
 async function fetchAndRenderCart() {
     const cartList = document.getElementById('cart-items-list');
     const checkoutBtn = document.getElementById('checkout-btn');
-    const clearCartBtn = document.getElementById('clear-cart-btn'); // Added clear cart button
-    
-    // Check if the user is logged in first (based on the screenshot state)
-    if (!USER_AUTH_TOKEN) {
-        // Allow unauthenticated users to view an empty cart and totals
-        cartList.innerHTML = '<div class="text-center py-10 text-gray-500">Your shopping bag is currently empty. Please <a href="useraccount.html" class="text-ash-red hover:underline font-semibold">log in</a> to view saved items.</div>';
-        updateCartSummary({ items: [], subtotal: 0, shipping: 0, tax: 0, estimatedTotal: 0 });
-        clearCartBtn.disabled = true;
-        return;
-    }
+    const clearCartBtn = document.getElementById('clear-cart-btn');
 
+    // 1. --- HANDLE UN-AUTHENTICATED (LOCAL) CART ---
+    if (!USER_AUTH_TOKEN) {
+        const localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
+        
+        if (localCart.length > 0) {
+            // Render local cart items and calculate totals locally
+            renderCartItems(localCart);
+            const localTotals = calculateLocalTotals(localCart); 
+            updateCartSummary(localTotals);
+            
+            // Set up local cart action buttons
+            clearCartBtn.disabled = false;
+            checkoutBtn.disabled = true;
+            checkoutBtn.classList.remove('bg-ash-red', 'hover:bg-red-700');
+            checkoutBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+            // The onclick redirects the user to sign in to enable merge/checkout
+            checkoutBtn.onclick = () => {
+                 alert('Please sign in or create an account to save your cart and proceed to checkout.');
+                 redirectToProfileOrLogin(); // Redirects to useraccount.html
+            };
+            return;
+        } else {
+            // Show standard empty cart message for unauthenticated user with empty local cart
+            cartList.innerHTML = '<div class="text-center py-10 text-gray-500">Your shopping bag is empty. Please <a href="useraccount.html" class="text-ash-red hover:underline font-semibold">log in</a> to view saved items or <a href="homepage.html" class="text-ash-red hover:underline font-semibold">Start shopping</a>.</div>';
+            updateCartSummary({ items: [], subtotal: 0, shipping: 0, tax: 0, estimatedTotal: 0 });
+            clearCartBtn.disabled = true;
+            return;
+        }
+    }
+    
+    // 2. --- HANDLE AUTHENTICATED (API) CART ---
+    
+    // Show loading state while fetching API data
     cartList.innerHTML = '<div class="text-center py-10 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Loading your shopping bag...</div>';
     checkoutBtn.disabled = true;
     checkoutBtn.classList.remove('bg-ash-red', 'hover:bg-red-700');
     checkoutBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
-    clearCartBtn.disabled = true; // Disable clear cart initially
+    clearCartBtn.disabled = true;
 
     try {
         const response = await fetch('/api/users/cart', {
             method: 'GET',
             headers: {
-                'Authorization': USER_AUTH_TOKEN ? `Bearer ${USER_AUTH_TOKEN}` : '',
+                // Assuming token is in a header/cookie now due to backend logic
+                'Authorization': `Bearer ${USER_AUTH_TOKEN}`,
                 'Content-Type': 'application/json'
             }
         });
 
-        // The logic for handling 401 on GET request remains, as cart retrieval is protected.
         if (response.status === 401) {
+            // Token is invalid/expired. The user must re-authenticate.
             cartList.innerHTML = '<div class="text-center py-10 text-gray-500">Your session expired. Please <a href="useraccount.html" class="text-ash-red hover:underline font-semibold">log in</a> to view your cart.</div>';
             updateCartSummary({ items: [], subtotal: 0, shipping: 0, tax: 0, estimatedTotal: 0 });
             return;
@@ -160,20 +226,23 @@ async function fetchAndRenderCart() {
         renderCartItems(cartData.items);
         updateCartSummary(cartData);
         
-        // Update Local Storage count based on actual API data for the badge
+        // Update Local Storage badge count
         localStorage.setItem(CART_STORAGE_KEY, cartData.items.length.toString());
         updateCartBadge();
 
-        // Update clear cart button state
+        // Update clear cart button state based on API data
         clearCartBtn.disabled = cartData.items.length === 0;
-
+        
+        // Re-enable actual checkout redirect
+        checkoutBtn.onclick = () => alert('Proceeding to checkout...');
+        
     } catch (error) {
-        console.error('Error fetching cart data:', error);
-        // Fallback for an empty or failed load when the user is authenticated
+        console.error('Error fetching API cart data:', error);
         cartList.innerHTML = '<div class="text-center py-10 text-gray-500">There was an issue loading your cart. <a href="homepage.html" class="text-ash-red hover:underline font-semibold">Start shopping now!</a></div>';
         updateCartSummary({ items: [], subtotal: 0, shipping: 0, tax: 0, estimatedTotal: 0 });
     }
 }
+
 
 /**
  * Renders the list of cart items dynamically.

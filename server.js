@@ -775,12 +775,8 @@ function calculateCartTotals(cartItems) {
     // 1. Calculate Subtotal
     const subtotal = cartItems.reduce((acc, item) => 
         acc + (item.price * item.quantity), 0);
-    
     // 2. Calculate Tax
     const tax = subtotal * TAX_RATE;
-
-    // 3. Determine Shipping
-    // Only charge shipping if there are items in the cart
     const shipping = cartItems.length > 0 ? SHIPPING_COST : 0;
     
     // 4. Calculate Final Total
@@ -792,6 +788,32 @@ function calculateCartTotals(cartItems) {
         shipping: shipping,
         tax: tax,
         estimatedTotal: estimatedTotal,
+    };
+}
+
+const LOCAL_SHIPPING_COST = 3000;
+const LOCAL_TAX_RATE = 0.01; // 1% tax rate
+
+/**
+ * Calculates cart totals locally for unauthenticated sessions.
+ * Matches the server-side logic (calculateCartTotals).
+ * @param {Array<Object>} items - The array of local cart items.
+ * @returns {Object} Calculated totals structure.
+ */
+function calculateLocalTotals(items) {
+    const subtotal = items.reduce((sum, item) => 
+        sum + (item.price * item.quantity), 0);
+    
+    const tax = subtotal * LOCAL_TAX_RATE;
+    const shipping = items.length > 0 ? LOCAL_SHIPPING_COST : 0;
+    const estimatedTotal = subtotal + tax + shipping;
+
+    return {
+        items: items,
+        subtotal: subtotal,
+        shipping: shipping,
+        tax: tax,
+        estimatedTotal: estimatedTotal 
     };
 }
 

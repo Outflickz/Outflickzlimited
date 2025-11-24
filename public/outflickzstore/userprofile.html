@@ -4,418 +4,271 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User Profile | Outflickz</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="icon" type="image/png" href="https://i.imgur.com/ioWFyQB.png">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"> 
-    <style>
-        /* Custom Tailwind Colors (Ensure these are defined in your main config/setup) */
-        /* For this standalone file, we'll define them directly via script for Tailwind JIT */
-        .text-color-black { color: #000000; }
-        .bg-color-white { background-color: #FFFFFF; }
-        .bg-ash-red { background-color: #a80000; }
-        .text-ash-red { color: #a80000; }
-        .text-ash-dark { color: #111111; }
 
-        /* Custom Styles for better visual separation and shadow effects */
-        .profile-card {
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-        }
-        
-        /* Mobile-first: Hide desktop menu and show mobile toggle */
-        @media (max-width: 767px) {
-            .desktop-menu { display: none; }
-            .mobile-menu-toggle { display: block; }
-        }
+    <style>
+        /* Define a primary brand color for ash-red to ensure consistency and modern look */
+        .text-ash-red { color: #D63031; }
+        .bg-ash-red { background-color: #D63031; }
+        .hover\:bg-ash-red-dark:hover { background-color: #A32324; }
+        .border-ash-red { border-color: #D63031; }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen text-color-black">
+<body class="bg-gray-50 min-h-screen text-gray-900 antialiased">
     
     <script>
-        const API_BASE_URL = 'https://outflickz.netlify.app';
+    // Note: The USER_AUTH_TOKEN constant has been removed as we are now relying
+    // entirely on HTTP-only cookies for authentication, which are inaccessible
+    // to client-side JavaScript but automatically sent by the browser.
+    const API_BASE_URL = 'https://outflickz.netlify.app';
 
-        // Placeholder for Cart Badge Update
-        function updateCartBadge() {
-            const badge = document.getElementById('cart-badge');
-            const count = parseInt(localStorage.getItem('outflickzCartCount') || '0');
-            if (badge) {
-                if (count > 0) {
-                    badge.textContent = count;
-                    badge.classList.remove('hidden');
-                } else {
-                    badge.classList.add('hidden');
-                }
-            }
-        }
-        
-        function redirectToProfileOrLogin() {
-            // Since this is the profile page, clicking the account icon should do nothing 
-            // or perhaps scroll to the top, but the desktop header doesn't have it 
-            // per the provided HTML template. We'll use this for the mobile account link.
-            window.location.href = 'userprofile.html';
-        }
-        
-        function toggleMenu() {
-            const mobileMenu = document.getElementById('mobile-menu');
-            mobileMenu.classList.toggle('hidden');
-        }
+    function redirectToProfileOrLogin() {
+        window.location.href = 'useraccount.html';
+    }
+    function toggleMenu() {
+        const mobileMenu = document.getElementById('mobile-menu');
+        mobileMenu.classList.toggle('hidden');
+    }
 
-        function logoutUser() {
-            // Placeholder: Perform backend logout (clears HTTP-only cookie)
-            fetch(`${API_BASE_URL}/api/auth/logout`, {
-                method: 'POST',
-                credentials: 'include' // Must include cookies for the server to clear them
+    function logoutUser() {
+        // Clear any possible old local storage item, but the main logout
+        // should also hit a backend endpoint to clear the secure HTTP-only cookie.
+        // NOTE: For a complete logout, a server-side call is necessary to clear the HTTP-only cookie.
+        // Since we don't have the server, this client-side code assumes the link to 'useraccount.html'
+        // will handle the redirection, and a subsequent login attempt will fail without the cookie.
+        localStorage.removeItem('outflickzToken'); 
+        window.location.replace('useraccount.html');
+    }
+
+    /**
+     * Attempts to fetch user data and redirects to login on failure (401/403).
+     */
+    function enforceAuthGate() {
+        const mainContent = document.getElementById('main-profile-content');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        
+        if (loadingIndicator) loadingIndicator.classList.remove('hidden');
+        if (mainContent) mainContent.classList.add('hidden');
+        
+        // We now rely on the API request to confirm the session status (via cookie).
+        fetchUserData()
+            .then(() => {
+                // SUCCESS: Cookie was valid, profile data retrieved
+                if (loadingIndicator) loadingIndicator.classList.add('hidden');
+                if (mainContent) mainContent.classList.remove('hidden');
             })
-            .finally(() => {
-                // Redirect regardless of API success/failure to ensure client-side state is clear
-                localStorage.removeItem('outflickzToken'); 
-                localStorage.setItem('outflickzAuthStatus', 'loggedOut'); // Clear status
-                window.location.replace('useraccount.html');
-            });
-        }
-
-        /**
-         * Fetches user data using the HTTP-only cookie for authorization.
-         */
-        async function fetchUserData() {
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/users/account`, {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include' 
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`Authentication Failed: ${response.status} - ${response.statusText}`); 
-                }
-
-                const data = await response.json();
-                
-                // --- DOM population ---
-                const fullName = `${data.profile.firstName || ''} ${data.profile.lastName || ''}`.trim() || 'Guest User';
-                const emailAddress = data.email || 'Email Not Available'; 
-                const userRole = data.status.role || 'user';
-                const isVerified = data.status.isVerified;
-                const memberSince = new Date(data.membership.memberSince).toLocaleDateString();
-
-                document.getElementById('welcome-message-name').textContent = fullName.split(' ')[0]; // Use first name for welcome
-                document.getElementById('user-full-name-greeting').textContent = fullName;
-                
-                // Account Details Section
-                document.getElementById('account-first-name').value = data.profile.firstName || '';
-                document.getElementById('account-last-name').value = data.profile.lastName || '';
-                document.getElementById('account-email').value = emailAddress;
-                document.getElementById('account-phone').value = data.profile.phone || '';
-
-                // Address Section
-                const address = data.address || {}; 
-                document.getElementById('address-street').value = address.street || '';
-                document.getElementById('address-city').value = address.city || '';
-                document.getElementById('address-state').value = address.state || '';
-                document.getElementById('address-zip').value = address.zip || '';
-                document.getElementById('address-country').value = address.country || '';
-                
-                return data; 
-            } catch (error) {
-                console.error("Fetch user data error:", error);
-                throw error; 
-            }
-        }
-        
-        function enforceAuthGate() {
-            const mainContent = document.getElementById('main-profile-content');
-            const loadingIndicator = document.getElementById('loading-indicator');
-            
-            if (loadingIndicator) loadingIndicator.classList.remove('hidden');
-            if (mainContent) mainContent.classList.add('hidden');
-            
-            fetchUserData()
-                .then(() => {
-                    // SUCCESS: Data fetched, show content
-                    if (loadingIndicator) loadingIndicator.classList.add('hidden');
-                    if (mainContent) mainContent.classList.remove('hidden');
-                    updateCartBadge();
-                })
-                .catch(() => {
-                    // FAILURE: Redirect to login
+            .catch((error) => {
+                // FAILURE: API returned 401/403 (invalid cookie) or network error
+                console.error('Session check failed. Redirecting to login.', error);
+                // Use setTimeout to allow the console log to execute before redirecting
+                setTimeout(() => {
                     window.location.replace('useraccount.html');
-                });
-        }
-
-        // --- Profile Menu Switching Logic (Similar to the screenshot) ---
-        function switchProfileTab(tabId) {
-            // Hide all content sections
-            document.querySelectorAll('.profile-content-section').forEach(section => {
-                section.classList.add('hidden');
+                }, 100); 
             });
-
-            // Deactivate all menu items
-            document.querySelectorAll('.profile-nav-link').forEach(link => {
-                link.classList.remove('bg-ash-red', 'text-white', 'font-semibold');
-                link.classList.add('text-gray-700', 'hover:bg-gray-100', 'font-medium');
+    }
+    
+    /**
+     * Fetches user data using the HTTP-only cookie for authorization.
+     */
+    async function fetchUserData() {
+        try {
+            // Include credentials for the browser to send the HTTP-only cookie
+            const response = await fetch(`${API_BASE_URL}/api/users/account`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include' 
             });
+            
+            console.log(`Fetch Status: ${response.status}`); 
 
-            // Show the selected content section
-            const selectedSection = document.getElementById(tabId);
-            if (selectedSection) {
-                selectedSection.classList.remove('hidden');
+            if (!response.ok) {
+                // If 401 (Unauthorized) or 403 (Forbidden), treat as invalid session.
+                throw new Error(`Authentication Failed: ${response.status} - ${response.statusText}`); 
             }
 
-            // Activate the selected menu item
-            const selectedLink = document.querySelector(`.profile-nav-link[data-target="${tabId}"]`);
-            if (selectedLink) {
-                selectedLink.classList.add('bg-ash-red', 'text-white', 'font-semibold');
-                selectedLink.classList.remove('text-gray-700', 'hover:bg-gray-100', 'font-medium');
-            }
+            const data = await response.json();
+            console.log('User Data fetched successfully:', data);
 
-            // Hide mobile menu after selection (if open)
-            document.getElementById('mobile-profile-menu').classList.add('hidden');
+            // --- DOM population ---
+            const profile = data.profile || {};
+            const status = data.status || {};
+            const membership = data.membership || {};
+            const address = data.address || {}; 
+            
+            const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'Guest User';
+            const emailAddress = data.email || 'Email Not Available'; 
+            const userRole = status.role || 'user';
+            const isVerified = status.isVerified;
+            const memberSince = membership.memberSince ? new Date(membership.memberSince).toLocaleDateString() : 'N/A';
+
+            document.getElementById('user-name').textContent = fullName;
+            document.getElementById('user-email').textContent = emailAddress;
+            document.getElementById('user-role').textContent = userRole.toUpperCase();
+            document.getElementById('user-verification').innerHTML = isVerified 
+                ? '<span class="text-green-600 font-bold"><i class="fas fa-check-circle mr-1"></i> Verified</span>'
+                : '<span class="text-red-600 font-bold"><i class="fas fa-times-circle mr-1"></i> Unverified</span>';
+            document.getElementById('member-since').textContent = memberSince;
+            document.getElementById('user-phone').textContent = profile.phone || 'Not Set';
+
+
+            document.getElementById('street-address').textContent = address.street || 'Not Set';
+            document.getElementById('city-state-zip').textContent = `${address.city || 'Not Set'}, ${address.state || 'Not Set'} ${address.zip || ''}`;
+            document.getElementById('country').textContent = address.country || 'Not Set';
+
+            return data; 
+        } catch (error) {
+            console.error("Fetch user data error:", error);
+            throw error; 
         }
+    }
 
-        // Set default tab on load
-        document.addEventListener('DOMContentLoaded', () => {
-            enforceAuthGate();
-            switchProfileTab('account-details'); 
-        });
+    document.addEventListener('DOMContentLoaded', enforceAuthGate);
     </script>
 
-    <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
+    <header class="bg-white sticky top-0 z-50 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
-                <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-10 sm:h-12 lg:h-10">
+                <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-10">
             </a>
 
-            <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
-                <a href="homepage.html" class="font-medium text-color-black hover:text-gray-600 transition">Homepage</a>
-                <a href="preorder.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
-                <a href="newarrivals.html" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
-                <a href="wearscollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Wears Collections</a>
-                <a href="capcollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Cap Collections</a>
+            <nav class="hidden md:flex flex-grow justify-center space-x-8 text-sm lg:text-base" aria-label="Main Navigation">
+                <a href="homepage.html" class="font-medium text-gray-700 hover:text-ash-red transition duration-150">Homepage</a>
+                <a href="preorder.html" class="font-medium text-gray-700 hover:text-ash-red transition duration-150">Pre Order</a>
+                <a href="newarrivals.html" class="font-medium text-gray-700 hover:text-ash-red transition duration-150">New Arrivals</a>
+                <a href="wearscollection.html" class="font-medium text-gray-700 hover:text-ash-red transition duration-150">Wears Collections</a>
+                <a href="capcollection.html" class="font-medium text-gray-700 hover:text-ash-red transition duration-150">Cap Collections</a>
             </nav>
 
-            <div class="flex items-center space-x-2 sm:space-x-4">
-                <a href="userprofile.html" class="p-1 sm:p-2 text-ash-dark transition rounded-full hidden md:block" aria-label="User Account">
-                    <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
-                </a>
-                <a href="cart.html" class="relative p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" aria-label="Shopping Bag">
-                    <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
-                    <span id="cart-badge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-ash-red rounded-full hidden">
+            <div class="flex items-center space-x-3 sm:space-x-4">
+                <a href="cart.html" class="relative p-2 text-gray-600 hover:text-ash-red transition rounded-full" aria-label="Shopping Bag">
+                    <i class="fas fa-shopping-bag w-5 h-5"></i>
+                    <span id="cart-badge" class="absolute top-0 right-0 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-ash-red border border-white rounded-full transform translate-x-1/3 -translate-y-1/3 hidden">
                         0
                     </span>
                 </a>
-                <button class="md:hidden p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
-                    <i class="fas fa-bars w-5 h-5 sm:w-6 sm:h-6"></i>
+                <button class="md:hidden p-2 text-gray-600 hover:text-ash-red transition rounded-full focus:outline-none" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
+                    <i class="fas fa-bars w-5 h-5"></i>
                 </button>
             </div>
         </div>
     </header>
 
-    <div id="mobile-menu" class="hidden md:hidden bg-color-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
-        <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
-            <a href="homepage.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Homepage</a>
-            <a href="preorder.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
-            <a href="newarrivals.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">New Arrivals</a>
-            <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Wears Collection</a>
-            <a href="capcollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cap Collection</a>
-            <a href="userprofile.html" class="block px-3 py-2 font-medium text-ash-red bg-gray-100 rounded-md">Account</a>
+    <div id="mobile-menu" class="hidden md:hidden bg-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
+        <div class="px-4 pt-2 pb-3 space-y-1 text-base">
+            <a href="homepage.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-lg">Homepage</a>
+            <a href="preorder.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-lg">Pre Order</a>
+            <a href="newarrivals.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-lg">New Arrivals</a>
+            <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-lg">Wears Collection</a>
+            <a href="capcollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-lg">Cap Collection</a>
+            <a href="userprofile.html" class="block px-3 py-2 font-bold text-white bg-ash-red rounded-lg mt-2">Account</a>
         </div>
     </div>
     
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
-        <h1 class="text-3xl sm:text-4xl font-extrabold text-ash-dark mb-8 uppercase tracking-wide">
-            My Account
-        </h1>
+    <div id="loading-indicator" class="flex flex-col justify-center items-center h-48 mt-20 text-gray-600">
+        <i class="fas fa-spinner fa-spin text-4xl mb-3 text-ash-red"></i> 
+        <p class="text-lg">Verifying session...</p>
+    </div>
 
-        <div id="loading-indicator" class="flex justify-center items-center h-48 mt-10 text-gray-600 hidden">
-            <i class="fas fa-spinner fa-spin text-2xl mr-3 text-ash-red"></i> Verifying session...
-        </div>
-
-        <div id="main-profile-content" class="hidden md:grid md:grid-cols-12 md:gap-8 lg:gap-10">
-
-            <aside class="md:col-span-3">
-                <div class="bg-color-white p-4 rounded-lg shadow-md border border-gray-100 desktop-menu">
-                    <nav class="space-y-1">
-                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2 pt-1">Account Details</h3>
-                        <a href="javascript:void(0);" onclick="switchProfileTab('account-details')" data-target="account-details" class="profile-nav-link block p-3 rounded-md transition duration-150">
-                            <i class="fas fa-user-circle mr-2"></i> Profile & Password
+    <main id="main-profile-content" class="hidden container mx-auto p-4 sm:p-8 mt-4 sm:mt-8 lg:mt-12 max-w-6xl">
+        
+        <div class="bg-white shadow-2xl rounded-xl p-6 sm:p-10 border border-gray-100">
+            
+            <div class="mb-8 border-b border-gray-100 pb-6">
+                <h2 class="text-4xl sm:text-5xl font-extrabold text-gray-900 mb-2 flex items-center">
+                    👋 User Dashboard 
+                </h2>
+                <p class="text-gray-500 text-lg">
+                    Manage your personal information, address, and order history.
+                </p>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                <aside class="lg:col-span-1">
+                    <nav class="space-y-2 p-2 bg-gray-50 rounded-lg border border-gray-100">
+                        <a href="userprofile.html" class="flex items-center p-3 rounded-lg bg-ash-red text-white font-bold transition duration-150 shadow-md">
+                            <i class="fas fa-user-circle mr-3"></i> Profile Details
                         </a>
-                        <a href="javascript:void(0);" onclick="switchProfileTab('addresses')" data-target="addresses" class="profile-nav-link block p-3 rounded-md text-gray-700 hover:bg-gray-100 font-medium transition duration-150">
-                            <i class="fas fa-map-marker-alt mr-2"></i> Addresses
+                        <a href="#order-history" class="flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition duration-150">
+                            <i class="fas fa-history mr-3"></i> Order History
                         </a>
-                        
-                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2 pt-4">Order Information</h3>
-                        <a href="javascript:void(0);" onclick="switchProfileTab('order-history')" data-target="order-history" class="profile-nav-link block p-3 rounded-md text-gray-700 hover:bg-gray-100 font-medium transition duration-150">
-                            <i class="fas fa-history mr-2"></i> Order History
+                        <a href="#settings" class="flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition duration-150">
+                            <i class="fas fa-cog mr-3"></i> Settings
                         </a>
-                        <a href="javascript:void(0);" onclick="switchProfileTab('returns-exchanges')" data-target="returns-exchanges" class="profile-nav-link block p-3 rounded-md text-gray-700 hover:bg-gray-100 font-medium transition duration-150">
-                            <i class="fas fa-undo mr-2"></i> Start a Return
-                        </a>
-                        
-                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2 pt-4">Other</h3>
-                        <a href="javascript:void(0);" onclick="switchProfileTab('wishlist')" data-target="wishlist" class="profile-nav-link block p-3 rounded-md text-gray-700 hover:bg-gray-100 font-medium transition duration-150">
-                            <i class="fas fa-heart mr-2"></i> My Wishlist
-                        </a>
-                        <button onclick="logoutUser()" class="w-full text-left p-3 rounded-md text-red-600 hover:bg-red-50 font-medium transition duration-150 mt-4">
-                            <i class="fas fa-sign-out-alt mr-2"></i> Log Out
+                        <button onclick="logoutUser()" class="flex items-center w-full text-left p-3 rounded-lg text-red-600 hover:bg-red-50 font-medium transition duration-150 mt-4 border-t border-gray-100 pt-3">
+                            <i class="fas fa-sign-out-alt mr-3"></i> Log Out
                         </button>
                     </nav>
-                </div>
-            </aside>
+                </aside>
 
-            <div class="md:hidden mb-6">
-                <button onclick="document.getElementById('mobile-profile-menu').classList.toggle('hidden')" class="w-full bg-color-white text-ash-dark font-semibold py-3 px-4 rounded-lg shadow-md border border-gray-200 flex justify-between items-center" aria-expanded="false" aria-controls="mobile-profile-menu">
-                    <span id="current-mobile-tab">Profile Details</span>
-                    <i class="fas fa-chevron-down"></i>
-                </button>
-                <div id="mobile-profile-menu" class="hidden mt-2 bg-color-white rounded-lg shadow-xl border border-gray-200">
-                    <nav class="space-y-1 p-2">
-                        <a href="javascript:void(0);" onclick="switchProfileTab('account-details')" data-target="account-details" class="profile-nav-link block p-3 rounded-md text-gray-700 hover:bg-gray-100 font-medium transition duration-150">Profile & Password</a>
-                        <a href="javascript:void(0);" onclick="switchProfileTab('addresses')" data-target="addresses" class="profile-nav-link block p-3 rounded-md text-gray-700 hover:bg-gray-100 font-medium transition duration-150">Addresses</a>
-                        <a href="javascript:void(0);" onclick="switchProfileTab('order-history')" data-target="order-history" class="profile-nav-link block p-3 rounded-md text-gray-700 hover:bg-gray-100 font-medium transition duration-150">Order History</a>
-                        <a href="javascript:void(0);" onclick="switchProfileTab('returns-exchanges')" data-target="returns-exchanges" class="profile-nav-link block p-3 rounded-md text-gray-700 hover:bg-gray-100 font-medium transition duration-150">Start a Return</a>
-                        <a href="javascript:void(0);" onclick="switchProfileTab('wishlist')" data-target="wishlist" class="profile-nav-link block p-3 rounded-md text-gray-700 hover:bg-gray-100 font-medium transition duration-150">My Wishlist</a>
-                        <button onclick="logoutUser()" class="w-full text-left p-3 rounded-md text-red-600 hover:bg-red-50 font-medium transition duration-150">Log Out</button>
-                    </nav>
-                </div>
-            </div>
-
-            <section class="md:col-span-9 space-y-8">
-                
-                <div class="bg-color-white p-6 rounded-lg shadow-md border border-gray-100">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-                        <div>
-                            <h2 class="text-2xl font-bold text-ash-dark">Hi <span id="welcome-message-name">Loading...</span>! 👋</h2>
-                            <p class="text-gray-600 mt-1">Welcome back. Use these quick links to easily find what you need.</p>
+                <section class="lg:col-span-3 space-y-10">
+                    
+                    <div id="profile-details" class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <h3 class="font-extrabold text-2xl text-ash-red border-b-2 border-ash-red pb-3 mb-6 flex justify-between items-center">
+                            Personal Information
+                            <button class="text-sm text-blue-600 hover:text-blue-800 font-medium p-1 rounded-md transition duration-150" aria-label="Edit Profile Details">
+                                <i class="fas fa-edit mr-1"></i> Edit
+                            </button>
+                        </h3>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-gray-700">
+                            <div>
+                                <p class="text-sm text-gray-500 font-medium uppercase">Name</p>
+                                <p class="text-lg font-semibold" id="user-name">Loading...</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500 font-medium uppercase">Email</p>
+                                <p class="text-lg font-semibold" id="user-email">Loading...</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500 font-medium uppercase">Account Role</p>
+                                <p class="text-lg font-semibold" id="user-role">Loading...</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500 font-medium uppercase">Verification Status</p>
+                                <p class="text-lg font-semibold" id="user-verification">Loading...</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500 font-medium uppercase">Member Since</p>
+                                <p class="text-lg font-semibold" id="member-since">Loading...</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500 font-medium uppercase">Phone</p>
+                                <p class="text-lg font-semibold" id="user-phone">Not Set</p>
+                            </div>
                         </div>
-                        <button onclick="logoutUser()" class="mt-4 sm:mt-0 log-out-btn px-4 py-2 text-sm font-semibold border border-gray-300 rounded-md hover:bg-gray-50 transition">Log out</button>
                     </div>
                     
-                    <div class="mt-6 pt-4 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <div class="profile-card p-4 rounded-lg border border-gray-200 bg-gray-50">
-                            <h4 class="font-semibold text-ash-dark">Order History</h4>
-                            <p class="text-sm text-gray-600 mt-1">You have yet to make any orders.</p>
-                            <div class="mt-3 flex space-x-2">
-                                <button onclick="switchProfileTab('order-history')" class="text-sm px-3 py-1 bg-ash-dark text-white rounded-md hover:bg-ash-dark/90 transition">View History</button>
-                                <a href="homepage.html" class="text-sm px-3 py-1 border border-gray-300 rounded-md hover:bg-color-white transition">Continue Shopping</a>
-                            </div>
-                        </div>
+                    <div id="contact-address" class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <h3 class="font-extrabold text-2xl text-ash-red border-b-2 border-ash-red pb-3 mb-6 flex justify-between items-center">
+                            Contact Address
+                            <button class="text-sm text-blue-600 hover:text-blue-800 font-medium p-1 rounded-md transition duration-150" aria-label="Edit Contact Address">
+                                <i class="fas fa-edit mr-1"></i> Edit
+                            </button>
+                        </h3>
                         
-                        <div class="profile-card p-4 rounded-lg border border-gray-200 bg-gray-50">
-                            <h4 class="font-semibold text-ash-dark">Return an Item</h4>
-                            <p class="text-sm text-gray-600 mt-1">Need to return an item? Start your return easily.</p>
-                            <div class="mt-3">
-                                <button onclick="switchProfileTab('returns-exchanges')" class="text-sm px-3 py-1 bg-ash-red text-white rounded-md hover:bg-red-700 transition">Start Return</button>
+                        <div class="space-y-4 text-gray-700">
+                            <div>
+                                <p class="text-sm text-gray-500 font-medium uppercase">Street Address</p>
+                                <p class="text-lg font-semibold" id="street-address">Not Set</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500 font-medium uppercase">City / State / Zip</p>
+                                <p class="text-lg font-semibold" id="city-state-zip">Not Set</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500 font-medium uppercase">Country</p>
+                                <p class="text-lg font-semibold" id="country">Not Set</p>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <div id="account-details" class="profile-content-section bg-color-white p-6 rounded-lg shadow-md border border-gray-100">
-                    <h3 class="font-bold text-2xl text-ash-dark border-b pb-3 mb-6">Account & Login Details</h3>
-                    <form class="space-y-6">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label for="account-first-name" class="block text-sm font-medium text-gray-700">First Name</label>
-                                <input type="text" id="account-first-name" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-ash-red focus:border-ash-red sm:text-sm">
-                            </div>
-                            <div>
-                                <label for="account-last-name" class="block text-sm font-medium text-gray-700">Last Name</label>
-                                <input type="text" id="account-last-name" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-ash-red focus:border-ash-red sm:text-sm">
-                            </div>
-                        </div>
-                        <div>
-                            <label for="account-email" class="block text-sm font-medium text-gray-700">Email Address</label>
-                            <input type="email" id="account-email" disabled class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-100 text-gray-500 sm:text-sm">
-                        </div>
-                        <div>
-                            <label for="account-phone" class="block text-sm font-medium text-gray-700">Phone Number (Optional)</label>
-                            <input type="tel" id="account-phone" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-ash-red focus:border-ash-red sm:text-sm">
-                        </div>
-                        <div class="flex justify-end pt-4">
-                            <button type="submit" class="px-6 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-ash-red hover:bg-red-700 transition duration-150 shadow-sm">
-                                Save Profile
-                            </button>
-                        </div>
-                        
-                        <div class="pt-6 border-t border-gray-100">
-                             <h4 class="font-bold text-xl text-ash-dark mb-4">Password Management</h4>
-                             <button type="button" class="text-sm font-medium text-blue-600 hover:text-blue-800">Change Password</button>
-                        </div>
-                    </form>
-                </div>
-                
-                <div id="addresses" class="profile-content-section hidden bg-color-white p-6 rounded-lg shadow-md border border-gray-100">
-                    <h3 class="font-bold text-2xl text-ash-dark border-b pb-3 mb-6">Shipping & Billing Addresses</h3>
-                    <form class="space-y-6">
-                        <div>
-                            <label for="address-street" class="block text-sm font-medium text-gray-700">Street Address</label>
-                            <input type="text" id="address-street" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-ash-red focus:border-ash-red sm:text-sm">
-                        </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label for="address-city" class="block text-sm font-medium text-gray-700">City</label>
-                                <input type="text" id="address-city" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-ash-red focus:border-ash-red sm:text-sm">
-                            </div>
-                            <div>
-                                <label for="address-state" class="block text-sm font-medium text-gray-700">State/Region</label>
-                                <input type="text" id="address-state" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-ash-red focus:border-ash-red sm:text-sm">
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label for="address-zip" class="block text-sm font-medium text-gray-700">Zip/Postal Code</label>
-                                <input type="text" id="address-zip" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-ash-red focus:border-ash-red sm:text-sm">
-                            </div>
-                            <div>
-                                <label for="address-country" class="block text-sm font-medium text-gray-700">Country</label>
-                                <input type="text" id="address-country" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-ash-red focus:border-ash-red sm:text-sm">
-                            </div>
-                        </div>
-                        <div class="flex justify-end pt-4">
-                            <button type="submit" class="px-6 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-ash-red hover:bg-red-700 transition duration-150 shadow-sm">
-                                Save Address
-                            </button>
-                        </div>
-                    </form>
-                </div>
-
-                <div id="order-history" class="profile-content-section hidden bg-color-white p-6 rounded-lg shadow-md border border-gray-100">
-                    <h3 class="font-bold text-2xl text-ash-dark border-b pb-3 mb-6">Order History</h3>
-                    <div class="text-center py-10 text-gray-500">
-                        <i class="fas fa-box-open text-4xl mb-4"></i>
-                        <p class="text-lg font-medium">No orders found yet.</p>
-                        <p class="mt-2 text-sm">Start your shopping journey now!</p>
-                        <a href="homepage.html" class="mt-4 inline-block text-sm font-semibold text-ash-red hover:text-red-700 transition">Continue Shopping &rarr;</a>
-                    </div>
-                </div>
-
-                <div id="returns-exchanges" class="profile-content-section hidden bg-color-white p-6 rounded-lg shadow-md border border-gray-100">
-                    <h3 class="font-bold text-2xl text-ash-dark border-b pb-3 mb-6">Start a Return/Exchange</h3>
-                    <div class="space-y-4 text-gray-700">
-                        <p>To initiate a return or exchange, please refer to your order history and click the 'Start Return' button next to the relevant order.</p>
-                        <p class="text-sm border-l-4 border-ash-red pl-3 py-1 bg-red-50">
-                            **Note:** All returns must be initiated within **30 days** of delivery. Items must be unworn and in original packaging.
-                        </p>
-                        <div class="pt-4">
-                            <button onclick="switchProfileTab('order-history')" class="px-6 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-ash-red hover:bg-red-700 transition duration-150 shadow-sm">
-                                View Orders to Start Return
-                            </button>
-                            <a href="#" class="ml-4 text-sm font-medium text-blue-600 hover:text-blue-800">Read Our Full Returns Policy</a>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="wishlist" class="profile-content-section hidden bg-color-white p-6 rounded-lg shadow-md border border-gray-100">
-                    <h3 class="font-bold text-2xl text-ash-dark border-b pb-3 mb-6">My Wishlist</h3>
-                    <div class="text-center py-10 text-gray-500">
-                        <i class="fas fa-heart text-4xl mb-4 text-red-400"></i>
-                        <p class="text-lg font-medium">Your wishlist is empty.</p>
-                        <p class="mt-2 text-sm">Save your favorite items for later!</p>
-                        <a href="wearscollection.html" class="mt-4 inline-block text-sm font-semibold text-ash-red hover:text-red-700 transition">Browse Collections &rarr;</a>
-                    </div>
-                </div>
-                
                 </section>
+            </div>
         </div>
+
     </main>
     
     <footer class="bg-gray-900 text-gray-300 py-10 sm:py-14 border-t border-gray-800 mt-12">
@@ -482,7 +335,7 @@
 
     <a href="https://wa.me/2347042882706?text=HELLO!%20WELCOME%20TO%20OUTFLICKZ!%20HOW%20CAN%20WE%20HELP%20YOU" 
         target="_blank" 
-        class="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-3 sm:p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105" 
+        class="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-3 sm:p-4 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-110" 
         aria-label="Chat with us on WhatsApp">
         <i class="fab fa-whatsapp text-2xl sm:text-3xl"></i>
     </a>

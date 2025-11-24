@@ -566,14 +566,21 @@ async function clearCart() {
 
 // Placeholder for `updateCartBadge`
 function updateCartBadge() {
-    const badge = document.getElementById('cart-badge');
-    const count = parseInt(localStorage.getItem(CART_STORAGE_KEY) || '0');
-    if (count > 0) {
-        badge.textContent = count;
-        badge.classList.remove('hidden');
-    } else {
-        badge.classList.add('hidden');
-    }
+    const badge = document.getElementById('cart-badge');
+    
+    // Add this safety check: If the badge element doesn't exist, stop the function.
+    if (!badge) {
+        return; 
+    } 
+    
+    const count = parseInt(localStorage.getItem(CART_STORAGE_KEY) || '0');
+    
+    if (count > 0) {
+        badge.textContent = count;
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
 }
 
 /**

@@ -298,6 +298,44 @@ function renderCartItems(items) {
     `).join('');
 }
 
+/**
+ * Calculates the subtotal, tax, and estimated total for the local shopping cart data.
+ * @param {Array<Object>} localCart - The array of item objects stored in local storage.
+ * @returns {Object} An object containing the calculated summary totals.
+ */
+function calculateLocalTotals(localCart) {
+    let subtotal = 0;
+    
+    // 1. Calculate the subtotal from the local cart items
+    localCart.forEach(item => {
+        // Ensure price and quantity are treated as numbers
+        const price = parseFloat(item.price) || 0;
+        const quantity = parseInt(item.quantity) || 0;
+        subtotal += price * quantity;
+    });
+
+    // 2. Define fixed or calculated rates (You can adjust these)
+    const SHIPPING_RATE = 2000; // Example fixed shipping rate (₦2,000)
+    const TAX_RATE = 0.075;     // Example 7.5% Tax Rate
+    
+    let tax = subtotal * TAX_RATE;
+    
+    // Shipping is typically added if the subtotal is over a certain amount, 
+    // or if the cart is not empty. Assuming non-zero shipping for now.
+    let shipping = subtotal > 0 ? SHIPPING_RATE : 0;
+    
+    let estimatedTotal = subtotal + shipping + tax;
+
+    // 3. Return the calculated summary object
+    return {
+        // Return the list of items for consistency, though not strictly needed here
+        items: localCart, 
+        subtotal: subtotal,
+        shipping: shipping,
+        tax: tax,
+        estimatedTotal: estimatedTotal
+    };
+}
 
 function updateCartSummary(cartData) {
     const subtotalEl = document.getElementById('subtotal');

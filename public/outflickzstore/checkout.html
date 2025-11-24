@@ -20,221 +20,282 @@
         }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen text-gray-900 antialiased">
+<script>
+    // --- CONSTANTS AND UTILITIES (Matching cart.html context) ---
+    const LOCAL_CART_KEY = 'outflickz_local_cart';
+    const CART_STORAGE_KEY = 'cart_item_count';
+    const DEFAULT_SHIPPING_COST = 3000; // ₦3,000.00 in kobo/cents
+    const TAX_RATE = 0.05; // 5% tax rate
     
-    <script>
-        // --- CONSTANTS AND UTILITIES (Matching cart.html context) ---
-        const LOCAL_CART_KEY = 'outflickz_local_cart';
-        const CART_STORAGE_KEY = 'cart_item_count';
-        const DEFAULT_SHIPPING_COST = 2000; // ₦2,000 for standard delivery
+    // Placeholder utility functions (must be defined for context)
+    function isUserLoggedIn() {
+        // In a real app, this would check for a valid session token/cookie
+        return localStorage.getItem('user_token') === 'logged_in_user'; 
+    }
+
+    function redirectToProfileOrLogin() {
+        window.location.href = isUserLoggedIn() ? 'userprofile.html' : 'login.html';
+    }
+
+    function displayMessage(message) {
+        const modalContainer = document.getElementById('message-modal-container');
+        const modalText = document.getElementById('message-modal-text');
+        if (modalContainer && modalText) {
+            modalText.textContent = message;
+            modalContainer.classList.remove('hidden');
+            setTimeout(() => {
+                modalContainer.classList.add('hidden');
+            }, 4000); 
+        }
+    }
+    
+    function updateCartBadge(count) {
+        const badge = document.getElementById('cart-badge');
+        const currentCount = count || parseInt(localStorage.getItem(CART_STORAGE_KEY) || '0');
         
-        // Placeholder utility functions (must be defined for context)
-        function isUserLoggedIn() {
-            // In a real app, this would check for a valid session token/cookie
-            return localStorage.getItem('user_token') === 'logged_in_user'; 
-        }
-
-        function redirectToProfileOrLogin() {
-            window.location.href = isUserLoggedIn() ? 'userprofile.html' : 'login.html';
-        }
-
-        function displayMessage(message) {
-            const modalContainer = document.getElementById('message-modal-container');
-            const modalText = document.getElementById('message-modal-text');
-            if (modalContainer && modalText) {
-                modalText.textContent = message;
-                modalContainer.classList.remove('hidden');
-                setTimeout(() => {
-                    modalContainer.classList.add('hidden');
-                }, 4000); 
+        if (badge) {
+            if (currentCount > 0) {
+                badge.textContent = currentCount;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
             }
         }
-        
-        function updateCartBadge(count) {
-            const badge = document.getElementById('cart-badge');
-            const currentCount = count || parseInt(localStorage.getItem(CART_STORAGE_KEY) || '0');
+    }
+
+    function toggleMenu() {
+        const mobileMenu = document.getElementById('mobile-menu');
+        mobileMenu.classList.toggle('hidden');
+    }
+
+    // --- CORE CHECKOUT LOGIC ---
+    
+    // List of Nigerian states for the dropdown
+    const NIGERIAN_STATES = [
+        "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue", "Borno", 
+        "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu", "FCT - Abuja", "Gombe", 
+        "Imo", "Jigawa", "Kaduna", "Kano", "Katsina", "Kebbi", "Kogi", "Kwara", "Lagos", 
+        "Nasarawa", "Niger", "Ogun", "Ondo", "Osun", "Oyo", "Plateau", "Rivers", "Sokoto", 
+        "Taraba", "Yobe", "Zamfara"
+    ];
+
+    function populateNigerianStates() {
+        const selectElement = document.getElementById('state');
+        if (selectElement) {
+            // Clear existing options first (if any placeholder exists)
+            selectElement.innerHTML = ''; 
             
-            if (badge) {
-                if (currentCount > 0) {
-                    badge.textContent = currentCount;
-                    badge.classList.remove('hidden');
-                } else {
-                    badge.classList.add('hidden');
-                }
-            }
-        }
+            // Add a default, disabled, selected option
+            const defaultOption = document.createElement('option');
+            defaultOption.value = "";
+            defaultOption.textContent = "Select State";
+            defaultOption.disabled = true;
+            defaultOption.selected = true;
+            selectElement.appendChild(defaultOption);
 
-        function toggleMenu() {
-            const mobileMenu = document.getElementById('mobile-menu');
-            mobileMenu.classList.toggle('hidden');
-        }
-
-        // --- CORE CHECKOUT LOGIC ---
-        
-        // List of Nigerian states for the dropdown
-        const NIGERIAN_STATES = [
-            "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue", "Borno", 
-            "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu", "FCT - Abuja", "Gombe", 
-            "Imo", "Jigawa", "Kaduna", "Kano", "Katsina", "Kebbi", "Kogi", "Kwara", "Lagos", 
-            "Nasarawa", "Niger", "Ogun", "Ondo", "Osun", "Oyo", "Plateau", "Rivers", "Sokoto", 
-            "Taraba", "Yobe", "Zamfara"
-        ];
-
-        function populateNigerianStates() {
-            const selectElement = document.getElementById('state');
-            if (selectElement) {
-                // Clear existing options first (if any placeholder exists)
-                selectElement.innerHTML = ''; 
-                
-                // Add a default, disabled, selected option
-                const defaultOption = document.createElement('option');
-                defaultOption.value = "";
-                defaultOption.textContent = "Select State";
-                defaultOption.disabled = true;
-                defaultOption.selected = true;
-                selectElement.appendChild(defaultOption);
-
-                NIGERIAN_STATES.forEach(state => {
-                    const option = document.createElement('option');
-                    option.value = state;
-                    option.textContent = state;
-                    selectElement.appendChild(option);
-                });
-            }
-        }
-
-        function formatNaira(amount) {
-            return `₦${(amount / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
-        }
-        
-        // Placeholder function to fetch cart data (simulates API/Local Storage fetch)
-        async function fetchCartData() {
-            // Check for local cart first (simplicity for frontend demo)
-            const cartJSON = localStorage.getItem(LOCAL_CART_KEY);
-            let cartItems = [];
-
-            if (cartJSON) {
-                try {
-                    cartItems = JSON.parse(cartJSON);
-                } catch (e) {
-                    console.error('Error parsing local cart JSON:', e);
-                }
-            } else if (isUserLoggedIn()) {
-                // In a real app, this would be an API call
-                // Simulating an item for the summary
-                cartItems = [{ 
-                    id: '12345', 
-                    name: 'HF MESH LONGSLEEVE', 
-                    color: 'Black', 
-                    size: 'S', 
-                    price: 2000000, // Price in kobo/cents (₦20,000.00)
-                    quantity: 1 
-                }];
-            }
-            
-            return cartItems;
-        }
-
-        async function renderOrderSummary() {
-            const cartItems = await fetchCartData();
-            const orderItemsContainer = document.getElementById('order-items');
-            const subtotalEl = document.getElementById('subtotal');
-            const shippingEl = document.getElementById('shipping');
-            const grandTotalEl = document.getElementById('grand-total');
-
-            // Clear previous items
-            orderItemsContainer.innerHTML = ''; 
-
-            if (cartItems.length === 0) {
-                orderItemsContainer.innerHTML = '<p class="text-center text-gray-500 py-6">Your bag is empty. <a href="cart.html" class="text-ash-red font-semibold">Return to cart</a>.</p>';
-                subtotalEl.textContent = formatNaira(0);
-                shippingEl.textContent = formatNaira(0);
-                grandTotalEl.textContent = formatNaira(0);
-                document.getElementById('checkout-form').style.opacity = '0.5';
-                document.querySelector('button[type="submit"]').disabled = true;
-                return;
-            }
-
-            let subtotal = 0;
-            const shipping = DEFAULT_SHIPPING_COST;
-
-            cartItems.forEach(item => {
-                const itemTotal = item.price * item.quantity;
-                subtotal += itemTotal;
-                
-                const itemHTML = `
-                    <div class="flex items-start space-x-4" data-item-id="${item.id}" data-price="${item.price}">
-                        <div class="w-16 h-16 bg-gray-300 rounded-lg flex-shrink-0 relative border border-gray-200 overflow-hidden">
-                            <span class="absolute top-[-8px] right-[-8px] bg-ash-red text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">${item.quantity}</span>
-                            <img src="https://i.imgur.com/gKkL2eS.png" alt="${item.name}" class="w-full h-full object-cover">
-                        </div>
-                        <div class="flex-grow">
-                            <p class="font-semibold text-gray-900 truncate">${item.name}</p>
-                            <p class="text-sm text-gray-500">${item.color} / ${item.size}</p>
-                        </div>
-                        <p class="font-semibold text-gray-900">${formatNaira(itemTotal)}</p>
-                    </div>
-                `;
-                orderItemsContainer.innerHTML += itemHTML;
+            NIGERIAN_STATES.forEach(state => {
+                const option = document.createElement('option');
+                option.value = state;
+                option.textContent = state;
+                selectElement.appendChild(option);
             });
+        }
+    }
 
-            const grandTotal = subtotal + shipping;
+    function formatNaira(amount) {
+        // Amount is in kobo/cents. Convert to Naira (divide by 100)
+        return `₦${(amount / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+    }
+    
+    // --- MOCK PRODUCT DETAILS (TO SIMULATE FETCHING COLLECTION DATA) ---
+    // In a real app, this data would come from a database/API.
+    const MOCK_PRODUCT_DETAILS = {
+        'ITEM-HF-MESH-S': { name: 'HF Mesh Longsleeve', color: 'Black', size: 'S', price: 2000000, img: 'https://i.imgur.com/gKkL2eS.png' },
+        'ITEM-HF-MESH-M': { name: 'HF Mesh Longsleeve', color: 'Black', size: 'M', price: 2000000, img: 'https://i.imgur.com/gKkL2eS.png' },
+        'ITEM-CAP-RED-O': { name: 'Signature Outflickz Cap', color: 'Red', size: 'One Size', price: 1000000, img: 'https://i.imgur.com/gKkL2eS.png' },
+        'ITEM-TEE-WHITE-L': { name: 'O-Logo Oversized Tee', color: 'White', size: 'L', price: 1500000, img: 'https://i.imgur.com/gKkL2eS.png' }
+    };
 
-            // Update DOM
-            subtotalEl.textContent = formatNaira(subtotal);
-            shippingEl.textContent = formatNaira(shipping);
-            document.getElementById('shipping-rate').textContent = formatNaira(shipping); // Update shipping method text
-            grandTotalEl.textContent = formatNaira(grandTotal);
+    /**
+     * Placeholder function to fetch cart data.
+     * It now merges simple cart objects from localStorage with detailed product data.
+     */
+    async function fetchCartData() {
+        await new Promise(resolve => setTimeout(resolve, 50)); // Small delay to simulate network latency
 
-            // Re-enable checkout elements
-            document.getElementById('checkout-form').style.opacity = '1';
-            document.querySelector('button[type="submit"]').disabled = false;
+        const cartJSON = localStorage.getItem(LOCAL_CART_KEY);
+        let simpleCartItems = [];
+        let detailedCartItems = [];
+
+        if (cartJSON) {
+            try {
+                simpleCartItems = JSON.parse(cartJSON);
+            } catch (e) {
+                console.error('Error parsing local cart JSON:', e);
+            }
+        } else if (isUserLoggedIn()) {
+             // If logged in but local cart is empty, simulate a fetched API cart.
+             simpleCartItems = [
+                { id: 'ITEM-HF-MESH-S', quantity: 1 },
+                { id: 'ITEM-TEE-WHITE-L', quantity: 2 }
+            ];
         }
 
+        // --- MERGE LOGIC: Fetch Collection Details ---
+        if (simpleCartItems.length > 0) {
+            detailedCartItems = simpleCartItems.map(cartItem => {
+                // Use a mock product details object based on the item ID
+                const details = MOCK_PRODUCT_DETAILS[cartItem.id] || { 
+                    name: 'Unknown Item', 
+                    color: 'N/A', 
+                    size: 'N/A', 
+                    price: 0, 
+                    img: 'https://i.imgur.com/PZLMws6.jpeg' 
+                };
+                
+                return {
+                    id: cartItem.id,
+                    quantity: cartItem.quantity,
+                    ...details // Spreads the name, color, size, price, and img
+                };
+            }).filter(item => item.price > 0); // Only include items with a valid price
+        }
+        
+        // Update the cart badge based on the detailed item count
+        const totalItemsInCart = detailedCartItems.reduce((total, item) => total + item.quantity, 0);
+        localStorage.setItem(CART_STORAGE_KEY, totalItemsInCart.toString());
+        updateCartBadge(totalItemsInCart);
 
-        // IMPORTANT: This function must be replaced by your actual server-side payment initiation logic.
-        function initiatePayment() {
-            const form = document.getElementById('checkout-form');
-            if (!form.checkValidity()) {
-                // Triggers native HTML validation errors (red borders, required messages)
-                form.reportValidity(); 
-                return;
-            }
+        return detailedCartItems;
+    }
 
-            const grandTotalText = document.getElementById('grand-total').textContent;
-            
-            if (grandTotalText === '₦0.00') {
-                 displayMessage('Your cart is empty. Please add items before checking out.');
-                 window.location.href = 'cart.html';
-                 return;
-            }
+    async function renderOrderSummary() {
+        const cartItems = await fetchCartData();
+        const orderItemsContainer = document.getElementById('order-items');
+        const subtotalEl = document.getElementById('subtotal');
+        const shippingEl = document.getElementById('shipping');
+        const grandTotalEl = document.getElementById('grand-total');
+        const checkoutButton = document.querySelector('button[type="submit"]');
 
-            // In a real application, you would collect form data (email, address, etc.)
-            // and send it to your backend (e.g., /api/checkout)
-            
-            // Placeholder for success:
-            alert(`✅ Payment initiated for ${grandTotalText}. Redirecting to Paystack... (Frontend Placeholder).`);
-            
-            // Clear local cart storage items after "successful" initiation
-            localStorage.removeItem(LOCAL_CART_KEY);
-            localStorage.setItem(CART_STORAGE_KEY, '0');
-            updateCartBadge(0);
+        // Clear previous items
+        orderItemsContainer.innerHTML = ''; 
 
-            // Simulate redirect to a payment gateway success page or order summary
-            // window.location.href = 'order_confirmation.html'; 
+        if (cartItems.length === 0) {
+            orderItemsContainer.innerHTML = '<p class="text-center text-gray-500 py-6">Your bag is empty. <a href="cart.html" class="text-ash-red font-semibold">Return to cart</a>.</p>';
+            subtotalEl.textContent = formatNaira(0);
+            shippingEl.textContent = formatNaira(0);
+            grandTotalEl.textContent = formatNaira(0);
+            document.getElementById('checkout-form').style.opacity = '0.5';
+            checkoutButton.disabled = true;
+            return;
         }
 
-        // --- Main Initialization ---
-        document.addEventListener('DOMContentLoaded', () => {
-            populateNigerianStates();
-            updateCartBadge();
-            renderOrderSummary(); 
+        let subtotal = 0;
+        const shipping = DEFAULT_SHIPPING_COST;
 
-            // Attach the hideMessageModal function to the close button (if used)
-            // Note: The message modal container is not defined in this HTML, 
-            // but the displayMessage function is kept for consistency.
+        cartItems.forEach(item => {
+            const itemTotal = item.price * item.quantity;
+            subtotal += itemTotal;
+            
+            const itemHTML = `
+                <div class="flex items-start space-x-4 border-b border-gray-200 pb-4 last:border-b-0" data-item-id="${item.id}" data-price="${item.price}">
+                    <div class="w-16 h-16 bg-gray-200 rounded-lg flex-shrink-0 relative border border-gray-300 overflow-hidden">
+                        <span class="absolute top-[-8px] right-[-8px] bg-ash-red text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">${item.quantity}</span>
+                        <img src="${item.img}" alt="${item.name}" class="w-full h-full object-cover">
+                    </div>
+                    <div class="flex-grow">
+                        <p class="font-semibold text-gray-900 truncate">${item.name}</p>
+                        <p class="text-sm text-gray-500">${item.color} / ${item.size}</p>
+                    </div>
+                    <p class="font-semibold text-gray-900">${formatNaira(itemTotal)}</p>
+                </div>
+            `;
+            orderItemsContainer.innerHTML += itemHTML;
         });
-    </script>
+
+        const taxAmount = Math.round(subtotal * TAX_RATE); // Tax is calculated on subtotal
+        const grandTotal = subtotal + shipping + taxAmount;
+        
+        // Find and update the tax element (needs to be added to HTML)
+        let taxEl = document.getElementById('tax-estimate');
+        if (!taxEl) {
+             taxEl = document.createElement('span');
+             taxEl.id = 'tax-estimate';
+        }
+        
+        // Update DOM
+        subtotalEl.textContent = formatNaira(subtotal);
+        shippingEl.textContent = formatNaira(shipping);
+        document.getElementById('shipping-rate').textContent = formatNaira(shipping); // Update shipping method text
+        
+        // Check for tax display element and update it or insert it
+        const taxRow = document.getElementById('tax-row');
+        if (!taxRow) {
+             const summaryContainer = document.querySelector('.space-y-2.py-4.border-b.border-gray-200');
+             const newTaxRow = document.createElement('div');
+             newTaxRow.id = 'tax-row';
+             newTaxRow.className = 'flex justify-between text-gray-700';
+             newTaxRow.innerHTML = `<span>Tax Estimate (${(TAX_RATE * 100).toFixed(0)}%)</span>`;
+             newTaxRow.appendChild(taxEl);
+             summaryContainer.appendChild(newTaxRow);
+        }
+        taxEl.textContent = formatNaira(taxAmount);
+        
+        grandTotalEl.textContent = formatNaira(grandTotal);
+
+        // Re-enable checkout elements
+        document.getElementById('checkout-form').style.opacity = '1';
+        checkoutButton.disabled = false;
+    }
+
+
+    // IMPORTANT: This function must be replaced by your actual server-side payment initiation logic.
+    function initiatePayment() {
+        const form = document.getElementById('checkout-form');
+        if (!form.checkValidity()) {
+            // Triggers native HTML validation errors (red borders, required messages)
+            form.reportValidity(); 
+            return;
+        }
+
+        const grandTotalText = document.getElementById('grand-total').textContent;
+        
+        if (grandTotalText === '₦0.00') {
+             displayMessage('Your cart is empty. Please add items before checking out.');
+             window.location.href = 'cart.html';
+             return;
+        }
+
+        // In a real application, you would collect form data (email, address, etc.)
+        // and send it to your backend (e.g., /api/checkout)
+        
+        // Placeholder for success:
+        alert(`✅ Payment initiated for ${grandTotalText}. Redirecting to Paystack... (Frontend Placeholder).`);
+        
+        // Clear local cart storage items after "successful" initiation
+        localStorage.removeItem(LOCAL_CART_KEY);
+        localStorage.setItem(CART_STORAGE_KEY, '0');
+        updateCartBadge(0);
+
+        // Simulate redirect to a payment gateway success page or order summary
+        // window.location.href = 'order_confirmation.html'; 
+    }
+
+    // --- Main Initialization ---
+    document.addEventListener('DOMContentLoaded', () => {
+        populateNigerianStates();
+        updateCartBadge();
+        renderOrderSummary(); 
+
+        // Attach the hideMessageModal function to the close button (if used)
+        const closeButton = document.getElementById('message-modal-close-btn');
+        if (closeButton) {
+            closeButton.addEventListener('click', () => {
+                document.getElementById('message-modal-container').classList.add('hidden');
+            });
+        }
+    });
+</script>
 
     <div id="message-modal-container" class="fixed inset-0 z-[100] hidden flex justify-center items-start pt-10" role="alert" aria-live="assertive">
         <div class="modal-content bg-gray-900 text-white p-4 rounded-lg shadow-2xl max-w-sm w-full relative">

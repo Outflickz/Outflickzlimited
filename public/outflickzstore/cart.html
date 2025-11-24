@@ -62,18 +62,12 @@ tailwind.config = {
 // Global Constants
 const CART_STORAGE_KEY = 'outflickzCartCount';
 const LOCAL_CART_KEY = 'outflickzLocalCart';
-// REMOVED: const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
 const API_BASE_URL = 'https://outflickz.netlify.app';
 
 
 // --- MESSAGE & MODAL DISPLAY FUNCTION (NEW/UPDATED) ---
 /**
- * Displays a message to the user, ideally in a custom modal,
- * falling back to the browser's alert if modal elements are not found.
- * * NOTE: For this to work fully, you must have the following HTML elements
- * in your cart page (hidden by default):
- * - #message-modal-container (The main modal dialog/overlay)
- * - #message-modal-text (The element to display the message content)
+ * Displays a message to the user using a custom modal/alert.
  * @param {string} message - The message to display.
  */
 function displayMessage(message) {
@@ -85,14 +79,9 @@ function displayMessage(message) {
         modalText.textContent = message;
 
         // 2. Display the modal (Adjust classes based on your Tailwind setup)
-        // Assuming your modal is initially hidden with a class like 'hidden'
         modalContainer.classList.remove('hidden');
 
-        // Optional: Implement logic to automatically close the modal after a few seconds
-        // or ensure you have a close button in your HTML that calls hideMessageModal()
-        // Example: setTimeout(hideMessageModal, 3000); 
-
-        // Add event listener to close on click outside (optional)
+        // Add event listener to close on click outside
         modalContainer.onclick = (e) => {
             if (e.target === modalContainer) {
                 hideMessageModal();
@@ -100,9 +89,8 @@ function displayMessage(message) {
         };
 
     } else {
-        // Fallback to standard browser alert if modal elements are missing
-        console.warn("Modal elements not found. Falling back to browser alert.");
-        alert(message);
+        // Fallback to console if modal elements are missing
+        console.warn("Modal elements not found. Message:", message);
     }
 }
 
@@ -116,143 +104,137 @@ function hideMessageModal() {
     }
 }
 
-
 // --- USER AUTHENTICATION & REDIRECTION FUNCTIONS ---
 function redirectToProfileOrLogin() {
-    // Placeholder function - should navigate based on auth token existence
+    // Placeholder function - should navigate to login/profile page
     window.location.href = 'useraccount.html';
 }
 
+// Placeholder for `getUserAuthToken()` - removed from all calls as requested.
+// This function must be defined globally if other files still call it,
+// but for the cart logic, it is no longer used.
+// function getUserAuthToken() { return null; } 
+
+// ---------------------------------------------------
+// --- CART LOGIC FUNCTIONS (REFATORING STARTS HERE) ---
+// ---------------------------------------------------
+
 /**
- * Adds an item to the cart. Uses API if authenticated, or local storage if unauthenticated.
+ * Helper function to handle the local storage cart addition.
+ * @param {Object} details - The product details to add.
+ */
+function handleLocalCartFallback(details) {
+    let localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
+    
+    const existingItemIndex = localCart.findIndex(item => 
+        item.productId === details.productId && 
+        item.size === details.size &&
+        item.color === details.color
+    );
+
+    if (existingItemIndex > -1) {
+        localCart[existingItemIndex].quantity += details.quantity || 1;
+    } else {
+        details.quantity = details.quantity || 1;
+        details._id = details.productId || Date.now().toString(); // Ensure a unique ID for local cart
+        localCart.push(details);
+    }
+
+    localStorage.setItem(LOCAL_CART_KEY, JSON.stringify(localCart));
+    localStorage.setItem(CART_STORAGE_KEY, localCart.length.toString()); 
+    updateCartBadge();
+    
+    // Display info alert for local cart
+    displayMessage(`"${details.name}" added to your bag! (Sign in to save permanently)`);
+    
+    // If we are on the cart page, refresh the view
+    if (document.getElementById('cart-items-list')) {
+        fetchAndRenderCart(); 
+    }
+}
+
+/**
+ * Adds an item to the cart. Tries API first, falls back to local storage on 401.
+ * * NO TOKEN OR AUTHORIZATION HEADER IS USED.
  */
 async function simulateAddToCart(productDetails) {
-    const currentToken = getUserAuthToken(); // Get the latest token
+    // 1. Gather all item details needed for local cart fallback and API
+    const card = document.querySelector(`.collection-card[data-collection-id="${productDetails.productId}"]`) || document;
+    const selectedSizeInput = card.querySelector(`input[name="size-${productDetails.productId}"]:checked`);
+    const selectedColorInput = card.querySelector(`input[name="color-${productDetails.productId}"]:checked`);
 
-    // 1. --- HANDLE UN-AUTHENTICATED (LOCAL) CART ADDITION ---
-    if (!currentToken) {
-        let localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
-        
-        // Ensure necessary fields are present for unique matching (as required by the backend merge logic)
-        const requiredDetails = {
-            _id: productDetails.productId || Date.now().toString(), // Use productId for backend, unique ID for frontend
-            productId: productDetails.productId,
-            name: productDetails.name,
-            size: productDetails.size,
-            color: productDetails.color || 'N/A',
-            price: productDetails.price,
-            productType: productDetails.productType || 'WearsCollection',
-            imageUrl: productDetails.imageUrl
-        };
+    const size = selectedSizeInput ? selectedSizeInput.value : productDetails.size || 'N/A';
+    const color = selectedColorInput ? selectedColorInput.value : productDetails.color || 'N/A';
+    
+    // Unified item data structure for both API (minimal fields) and Local Cart (all fields)
+    const requiredDetails = {
+        productId: productDetails.productId,
+        name: productDetails.name, 
+        size: size,
+        color: color,
+        price: productDetails.price,
+        productType: productDetails.productType || 'WearsCollection',
+        imageUrl: productDetails.imageUrl,
+        quantity: productDetails.quantity || 1
+    };
+    
+    // Minimal data for API call (Backend only needs these fields)
+    const itemDataForAPI = {
+        productId: requiredDetails.productId,
+        quantity: requiredDetails.quantity,
+        size: requiredDetails.size,
+        color: requiredDetails.color,
+    };
 
-        const existingItemIndex = localCart.findIndex(item => 
-            item.productId === requiredDetails.productId && 
-            item.size === requiredDetails.size &&
-            item.color === requiredDetails.color
-        );
-
-        if (existingItemIndex > -1) {
-            localCart[existingItemIndex].quantity += 1;
-        } else {
-            requiredDetails.quantity = 1; 
-            localCart.push(requiredDetails);
-        }
-
-        localStorage.setItem(LOCAL_CART_KEY, JSON.stringify(localCart));
-        localStorage.setItem(CART_STORAGE_KEY, localCart.length.toString());
-        updateCartBadge();
-        // 🛑 Replaced alert() with displayMessage()
-        displayMessage(`"${requiredDetails.name}" added to your bag! (Sign in to save permanently)`);
-        
-        // If we are on the cart page, refresh the view
-        if (document.getElementById('cart-items-list')) {
-            fetchAndRenderCart(); 
-        }
-        return; 
-    }
-    // --------------------------------------------------------
-
-    // 2. --- HANDLE AUTHENTICATED (API) ADDITION ---
+    // --- 2. Attempt Authenticated API Call ---
     try {
         const response = await fetch('/api/users/cart', {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${currentToken}`, // <-- USE currentToken
+                // 🚨 NO Authorization header: Browser sends the HTTP-only cookie automatically
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(productDetails)
+            body: JSON.stringify(itemDataForAPI)
         });
 
         const data = await response.json();
 
         if (response.ok) {
-            console.log('Item added successfully:', data);
-            // Update local storage and cart badge immediately
+            // Success: Item added to permanent cart
             localStorage.setItem(CART_STORAGE_KEY, data.items.length.toString());
             updateCartBadge();
-            // 🛑 Replaced alert() with displayMessage()
-            displayMessage('Item added to your shopping bag!');
+            displayMessage('Item added to your permanent shopping bag!');
+
             if (document.getElementById('cart-items-list')) {
                 fetchAndRenderCart(); 
             }
-        } else if (response.status === 401) {
-            // Server failed auth: likely an expired token
-            // 🛑 Replaced alert() with displayMessage()
-            displayMessage('🚨 Session expired. Please log in again.');
-            redirectToProfileOrLogin();
+
+        } else if (response.status === 401 || response.status === 403) {
+            // Unauthorized (Cookie failed/expired) -> FALLBACK TO LOCAL CART
+            console.log("401/403 received (Unauthenticated). Falling back to local cart.");
+            handleLocalCartFallback(requiredDetails);
+
         } else {
-            throw new Error(data.message || 'Failed to add item.');
+            // Other API Errors
+            displayMessage(data.message || 'Failed to add item. Please try again.');
         }
+        
     } catch (error) {
-        console.error('Error in addToCart:', error);
-        // 🛑 Replaced alert() with displayMessage()
-        displayMessage('Could not add item to cart. Please try again.');
+        // Network or Fetch Error -> FALLBACK TO LOCAL CART
+        console.error('Error in addToCart API (Network or Fetch Error):', error);
+        handleLocalCartFallback(requiredDetails);
     }
 }
 
-// ---------------------------------------------------
 /**
  * Renders the entire cart contents and updates the summary.
- * Switches between API fetch (authenticated) and local storage (unauthenticated).
+ * Switches between API fetch (authenticated) and local storage (unauthenticated on 401/error).
+ * * NO TOKEN OR AUTHORIZATION HEADER IS USED.
  */
 async function fetchAndRenderCart() {
     const cartList = document.getElementById('cart-items-list');
     const checkoutBtn = document.getElementById('checkout-btn');
     const clearCartBtn = document.getElementById('clear-cart-btn');
-    const currentToken = getUserAuthToken(); // Get the latest token
-
-    // 1. --- HANDLE UN-AUTHENTICATED (LOCAL) CART ---
-    if (!currentToken) { // <-- Use the current token
-        const localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
-        
-        if (localCart.length > 0) {
-            // Render local cart items and calculate totals locally
-            renderCartItems(localCart);
-            const localTotals = calculateLocalTotals(localCart); 
-            updateCartSummary(localTotals);
-            
-            // Set up local cart action buttons
-            clearCartBtn.disabled = false;
-            checkoutBtn.disabled = true;
-            checkoutBtn.classList.remove('bg-ash-red', 'hover:bg-red-700');
-            checkoutBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
-            // The onclick redirects the user to sign in to enable merge/checkout
-            checkoutBtn.onclick = () => {
-                // 🛑 Replaced alert() with displayMessage()
-                displayMessage('Please sign in or create an account to save your cart and proceed to checkout.');
-                redirectToProfileOrLogin(); // Redirects to useraccount.html
-            };
-            return;
-        } else {
-            // Show standard empty cart message for unauthenticated user with empty local cart
-            cartList.innerHTML = '<div class="text-center py-10 text-gray-500">Your shopping bag is empty. Please <a href="useraccount.html" class="text-ash-red hover:underline font-semibold">log in</a> to view saved items or <a href="homepage.html" class="text-ash-red hover:underline font-semibold">Start shopping</a>.</div>';
-            updateCartSummary({ items: [], subtotal: 0, shipping: 0, tax: 0, estimatedTotal: 0 });
-            clearCartBtn.disabled = true;
-            return;
-        }
-    }
-    
-    // 2. --- HANDLE AUTHENTICATED (API) CART ---
     
     // Show loading state while fetching API data
     cartList.innerHTML = '<div class="text-center py-10 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Loading your shopping bag...</div>';
@@ -261,20 +243,40 @@ async function fetchAndRenderCart() {
     checkoutBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
     clearCartBtn.disabled = true;
 
+    // Helper to render local cart when API fails authentication
+    const renderLocalCart = () => {
+        const localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
+        if (localCart.length > 0) {
+            renderCartItems(localCart, false); // Pass false for API flag
+            const localTotals = calculateLocalTotals(localCart); 
+            updateCartSummary(localTotals);
+            
+            clearCartBtn.disabled = false;
+            checkoutBtn.disabled = true;
+            checkoutBtn.onclick = () => {
+                displayMessage('Please sign in or create an account to save your cart and proceed to checkout.');
+                redirectToProfileOrLogin();
+            };
+        } else {
+            cartList.innerHTML = '<div class="text-center py-10 text-gray-500">Your shopping bag is empty. Please <a href="useraccount.html" class="text-ash-red hover:underline font-semibold">log in</a> to view saved items or <a href="homepage.html" class="text-ash-red hover:underline font-semibold">Start shopping</a>.</div>';
+            updateCartSummary({ items: [], subtotal: 0, shipping: 0, tax: 0, estimatedTotal: 0 });
+            clearCartBtn.disabled = true;
+        }
+    };
+
     try {
         const response = await fetch('/api/users/cart', {
             method: 'GET',
             headers: {
-                // Assuming token is in a header/cookie now due to backend logic
-                'Authorization': `Bearer ${currentToken}`, // <-- USE currentToken
+                // 🚨 NO Authorization header
                 'Content-Type': 'application/json'
             }
         });
 
         if (response.status === 401) {
-            // Token is invalid/expired. The user must re-authenticate.
-            cartList.innerHTML = '<div class="text-center py-10 text-gray-500">Your session expired. Please <a href="useraccount.html" class="text-ash-red hover:underline font-semibold">log in</a> to view your cart.</div>';
-            updateCartSummary({ items: [], subtotal: 0, shipping: 0, tax: 0, estimatedTotal: 0 });
+            // Unauthorized (Cookie expired or missing). Show the local cart if one exists.
+            console.warn("Session expired (401). Falling back to local cart.");
+            renderLocalCart();
             return;
         }
 
@@ -283,35 +285,35 @@ async function fetchAndRenderCart() {
         }
 
         const cartData = await response.json();
-        renderCartItems(cartData.items);
+        
+        // Render authenticated cart (passing true for API flag)
+        renderCartItems(cartData.items, true); 
         updateCartSummary(cartData);
         
         // Update Local Storage badge count
         localStorage.setItem(CART_STORAGE_KEY, cartData.items.length.toString());
         updateCartBadge();
 
-        // Update clear cart button state based on API data
-        clearCartBtn.disabled = cartData.items.length === 0;
-        
         // Re-enable actual checkout redirect
-        // 🛑 Replaced alert() with displayMessage()
-        checkoutBtn.onclick = () => displayMessage('Proceeding to checkout...'); 
+        checkoutBtn.onclick = () => window.location.href = 'checkout.html'; 
         
     } catch (error) {
-        console.error('Error fetching API cart data:', error);
-        cartList.innerHTML = '<div class="text-center py-10 text-gray-500">There was an issue loading your cart. <a href="homepage.html" class="text-ash-red hover:underline font-semibold">Start shopping now!</a></div>';
-        updateCartSummary({ items: [], subtotal: 0, shipping: 0, tax: 0, estimatedTotal: 0 });
+        console.error('Error fetching API cart data. Trying local cart:', error);
+        // Network error. Fallback to local cart display.
+        renderLocalCart();
     }
 }
 
 
 /**
  * Renders the list of cart items dynamically.
- * @param {Array<Object>} items - The array of cart items from the API.
+ * @param {Array<Object>} items - The array of cart items.
+ * @param {boolean} isApiCart - True if data is from the API (i.e., user is logged in).
  */
-function renderCartItems(items) {
+function renderCartItems(items, isApiCart) {
     const cartList = document.getElementById('cart-items-list');
     const currencySymbol = '₦';
+    const loginPrompt = '<div class="text-xs text-ash-red font-semibold mt-1">Log in to modify item.</div>';
 
     if (items.length === 0) {
         cartList.innerHTML = '<div class="text-center py-10 text-gray-500">Your shopping bag is empty. <a href="homepage.html" class="text-ash-red hover:underline font-semibold">Start shopping now!</a></div>';
@@ -319,7 +321,7 @@ function renderCartItems(items) {
     }
 
     cartList.innerHTML = items.map(item => `
-        <div id="cart-item-${item._id}" class="cart-item-card flex py-4 sm:py-6 first:pt-0 last:pb-0">
+        <div id="cart-item-${item._id}" class="cart-item-card flex py-4 sm:py-6 first:pt-0 last:pb-0 border-b border-gray-100">
             <div class="flex-shrink-0 w-24 h-24 sm:w-32 sm:h-32 rounded-lg overflow-hidden border border-gray-200">
                 <img src="${item.imageUrl}" alt="${item.name}" class="w-full h-full object-cover object-center">
             </div>
@@ -340,17 +342,17 @@ function renderCartItems(items) {
                 </div>
                 
                 <div class="flex items-center justify-between mt-3 sm:mt-4">
-                    <div class="flex items-center border border-gray-300 rounded-sm w-fit">
-                        <button onclick="changeCartQuantity('${item._id}', -1)" aria-label="Decrease quantity" class="text-sm text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-l-sm font-semibold">
+                    <div class="flex items-center border border-gray-300 rounded-sm w-fit ${isApiCart ? '' : 'opacity-50 cursor-not-allowed'}" ${isApiCart ? '' : 'title="Log in to change quantity"'}>
+                        <button onclick="${isApiCart ? `changeCartQuantity('${item._id}', -1)` : `displayMessage('Please log in to change the quantity of this item.')`}" aria-label="Decrease quantity" class="text-sm text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-l-sm font-semibold" ${isApiCart ? '' : 'disabled'}>
                             &minus;
                         </button>
-                        <input type="number" id="cart-quantity-${item._id}" value="${item.quantity}" min="1" max="5" aria-label="Quantity" class="w-8 h-6 sm:w-10 sm:h-8 text-center text-sm border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" onchange="updateQuantityInput('${item._id}', this.value)" />
-                        <button onclick="changeCartQuantity('${item._id}', 1)" aria-label="Increase quantity" class="text-sm text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-r-sm font-semibold">
+                        <input type="number" id="cart-quantity-${item._id}" value="${item.quantity}" min="1" max="5" aria-label="Quantity" class="w-8 h-6 sm:w-10 sm:h-8 text-center text-sm border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" onchange="${isApiCart ? `updateQuantityInput('${item._id}', this.value)` : `displayMessage('Please log in to change the quantity of this item.')`}" ${isApiCart ? '' : 'disabled'} />
+                        <button onclick="${isApiCart ? `changeCartQuantity('${item._id}', 1)` : `displayMessage('Please log in to change the quantity of this item.')`}" aria-label="Increase quantity" class="text-sm text-gray-700 hover:bg-gray-100 transition flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-r-sm font-semibold" ${isApiCart ? '' : 'disabled'}>
                             &plus;
                         </button>
                     </div>
                     
-                    <button onclick="removeItemFromCart('${item._id}')" type="button" class="ml-4 text-xs sm:text-sm font-medium text-gray-700 hover:text-ash-red transition">
+                    <button onclick="${isApiCart ? `removeItemFromCart('${item._id}')` : `displayMessage('Please log in to remove this item.')`}" type="button" class="ml-4 text-xs sm:text-sm font-medium text-gray-700 hover:text-ash-red transition ${isApiCart ? '' : 'opacity-50 cursor-not-allowed'}" ${isApiCart ? '' : 'disabled'}>
                         <i class="fas fa-trash-alt mr-1"></i> Remove
                     </button>
                 </div>
@@ -359,37 +361,28 @@ function renderCartItems(items) {
     `).join('');
 }
 
+
 /**
  * Calculates the subtotal, tax, and estimated total for the local shopping cart data.
- * @param {Array<Object>} localCart - The array of item objects stored in local storage.
- * @returns {Object} An object containing the calculated summary totals.
+ * (No changes here, as it's a pure calculation function).
  */
 function calculateLocalTotals(localCart) {
     let subtotal = 0;
     
-    // 1. Calculate the subtotal from the local cart items
     localCart.forEach(item => {
-        // Ensure price and quantity are treated as numbers
         const price = parseFloat(item.price) || 0;
         const quantity = parseInt(item.quantity) || 0;
         subtotal += price * quantity;
     });
 
-    // 2. Define fixed or calculated rates (You can adjust these)
-    const SHIPPING_RATE = 2000; // Example fixed shipping rate (₦2,000)
-    const TAX_RATE = 0.075;    // Example 7.5% Tax Rate
+    const SHIPPING_RATE = 2000; 
+    const TAX_RATE = 0.075; 
     
     let tax = subtotal * TAX_RATE;
-    
-    // Shipping is typically added if the subtotal is over a certain amount, 
-    // or if the cart is not empty. Assuming non-zero shipping for now.
     let shipping = subtotal > 0 ? SHIPPING_RATE : 0;
-    
     let estimatedTotal = subtotal + shipping + tax;
 
-    // 3. Return the calculated summary object
     return {
-        // Return the list of items for consistency, though not strictly needed here
         items: localCart, 
         subtotal: subtotal,
         shipping: shipping,
@@ -405,17 +398,12 @@ function updateCartSummary(cartData) {
     const checkoutBtn = document.getElementById('checkout-btn');
     const clearCartBtn = document.getElementById('clear-cart-btn');
     const taxEstimateEl = document.getElementById('tax-estimate');
-    const taxLabelEl = document.getElementById('tax-label'); // Placeholder for updating tax label
 
     const hasItems = cartData.items.length > 0;
     const currencySymbol = '₦';
     
-    // Use actual server-side calculated totals from the API response
-    // FALLBACKS ARE REMOVED/CORRECTED to use API data structure
     const subtotal = cartData.subtotal || 0; 
     const shipping = cartData.shipping || 0;
-    // NOTE: The backend calculates tax at 1% (0.01) but the frontend label says 5%. 
-    // We stick to the server's calculation for display accuracy.
     const tax = cartData.tax || 0; 
     const total = cartData.estimatedTotal || subtotal + shipping + tax; 
 
@@ -423,7 +411,6 @@ function updateCartSummary(cartData) {
     subtotalEl.textContent = `${currencySymbol}${subtotal.toLocaleString()}`;
     shippingCostEl.textContent = `${currencySymbol}${shipping.toLocaleString()}`;
     estimatedTotalEl.textContent = `${currencySymbol}${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-    // Correct the Tax estimate value
     taxEstimateEl.textContent = `${currencySymbol}${tax.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
     // Update checkout button state
@@ -442,30 +429,20 @@ function updateCartSummary(cartData) {
 
 /**
  * Handles quantity changes for a cart item via API.
- * @param {string} itemId - The ID of the item.
- * @param {number} delta - The change in quantity (-1 or +1).
+ * * NO TOKEN OR AUTHORIZATION HEADER IS USED.
  */
 async function changeCartQuantity(itemId, delta) {
-    const currentToken = getUserAuthToken(); // Get the latest token
-
-    if (!currentToken) { // <-- Use the current token
-        // 🛑 Replaced alert() with displayMessage()
-        displayMessage('You must be logged in to update cart quantities.');
-        redirectToProfileOrLogin();
-        return;
-    }
     const input = document.getElementById(`cart-quantity-${itemId}`);
     let currentValue = parseInt(input.value) || 1;
     let newQuantity = currentValue + delta;
 
     if (newQuantity < 1) {
-        if (confirm('Are you sure you want to remove this item?')) {
-            removeItemFromCart(itemId);
-        }
+        // 🚨 No confirm(), call remove directly
+        removeItemFromCart(itemId);
         return;
     }
     
-    // Optimistically update the UI while waiting for API response
+    // Optimistically update the UI
     input.value = newQuantity; 
     
     // Call the API
@@ -473,7 +450,7 @@ async function changeCartQuantity(itemId, delta) {
         const response = await fetch(`/api/users/cart/${itemId}`, {
             method: 'PATCH',
             headers: {
-                'Authorization': `Bearer ${currentToken}`, // <-- USE currentToken
+                // 🚨 NO Authorization header
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ quantity: newQuantity })
@@ -482,15 +459,20 @@ async function changeCartQuantity(itemId, delta) {
         if (!response.ok) {
             // Revert UI change if API call fails
             input.value = currentValue;
+            if (response.status === 401) {
+                displayMessage('Session expired. Please log in again to update cart.');
+                redirectToProfileOrLogin();
+                return;
+            }
             throw new Error('Failed to update quantity on server.');
         }
 
         // Re-fetch and render the entire cart to ensure correct totals and state
         fetchAndRenderCart();
+        displayMessage('Quantity updated successfully.');
 
     } catch (error) {
         console.error(`Error updating item ${itemId} quantity:`, error);
-        // 🛑 Replaced alert() with displayMessage()
         displayMessage('Could not update cart quantity. Please try again.');
     }
 }
@@ -499,55 +481,48 @@ async function changeCartQuantity(itemId, delta) {
  * Handles direct quantity input changes.
  */
 function updateQuantityInput(itemId, value) {
-    const currentToken = getUserAuthToken(); // Get the latest token
-
-    if (!currentToken) { // <-- Use the current token
-        // 🛑 Replaced alert() with displayMessage()
-        displayMessage('You must be logged in to update cart quantities.');
-        redirectToProfileOrLogin();
-        return;
-    }
     let newQuantity = parseInt(value);
     const input = document.getElementById(`cart-quantity-${itemId}`);
     
     if (isNaN(newQuantity) || newQuantity < 1) {
         newQuantity = 1; 
-    } else if (newQuantity > 5) { // Assuming max 5 as in your original HTML
+    } else if (newQuantity > 5) { 
         newQuantity = 5;
     }
-    input.value = newQuantity; // Correct the input value
+    input.value = newQuantity; 
     
-    // We will just directly call the API function with the value
+    // Call the API function
     updateItemQuantityAPI(itemId, newQuantity);
 }
 
 /**
  * Direct API call for quantity update
+ * * NO TOKEN OR AUTHORIZATION HEADER IS USED.
  */
 async function updateItemQuantityAPI(itemId, newQuantity) {
-    const currentToken = getUserAuthToken(); // Get the latest token
-    // Authentication check is done in parent function (but re-check for safety)
-    if (!currentToken) return;
-
     try {
         const response = await fetch(`/api/users/cart/${itemId}`, {
             method: 'PATCH',
             headers: {
-                'Authorization': `Bearer ${currentToken}`, // <-- USE currentToken
+                // 🚨 NO Authorization header
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ quantity: newQuantity })
         });
 
         if (!response.ok) {
+            if (response.status === 401) {
+                displayMessage('Session expired. Please log in again to update cart.');
+                redirectToProfileOrLogin();
+                return;
+            }
             throw new Error('Failed to update quantity on server.');
         }
 
-        fetchAndRenderCart(); // Re-fetch all data to refresh totals
+        fetchAndRenderCart(); 
 
     } catch (error) {
         console.error(`Error updating item ${itemId} quantity:`, error);
-        // 🛑 Replaced alert() with displayMessage()
         displayMessage('Could not update cart quantity. Please try again.');
     }
 }
@@ -555,22 +530,11 @@ async function updateItemQuantityAPI(itemId, newQuantity) {
 
 /**
  * Handles item removal via API.
- * @param {string} itemId - The ID of the item to remove.
+ * * NO TOKEN OR AUTHORIZATION HEADER IS USED.
  */
 async function removeItemFromCart(itemId) {
-    const currentToken = getUserAuthToken(); // Get the latest token
-
-    if (!currentToken) { // <-- Use the current token
-        // 🛑 Replaced alert() with displayMessage()
-        displayMessage('You must be logged in to remove items.');
-        redirectToProfileOrLogin();
-        return;
-    }
-    // Using native confirm() for yes/no choice
-    if (!confirm('Are you sure you want to remove this item from your cart?')) {
-        return;
-    }
-
+    // 🚨 Replacing confirm() with immediate action and message
+    
     const itemElement = document.getElementById(`cart-item-${itemId}`);
     if (itemElement) {
         itemElement.style.opacity = '0.5'; // Visual feedback for removal
@@ -580,22 +544,26 @@ async function removeItemFromCart(itemId) {
         const response = await fetch(`/api/users/cart/${itemId}`, {
             method: 'DELETE',
             headers: {
-                'Authorization': `Bearer ${currentToken}`, // <-- USE currentToken
+                // 🚨 NO Authorization header
             }
         });
 
         if (!response.ok) {
             if (itemElement) itemElement.style.opacity = '1'; // Revert if failed
+            if (response.status === 401) {
+                displayMessage('Session expired. Please log in again to remove item.');
+                redirectToProfileOrLogin();
+                return;
+            }
             throw new Error('Failed to remove item from server.');
         }
 
         console.log(`Item ${itemId} removed from cart.`);
-        // Re-fetch and render the entire cart to ensure correct totals and state
         fetchAndRenderCart();
+        displayMessage('Item removed from your cart.');
         
     } catch (error) {
         console.error(`Error removing item ${itemId}:`, error);
-        // 🛑 Replaced alert() with displayMessage()
         displayMessage('Could not remove item from cart. Please try again.');
     }
 }
@@ -603,31 +571,26 @@ async function removeItemFromCart(itemId) {
 
 /**
  * Simulates clearing the cart by sending a DELETE request to clear all items.
+ * * NO TOKEN OR AUTHORIZATION HEADER IS USED.
  */
 async function clearCart() {
-    const currentToken = getUserAuthToken(); // Get the latest token
-
-    if (!currentToken) { // <-- Use the current token
-        // 🛑 Replaced alert() with displayMessage()
-        displayMessage('You must be logged in to clear your cart.');
-        redirectToProfileOrLogin();
-        return;
-    }
-    // Using native confirm() for yes/no choice
-    if (!confirm('Are you sure you want to clear your entire shopping bag?')) {
-        return;
-    }
+    // 🚨 Replacing confirm() with immediate action and message
     
     try {
         // Assuming a DELETE to the base /api/users/cart clears the whole cart
         const response = await fetch('/api/users/cart', {
             method: 'DELETE',
             headers: {
-                'Authorization': `Bearer ${currentToken}`, // <-- USE currentToken
+                // 🚨 NO Authorization header
             }
         });
 
         if (!response.ok) {
+            if (response.status === 401) {
+                displayMessage('Session expired. Please log in again to clear cart.');
+                redirectToProfileOrLogin();
+                return;
+            }
             throw new Error('Failed to clear cart on server.');
         }
 
@@ -635,14 +598,10 @@ async function clearCart() {
         localStorage.setItem(CART_STORAGE_KEY, '0');
         updateCartBadge();
         
-        // Re-fetch and render to show the empty cart message and updated totals
         fetchAndRenderCart();
-
-        // 🛑 Replaced alert() with displayMessage()
         displayMessage('All items removed from your cart. Cart cleared.');
     } catch (error) {
         console.error('Error clearing cart:', error);
-        // 🛑 Replaced alert() with displayMessage()
         displayMessage('Could not clear cart. Please try again.');
     }
 }
@@ -651,7 +610,6 @@ async function clearCart() {
 function updateCartBadge() {
     const badge = document.getElementById('cart-badge');
     
-    // Added safety check
     if (!badge) {
         return; 
     } 
@@ -668,7 +626,6 @@ function updateCartBadge() {
 
 /**
  * Toggles the mobile navigation menu's visibility.
- * This is crucial for mobile responsiveness.
  */
 function toggleMenu() {
     const menu = document.getElementById('mobile-menu');
@@ -679,9 +636,6 @@ function toggleMenu() {
 
 // --- Main Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
-    // Simulate setting the USER_AUTH_TOKEN for testing the logged-in view
-    // localStorage.setItem('outflickzToken', 'fake-token-123'); 
-    
     updateCartBadge();
     fetchAndRenderCart(); // IMPORTANT: Load real cart data on page load
 
@@ -692,7 +646,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 </script>
-
 </head>
 <body class="bg-gray-50 text-color-black min-h-screen">
 

@@ -583,6 +583,26 @@ const cartSchema = new mongoose.Schema({
 const Cart = mongoose.models.Cart || mongoose.model('Cart', cartSchema);
 module.exports = Cart;
 
+const ActivityLogSchema = new mongoose.Schema({
+    // Type of event: 'LOGIN', 'ORDER_PLACED', 'REGISTERED', 'FORGOT_PASSWORD', 'ADD_TO_CART'
+    eventType: { type: String, required: true, enum: ['LOGIN', 'ORDER_PLACED', 'REGISTERED', 'FORGOT_PASSWORD', 'ADD_TO_CART'] },
+    
+    // Message describing the event, e.g., "User 'john.doe@email.com' registered."
+    description: { type: String, required: true },
+    
+    // Optional: ID of the user involved
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true, required: false }, 
+    
+    // Optional: Additional context data (e.g., orderId, product name)
+    context: { type: Object },
+    
+    timestamp: { type: Date, default: Date.now, index: true }
+});
+
+const ActivityLog = mongoose.model('ActivityLog', ActivityLogSchema);
+module.exports = ActivityLog;
+
+
 // --- DATABASE INTERACTION FUNCTIONS (Unchanged) ---
 async function findAdminUserByEmail(email) {
     const adminUser = await Admin.findOne({ email }).select('+password').lean();
@@ -650,6 +670,11 @@ async function getRealTimeDashboardStats() {
         // 3. Count Registered Users
         const userCount = await User.countDocuments({});
 
+        const recentActivity = await ActivityLog.find({})
+    .sort({ timestamp: -1 }) // Sort by newest first
+    .limit(5)
+    .lean(); // Use .lean() for faster query performance
+
         // 4. Return all required data fields
         return {
             totalSales: totalSales,
@@ -660,6 +685,8 @@ async function getRealTimeDashboardStats() {
             capsStock: capsStock,
             newArrivalsStock: newArrivalsStock,
             preOrderStock: preOrderStock,
+
+            recentActivity: recentActivity // Add this new field
         };
 
     } catch (error) {

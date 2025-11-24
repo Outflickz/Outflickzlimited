@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout | Outflickz</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"> 
+
+    <style>
+        /* Define a primary brand color for ash-red to ensure consistency and modern look */
+        .text-ash-red { color: #D63031; }
+        .bg-ash-red { background-color: #D63031; }
+        .hover\:bg-ash-red-dark:hover { background-color: #A32324; }
+        .border-ash-red { border-color: #D63031; }
+        /* Focus styles for form inputs */
+        .form-input:focus {
+            border-color: #D63031;
+            box-shadow: 0 0 0 1px #D63031;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen text-gray-900 antialiased">
+    
+    <script>
+        function toggleMenu() {
+            const mobileMenu = document.getElementById('mobile-menu');
+            mobileMenu.classList.toggle('hidden');
+        }
+
+        // IMPORTANT: This function must be replaced by your actual server-side payment initiation logic.
+        function initiatePayment() {
+            // Placeholder: Replace with actual validation and AJAX call to your server
+            const form = document.getElementById('checkout-form');
+            if (!form.checkValidity()) {
+                // Allows native HTML validation to show errors
+                return;
+            }
+
+            alert('Attempting to initiate payment... (This is a frontend placeholder).');
+            // Example of what a real function might do:
+            /* fetch('/api/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(collectFormData()) 
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.redirect_url) {
+                    window.location.href = data.redirect_url; // Redirect to Paystack/Stripe/etc.
+                } else {
+                    alert('Payment processing error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Checkout failed:', error);
+                alert('A network error occurred. Please try again.');
+            });
+            */
+        }
+
+        // Dummy function to update Cart Badge (replace with actual logic)
+        function updateCartBadge(count) {
+            const badge = document.getElementById('cart-badge');
+            if (count > 0) {
+                badge.textContent = count;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+             // Example: Assuming the cart has items
+             updateCartBadge(1);
+        });
+    </script>
+
+    <header class="bg-white sticky top-0 z-50 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
+                <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-10">
+            </a>
+
+            <nav class="hidden md:flex flex-grow justify-center space-x-8 text-sm lg:text-base" aria-label="Main Navigation">
+                <a href="homepage.html" class="font-medium text-gray-700 hover:text-ash-red transition duration-150">Homepage</a>
+                <a href="preorder.html" class="font-medium text-gray-700 hover:text-ash-red transition duration-150">Pre Order</a>
+                <a href="newarrivals.html" class="font-medium text-gray-700 hover:text-ash-red transition duration-150">New Arrivals</a>
+                <a href="wearscollection.html" class="font-medium text-gray-700 hover:text-ash-red transition duration-150">Wears Collections</a>
+                <a href="capcollection.html" class="font-medium text-gray-700 hover:text-ash-red transition duration-150">Cap Collections</a>
+            </nav>
+
+            <div class="flex items-center space-x-3 sm:space-x-4">
+                <a href="cart.html" class="relative p-2 text-gray-600 hover:text-ash-red transition rounded-full" aria-label="Shopping Bag">
+                    <i class="fas fa-shopping-bag w-5 h-5"></i>
+                    <span id="cart-badge" class="absolute top-0 right-0 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-ash-red border border-white rounded-full transform translate-x-1/3 -translate-y-1/3 hidden">
+                        </span>
+                </a>
+                <button class="md:hidden p-2 text-gray-600 hover:text-ash-red transition rounded-full focus:outline-none" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
+                    <i class="fas fa-bars w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div id="mobile-menu" class="hidden md:hidden bg-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
+        <div class="px-4 pt-2 pb-3 space-y-1 text-base">
+            <a href="homepage.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-lg">Homepage</a>
+            <a href="preorder.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-lg">Pre Order</a>
+            <a href="newarrivals.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-lg">New Arrivals</a>
+            <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-lg">Wears Collection</a>
+            <a href="capcollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-lg">Cap Collection</a>
+            <a href="userprofile.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-lg">Account</a>
+        </div>
+    </div>
+    
+    <main class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
+        <h1 class="text-4xl font-extrabold text-gray-900 mb-8 sm:mb-10 border-b pb-4">Checkout</h1>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
+            
+            <div class="lg:col-span-2 space-y-8 bg-white p-6 sm:p-8 rounded-xl shadow-lg border border-gray-100">
+                <form id="checkout-form" onsubmit="event.preventDefault(); initiatePayment();">
+                    
+                    <div class="pb-6 border-b border-gray-200">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4">Contact</h2>
+                        <div class="space-y-4">
+                            <input type="email" id="contact-email" name="contact_email" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-ash-red focus:border-ash-red transition duration-150" placeholder="Email or mobile phone number" required>
+                            
+                            <div class="flex items-center">
+                                <input type="checkbox" id="news-offers" name="news_offers" class="h-4 w-4 text-ash-red border-gray-300 rounded focus:ring-ash-red">
+                                <label for="news-offers" class="ml-2 block text-sm text-gray-700">Email me with news and offers</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-8 pb-6 border-b border-gray-200">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4">Delivery</h2>
+                        <div class="space-y-4">
+                            
+                            <select id="country" name="country" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-ash-red focus:border-ash-red transition duration-150" required>
+                                <option value="Nigeria" selected>Country/Region: Nigeria</option>
+                                <option value="Ghana">Ghana</option>
+                                <option value="UK">United Kingdom</option>
+                                <option value="US">United States</option>
+                            </select>
+                            
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <input type="text" id="first-name" name="first_name" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-ash-red focus:border-ash-red transition duration-150" placeholder="First name (optional)">
+                                <input type="text" id="last-name" name="last_name" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-ash-red focus:border-ash-red transition duration-150" placeholder="Last name (optional)">
+                            </div>
+                            
+                            <input type="text" id="address" name="address" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-ash-red focus:border-ash-red transition duration-150" placeholder="Address" required>
+                            <input type="text" id="apartment" name="apartment" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-ash-red focus:border-ash-red transition duration-150" placeholder="Apartment, suite, etc. (optional)">
+
+                            <div class="grid grid-cols-3 gap-4">
+                                <input type="text" id="city" name="city" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-ash-red focus:border-ash-red transition duration-150" placeholder="City" required>
+                                <input type="text" id="state" name="state" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-ash-red focus:border-ash-red transition duration-150" placeholder="State">
+                                <input type="text" id="postal-code" name="postal_code" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-ash-red focus:border-ash-red transition duration-150" placeholder="Postal code (optional)">
+                            </div>
+                            
+                            <input type="tel" id="phone" name="phone" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-ash-red focus:border-ash-red transition duration-150" placeholder="Phone" required>
+
+                            <div class="flex items-center pt-2">
+                                <input type="checkbox" id="save-info" name="save_info" class="h-4 w-4 text-ash-red border-gray-300 rounded focus:ring-ash-red">
+                                <label for="save-info" class="ml-2 block text-sm text-gray-700">Save this information for next time</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-8 pb-6 border-b border-gray-200">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4">Shipping method</h2>
+                        <div class="border border-gray-300 rounded-lg p-3 bg-white hover:bg-gray-50 transition duration-150 flex justify-between items-center cursor-pointer">
+                            <label for="shipping-standard" class="flex items-center space-x-3 w-full cursor-pointer">
+                                <input type="radio" id="shipping-standard" name="shipping-method" value="standard" class="h-4 w-4 text-ash-red border-gray-300 focus:ring-ash-red" checked required>
+                                <span class="text-gray-700">Standard Shipping (3-5 days)</span>
+                            </label>
+                            <span class="font-semibold text-gray-900" id="shipping-rate">TBD</span>
+                        </div>
+                    </div>
+
+                    <div class="pt-8">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4">Payment</h2>
+                        <p class="text-sm text-gray-500 mb-4">All transactions are secure and encrypted.</p>
+
+                        <div class="border border-ash-red rounded-lg shadow-md">
+                            <div class="bg-gray-100 p-4 border-b border-ash-red flex justify-between items-center rounded-t-lg">
+                                <label for="paystack-radio" class="flex items-center space-x-3 cursor-pointer">
+                                    <input type="radio" id="paystack-radio" name="payment-method" value="paystack" class="h-4 w-4 text-ash-red border-ash-red focus:ring-ash-red" checked required>
+                                    <span class="font-semibold text-gray-800">Paystack</span>
+                                </label>
+                                <div class="flex space-x-2">
+                                    <i class="fab fa-cc-mastercard text-xl text-red-600"></i>
+                                    <i class="fab fa-cc-visa text-xl text-blue-600"></i>
+                                    <span class="text-sm font-medium text-gray-600">+5</span>
+                                </div>
+                            </div>
+                            <div class="p-4 bg-white text-center">
+                                <p class="text-sm text-gray-600">
+                                    After clicking **"Pay now"**, you will be **redirected to Paystack** to complete your purchase securely.
+                                </p>
+                            </div>
+                        </div>
+                        </div>
+                    
+                </form>
+            </div>
+            
+            <div class="lg:col-span-1">
+                <div class="lg:sticky lg:top-24 bg-gray-100 p-6 sm:p-8 rounded-xl shadow-lg border border-gray-200">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-3">Order Summary</h2>
+
+                    <div id="order-items" class="space-y-4 pb-4 border-b border-gray-200">
+                        <div class="flex items-start space-x-4" data-item-id="12345" data-price="20000.00">
+                            <div class="w-16 h-16 bg-gray-300 rounded-lg flex-shrink-0 relative border border-gray-200 overflow-hidden">
+                                <span class="absolute top-[-8px] right-[-8px] bg-ash-red text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">1</span>
+                                <img src="[URL_TO_ITEM_IMAGE]" alt="HF Mesh Longsleeve" class="w-full h-full object-cover">
+                            </div>
+                            <div class="flex-grow">
+                                <p class="font-semibold text-gray-900">HF MESH LONGSLEEVE</p>
+                                <p class="text-sm text-gray-500">Black / S</p>
+                            </div>
+                            <p class="font-semibold text-gray-900" id="item-price-12345">₦20,000.00</p>
+                        </div>
+                        </div>
+
+                    <div class="space-y-2 py-4 border-b border-gray-200">
+                        <div class="flex justify-between text-gray-700">
+                            <span>Subtotal</span>
+                            <span id="subtotal" class="font-medium">₦0.00</span>
+                        </div>
+                        <div class="flex justify-between text-gray-700">
+                            <span>Shipping</span>
+                            <span id="shipping" class="font-medium">₦0.00</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-between items-center pt-4">
+                        <span class="text-xl font-bold text-gray-900">Total</span>
+                        <span class="text-2xl font-extrabold text-ash-red" id="grand-total">₦0.00</span>
+                    </div>
+
+                    <button type="submit" form="checkout-form" class="mt-6 w-full py-3 bg-ash-red text-white font-bold rounded-lg shadow-md hover:bg-ash-red-dark transition duration-150 focus:outline-none focus:ring-2 focus:ring-ash-red focus:ring-opacity-50">
+                        Pay now
+                    </button>
+                    <p class="text-xs text-gray-500 text-center mt-2">By placing this order, you agree to our Terms.</p>
+                </div>
+            </div>
+
+        </div>
+    </main>
+    
+    <footer class="bg-gray-900 text-gray-300 py-10 sm:py-14 border-t border-gray-800 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
+                
+                <div class="col-span-2 lg:col-span-1">
+                    <a href="homepage.html" class="flex items-center mb-4">
+                        <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-8 filter grayscale invert">
+                    </a>
+                    <p class="text-sm text-gray-500">
+                        The home of exclusive street wear and limited edition drops. Elevate your style.
+                    </p>
+                    <div class="flex space-x-4 mt-4 text-gray-400">
+                        <a href="#" aria-label="Instagram" class="hover:text-ash-red transition"><i class="fab fa-instagram"></i></a>
+                        <a href="#" aria-label="Twitter" class="hover:text-ash-red transition"><i class="fab fa-twitter"></i></a>
+                        <a href="#" aria-label="Facebook" class="hover:text-ash-red transition"><i class="fab fa-facebook-f"></i></a>
+                    </div>
+                </div>
+
+                <div class="col-span-1">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Quick Links</h3>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="wearscollection.html" class="text-gray-400 hover:text-ash-red transition">Wears</a></li>
+                        <li><a href="capcollection.html" class="text-gray-400 hover:text-ash-red transition">Caps</a></li>
+                        <li><a href="newarrivals.html" class="text-gray-400 hover:text-ash-red transition">New Arrivals</a></li>
+                        <li><a href="preorder.html" class="text-gray-400 hover:text-ash-red transition">Pre-Order</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-span-1">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Customer Care</h3>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Contact Us</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Shipping & Returns</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">FAQ</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Size Guide</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-span-2 md:col-span-1">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Get In Touch</h3>
+                    <address class="text-sm not-italic space-y-2">
+                        <p class="text-gray-400">
+                            <i class="fas fa-map-marker-alt mr-2 text-ash-red"></i> 123 Streetwear Ave, City, Country
+                        </p>
+                        <p class="text-gray-400">
+                            <i class="fas fa-envelope mr-2 text-ash-red"></i> support@outflickz.com
+                        </p>
+                        <p class="text-gray-400">
+                            <i class="fas fa-phone mr-2 text-ash-red"></i> +1 (555) 123-4567
+                        </p>
+                    </address>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-800 mt-10 pt-6">
+                <p class="text-center text-xs text-gray-500">
+                    &copy; 2025 Outflickz. All rights reserved. | <a href="#" class="hover:text-ash-red">Privacy Policy</a> | <a href="#" class="hover:text-ash-red">Terms of Use</a>
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <a href="https://wa.me/2347042882706?text=HELLO!%20WELCOME%20TO%20OUTFLICKZ!%20HOW%20CAN%20WE%20HELP%20YOU" 
+        target="_blank" 
+        class="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-3 sm:p-4 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-110" 
+        aria-label="Chat with us on WhatsApp">
+        <i class="fab fa-whatsapp text-2xl sm:text-3xl"></i>
+    </a>
+    
+</body>
+</html>

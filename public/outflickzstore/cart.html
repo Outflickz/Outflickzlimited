@@ -59,11 +59,71 @@ tailwind.config = {
     }
 }
 
-// Global Constants (Ensure USER_AUTH_TOKEN is defined)
+// Global Constants
 const CART_STORAGE_KEY = 'outflickzCartCount';
 const LOCAL_CART_KEY = 'outflickzLocalCart';
-const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
-const API_BASE_URL = 'https://outflickz.netlify.app'; // Keep for relative paths like '/api/users/cart'
+// REMOVED: const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
+const API_BASE_URL = 'https://outflickz.netlify.app';
+
+// --- Token Getter Function (The Fix) ---
+/**
+ * Safely retrieves the current authentication token from local storage.
+ * This ensures we always check the latest login status.
+ */
+function getUserAuthToken() {
+    return localStorage.getItem('outflickzToken');
+}
+
+// --- MESSAGE & MODAL DISPLAY FUNCTION (NEW/UPDATED) ---
+/**
+ * Displays a message to the user, ideally in a custom modal,
+ * falling back to the browser's alert if modal elements are not found.
+ * * NOTE: For this to work fully, you must have the following HTML elements
+ * in your cart page (hidden by default):
+ * - #message-modal-container (The main modal dialog/overlay)
+ * - #message-modal-text (The element to display the message content)
+ * @param {string} message - The message to display.
+ */
+function displayMessage(message) {
+    const modalContainer = document.getElementById('message-modal-container');
+    const modalText = document.getElementById('message-modal-text');
+
+    if (modalContainer && modalText) {
+        // 1. Set the message content
+        modalText.textContent = message;
+
+        // 2. Display the modal (Adjust classes based on your Tailwind setup)
+        // Assuming your modal is initially hidden with a class like 'hidden'
+        modalContainer.classList.remove('hidden');
+
+        // Optional: Implement logic to automatically close the modal after a few seconds
+        // or ensure you have a close button in your HTML that calls hideMessageModal()
+        // Example: setTimeout(hideMessageModal, 3000); 
+
+        // Add event listener to close on click outside (optional)
+        modalContainer.onclick = (e) => {
+            if (e.target === modalContainer) {
+                hideMessageModal();
+            }
+        };
+
+    } else {
+        // Fallback to standard browser alert if modal elements are missing
+        console.warn("Modal elements not found. Falling back to browser alert.");
+        alert(message);
+    }
+}
+
+/**
+ * Hides the custom message modal.
+ */
+function hideMessageModal() {
+    const modalContainer = document.getElementById('message-modal-container');
+    if (modalContainer) {
+        modalContainer.classList.add('hidden');
+    }
+}
+
 
 // --- USER AUTHENTICATION & REDIRECTION FUNCTIONS ---
 function redirectToProfileOrLogin() {
@@ -75,8 +135,10 @@ function redirectToProfileOrLogin() {
  * Adds an item to the cart. Uses API if authenticated, or local storage if unauthenticated.
  */
 async function simulateAddToCart(productDetails) {
+    const currentToken = getUserAuthToken(); // Get the latest token
+
     // 1. --- HANDLE UN-AUTHENTICATED (LOCAL) CART ADDITION ---
-    if (!USER_AUTH_TOKEN) {
+    if (!currentToken) {
         let localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
         
         // Ensure necessary fields are present for unique matching (as required by the backend merge logic)
@@ -107,7 +169,8 @@ async function simulateAddToCart(productDetails) {
         localStorage.setItem(LOCAL_CART_KEY, JSON.stringify(localCart));
         localStorage.setItem(CART_STORAGE_KEY, localCart.length.toString());
         updateCartBadge();
-        alert(`"${requiredDetails.name}" added to your bag! (Sign in to save permanently)`);
+        // 🛑 Replaced alert() with displayMessage()
+        displayMessage(`"${requiredDetails.name}" added to your bag! (Sign in to save permanently)`);
         
         // If we are on the cart page, refresh the view
         if (document.getElementById('cart-items-list')) {
@@ -122,7 +185,7 @@ async function simulateAddToCart(productDetails) {
         const response = await fetch('/api/users/cart', {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${USER_AUTH_TOKEN}`,
+                'Authorization': `Bearer ${currentToken}`, // <-- USE currentToken
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(productDetails)
@@ -135,20 +198,23 @@ async function simulateAddToCart(productDetails) {
             // Update local storage and cart badge immediately
             localStorage.setItem(CART_STORAGE_KEY, data.items.length.toString());
             updateCartBadge();
-            alert('Item added to your shopping bag!');
+            // 🛑 Replaced alert() with displayMessage()
+            displayMessage('Item added to your shopping bag!');
             if (document.getElementById('cart-items-list')) {
                 fetchAndRenderCart(); 
             }
         } else if (response.status === 401) {
             // Server failed auth: likely an expired token
-            alert('🚨 Session expired. Please log in again.');
+            // 🛑 Replaced alert() with displayMessage()
+            displayMessage('🚨 Session expired. Please log in again.');
             redirectToProfileOrLogin();
         } else {
             throw new Error(data.message || 'Failed to add item.');
         }
     } catch (error) {
         console.error('Error in addToCart:', error);
-        alert('Could not add item to cart. Please try again.');
+        // 🛑 Replaced alert() with displayMessage()
+        displayMessage('Could not add item to cart. Please try again.');
     }
 }
 
@@ -161,9 +227,10 @@ async function fetchAndRenderCart() {
     const cartList = document.getElementById('cart-items-list');
     const checkoutBtn = document.getElementById('checkout-btn');
     const clearCartBtn = document.getElementById('clear-cart-btn');
+    const currentToken = getUserAuthToken(); // Get the latest token
 
     // 1. --- HANDLE UN-AUTHENTICATED (LOCAL) CART ---
-    if (!USER_AUTH_TOKEN) {
+    if (!currentToken) { // <-- Use the current token
         const localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
         
         if (localCart.length > 0) {
@@ -179,8 +246,9 @@ async function fetchAndRenderCart() {
             checkoutBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
             // The onclick redirects the user to sign in to enable merge/checkout
             checkoutBtn.onclick = () => {
-                 alert('Please sign in or create an account to save your cart and proceed to checkout.');
-                 redirectToProfileOrLogin(); // Redirects to useraccount.html
+                // 🛑 Replaced alert() with displayMessage()
+                displayMessage('Please sign in or create an account to save your cart and proceed to checkout.');
+                redirectToProfileOrLogin(); // Redirects to useraccount.html
             };
             return;
         } else {
@@ -206,7 +274,7 @@ async function fetchAndRenderCart() {
             method: 'GET',
             headers: {
                 // Assuming token is in a header/cookie now due to backend logic
-                'Authorization': `Bearer ${USER_AUTH_TOKEN}`,
+                'Authorization': `Bearer ${currentToken}`, // <-- USE currentToken
                 'Content-Type': 'application/json'
             }
         });
@@ -234,7 +302,8 @@ async function fetchAndRenderCart() {
         clearCartBtn.disabled = cartData.items.length === 0;
         
         // Re-enable actual checkout redirect
-        checkoutBtn.onclick = () => alert('Proceeding to checkout...');
+        // 🛑 Replaced alert() with displayMessage()
+        checkoutBtn.onclick = () => displayMessage('Proceeding to checkout...'); 
         
     } catch (error) {
         console.error('Error fetching API cart data:', error);
@@ -316,7 +385,7 @@ function calculateLocalTotals(localCart) {
 
     // 2. Define fixed or calculated rates (You can adjust these)
     const SHIPPING_RATE = 2000; // Example fixed shipping rate (₦2,000)
-    const TAX_RATE = 0.075;     // Example 7.5% Tax Rate
+    const TAX_RATE = 0.075;    // Example 7.5% Tax Rate
     
     let tax = subtotal * TAX_RATE;
     
@@ -385,8 +454,11 @@ function updateCartSummary(cartData) {
  * @param {number} delta - The change in quantity (-1 or +1).
  */
 async function changeCartQuantity(itemId, delta) {
-    if (!USER_AUTH_TOKEN) {
-        alert('You must be logged in to update cart quantities.');
+    const currentToken = getUserAuthToken(); // Get the latest token
+
+    if (!currentToken) { // <-- Use the current token
+        // 🛑 Replaced alert() with displayMessage()
+        displayMessage('You must be logged in to update cart quantities.');
         redirectToProfileOrLogin();
         return;
     }
@@ -409,7 +481,7 @@ async function changeCartQuantity(itemId, delta) {
         const response = await fetch(`/api/users/cart/${itemId}`, {
             method: 'PATCH',
             headers: {
-                'Authorization': USER_AUTH_TOKEN ? `Bearer ${USER_AUTH_TOKEN}` : '',
+                'Authorization': `Bearer ${currentToken}`, // <-- USE currentToken
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ quantity: newQuantity })
@@ -426,7 +498,8 @@ async function changeCartQuantity(itemId, delta) {
 
     } catch (error) {
         console.error(`Error updating item ${itemId} quantity:`, error);
-        alert('Could not update cart quantity. Please try again.');
+        // 🛑 Replaced alert() with displayMessage()
+        displayMessage('Could not update cart quantity. Please try again.');
     }
 }
 
@@ -434,8 +507,11 @@ async function changeCartQuantity(itemId, delta) {
  * Handles direct quantity input changes.
  */
 function updateQuantityInput(itemId, value) {
-    if (!USER_AUTH_TOKEN) {
-        alert('You must be logged in to update cart quantities.');
+    const currentToken = getUserAuthToken(); // Get the latest token
+
+    if (!currentToken) { // <-- Use the current token
+        // 🛑 Replaced alert() with displayMessage()
+        displayMessage('You must be logged in to update cart quantities.');
         redirectToProfileOrLogin();
         return;
     }
@@ -457,12 +533,15 @@ function updateQuantityInput(itemId, value) {
  * Direct API call for quantity update
  */
 async function updateItemQuantityAPI(itemId, newQuantity) {
-    // Authentication check is done in parent function
+    const currentToken = getUserAuthToken(); // Get the latest token
+    // Authentication check is done in parent function (but re-check for safety)
+    if (!currentToken) return;
+
     try {
         const response = await fetch(`/api/users/cart/${itemId}`, {
             method: 'PATCH',
             headers: {
-                'Authorization': USER_AUTH_TOKEN ? `Bearer ${USER_AUTH_TOKEN}` : '',
+                'Authorization': `Bearer ${currentToken}`, // <-- USE currentToken
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ quantity: newQuantity })
@@ -476,7 +555,8 @@ async function updateItemQuantityAPI(itemId, newQuantity) {
 
     } catch (error) {
         console.error(`Error updating item ${itemId} quantity:`, error);
-        alert('Could not update cart quantity. Please try again.');
+        // 🛑 Replaced alert() with displayMessage()
+        displayMessage('Could not update cart quantity. Please try again.');
     }
 }
 
@@ -486,11 +566,15 @@ async function updateItemQuantityAPI(itemId, newQuantity) {
  * @param {string} itemId - The ID of the item to remove.
  */
 async function removeItemFromCart(itemId) {
-    if (!USER_AUTH_TOKEN) {
-        alert('You must be logged in to remove items.');
+    const currentToken = getUserAuthToken(); // Get the latest token
+
+    if (!currentToken) { // <-- Use the current token
+        // 🛑 Replaced alert() with displayMessage()
+        displayMessage('You must be logged in to remove items.');
         redirectToProfileOrLogin();
         return;
     }
+    // Using native confirm() for yes/no choice
     if (!confirm('Are you sure you want to remove this item from your cart?')) {
         return;
     }
@@ -504,7 +588,7 @@ async function removeItemFromCart(itemId) {
         const response = await fetch(`/api/users/cart/${itemId}`, {
             method: 'DELETE',
             headers: {
-                'Authorization': USER_AUTH_TOKEN ? `Bearer ${USER_AUTH_TOKEN}` : '',
+                'Authorization': `Bearer ${currentToken}`, // <-- USE currentToken
             }
         });
 
@@ -519,7 +603,8 @@ async function removeItemFromCart(itemId) {
         
     } catch (error) {
         console.error(`Error removing item ${itemId}:`, error);
-        alert('Could not remove item from cart. Please try again.');
+        // 🛑 Replaced alert() with displayMessage()
+        displayMessage('Could not remove item from cart. Please try again.');
     }
 }
 
@@ -528,11 +613,15 @@ async function removeItemFromCart(itemId) {
  * Simulates clearing the cart by sending a DELETE request to clear all items.
  */
 async function clearCart() {
-    if (!USER_AUTH_TOKEN) {
-        alert('You must be logged in to clear your cart.');
+    const currentToken = getUserAuthToken(); // Get the latest token
+
+    if (!currentToken) { // <-- Use the current token
+        // 🛑 Replaced alert() with displayMessage()
+        displayMessage('You must be logged in to clear your cart.');
         redirectToProfileOrLogin();
         return;
     }
+    // Using native confirm() for yes/no choice
     if (!confirm('Are you sure you want to clear your entire shopping bag?')) {
         return;
     }
@@ -542,7 +631,7 @@ async function clearCart() {
         const response = await fetch('/api/users/cart', {
             method: 'DELETE',
             headers: {
-                'Authorization': USER_AUTH_TOKEN ? `Bearer ${USER_AUTH_TOKEN}` : '',
+                'Authorization': `Bearer ${currentToken}`, // <-- USE currentToken
             }
         });
 
@@ -557,30 +646,32 @@ async function clearCart() {
         // Re-fetch and render to show the empty cart message and updated totals
         fetchAndRenderCart();
 
-        alert('All items removed from your cart. Cart cleared.');
+        // 🛑 Replaced alert() with displayMessage()
+        displayMessage('All items removed from your cart. Cart cleared.');
     } catch (error) {
         console.error('Error clearing cart:', error);
-        alert('Could not clear cart. Please try again.');
+        // 🛑 Replaced alert() with displayMessage()
+        displayMessage('Could not clear cart. Please try again.');
     }
 }
 
 // Placeholder for `updateCartBadge`
 function updateCartBadge() {
-    const badge = document.getElementById('cart-badge');
+    const badge = document.getElementById('cart-badge');
     
-    // Add this safety check: If the badge element doesn't exist, stop the function.
+    // Added safety check
     if (!badge) {
         return; 
     } 
     
-    const count = parseInt(localStorage.getItem(CART_STORAGE_KEY) || '0');
+    const count = parseInt(localStorage.getItem(CART_STORAGE_KEY) || '0');
     
-    if (count > 0) {
-        badge.textContent = count;
-        badge.classList.remove('hidden');
-    } else {
-        badge.classList.add('hidden');
-    }
+    if (count > 0) {
+        badge.textContent = count;
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
 }
 
 /**
@@ -601,6 +692,12 @@ document.addEventListener('DOMContentLoaded', () => {
     
     updateCartBadge();
     fetchAndRenderCart(); // IMPORTANT: Load real cart data on page load
+
+    // Attach the hideMessageModal function to the close button if you have one
+    const closeButton = document.getElementById('message-modal-close-btn');
+    if (closeButton) {
+        closeButton.addEventListener('click', hideMessageModal);
+    }
 });
 </script>
 

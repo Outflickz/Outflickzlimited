@@ -53,18 +53,18 @@
 <script>
 // Customizing Tailwind colors to match the theme
 tailwind.config = {
-    theme: {
-        extend: {
-            colors: {
-                'ash-dark': '#111111',
-                'ash-red': '#a80000',
-                'color-white': '#FFFFFF',
-                'color-black': '#000000',
-                'racing-grey': '#333333',
-                'racing-silver': '#AAAAAA',
-            }
-        }
-    }
+    theme: {
+        extend: {
+            colors: {
+                'ash-dark': '#111111',
+                'ash-red': '#a80000',
+                'color-white': '#FFFFFF',
+                'color-black': '#000000',
+                'racing-grey': '#333333',
+                'racing-silver': '#AAAAAA',
+            }
+        }
+    }
 }
 
 // Global Constants (Reused from cart.html)
@@ -72,59 +72,63 @@ const CART_STORAGE_KEY = 'outflickzCartCount';
 const LOCAL_CART_KEY = 'outflickzLocalCart';
 const API_BASE_URL = 'https://outflickz.netlify.app'; // Assuming this is your base path
 
+// --- PAYSTACK CONSTANTS ---
+const PAYSTACK_PUBLIC_KEY = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; // <<< REPLACE THIS WITH YOUR ACTUAL PUBLIC KEY!
+const CURRENCY_CODE = 'NGN'; // Nigerian Naira
+
 // --- MESSAGE & MODAL DISPLAY FUNCTION (Reused) ---
 function displayMessage(message) {
-    const modalContainer = document.getElementById('message-modal-container');
-    const modalText = document.getElementById('message-modal-text');
+    const modalContainer = document.getElementById('message-modal-container');
+    const modalText = document.getElementById('message-modal-text');
 
-    if (modalContainer && modalText) {
-        modalText.textContent = message;
-        modalContainer.classList.remove('hidden');
+    if (modalContainer && modalText) {
+        modalText.textContent = message;
+        modalContainer.classList.remove('hidden');
 
-        modalContainer.onclick = (e) => {
-            if (e.target === modalContainer) {
-                hideMessageModal();
-            }
-        };
+        modalContainer.onclick = (e) => {
+            if (e.target === modalContainer) {
+                hideMessageModal();
+            }
+        };
 
-        setTimeout(hideMessageModal, 4000);
-    } else {
-        console.warn("Modal elements not found. Message:", message);
-    }
+        setTimeout(hideMessageModal, 4000);
+    } else {
+        console.warn("Modal elements not found. Message:", message);
+    }
 }
 
 function hideMessageModal() {
-    const modalContainer = document.getElementById('message-modal-container');
-    if (modalContainer) {
-        modalContainer.classList.add('hidden');
-        modalContainer.onclick = null;
-    }
+    const modalContainer = document.getElementById('message-modal-container');
+    if (modalContainer) {
+        modalContainer.classList.add('hidden');
+        modalContainer.onclick = null;
+    }
 }
 
 // --- USER AUTHENTICATION & REDIRECTION FUNCTIONS (Reused) ---
 function isUserLoggedIn() {
-    return localStorage.getItem('outflickzAuthStatus') === 'loggedIn';
+    return localStorage.getItem('outflickzAuthStatus') === 'loggedIn';
 }
 
 function redirectToProfileOrLogin() {
-    if (isUserLoggedIn()) {
-        window.location.href = 'userprofile.html';
-    } else {
-        window.location.href = 'useraccount.html';
-    }
+    if (isUserLoggedIn()) {
+        window.location.href = 'userprofile.html';
+    } else {
+        window.location.href = 'useraccount.html';
+    }
 }
 
 function updateCartBadge() {
-    const badge = document.getElementById('cart-badge');
-    if (!badge) return;
-    const count = parseInt(localStorage.getItem(CART_STORAGE_KEY) || '0');
-    
-    if (count > 0) {
-        badge.textContent = count;
-        badge.classList.remove('hidden');
-    } else {
-        badge.classList.add('hidden');
-    }
+    const badge = document.getElementById('cart-badge');
+    if (!badge) return;
+    const count = parseInt(localStorage.getItem(CART_STORAGE_KEY) || '0');
+    
+    if (count > 0) {
+        badge.textContent = count;
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
 }
 
 
@@ -134,280 +138,342 @@ function updateCartBadge() {
 
 let checkoutStep = 1; // 1: Info, 2: Review, 3: Payment
 const STEPS = [
-    { id: 1, name: 'Shipping Info', sectionId: 'shipping-info-section' },
-    { id: 2, name: 'Review Order', sectionId: 'review-order-section' },
-    { id: 3, name: 'Payment', sectionId: 'payment-section' }
+    { id: 1, name: 'Shipping Info', sectionId: 'shipping-info-section' },
+    { id: 2, name: 'Review Order', sectionId: 'review-order-section' },
+    { id: 3, name: 'Payment', sectionId: 'payment-section' }
 ];
 
 /**
- * Renders the correct step content and updates the step indicators.
- */
+ * Renders the correct step content and updates the step indicators.
+ */
 function updateCheckoutView() {
-    // 1. Update Step Indicators
-    STEPS.forEach(step => {
-        const indicator = document.getElementById(`step-indicator-${step.id}`);
-        const section = document.getElementById(step.sectionId);
-        
-        section.classList.add('hidden'); // Hide all sections initially
+    // 1. Update Step Indicators
+    STEPS.forEach(step => {
+        const indicator = document.getElementById(`step-indicator-${step.id}`);
+        const section = document.getElementById(step.sectionId);
+        
+        section.classList.add('hidden'); // Hide all sections initially
 
-        if (step.id < checkoutStep) {
-            indicator.className = 'step-indicator step-complete';
-            indicator.innerHTML = '<i class="fas fa-check"></i>';
-        } else if (step.id === checkoutStep) {
-            indicator.className = 'step-indicator step-active';
-            indicator.textContent = step.id;
-            section.classList.remove('hidden'); // Show current section
-        } else {
-            indicator.className = 'step-indicator step-inactive';
-            indicator.textContent = step.id;
-        }
-    });
-    
-    // 2. Update Summary Section (if needed, typically done when totals change)
-    // We assume the totals are loaded via fetchInitialCartData for step 1
-    
-    // 3. Update button text/action based on the step
-    const nextBtn = document.getElementById('checkout-next-btn');
-    const btnText = document.getElementById('checkout-btn-text');
-    
-    if (checkoutStep === 1) {
-        btnText.textContent = 'Continue to Review';
-        nextBtn.onclick = validateAndProceedToReview;
-    } else if (checkoutStep === 2) {
-        btnText.textContent = 'Proceed to Payment';
-        nextBtn.onclick = proceedToPayment;
-    } else if (checkoutStep === 3) {
-        btnText.textContent = 'Confirm & Pay Now';
-        nextBtn.onclick = handleFinalOrderPlacement;
-    }
+        if (step.id < checkoutStep) {
+            indicator.className = 'step-indicator step-complete';
+            indicator.innerHTML = '<i class="fas fa-check"></i>';
+        } else if (step.id === checkoutStep) {
+            indicator.className = 'step-indicator step-active';
+            indicator.textContent = step.id;
+            section.classList.remove('hidden'); // Show current section
+        } else {
+            indicator.className = 'step-indicator step-inactive';
+            indicator.textContent = step.id;
+        }
+    });
+    
+    // 2. Update button text/action based on the step
+    const nextBtn = document.getElementById('checkout-next-btn');
+    const btnText = document.getElementById('checkout-btn-text');
+    
+    if (checkoutStep === 1) {
+        btnText.textContent = 'Continue to Review';
+        nextBtn.onclick = validateAndProceedToReview;
+    } else if (checkoutStep === 2) {
+        btnText.textContent = 'Proceed to Payment';
+        nextBtn.onclick = proceedToPayment;
+    } else if (checkoutStep === 3) {
+        btnText.textContent = 'Confirm & Pay Now';
+        nextBtn.onclick = handleFinalOrderPlacement;
+    }
 }
 
 /**
- * Validates shipping form data and moves to Step 2 (Review).
- */
+ * Validates shipping form data and moves to Step 2 (Review).
+ */
 function validateAndProceedToReview() {
-    const form = document.getElementById('shipping-form');
-    if (!form.checkValidity()) {
-        form.reportValidity();
-        displayMessage('Please fill out all required shipping fields.');
-        return;
-    }
+    const form = document.getElementById('shipping-form');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        displayMessage('Please fill out all required shipping fields.');
+        return;
+    }
 
-    // Capture the data (simulated for front-end)
-    const shippingData = {
-        firstName: document.getElementById('first-name').value,
-        lastName: document.getElementById('last-name').value,
-        email: document.getElementById('email').value,
-        phone: document.getElementById('phone').value,
-        street: document.getElementById('address-line-1').value,
-        city: document.getElementById('city').value,
-        state: document.getElementById('state').value,
-        zipCode: document.getElementById('zip-code').value,
-        country: document.getElementById('country').value,
-    };
-    localStorage.setItem('outflickzShippingData', JSON.stringify(shippingData));
+    // Capture the data (simulated for front-end)
+    const shippingData = {
+        firstName: document.getElementById('first-name').value,
+        lastName: document.getElementById('last-name').value,
+        email: document.getElementById('email').value,
+        phone: document.getElementById('phone').value,
+        street: document.getElementById('address-line-1').value,
+        city: document.getElementById('city').value,
+        state: document.getElementById('state').value,
+        zipCode: document.getElementById('zip-code').value,
+        country: document.getElementById('country').value,
+    };
+    localStorage.setItem('outflickzShippingData', JSON.stringify(shippingData));
 
-    // Update the review section with the data
-    document.getElementById('review-address-name').textContent = `${shippingData.firstName} ${shippingData.lastName}`;
-    document.getElementById('review-address-line1').textContent = shippingData.street;
-    document.getElementById('review-address-line2').textContent = `${shippingData.city}, ${shippingData.state} ${shippingData.zipCode}, ${shippingData.country}`;
-    document.getElementById('review-contact-info').textContent = `${shippingData.email} | ${shippingData.phone}`;
+    // Update the review section with the data
+    document.getElementById('review-address-name').textContent = `${shippingData.firstName} ${shippingData.lastName}`;
+    document.getElementById('review-address-line1').textContent = shippingData.street;
+    document.getElementById('review-address-line2').textContent = `${shippingData.city}, ${shippingData.state} ${shippingData.zipCode}, ${shippingData.country}`;
+    document.getElementById('review-contact-info').textContent = `${shippingData.email} | ${shippingData.phone}`;
 
-    checkoutStep = 2;
-    updateCheckoutView();
-    window.scrollTo(0, 0); // Scroll to top for new section
+    checkoutStep = 2;
+    updateCheckoutView();
+    window.scrollTo(0, 0); // Scroll to top for new section
 }
 
 
 /**
- * Moves to Step 3 (Payment).
- */
+ * Moves to Step 3 (Payment).
+ */
 function proceedToPayment() {
-    checkoutStep = 3;
-    updateCheckoutView();
-    window.scrollTo(0, 0); // Scroll to top for new section
+    checkoutStep = 3;
+    updateCheckoutView();
+    window.scrollTo(0, 0); // Scroll to top for new section
 }
 
 /**
- * Simulates a checkout API call (like the one that triggers processOrderCompletion on the backend).
- */
+ * Simulates a checkout API call (like the one that triggers processOrderCompletion on the backend).
+ */
 async function fetchInitialCartData() {
-    const currencySymbol = '₦';
-    const subtotalEl = document.getElementById('summary-subtotal');
-    const shippingCostEl = document.getElementById('summary-shipping-cost');
-    const taxEstimateEl = document.getElementById('summary-tax-estimate');
-    const estimatedTotalEl = document.getElementById('summary-estimated-total');
-    const itemsListEl = document.getElementById('review-items-list');
-    const paymentBtn = document.getElementById('checkout-next-btn');
-    
-    // Set loading state
-    subtotalEl.textContent = '...';
-    shippingCostEl.textContent = '...';
-    taxEstimateEl.textContent = '...';
-    estimatedTotalEl.textContent = '...';
-    itemsListEl.innerHTML = '<div class="text-center py-6 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Loading cart data...</div>';
-    paymentBtn.disabled = true;
+    // ... (Cart fetching logic remains the same) ...
+    const currencySymbol = '₦';
+    const subtotalEl = document.getElementById('summary-subtotal');
+    const shippingCostEl = document.getElementById('summary-shipping-cost');
+    const taxEstimateEl = document.getElementById('summary-tax-estimate');
+    const estimatedTotalEl = document.getElementById('summary-estimated-total');
+    const itemsListEl = document.getElementById('review-items-list');
+    const paymentBtn = document.getElementById('checkout-next-btn');
+    
+    // Set loading state
+    subtotalEl.textContent = '...';
+    shippingCostEl.textContent = '...';
+    taxEstimateEl.textContent = '...';
+    estimatedTotalEl.textContent = '...';
+    itemsListEl.innerHTML = '<div class="text-center py-6 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Loading cart data...</div>';
+    paymentBtn.disabled = true;
 
-    // Redirect unauthenticated user
-    if (!isUserLoggedIn()) {
-        const localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
-        if (localCart.length === 0) {
-            displayMessage('Your cart is empty. Redirecting to home.');
-            setTimeout(() => window.location.href = 'homepage.html', 1500);
-            return;
-        } else {
-             displayMessage('Please log in to proceed to checkout with your saved items.');
-             setTimeout(redirectToProfileOrLogin, 1500);
-             return;
-        }
-    }
+    // Redirect unauthenticated user
+    if (!isUserLoggedIn()) {
+        const localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
+        if (localCart.length === 0) {
+            displayMessage('Your cart is empty. Redirecting to home.');
+            setTimeout(() => window.location.href = 'homepage.html', 1500);
+            return;
+        } else {
+             displayMessage('Please log in to proceed to checkout with your saved items.');
+             setTimeout(redirectToProfileOrLogin, 1500);
+             return;
+        }
+    }
 
 
-    try {
-        const response = await fetch('/api/users/cart', { method: 'GET' });
-        
-        if (response.status === 401) {
-            displayMessage('Session expired. Please log in again.');
-            localStorage.setItem('outflickzAuthStatus', 'loggedOut');
-            setTimeout(redirectToProfileOrLogin, 1500);
-            return;
-        }
+    try {
+        const response = await fetch('/api/users/cart', { method: 'GET' });
+        
+        if (response.status === 401) {
+            displayMessage('Session expired. Please log in again.');
+            localStorage.setItem('outflickzAuthStatus', 'loggedOut');
+            setTimeout(redirectToProfileOrLogin, 1500);
+            return;
+        }
 
-        if (!response.ok) {
-            throw new Error('Failed to fetch authenticated cart.');
-        }
+        if (!response.ok) {
+            throw new Error('Failed to fetch authenticated cart.');
+        }
 
-        const cartData = await response.json();
-        
-        if (cartData.items.length === 0) {
-            displayMessage('Your cart is empty. Redirecting to home.');
-            setTimeout(() => window.location.href = 'homepage.html', 1500);
-            return;
-        }
-        
-        // Render Summary
-        const subtotal = cartData.subtotal || 0;
-        const shipping = cartData.shipping || 0;
-        const tax = cartData.tax || 0;
-        const total = cartData.estimatedTotal || (subtotal + shipping + tax);
+        const cartData = await response.json();
+        
+        if (cartData.items.length === 0) {
+            displayMessage('Your cart is empty. Redirecting to home.');
+            setTimeout(() => window.location.href = 'homepage.html', 1500);
+            return;
+        }
+        
+        // Render Summary
+        const subtotal = cartData.subtotal || 0;
+        const shipping = cartData.shipping || 0;
+        const tax = cartData.tax || 0;
+        const total = cartData.estimatedTotal || (subtotal + shipping + tax);
 
-        subtotalEl.textContent = `${currencySymbol}${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-        shippingCostEl.textContent = `${currencySymbol}${shipping.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-        taxEstimateEl.textContent = `${currencySymbol}${tax.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-        estimatedTotalEl.textContent = `${currencySymbol}${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-        
-        // Render Review Items List
-        itemsListEl.innerHTML = cartData.items.map(item => `
-            <div class="flex justify-between items-start py-2">
-                <div class="flex items-center">
-                    <img src="${item.imageUrl}" alt="${item.name}" class="w-10 h-10 rounded-md border mr-3">
-                    <div class="text-sm">
-                        <p class="font-medium text-gray-900">${item.name}</p>
-                        <p class="text-xs text-gray-500">${item.size} / ${item.color} (Qty: ${item.quantity})</p>
-                    </div>
-                </div>
-                <span class="text-sm font-semibold text-gray-900">${currencySymbol}${(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-            </div>
-        `).join('');
+        subtotalEl.textContent = `${currencySymbol}${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+        shippingCostEl.textContent = `${currencySymbol}${shipping.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+        taxEstimateEl.textContent = `${currencySymbol}${tax.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+        estimatedTotalEl.textContent = `${currencySymbol}${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+        
+        // Render Review Items List
+        itemsListEl.innerHTML = cartData.items.map(item => `
+            <div class="flex justify-between items-start py-2">
+                <div class="flex items-center">
+                    <img src="${item.imageUrl}" alt="${item.name}" class="w-10 h-10 rounded-md border mr-3">
+                    <div class="text-sm">
+                        <p class="font-medium text-gray-900">${item.name}</p>
+                        <p class="text-xs text-gray-500">${item.size} / ${item.color} (Qty: ${item.quantity})</p>
+                    </div>
+                </div>
+                <span class="text-sm font-semibold text-gray-900">${currencySymbol}${(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+            </div>
+        `).join('');
 
-        // Store the final total for payment simulation
-        localStorage.setItem('outflickzOrderTotal', total.toFixed(2));
+        // Store the final total for payment simulation
+        localStorage.setItem('outflickzOrderTotal', total.toFixed(2));
 
-        // Enable button
-        paymentBtn.disabled = false;
-        
-    } catch (error) {
-        console.error('Error fetching cart data for checkout:', error);
-        itemsListEl.innerHTML = '<div class="text-center py-6 text-red-500">Error loading cart. Please go back to cart.</div>';
-        displayMessage('An error occurred loading your cart. Please try again.');
-        paymentBtn.disabled = true;
-    }
+        // Enable button
+        paymentBtn.disabled = false;
+        
+    } catch (error) {
+        console.error('Error fetching cart data for checkout:', error);
+        itemsListEl.innerHTML = '<div class="text-center py-6 text-red-500">Error loading cart. Please go back to cart.</div>';
+        displayMessage('An error occurred loading your cart. Please try again.');
+        paymentBtn.disabled = true;
+    }
 }
 
 
 /**
- * Handles the final step: Payment confirmation and order creation.
- */
+ * Handles the final step: Payment confirmation and order creation (Updated for Paystack/Bank Transfer).
+ */
 async function handleFinalOrderPlacement() {
-    const paymentMethod = document.querySelector('input[name="payment-method"]:checked');
-    if (!paymentMethod) {
-        displayMessage('Please select a payment method.');
-        return;
-    }
+    const paymentMethod = document.querySelector('input[name="payment-method"]:checked');
+    if (!paymentMethod) {
+        displayMessage('Please select a payment method.');
+        return;
+    }
 
-    const totalAmount = parseFloat(localStorage.getItem('outflickzOrderTotal') || 0);
-    const shippingAddress = JSON.parse(localStorage.getItem('outflickzShippingData'));
+    const totalAmount = parseFloat(localStorage.getItem('outflickzOrderTotal') || 0);
+    const shippingAddress = JSON.parse(localStorage.getItem('outflickzShippingData'));
+    const email = shippingAddress?.email;
 
-    if (totalAmount <= 0 || !shippingAddress) {
-        displayMessage('Order data missing. Please refresh and try again.');
-        return;
-    }
+    if (totalAmount <= 0 || !shippingAddress || !email) {
+        displayMessage('Order or contact data missing. Please refresh and try again.');
+        return;
+    }
 
-    // Disable button to prevent double submission
-    const payBtn = document.getElementById('checkout-next-btn');
-    payBtn.disabled = true;
-    payBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processing Order...';
+    // Disable button to prevent double submission
+    const payBtn = document.getElementById('checkout-next-btn');
+    payBtn.disabled = true;
+    payBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Initializing Payment...';
 
-    // Simulate Payment/Order API Call (This is where the server-side logic would be triggered)
-    try {
-        const response = await fetch('/api/orders/place', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                shippingAddress: shippingAddress,
-                paymentMethod: paymentMethod.value,
-                totalAmount: totalAmount,
-                // Server should fetch items from user's cart automatically
-            })
-        });
+    if (paymentMethod.value === 'Paystack/Card') {
+        // --- PAYSTACK INITIATION ---
+        
+        // NOTE: For production, Paystack recommends generating the reference (and possibly order) 
+        // on the server before initiating pop, but generating client-side is faster for testing.
+        const reference = `outflickz_${Date.now()}`;
+        
+        // Ensure PaystackPop is available (requires the <script src="https://js.paystack.co/v1/inline.js"></script> tag in HTML)
+        if (typeof PaystackPop === 'undefined') {
+            displayMessage('Paystack script not loaded. Please check your internet connection and page HTML.');
+            payBtn.disabled = false;
+            payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
+            return;
+        }
 
-        const data = await response.json();
+        const handler = PaystackPop.setup({
+            key: PAYSTACK_PUBLIC_KEY,
+            email: email,
+            amount: totalAmount * 100, // Paystack expects amount in Kobo
+            ref: reference,
+            currency: CURRENCY_CODE,
+            
+            // Callback runs when user completes the payment process in the modal
+            callback: function(response){
+                // The backend webhook (POST /api/paystack/webhook) will handle the official verification
+                displayMessage('Payment successful! Finalizing order on the server...');
+                // Redirect to a confirmation/waiting page using the Paystack reference
+                window.location.href = `orderconfirmation.html?ref=${response.reference}&method=paystack`;
+            },
+            
+            onClose: function(){
+                // Re-enable button if user closes the modal
+                displayMessage('Payment cancelled or abandoned. Please try again.');
+                payBtn.disabled = false;
+                payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
+            }
+        });
+        
+        // Open the payment modal
+        handler.openIframe();
+        
+        // Return to prevent the default API call
+        return; 
 
-        if (response.ok) {
-            // Success: Clear cart, update badge, redirect
-            localStorage.removeItem(LOCAL_CART_KEY);
-            localStorage.setItem(CART_STORAGE_KEY, '0');
-            localStorage.removeItem('outflickzOrderTotal');
-            updateCartBadge();
-            
-            displayMessage(`Order #${data.orderId || '0000'} successfully placed! Redirecting...`);
-            setTimeout(() => {
-                window.location.href = `orderconfirmation.html?id=${data.orderId || '0000'}`;
-            }, 3000);
+    } else if (paymentMethod.value === 'Bank Transfer') {
+        // --- BANK TRANSFER (PENDING ORDER) INITIATION ---
+        
+        // 1. Create the pending order on the server
+        try {
+            const response = await fetch('/api/orders/place/pending', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    shippingAddress: shippingAddress,
+                    paymentMethod: paymentMethod.value,
+                    totalAmount: totalAmount,
+                })
+            });
 
-        } else if (response.status === 400 && data.message.includes("Insufficient stock")) {
-             displayMessage(data.message);
-             // Revert to cart or review page to adjust order
-             setTimeout(() => window.location.href = 'cart.html', 3000);
-        } else {
-            throw new Error(data.message || 'Payment failed. Please try a different method.');
-        }
+            const data = await response.json();
 
-    } catch (error) {
-        console.error('Order placement error:', error);
-        displayMessage(error.message || 'A network error occurred. Please try again.');
-        
-        // Re-enable button on failure
+            if (response.ok) {
+                // Success: Redirect to a page showing bank details and the new Order ID
+                displayMessage(`Pending Order #${data.orderId} created! Redirecting to confirmation page.`);
+                // Clear local cart items (assuming the server has captured them)
+                localStorage.removeItem(LOCAL_CART_KEY);
+                localStorage.setItem(CART_STORAGE_KEY, '0');
+                localStorage.removeItem('outflickzOrderTotal');
+                updateCartBadge();
+
+                setTimeout(() => {
+                    window.location.href = `orderconfirmation.html?id=${data.orderId}&method=banktransfer`;
+                }, 3000);
+
+            } else {
+                throw new Error(data.message || 'Failed to create pending order.');
+            }
+
+        } catch (error) {
+            console.error('Pending order placement error:', error);
+            displayMessage(error.message || 'A network error occurred. Please try again.');
+            payBtn.disabled = false;
+            payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
+        }
+        
+    } else {
+        // Fallback for other payment methods if needed
+        displayMessage(`Payment method ${paymentMethod.value} selected, but not yet implemented.`);
         payBtn.disabled = false;
-        payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
+        payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
     }
 }
 
 
 // --- Main Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
-    // Initial checks and data loading
-    updateCartBadge();
-    fetchInitialCartData();
-    updateCheckoutView(); // Initialize step 1 view
+    // Initial checks and data loading
+    updateCartBadge();
+    fetchInitialCartData();
+    updateCheckoutView(); // Initialize step 1 view
 
-    // Attach the hideMessageModal function to the close button
-    const closeButton = document.getElementById('message-modal-close-btn');
-    if (closeButton) {
-        closeButton.addEventListener('click', hideMessageModal);
+    // Attach the hideMessageModal function to the close button
+    const closeButton = document.getElementById('message-modal-close-btn');
+    if (closeButton) {
+        closeButton.addEventListener('click', hideMessageModal);
+    }
+
+    // --- Bank Details Toggle Initialization ---
+    const bankRadio = document.getElementById('payment-bank');
+    const paystackRadio = document.getElementById('payment-paystack');
+    const bankDetails = document.getElementById('bank-details-info');
+
+    function toggleBankDetails() {
+        if (bankDetails) {
+            bankDetails.style.display = bankRadio && bankRadio.checked ? 'block' : 'none';
+        }
     }
+
+    if (bankRadio) bankRadio.addEventListener('change', toggleBankDetails);
+    if (paystackRadio) paystackRadio.addEventListener('change', toggleBankDetails);
+
+    // Initial check in case bank transfer is the default selected option
+    toggleBankDetails(); 
 });
 </script>
 </head>
@@ -585,18 +651,29 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </div>
                             </div>
 
-                            <div class="relative flex items-start border border-gray-300 rounded-md p-4 transition-all focus-within:ring-2 focus-within:ring-ash-red">
-                                <div class="flex items-center h-5">
-                                    <input id="payment-bank" name="payment-method" type="radio" value="Bank Transfer" class="focus:ring-ash-red h-4 w-4 text-ash-red border-gray-300">
-                                </div>
-                                <div class="ml-3 text-sm flex-1">
-                                    <label for="payment-bank" class="font-medium text-gray-900">
-                                        Direct Bank Transfer (Manual)
-                                    </label>
-                                    <p id="bank-description" class="text-gray-500">Contact customer service with your order ID to complete payment.</p>
-                                </div>
-                            </div>
-                        </div>
+                          <div class="relative flex items-start border border-gray-300 rounded-md p-4 transition-all focus-within:ring-2 focus-within:ring-ash-red">
+    <div class="flex items-center h-5">
+        <input id="payment-bank" name="payment-method" type="radio" value="Bank Transfer" class="focus:ring-ash-red h-4 w-4 text-ash-red border-gray-300">
+    </div>
+    <div class="ml-3 text-sm flex-1">
+        <label for="payment-bank" class="font-medium text-gray-900">
+            Direct Bank Transfer (Manual)
+        </label>
+        <p id="bank-description" class="text-gray-500">View details below and complete payment manually.</p>
+        
+        <div id="bank-details-info" class="mt-3 p-3 bg-gray-100 rounded-md border border-gray-200" style="display:none;">
+            <h4 class="font-bold text-ash-dark mb-1">Outflickz Account Details:</h4>
+            <p class="text-xs">
+                **Bank Name:** Opay<br>
+                **Account Name:** Outflickz limited<br>
+                **Account Number:** 8149747864
+            </p>
+            <p class="text-xs text-ash-red mt-2">
+                **IMPORTANT:** Contact Customer Service with your payment Order ID as the payment narrative.
+            </p>
+        </div>
+    </div>
+</div>
                         
                         <div class="mt-6 border-t border-gray-200 pt-4">
                             <div class="flex justify-between items-center">
@@ -726,6 +803,6 @@ document.addEventListener('DOMContentLoaded', () => {
         aria-label="Chat with us on WhatsApp">
         <i class="fab fa-whatsapp text-2xl sm:text-3xl"></i>
     </a>
-
+<script src="https://js.paystack.co/v1/inline.js"></script>
 </body>
 </html>

@@ -245,7 +245,7 @@ document.addEventListener('click', function(event) {
 // --- END SHOP NOW DROPDOWN JS ---
 
 
-const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
+// REMOVED: const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
 const API_BASE_URL = 'https://outflickz.netlify.app'; 
 const CART_STORAGE_KEY = 'outflickzCartCount';
 const LOCAL_CART_KEY = 'outflickzLocalCart';
@@ -374,8 +374,11 @@ function addToCart(collectionId, quantity) {
  * IMPORTANT: This replaces the old simple addToCart function.
  */
 async function simulateAddToCart(productDetails) {
+    // 1. Get the current token fresh from storage
+    const currentToken = getUserAuthToken(); // <-- USE THE GETTER
+
     // 1. --- HANDLE UN-AUTHENTICATED (LOCAL) CART ADDITION ---
-    if (!USER_AUTH_TOKEN) {
+    if (!currentToken) { // Use currentToken for check
         let localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
         
         // Find the selected size and color from the DOM inputs
@@ -414,15 +417,24 @@ async function simulateAddToCart(productDetails) {
         // Update the badge based on total line items (simplification for homepage)
         localStorage.setItem(CART_STORAGE_KEY, localCart.length.toString()); 
         updateCartBadge();
-        alert(`"${requiredDetails.name}" added to your bag! (Sign in to save permanently)`);
+        
+        // 🔑 FIX: Using the flashing cart-alert instead of browser alert()
+        const alertMessage = document.getElementById('cart-alert');
+        if (alertMessage) {
+            alertMessage.textContent = `"${requiredDetails.name}" added to your bag! (Sign in to save permanently)`;
+            alertMessage.classList.remove('hidden', 'opacity-0', '-translate-y-10');
+            alertMessage.classList.add('opacity-100', 'translate-y-0');
+            setTimeout(() => {
+                alertMessage.classList.add('opacity-0', '-translate-y-10');
+                alertMessage.classList.remove('opacity-100', 'translate-y-0');
+            }, 3000);
+        }
         
         return; 
     }
     // --------------------------------------------------------
 
     // 2. --- HANDLE AUTHENTICATED (API) ADDITION ---
-    // The actual add to cart logic must pull size/color dynamically here too
-    
     const card = document.querySelector(`.collection-card[data-collection-id="${productDetails.productId}"]`);
     const selectedSizeInput = card ? card.querySelector(`input[name="size-${productDetails.productId}"]:checked`) : null;
     const selectedColorInput = card ? card.querySelector(`input[name="color-${productDetails.productId}"]:checked`) : null;
@@ -438,7 +450,7 @@ async function simulateAddToCart(productDetails) {
         const response = await fetch('/api/users/cart', {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${USER_AUTH_TOKEN}`,
+                'Authorization': `Bearer ${currentToken}`, // <-- USE currentToken HERE
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(itemData)
@@ -449,18 +461,58 @@ async function simulateAddToCart(productDetails) {
         if (response.ok) {
             localStorage.setItem(CART_STORAGE_KEY, data.items.length.toString());
             updateCartBadge();
-            alert('Item added to your shopping bag!');
+            
+            // 🔑 FIX: Use the flashing alert for success message
+            const alertMessage = document.getElementById('cart-alert');
+            if (alertMessage) {
+                alertMessage.textContent = 'Item added to your shopping bag!';
+                alertMessage.classList.remove('hidden', 'opacity-0', '-translate-y-10');
+                alertMessage.classList.add('bg-green-500', 'opacity-100', 'translate-y-0');
+                setTimeout(() => {
+                    alertMessage.classList.remove('opacity-100', 'translate-y-0');
+                    alertMessage.classList.add('opacity-0', '-translate-y-10');
+                }, 3000);
+            }
+
         } else if (response.status === 401) {
-            alert('🚨 Session expired. Please log in again.');
-            // This function needs to be defined in your homepage.html scope!
+            // 🔑 FIX: Use the flashing alert for session expiry warning
+            const alertMessage = document.getElementById('cart-alert');
+            if (alertMessage) {
+                alertMessage.textContent = '🚨 Session expired. Please log in again.';
+                alertMessage.classList.remove('hidden', 'bg-green-500', 'opacity-0', '-translate-y-10');
+                alertMessage.classList.add('bg-red-500', 'opacity-100', 'translate-y-0');
+                setTimeout(() => {
+                    alertMessage.classList.remove('opacity-100', 'translate-y-0');
+                    alertMessage.classList.add('opacity-0', '-translate-y-10');
+                }, 3000);
+            }
+            
             redirectToProfileOrLogin(); 
         } else {
             throw new Error(data.message || 'Failed to add item.');
         }
     } catch (error) {
         console.error('Error in addToCart API:', error);
-        alert('Could not add item to cart. Please try again.');
+        
+        // 🔑 FIX: Use the flashing alert for generic error
+        const alertMessage = document.getElementById('cart-alert');
+        if (alertMessage) {
+            alertMessage.textContent = 'Could not add item to cart. Please try again.';
+            alertMessage.classList.remove('hidden', 'bg-green-500', 'opacity-0', '-translate-y-10');
+            alertMessage.classList.add('bg-red-500', 'opacity-100', 'translate-y-0');
+            setTimeout(() => {
+                alertMessage.classList.remove('opacity-100', 'translate-y-0');
+                alertMessage.classList.add('opacity-0', '-translate-y-10');
+            }, 3000);
+        }
     }
+}
+
+/**
+ * Reads the latest authentication token directly from localStorage.
+ */
+function getUserAuthToken() {
+    return localStorage.getItem('outflickzToken');
 }
 
 // Initialize the cart badge on page load

@@ -258,7 +258,19 @@ const userSchema = new mongoose.Schema({
     profile: {
         firstName: { type: String, trim: true },
         lastName: { type: String, trim: true },
+        phone: { type: String, trim: true } // Assuming you might want phone here for completeness
     },
+    
+    // --- 🏠 ADDED: CONTACT ADDRESS FIELD ---
+    address: {
+        street: { type: String, trim: true },
+        city: { type: String, trim: true },
+        state: { type: String, trim: true },
+        zip: { type: String, trim: true },
+        country: { type: String, trim: true }
+    },
+    // -------------------------------------
+
     status: {
         role: { type: String, default: 'user', enum: ['user', 'vip'] },
         isVerified: { type: Boolean, default: false },
@@ -2860,6 +2872,76 @@ app.get('/api/users/account', verifyUserToken, async (req, res) => {
     } catch (error) {
         console.error("Fetch profile error:", error);
         res.status(500).json({ message: 'Failed to retrieve user profile.' });
+    }
+});
+
+// 4. PUT /api/users/profile (Update Personal Info - Protected)
+app.put('/api/users/profile', verifyUserToken, async (req, res) => {
+    try {
+        const { firstName, lastName, phone } = req.body;
+        
+        if (!firstName || !lastName) {
+             return res.status(400).json({ message: 'First name and last name are required.' });
+        }
+
+        const updatedUser = await User.findByIdAndUpdate(
+            req.userId,
+            {
+                // Note: The 'profile' field is likely an embedded document or object in your schema
+                $set: {
+                    'profile.firstName': firstName,
+                    'profile.lastName': lastName,
+                    'profile.phone': phone || null // Update phone if provided
+                }
+            },
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedUser) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+
+        res.status(200).json({ message: 'Profile details updated successfully.', profile: updatedUser.profile });
+
+    } catch (error) {
+        console.error("Profile update error:", error);
+        res.status(500).json({ message: 'Failed to update profile details.' });
+    }
+});
+
+// 5. PUT /api/users/address (Update Contact Address - Protected)
+app.put('/api/users/address', verifyUserToken, async (req, res) => {
+    try {
+        const { street, city, state, zip, country } = req.body;
+        
+        if (!street || !city || !country) {
+             return res.status(400).json({ message: 'Street, city, and country are required for the address.' });
+        }
+
+        const updatedUser = await User.findByIdAndUpdate(
+            req.userId,
+            {
+                // Note: The 'address' field is likely an embedded document or object in your schema
+                $set: {
+                    'address.street': street,
+                    'address.city': city,
+                    'address.state': state,
+                    'address.zip': zip,
+                    'address.country': country
+                }
+            },
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedUser) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+
+        res.status(200).json({ message: 'Contact address updated successfully.', address: updatedUser.address });
+
+    } catch (error) {
+        console.error("Address update error:", error);
+        res.status(500).json({ message: 'Failed to update contact address.' });
     }
 });
 

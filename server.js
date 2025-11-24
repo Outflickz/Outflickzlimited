@@ -2908,46 +2908,51 @@ app.put('/api/users/profile', verifyUserToken, async (req, res) => {
         res.status(500).json({ message: 'Failed to update profile details.' });
     }
 });
-
 // 5. PUT /api/users/address (Update Contact Address - Protected)
 app.put('/api/users/address', verifyUserToken, async (req, res) => {
     try {
         const { street, city, state, zip, country } = req.body;
         
+        // 1. Validation check
         if (!street || !city || !country) {
             return res.status(400).json({ message: 'Street, city, and country are required for the address.' });
         }
 
+        // 2. Database Update
         const updatedUser = await User.findByIdAndUpdate(
             req.userId,
             {
+                // Use $set to update fields within the embedded 'address' object
                 $set: {
                     'address.street': street,
                     'address.city': city,
-                    'address.state': state, // Include state
-                    'address.zip': zip, // Include zip
-                    'address.country': country // Include country
+                    'address.state': state,
+                    'address.zip': zip,
+                    'address.country': country
                 }
             },
-            // Options: { new: true } returns the modified document rather than the original.
-            { new: true, runValidators: true, select: 'address' } 
+            // Important Options: 
+            // { new: true } returns the modified document rather than the original.
+            { new: true, runValidators: true, select: 'email profile address status membership' } 
+            // Select all fields needed by the frontend's updateDOM function
         );
 
-        // Check if user was found (though verifyUserToken should prevent this unless account was deleted)
         if (!updatedUser) {
-            return res.status(404).json({ message: 'User not found.' });
+            // Should not happen if verifyUserToken works, but good practice
+            return res.status(404).json({ message: 'User not found or session expired.' });
         }
 
-        // SUCCESS: Send back the updated address object to the client
+        // 3. SUCCESS Response
+        // Send back the data structure the client's updateDOM function expects
         return res.status(200).json({ 
             message: 'Contact address updated successfully!', 
-            address: updatedUser.address // Return just the updated address object
+            address: updatedUser.address // The client specifically needs the updated address object
         });
 
     } catch (error) {
         console.error('Address update error:', error);
-        // Handle validation errors or other server errors
-        return res.status(500).json({ message: 'Server error during address update.' });
+        // Return a generic error message for the client
+        return res.status(500).json({ message: 'Server error: Could not save address. Please try again.' });
     }
 });
 

@@ -23,7 +23,7 @@
     
     <script>
     const API_BASE_URL = 'https://outflickz.netlify.app';
-    
+
     let currentProfileData = {
     profile: {},
     address: {},
@@ -60,18 +60,22 @@
         document.getElementById('edit-profile-phone').value = currentProfileData.profile.phone || '';
     }
 
-    function openEditAddressModal() {
-        const modal = document.getElementById('edit-address-modal');
-        modal.classList.remove('hidden');
+   function openEditAddressModal() {
+    const modal = document.getElementById('edit-address-modal');
+    modal.classList.remove('hidden');
 
-        const address = currentProfileData.address || {};
-        // Pre-fill form fields with current data
-        document.getElementById('edit-address-street').value = currentProfileData.address.street || '';
-        document.getElementById('edit-address-city').value = currentProfileData.address.city || '';
-        document.getElementById('edit-address-state').value = currentProfileData.address.state || '';
-        document.getElementById('edit-address-zip').value = currentProfileData.address.zip || '';
-        document.getElementById('edit-address-country').value = currentProfileData.address.country || '';
-    }
+    // **Keep this safe check:** If currentProfileData.address is undefined, 
+    // 'address' will be an empty object {}.
+    const address = currentProfileData.address || {}; 
+    
+    // Pre-fill form fields with current data
+    // **FIXED:** Use the safe 'address' variable instead of currentProfileData.address
+    document.getElementById('edit-address-street').value = address.street || '';
+    document.getElementById('edit-address-city').value = address.city || '';
+    document.getElementById('edit-address-state').value = address.state || '';
+    document.getElementById('edit-address-zip').value = address.zip || '';
+    document.getElementById('edit-address-country').value = address.country || '';
+}
 
     function showStatusMessage(message, isSuccess = true) {
         const container = document.getElementById('status-message-container');

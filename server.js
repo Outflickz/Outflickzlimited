@@ -2860,13 +2860,14 @@ app.get('/api/users/account', verifyUserToken, async (req, res) => {
             return res.status(404).json({ message: 'User not found.' });
         }
 
-        // The structure of the returned user object must match what the frontend expects (profile-view)
+        // --- FIX APPLIED HERE: Added the 'address' field ---
         res.status(200).json({
             id: user._id,
             email: user.email,
             profile: user.profile,
             status: user.status,
-            membership: user.membership
+            membership: user.membership,
+            address: user.address // <--- THIS LINE IS ADDED/CORRECTED
         });
         
     } catch (error) {

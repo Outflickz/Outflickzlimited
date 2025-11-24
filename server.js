@@ -3225,22 +3225,6 @@ app.post('/api/paystack/webhook', async (req, res) => {
     }
 });
 
-// =========================================================
-// Start Server
-// =========================================================
-
-app.listen(port, () => {
-    console.log(`E-commerce API running on port ${port}`);
-    console.log(`\nEndpoints:`);
-    console.log(`GET /api/users/cart - Retrieve Cart`);
-    console.log(`POST /api/users/cart - Add Item to Cart`);
-    console.log(`PATCH /api/users/cart/:itemId - Update Quantity`);
-    console.log(`DELETE /api/users/cart/:itemId - Remove Single Item`);
-    console.log(`DELETE /api/users/cart - Clear All Items`);
-    console.log(`\nPOST /api/checkout - Initiate Paystack Payment`);
-    console.log(`POST /api/paystack/webhook - Paystack Webhook Handler (Important: Uses raw body parser)`);
-});
-
 module.exports = {
     app,
     mongoose,

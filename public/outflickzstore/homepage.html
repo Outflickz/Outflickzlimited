@@ -247,6 +247,8 @@ document.addEventListener('click', function(event) {
 
 const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
 const API_BASE_URL = 'https://outflickzltd.netlify.app'; 
+const CART_STORAGE_KEY = 'outflickzCartCount';
+const LOCAL_CART_KEY = 'outflickzLocalCart';
 
 // --- HERO SLIDER JS (SIMPLIFIED FOR STABILITY) ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -306,14 +308,13 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 // --- END HERO SLIDER JS ---
 
-// --- CART MANAGEMENT JS (NEW) ---
-const CART_STORAGE_KEY = 'outflickzCartCount';
 
 /**
- * Reads the current cart item count from Local Storage.
+ * Reads the current cart item count from Local Storage. (Keep this one)
  * @returns {number} The total number of items in the cart.
  */
 function getCartCount() {
+    // This function remains the same and relies on CART_STORAGE_KEY
     const count = localStorage.getItem(CART_STORAGE_KEY);
     return parseInt(count) || 0;
 }
@@ -365,6 +366,101 @@ function addToCart(collectionId, quantity) {
     }
 
     console.log(`Added ${quantity} of item ${collectionId}. New cart total: ${newCount}`);
+}
+
+/**
+ * Handles adding an item to the cart. 
+ * Uses API if authenticated, or local storage if unauthenticated.
+ * IMPORTANT: This replaces the old simple addToCart function.
+ */
+async function simulateAddToCart(productDetails) {
+    // 1. --- HANDLE UN-AUTHENTICATED (LOCAL) CART ADDITION ---
+    if (!USER_AUTH_TOKEN) {
+        let localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
+        
+        // Find the selected size and color from the DOM inputs
+        const card = document.querySelector(`.collection-card[data-collection-id="${productDetails.productId}"]`);
+        
+        const selectedSizeInput = card ? card.querySelector(`input[name="size-${productDetails.productId}"]:checked`) : null;
+        const selectedColorInput = card ? card.querySelector(`input[name="color-${productDetails.productId}"]:checked`) : null;
+        
+        const size = selectedSizeInput ? selectedSizeInput.value : 'N/A'; // Default to N/A for caps/pre-order or if size UI is hidden
+        const color = selectedColorInput ? selectedColorInput.value : 'N/A';
+        
+        const requiredDetails = {
+            productId: productDetails.productId,
+            name: productDetails.name,
+            size: size,
+            color: color,
+            price: productDetails.price,
+            productType: productDetails.productType || 'WearsCollection',
+            imageUrl: productDetails.imageUrl,
+            quantity: productDetails.quantity || 1 // Use the quantity passed from the button click
+        };
+
+        const existingItemIndex = localCart.findIndex(item => 
+            item.productId === requiredDetails.productId && 
+            item.size === requiredDetails.size &&
+            item.color === requiredDetails.color
+        );
+
+        if (existingItemIndex > -1) {
+            localCart[existingItemIndex].quantity += requiredDetails.quantity;
+        } else {
+            localCart.push(requiredDetails);
+        }
+
+        localStorage.setItem(LOCAL_CART_KEY, JSON.stringify(localCart));
+        // Update the badge based on total line items (simplification for homepage)
+        localStorage.setItem(CART_STORAGE_KEY, localCart.length.toString()); 
+        updateCartBadge();
+        alert(`"${requiredDetails.name}" added to your bag! (Sign in to save permanently)`);
+        
+        return; 
+    }
+    // --------------------------------------------------------
+
+    // 2. --- HANDLE AUTHENTICATED (API) ADDITION ---
+    // The actual add to cart logic must pull size/color dynamically here too
+    
+    const card = document.querySelector(`.collection-card[data-collection-id="${productDetails.productId}"]`);
+    const selectedSizeInput = card ? card.querySelector(`input[name="size-${productDetails.productId}"]:checked`) : null;
+    const selectedColorInput = card ? card.querySelector(`input[name="color-${productDetails.productId}"]:checked`) : null;
+    
+    const itemData = {
+        productId: productDetails.productId,
+        quantity: productDetails.quantity || 1,
+        size: selectedSizeInput ? selectedSizeInput.value : 'N/A',
+        color: selectedColorInput ? selectedColorInput.value : 'N/A',
+    };
+    
+    try {
+        const response = await fetch('/api/users/cart', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${USER_AUTH_TOKEN}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(itemData)
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            localStorage.setItem(CART_STORAGE_KEY, data.items.length.toString());
+            updateCartBadge();
+            alert('Item added to your shopping bag!');
+        } else if (response.status === 401) {
+            alert('🚨 Session expired. Please log in again.');
+            // This function needs to be defined in your homepage.html scope!
+            redirectToProfileOrLogin(); 
+        } else {
+            throw new Error(data.message || 'Failed to add item.');
+        }
+    } catch (error) {
+        console.error('Error in addToCart API:', error);
+        alert('Could not add item to cart. Please try again.');
+    }
 }
 
 // Initialize the cart badge on page load
@@ -634,14 +730,20 @@ const quantityInputTextSize = isReduced ? 'text-[0.5rem] md:text-[0.6rem]' : 'te
     const quantityGetter = `document.getElementById('quantity-input-${collection._id}').value`;
 
     // Button to add to cart (ADDED addToCart function call)
-    const cartButtonHtml = `
-        <button 
-            ${isButtonDisabled ? 'disabled' : ''} 
-            onclick="addToCart('${collection._id}', parseInt(${quantityGetter}))"
-            class="${buttonFlexClasses} ${controlTextSize} ${cartButtonClasses} ${controlHeight} rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center">
-            ${cartButtonText}
-        </button>
-    `;
+  const cartButtonHtml = `
+        <button 
+            ${isButtonDisabled ? 'disabled' : ''} 
+            onclick="simulateAddToCart({ 
+                productId: '${collection._id}', 
+                name: '${collection.name.replace(/'/g, "\\'")}', 
+                price: ${itemPrice},
+                imageUrl: '${frontImageUrl}',
+                quantity: parseInt(${quantityGetter}) 
+            })"
+            class="${buttonFlexClasses} ${controlTextSize} ${cartButtonClasses} ${controlHeight} rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center">
+            ${cartButtonText}
+        </button>
+    `;
 
     // NEW: Buy Now Button
     const buyNowButtonHtml = `

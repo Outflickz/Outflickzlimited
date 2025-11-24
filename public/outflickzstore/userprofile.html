@@ -25,11 +25,11 @@
     const API_BASE_URL = 'https://outflickz.netlify.app';
 
     let currentProfileData = {
-    profile: {},
-    address: {},
-    status: {},
-    membership: {}
-};
+        profile: {},
+        address: {},
+        status: {},
+        membership: {}
+    };
 
     function redirectToProfileOrLogin() {
         window.location.href = 'useraccount.html';
@@ -61,21 +61,19 @@
     }
 
    function openEditAddressModal() {
-    const modal = document.getElementById('edit-address-modal');
-    modal.classList.remove('hidden');
+        const modal = document.getElementById('edit-address-modal');
+        modal.classList.remove('hidden');
 
-    // **Keep this safe check:** If currentProfileData.address is undefined, 
-    // 'address' will be an empty object {}.
-    const address = currentProfileData.address || {}; 
-    
-    // Pre-fill form fields with current data
-    // **FIXED:** Use the safe 'address' variable instead of currentProfileData.address
-    document.getElementById('edit-address-street').value = address.street || '';
-    document.getElementById('edit-address-city').value = address.city || '';
-    document.getElementById('edit-address-state').value = address.state || '';
-    document.getElementById('edit-address-zip').value = address.zip || '';
-    document.getElementById('edit-address-country').value = address.country || '';
-}
+        // If currentProfileData.address is undefined, 'address' will be an empty object {}.
+        const address = currentProfileData.address || {}; 
+        
+        // Pre-fill form fields with current data
+        document.getElementById('edit-address-street').value = address.street || '';
+        document.getElementById('edit-address-city').value = address.city || '';
+        document.getElementById('edit-address-state').value = address.state || '';
+        document.getElementById('edit-address-zip').value = address.zip || '';
+        document.getElementById('edit-address-country').value = address.country || '';
+    }
 
     function showStatusMessage(message, isSuccess = true) {
         const container = document.getElementById('status-message-container');
@@ -95,7 +93,7 @@
         }, 5000);
     }
 
-    // --- Submission Handlers ---
+    // --- Submission Handlers (Personal Information) ---
     async function submitEditProfile(event) {
         event.preventDefault();
         const button = document.getElementById('submit-profile-btn');
@@ -141,6 +139,7 @@
         }
     }
 
+    // --- Submission Handlers (Contact Address) ---
     async function submitEditAddress(event) {
         event.preventDefault();
         const button = document.getElementById('submit-address-btn');
@@ -218,6 +217,20 @@
         document.getElementById('street-address').textContent = address.street || 'Not Set';
         document.getElementById('city-state-zip').textContent = `${address.city || 'Not Set'}, ${address.state || 'Not Set'} ${address.zip || ''}`;
         document.getElementById('country').textContent = address.country || 'Not Set';
+        
+        // --- NEW LOGIC: Dynamic Address Button Text ---
+        const isAddressSet = address.street && address.city && address.country;
+        const editAddressButton = document.getElementById('edit-address-button');
+
+        if (editAddressButton) {
+            if (isAddressSet) {
+                editAddressButton.innerHTML = '<i class="fas fa-edit mr-1"></i> Edit';
+                editAddressButton.setAttribute('aria-label', 'Edit Contact Address');
+            } else {
+                editAddressButton.innerHTML = '<i class="fas fa-plus-circle mr-1"></i> Set Address';
+                editAddressButton.setAttribute('aria-label', 'Set Contact Address');
+            }
+        }
     }
     
     /**
@@ -390,7 +403,7 @@
                     <div id="contact-address" class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                         <h3 class="font-extrabold text-2xl text-ash-red border-b-2 border-ash-red pb-3 mb-6 flex justify-between items-center">
                             Contact Address
-                            <button onclick="openEditAddressModal()" class="text-sm text-blue-600 hover:text-blue-800 font-medium p-1 rounded-md transition duration-150" aria-label="Edit Contact Address">
+                            <button id="edit-address-button" onclick="openEditAddressModal()" class="text-sm text-blue-600 hover:text-blue-800 font-medium p-1 rounded-md transition duration-150" aria-label="Edit Contact Address">
                                 <i class="fas fa-edit mr-1"></i> Edit
                             </button>
                         </h3>

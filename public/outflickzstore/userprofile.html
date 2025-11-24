@@ -23,7 +23,13 @@
     
     <script>
     const API_BASE_URL = 'https://outflickz.netlify.app';
-    let currentProfileData = {}; // Global variable to store fetched data
+    
+    let currentProfileData = {
+    profile: {},
+    address: {},
+    status: {},
+    membership: {}
+};
 
     function redirectToProfileOrLogin() {
         window.location.href = 'useraccount.html';
@@ -58,6 +64,7 @@
         const modal = document.getElementById('edit-address-modal');
         modal.classList.remove('hidden');
 
+        const address = currentProfileData.address || {};
         // Pre-fill form fields with current data
         document.getElementById('edit-address-street').value = currentProfileData.address.street || '';
         document.getElementById('edit-address-city').value = currentProfileData.address.city || '';

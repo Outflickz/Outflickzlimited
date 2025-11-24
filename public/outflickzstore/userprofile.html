@@ -13,15 +13,17 @@
         .bg-ash-red { background-color: #D63031; }
         .hover\:bg-ash-red-dark:hover { background-color: #A32324; }
         .border-ash-red { border-color: #D63031; }
+        /* Modal backdrop styling */
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen text-gray-900 antialiased">
     
     <script>
-    // Note: The USER_AUTH_TOKEN constant has been removed as we are now relying
-    // entirely on HTTP-only cookies for authentication, which are inaccessible
-    // to client-side JavaScript but automatically sent by the browser.
     const API_BASE_URL = 'https://outflickz.netlify.app';
+    let currentProfileData = {}; // Global variable to store fetched data
 
     function redirectToProfileOrLogin() {
         window.location.href = 'useraccount.html';
@@ -32,48 +34,189 @@
     }
 
     function logoutUser() {
-        // Clear any possible old local storage item, but the main logout
-        // should also hit a backend endpoint to clear the secure HTTP-only cookie.
         // NOTE: For a complete logout, a server-side call is necessary to clear the HTTP-only cookie.
-        // Since we don't have the server, this client-side code assumes the link to 'useraccount.html'
-        // will handle the redirection, and a subsequent login attempt will fail without the cookie.
         localStorage.removeItem('outflickzToken'); 
         window.location.replace('useraccount.html');
     }
 
-    /**
-     * Attempts to fetch user data and redirects to login on failure (401/403).
-     */
-    function enforceAuthGate() {
-        const mainContent = document.getElementById('main-profile-content');
-        const loadingIndicator = document.getElementById('loading-indicator');
+    // --- Modal Functions ---
+    function closeModal(modalId) {
+        document.getElementById(modalId).classList.add('hidden');
+    }
+
+    function openEditProfileModal() {
+        const modal = document.getElementById('edit-profile-modal');
+        modal.classList.remove('hidden');
+
+        // Pre-fill form fields with current data
+        document.getElementById('edit-profile-firstName').value = currentProfileData.profile.firstName || '';
+        document.getElementById('edit-profile-lastName').value = currentProfileData.profile.lastName || '';
+        document.getElementById('edit-profile-phone').value = currentProfileData.profile.phone || '';
+    }
+
+    function openEditAddressModal() {
+        const modal = document.getElementById('edit-address-modal');
+        modal.classList.remove('hidden');
+
+        // Pre-fill form fields with current data
+        document.getElementById('edit-address-street').value = currentProfileData.address.street || '';
+        document.getElementById('edit-address-city').value = currentProfileData.address.city || '';
+        document.getElementById('edit-address-state').value = currentProfileData.address.state || '';
+        document.getElementById('edit-address-zip').value = currentProfileData.address.zip || '';
+        document.getElementById('edit-address-country').value = currentProfileData.address.country || '';
+    }
+
+    function showStatusMessage(message, isSuccess = true) {
+        const container = document.getElementById('status-message-container');
+        const messageBox = document.getElementById('status-message');
         
-        if (loadingIndicator) loadingIndicator.classList.remove('hidden');
-        if (mainContent) mainContent.classList.add('hidden');
-        
-        // We now rely on the API request to confirm the session status (via cookie).
-        fetchUserData()
-            .then(() => {
-                // SUCCESS: Cookie was valid, profile data retrieved
-                if (loadingIndicator) loadingIndicator.classList.add('hidden');
-                if (mainContent) mainContent.classList.remove('hidden');
-            })
-            .catch((error) => {
-                // FAILURE: API returned 401/403 (invalid cookie) or network error
-                console.error('Session check failed. Redirecting to login.', error);
-                // Use setTimeout to allow the console log to execute before redirecting
-                setTimeout(() => {
-                    window.location.replace('useraccount.html');
-                }, 100); 
+        messageBox.textContent = message;
+        container.classList.remove('hidden', 'bg-green-100', 'bg-red-100', 'text-green-800', 'text-red-800');
+
+        if (isSuccess) {
+            container.classList.add('bg-green-100', 'text-green-800');
+        } else {
+            container.classList.add('bg-red-100', 'text-red-800');
+        }
+
+        setTimeout(() => {
+            container.classList.add('hidden');
+        }, 5000);
+    }
+
+    // --- Submission Handlers ---
+    async function submitEditProfile(event) {
+        event.preventDefault();
+        const button = document.getElementById('submit-profile-btn');
+        const originalText = button.textContent;
+        button.disabled = true;
+        button.textContent = 'Updating...';
+
+        const profileData = {
+            firstName: document.getElementById('edit-profile-firstName').value.trim(),
+            lastName: document.getElementById('edit-profile-lastName').value.trim(),
+            phone: document.getElementById('edit-profile-phone').value.trim()
+        };
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(profileData),
+                credentials: 'include'
             });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                showStatusMessage(data.message || 'Failed to update personal details.', false);
+                throw new Error(data.message || 'Update failed');
+            }
+
+            // SUCCESS: Update current data and re-render DOM
+            currentProfileData.profile = data.profile;
+            updateDOM(currentProfileData);
+            closeModal('edit-profile-modal');
+            showStatusMessage('Personal details updated successfully!', true);
+
+        } catch (error) {
+            console.error('Profile Update Error:', error);
+            if (!document.getElementById('status-message-container').classList.contains('bg-red-100')) {
+                 showStatusMessage('An unexpected error occurred during profile update.', false);
+            }
+        } finally {
+            button.disabled = false;
+            button.textContent = originalText;
+        }
+    }
+
+    async function submitEditAddress(event) {
+        event.preventDefault();
+        const button = document.getElementById('submit-address-btn');
+        const originalText = button.textContent;
+        button.disabled = true;
+        button.textContent = 'Updating...';
+
+        const addressData = {
+            street: document.getElementById('edit-address-street').value.trim(),
+            city: document.getElementById('edit-address-city').value.trim(),
+            state: document.getElementById('edit-address-state').value.trim(),
+            zip: document.getElementById('edit-address-zip').value.trim(),
+            country: document.getElementById('edit-address-country').value.trim()
+        };
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/users/address`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(addressData),
+                credentials: 'include'
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                showStatusMessage(data.message || 'Failed to update contact address.', false);
+                throw new Error(data.message || 'Update failed');
+            }
+
+            // SUCCESS: Update current data and re-render DOM
+            currentProfileData.address = data.address;
+            updateDOM(currentProfileData);
+            closeModal('edit-address-modal');
+            showStatusMessage('Contact address updated successfully!', true);
+
+        } catch (error) {
+            console.error('Address Update Error:', error);
+            if (!document.getElementById('status-message-container').classList.contains('bg-red-100')) {
+                 showStatusMessage('An unexpected error occurred during address update.', false);
+            }
+        } finally {
+            button.disabled = false;
+            button.textContent = originalText;
+        }
+    }
+
+
+    /**
+     * Populates the DOM with the latest user data object.
+     */
+    function updateDOM(data) {
+        const profile = data.profile || {};
+        const status = data.status || {};
+        const membership = data.membership || {};
+        const address = data.address || {}; 
+        
+        const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'Guest User';
+        const emailAddress = data.email || 'Email Not Available'; 
+        const userRole = status.role || 'user';
+        const isVerified = status.isVerified;
+        // Use the existing memberSince data if available, otherwise process the new one
+        const memberSince = membership.memberSince ? new Date(membership.memberSince).toLocaleDateString() : 'N/A';
+
+        document.getElementById('user-name').textContent = fullName;
+        document.getElementById('user-email').textContent = emailAddress;
+        document.getElementById('user-role').textContent = userRole.toUpperCase();
+        document.getElementById('user-verification').innerHTML = isVerified 
+            ? '<span class="text-green-600 font-bold"><i class="fas fa-check-circle mr-1"></i> Verified</span>'
+            : '<span class="text-red-600 font-bold"><i class="fas fa-times-circle mr-1"></i> Unverified</span>';
+        document.getElementById('member-since').textContent = memberSince;
+        document.getElementById('user-phone').textContent = profile.phone || 'Not Set';
+
+
+        document.getElementById('street-address').textContent = address.street || 'Not Set';
+        document.getElementById('city-state-zip').textContent = `${address.city || 'Not Set'}, ${address.state || 'Not Set'} ${address.zip || ''}`;
+        document.getElementById('country').textContent = address.country || 'Not Set';
     }
     
     /**
-     * Fetches user data using the HTTP-only cookie for authorization.
+     * Attempts to fetch user data and redirects to login on failure (401/403).
      */
     async function fetchUserData() {
+        const mainContent = document.getElementById('main-profile-content');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        
         try {
-            // Include credentials for the browser to send the HTTP-only cookie
             const response = await fetch(`${API_BASE_URL}/api/users/account`, {
                 method: 'GET',
                 headers: {
@@ -85,47 +228,35 @@
             console.log(`Fetch Status: ${response.status}`); 
 
             if (!response.ok) {
-                // If 401 (Unauthorized) or 403 (Forbidden), treat as invalid session.
                 throw new Error(`Authentication Failed: ${response.status} - ${response.statusText}`); 
             }
 
             const data = await response.json();
             console.log('User Data fetched successfully:', data);
 
-            // --- DOM population ---
-            const profile = data.profile || {};
-            const status = data.status || {};
-            const membership = data.membership || {};
-            const address = data.address || {}; 
-            
-            const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'Guest User';
-            const emailAddress = data.email || 'Email Not Available'; 
-            const userRole = status.role || 'user';
-            const isVerified = status.isVerified;
-            const memberSince = membership.memberSince ? new Date(membership.memberSince).toLocaleDateString() : 'N/A';
+            // Store data globally and populate DOM
+            currentProfileData = data;
+            updateDOM(data); 
 
-            document.getElementById('user-name').textContent = fullName;
-            document.getElementById('user-email').textContent = emailAddress;
-            document.getElementById('user-role').textContent = userRole.toUpperCase();
-            document.getElementById('user-verification').innerHTML = isVerified 
-                ? '<span class="text-green-600 font-bold"><i class="fas fa-check-circle mr-1"></i> Verified</span>'
-                : '<span class="text-red-600 font-bold"><i class="fas fa-times-circle mr-1"></i> Unverified</span>';
-            document.getElementById('member-since').textContent = memberSince;
-            document.getElementById('user-phone').textContent = profile.phone || 'Not Set';
-
-
-            document.getElementById('street-address').textContent = address.street || 'Not Set';
-            document.getElementById('city-state-zip').textContent = `${address.city || 'Not Set'}, ${address.state || 'Not Set'} ${address.zip || ''}`;
-            document.getElementById('country').textContent = address.country || 'Not Set';
+            // Show content
+            if (loadingIndicator) loadingIndicator.classList.add('hidden');
+            if (mainContent) mainContent.classList.remove('hidden');
 
             return data; 
         } catch (error) {
             console.error("Fetch user data error:", error);
+            // Hide everything and redirect on failure
+            if (loadingIndicator) loadingIndicator.classList.add('hidden');
+            if (mainContent) mainContent.classList.add('hidden');
+            
+            setTimeout(() => {
+                window.location.replace('useraccount.html');
+            }, 100); 
             throw error; 
         }
     }
 
-    document.addEventListener('DOMContentLoaded', enforceAuthGate);
+    document.addEventListener('DOMContentLoaded', fetchUserData);
     </script>
 
     <header class="bg-white sticky top-0 z-50 shadow-md">
@@ -174,6 +305,10 @@
 
     <main id="main-profile-content" class="hidden container mx-auto p-4 sm:p-8 mt-4 sm:mt-8 lg:mt-12 max-w-6xl">
         
+        <div id="status-message-container" class="hidden p-4 mb-4 rounded-lg transition-opacity duration-300">
+            <p id="status-message" class="font-medium"></p>
+        </div>
+
         <div class="bg-white shadow-2xl rounded-xl p-6 sm:p-10 border border-gray-100">
             
             <div class="mb-8 border-b border-gray-100 pb-6">
@@ -208,7 +343,7 @@
                     <div id="profile-details" class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                         <h3 class="font-extrabold text-2xl text-ash-red border-b-2 border-ash-red pb-3 mb-6 flex justify-between items-center">
                             Personal Information
-                            <button class="text-sm text-blue-600 hover:text-blue-800 font-medium p-1 rounded-md transition duration-150" aria-label="Edit Profile Details">
+                            <button onclick="openEditProfileModal()" class="text-sm text-blue-600 hover:text-blue-800 font-medium p-1 rounded-md transition duration-150" aria-label="Edit Profile Details">
                                 <i class="fas fa-edit mr-1"></i> Edit
                             </button>
                         </h3>
@@ -244,7 +379,7 @@
                     <div id="contact-address" class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                         <h3 class="font-extrabold text-2xl text-ash-red border-b-2 border-ash-red pb-3 mb-6 flex justify-between items-center">
                             Contact Address
-                            <button class="text-sm text-blue-600 hover:text-blue-800 font-medium p-1 rounded-md transition duration-150" aria-label="Edit Contact Address">
+                            <button onclick="openEditAddressModal()" class="text-sm text-blue-600 hover:text-blue-800 font-medium p-1 rounded-md transition duration-150" aria-label="Edit Contact Address">
                                 <i class="fas fa-edit mr-1"></i> Edit
                             </button>
                         </h3>
@@ -271,6 +406,84 @@
 
     </main>
     
+    <div id="edit-profile-modal" class="hidden fixed inset-0 z-[60] overflow-y-auto modal-backdrop flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-auto transform transition-all">
+            <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+                <h3 class="text-xl font-bold text-ash-red">Edit Personal Details</h3>
+                <button onclick="closeModal('edit-profile-modal')" class="text-gray-400 hover:text-gray-600 transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="edit-profile-form" onsubmit="submitEditProfile(event)" class="p-6 space-y-4">
+                
+                <div>
+                    <label for="edit-profile-firstName" class="block text-sm font-medium text-gray-700">First Name</label>
+                    <input type="text" id="edit-profile-firstName" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-ash-red focus:border-ash-red">
+                </div>
+
+                <div>
+                    <label for="edit-profile-lastName" class="block text-sm font-medium text-gray-700">Last Name</label>
+                    <input type="text" id="edit-profile-lastName" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-ash-red focus:border-ash-red">
+                </div>
+
+                <div>
+                    <label for="edit-profile-phone" class="block text-sm font-medium text-gray-700">Phone Number (Optional)</label>
+                    <input type="tel" id="edit-profile-phone" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-ash-red focus:border-ash-red">
+                </div>
+                
+                <div class="flex justify-end pt-4 space-x-3 border-t border-gray-100 mt-6">
+                    <button type="button" onclick="closeModal('edit-profile-modal')" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium transition duration-150">Cancel</button>
+                    <button type="submit" id="submit-profile-btn" class="px-4 py-2 bg-ash-red text-white rounded-lg hover:bg-ash-red-dark font-medium transition duration-150">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="edit-address-modal" class="hidden fixed inset-0 z-[60] overflow-y-auto modal-backdrop flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-auto transform transition-all">
+            <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+                <h3 class="text-xl font-bold text-ash-red">Edit Contact Address</h3>
+                <button onclick="closeModal('edit-address-modal')" class="text-gray-400 hover:text-gray-600 transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="edit-address-form" onsubmit="submitEditAddress(event)" class="p-6 space-y-4">
+                
+                <div>
+                    <label for="edit-address-street" class="block text-sm font-medium text-gray-700">Street Address</label>
+                    <input type="text" id="edit-address-street" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-ash-red focus:border-ash-red">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="edit-address-city" class="block text-sm font-medium text-gray-700">City</label>
+                        <input type="text" id="edit-address-city" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-ash-red focus:border-ash-red">
+                    </div>
+                    <div>
+                        <label for="edit-address-state" class="block text-sm font-medium text-gray-700">State / Region (Optional)</label>
+                        <input type="text" id="edit-address-state" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-ash-red focus:border-ash-red">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="edit-address-zip" class="block text-sm font-medium text-gray-700">Zip / Postal Code (Optional)</label>
+                        <input type="text" id="edit-address-zip" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-ash-red focus:border-ash-red">
+                    </div>
+                    <div>
+                        <label for="edit-address-country" class="block text-sm font-medium text-gray-700">Country</label>
+                        <input type="text" id="edit-address-country" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-ash-red focus:border-ash-red">
+                    </div>
+                </div>
+                
+                <div class="flex justify-end pt-4 space-x-3 border-t border-gray-100 mt-6">
+                    <button type="button" onclick="closeModal('edit-address-modal')" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium transition duration-150">Cancel</button>
+                    <button type="submit" id="submit-address-btn" class="px-4 py-2 bg-ash-red text-white rounded-lg hover:bg-ash-red-dark font-medium transition duration-150">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <footer class="bg-gray-900 text-gray-300 py-10 sm:py-14 border-t border-gray-800 mt-12">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">

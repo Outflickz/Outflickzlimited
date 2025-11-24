@@ -2796,6 +2796,39 @@ app.get('/api/users/account', verifyUserToken, async (req, res) => {
     }
 });
 
+// =========================================================
+// 3. POST /api/users/logout (Logout) - NEW
+// =========================================================
+/**
+ * Clears the HTTP-only session cookie, effectively logging the user out.
+ * This endpoint is designed to be called by the client's handleLogout function.
+ */
+app.post('/api/users/logout', (req, res) => {
+    try {
+        // Use res.clearCookie() to tell the browser to immediately expire the cookie.
+        // It's important to use the same cookie name ('outflickzToken').
+        // We set the same secure and sameSite flags for maximum compatibility in clearing.
+        const isProduction = process.env.NODE_ENV === 'production';
+
+        res.clearCookie('outflickzToken', {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? 'strict' : 'lax',
+        });
+
+        // Send a success response. The client side will handle the redirect.
+        res.status(200).json({ 
+            message: 'Logout successful. Session cookie cleared.'
+        });
+
+    } catch (error) {
+        // Even if an error occurs (e.g., in logging), the cookie clearance often still works.
+        // We send a success response anyway to ensure the client proceeds with the redirect.
+        console.error("Logout error:", error);
+        res.status(500).json({ message: 'Server error during logout process.' });
+    }
+});
+
 
 // 4. POST /api/users/forgot-password (Forgot Password)
 app.post('/api/users/forgot-password', async (req, res) => {

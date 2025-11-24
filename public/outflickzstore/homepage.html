@@ -508,12 +508,6 @@ async function simulateAddToCart(productDetails) {
     }
 }
 
-/**
- * Reads the latest authentication token directly from localStorage.
- */
-function getUserAuthToken() {
-    return localStorage.getItem('outflickzToken');
-}
 
 // Initialize the cart badge on page load
 document.addEventListener('DOMContentLoaded', updateCartBadge);

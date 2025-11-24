@@ -65,14 +65,6 @@ const LOCAL_CART_KEY = 'outflickzLocalCart';
 // REMOVED: const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
 const API_BASE_URL = 'https://outflickz.netlify.app';
 
-// --- Token Getter Function (The Fix) ---
-/**
- * Safely retrieves the current authentication token from local storage.
- * This ensures we always check the latest login status.
- */
-function getUserAuthToken() {
-    return localStorage.getItem('outflickzToken');
-}
 
 // --- MESSAGE & MODAL DISPLAY FUNCTION (NEW/UPDATED) ---
 /**

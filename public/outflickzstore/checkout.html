@@ -1,604 +1,731 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="text-[90%] sm:text-[95%] md:text-[100%]">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Checkout | Outflickz</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"> 
-
+    <title>Checkout - Outflickz</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="https://i.imgur.com/ioWFyQB.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        /* Define a primary brand color for ash-red to ensure consistency and modern look */
-        .text-ash-red { color: #D63031; }
-        .bg-ash-red { background-color: #D63031; }
-        .hover\:bg-ash-red-dark:hover { background-color: #A32324; }
-        .border-ash-red { border-color: #D63031; }
-        /* Focus styles for form inputs */
-        .form-input:focus {
-            border-color: #D63031;
-            box-shadow: 0 0 0 1px #D63031;
+        /* Load Inter (main font) and Playfair Display (for "OUTFLICKZ" logo) */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+
+        /* Custom styles */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Hide number input arrows/spinners */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+
+        /* Custom styles for the message modal */
+        #message-modal-container {
+            background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black overlay */
+            transition: opacity 0.3s ease-in-out;
+        }
+        .modal-content {
+            transform: translateY(0);
+            transition: transform 0.3s ease-in-out;
+        }
+        #message-modal-container.hidden .modal-content {
+            transform: translateY(-50px);
+        }
+        
+        /* Step indicator styling */
+        .step-active {
+            @apply bg-ash-red text-white;
+        }
+        .step-inactive {
+            @apply bg-gray-200 text-gray-500;
+        }
+        .step-complete {
+            @apply bg-green-500 text-white;
         }
     </style>
-</head>
 <script>
-    // --- CONSTANTS AND UTILITIES (Matching cart.html context) ---
-    const LOCAL_CART_KEY = 'outflickz_local_cart';
-    const CART_STORAGE_KEY = 'cart_item_count';
-    const DEFAULT_SHIPPING_COST = 2000; 
-    const TAX_RATE = 0.01; 
-    
-    // Placeholder utility functions (must be defined for context)
-    function isUserLoggedIn() {
-        // In a real app, this would check for a valid session token/cookie
-        return localStorage.getItem('user_token') === 'logged_in_user'; 
-    }
-
-    function redirectToProfileOrLogin() {
-        window.location.href = isUserLoggedIn() ? 'userprofile.html' : 'login.html';
-    }
-
-    function displayMessage(message) {
-        const modalContainer = document.getElementById('message-modal-container');
-        const modalText = document.getElementById('message-modal-text');
-        if (modalContainer && modalText) {
-            modalText.textContent = message;
-            modalContainer.classList.remove('hidden');
-            setTimeout(() => {
-                modalContainer.classList.add('hidden');
-            }, 4000); 
-        }
-    }
-    
-    function updateCartBadge(count) {
-        const badge = document.getElementById('cart-badge');
-        const currentCount = count || parseInt(localStorage.getItem(CART_STORAGE_KEY) || '0');
-        
-        if (badge) {
-            if (currentCount > 0) {
-                badge.textContent = currentCount;
-                badge.classList.remove('hidden');
-            } else {
-                badge.classList.add('hidden');
+// Customizing Tailwind colors to match the theme
+tailwind.config = {
+    theme: {
+        extend: {
+            colors: {
+                'ash-dark': '#111111',
+                'ash-red': '#a80000',
+                'color-white': '#FFFFFF',
+                'color-black': '#000000',
+                'racing-grey': '#333333',
+                'racing-silver': '#AAAAAA',
             }
         }
     }
+}
 
-    function toggleMenu() {
-        const mobileMenu = document.getElementById('mobile-menu');
-        mobileMenu.classList.toggle('hidden');
-    }
+// Global Constants (Reused from cart.html)
+const CART_STORAGE_KEY = 'outflickzCartCount';
+const LOCAL_CART_KEY = 'outflickzLocalCart';
+const API_BASE_URL = 'https://outflickz.netlify.app'; // Assuming this is your base path
 
-    // --- CORE CHECKOUT LOGIC ---
-    
-    // List of Nigerian states for the dropdown
-    const NIGERIAN_STATES = [
-        "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue", "Borno", 
-        "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu", "FCT - Abuja", "Gombe", 
-        "Imo", "Jigawa", "Kaduna", "Kano", "Katsina", "Kebbi", "Kogi", "Kwara", "Lagos", 
-        "Nasarawa", "Niger", "Ogun", "Ondo", "Osun", "Oyo", "Plateau", "Rivers", "Sokoto", 
-        "Taraba", "Yobe", "Zamfara"
-    ];
+// --- MESSAGE & MODAL DISPLAY FUNCTION (Reused) ---
+function displayMessage(message) {
+    const modalContainer = document.getElementById('message-modal-container');
+    const modalText = document.getElementById('message-modal-text');
 
-    function populateNigerianStates() {
-        const selectElement = document.getElementById('state');
-        if (selectElement) {
-            // Clear existing options first (if any placeholder exists)
-            selectElement.innerHTML = ''; 
-            
-            // Add a default, disabled, selected option
-            const defaultOption = document.createElement('option');
-            defaultOption.value = "";
-            defaultOption.textContent = "Select State";
-            defaultOption.disabled = true;
-            defaultOption.selected = true;
-            selectElement.appendChild(defaultOption);
+    if (modalContainer && modalText) {
+        modalText.textContent = message;
+        modalContainer.classList.remove('hidden');
 
-            NIGERIAN_STATES.forEach(state => {
-                const option = document.createElement('option');
-                option.value = state;
-                option.textContent = state;
-                selectElement.appendChild(option);
-            });
-        }
-    }
-
-    function formatNaira(amount) {
-        // Amount is in kobo/cents. Convert to Naira (divide by 100)
-        return `₦${(amount / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
-    }
-    
-    /**
-     * Updates the form fields (Contact and Delivery) with saved user information
-     * retrieved from localStorage (the closest to "real data" in this static file).
-     */
-    function populateContactInfo() {
-        if (!isUserLoggedIn()) {
-            return;
-        }
-        
-        // --- Retrieving "Real" Application Data from localStorage ---
-        // Assuming a separate script (e.g., login or profile page) sets these values.
-        const userEmail = localStorage.getItem('user_email') || '';
-        const userFirstName = localStorage.getItem('user_first_name') || '';
-        const userLastName = localStorage.getItem('user_last_name') || '';
-        const userAddress = localStorage.getItem('user_address') || '';
-        const userCity = localStorage.getItem('user_city') || '';
-        const userState = localStorage.getItem('user_state') || '';
-        const userPhone = localStorage.getItem('user_phone') || '';
-        // -------------------------------------------------------------------
-
-        // 1. Contact Field (Email/Phone)
-        const emailInput = document.getElementById('contact-email');
-        if (emailInput && userEmail) {
-            emailInput.value = userEmail;
-        }
-
-        // 2. Delivery Fields (Name and Address)
-        const firstNameInput = document.getElementById('first-name');
-        const lastNameInput = document.getElementById('last-name');
-        const addressInput = document.getElementById('address');
-        const cityInput = document.getElementById('city');
-        const stateSelect = document.getElementById('state');
-        const phoneInput = document.getElementById('phone');
-
-        if (firstNameInput && userFirstName) {
-            firstNameInput.value = userFirstName;
-        }
-        if (lastNameInput && userLastName) {
-            lastNameInput.value = userLastName;
-        }
-        if (addressInput && userAddress) {
-            addressInput.value = userAddress;
-        }
-        if (cityInput && userCity) {
-            cityInput.value = userCity;
-        }
-        if (phoneInput && userPhone) {
-            phoneInput.value = userPhone;
-        }
-        
-        // Handle State dropdown selection
-        if (stateSelect && userState) {
-            // Only set if the value exists in the options list (from NIGERIAN_STATES)
-            if (Array.from(stateSelect.options).some(opt => opt.value === userState)) {
-                stateSelect.value = userState;
+        modalContainer.onclick = (e) => {
+            if (e.target === modalContainer) {
+                hideMessageModal();
             }
-        }
-
-        if (userEmail) {
-             console.log(`Checkout fields pre-filled from localStorage for user: ${userEmail}`);
-        }
-    }
-    /**
-     * Placeholder function to fetch cart data.
-     * It now merges simple cart objects from localStorage with detailed product data.
-     */
-    async function fetchCartData() {
-        await new Promise(resolve => setTimeout(resolve, 50)); // Small delay to simulate network latency
-
-        const cartJSON = localStorage.getItem(LOCAL_CART_KEY);
-        let simpleCartItems = [];
-        let detailedCartItems = [];
-
-        if (cartJSON) {
-            try {
-                simpleCartItems = JSON.parse(cartJSON);
-            } catch (e) {
-                console.error('Error parsing local cart JSON:', e);
-            }
-        } else if (isUserLoggedIn()) {
-             // If logged in but local cart is empty, simulate a fetched API cart.
-             simpleCartItems = [
-                 { id: 'ITEM-HF-MESH-S', quantity: 1 },
-                 { id: 'ITEM-TEE-WHITE-L', quantity: 2 }
-             ];
-        }
-
-        // --- MERGE LOGIC: Fetch Collection Details (MOCK DATA SOURCE) ---
-        // This MUST remain a mock object as there's no server to fetch from
-        const MOCK_PRODUCT_DETAILS = {
-            'ITEM-TEE-WHITE-L': { name: 'Signature Tee', color: 'White', size: 'L', price: 120000, img: 'https://i.imgur.com/PZLMws6.jpeg' },
-            'ITEM-HF-MESH-S': { name: 'Heavy Fleece Mesh Hoodie', color: 'Black', size: 'S', price: 250000, img: 'https://i.imgur.com/k9bT6O6.jpeg' },
         };
-        // --- END MOCK DATA SOURCE ---
 
-        if (simpleCartItems.length > 0) {
-            detailedCartItems = simpleCartItems.map(cartItem => {
-                // Use a mock product details object based on the item ID
-                const details = MOCK_PRODUCT_DETAILS[cartItem.id] || { 
-                    name: 'Unknown Item', 
-                    color: 'N/A', 
-                    size: 'N/A', 
-                    price: 0, 
-                    img: 'https://i.imgur.com/PZLMws6.jpeg' 
-                };
-                
-                return {
-                    id: cartItem.id,
-                    quantity: cartItem.quantity,
-                    ...details // Spreads the name, color, size, price, and img
-                };
-            }).filter(item => item.price > 0); // Only include items with a valid price
-        }
-        
-        // Update the cart badge based on the detailed item count
-        const totalItemsInCart = detailedCartItems.reduce((total, item) => total + item.quantity, 0);
-        localStorage.setItem(CART_STORAGE_KEY, totalItemsInCart.toString());
-        updateCartBadge(totalItemsInCart);
-
-        return detailedCartItems;
+        setTimeout(hideMessageModal, 4000);
+    } else {
+        console.warn("Modal elements not found. Message:", message);
     }
+}
 
-    async function renderOrderSummary() {
-        const cartItems = await fetchCartData();
-        const orderItemsContainer = document.getElementById('order-items');
-        const subtotalEl = document.getElementById('subtotal');
-        const shippingEl = document.getElementById('shipping');
-        const grandTotalEl = document.getElementById('grand-total');
-        const checkoutButton = document.querySelector('button[type="submit"]');
-
-        // Clear previous items
-        orderItemsContainer.innerHTML = ''; 
-
-        if (cartItems.length === 0) {
-            orderItemsContainer.innerHTML = '<p class="text-center text-gray-500 py-6">Your bag is empty. <a href="cart.html" class="text-ash-red font-semibold">Return to cart</a>.</p>';
-            subtotalEl.textContent = formatNaira(0);
-            shippingEl.textContent = formatNaira(0);
-            grandTotalEl.textContent = formatNaira(0);
-            document.getElementById('checkout-form').style.opacity = '0.5';
-            checkoutButton.disabled = true;
-            return;
-        }
-
-        let subtotal = 0;
-        const shipping = DEFAULT_SHIPPING_COST;
-
-        cartItems.forEach(item => {
-            const itemTotal = item.price * item.quantity;
-            subtotal += itemTotal;
-            
-            const itemHTML = `
-                <div class="flex items-start space-x-4 border-b border-gray-200 pb-4 last:border-b-0" data-item-id="${item.id}" data-price="${item.price}">
-                    <div class="w-16 h-16 bg-gray-200 rounded-lg flex-shrink-0 relative border border-gray-300 overflow-hidden">
-                        <span class="absolute top-[-8px] right-[-8px] bg-ash-red text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">${item.quantity}</span>
-                        <img src="${item.img}" alt="${item.name}" class="w-full h-full object-cover">
-                    </div>
-                    <div class="flex-grow">
-                        <p class="font-semibold text-gray-900 truncate">${item.name}</p>
-                        <p class="text-sm text-gray-500">${item.color} / ${item.size}</p>
-                    </div>
-                    <p class="font-semibold text-gray-900">${formatNaira(itemTotal)}</p>
-                </div>
-            `;
-            orderItemsContainer.innerHTML += itemHTML;
-        });
-
-        const taxAmount = Math.round(subtotal * TAX_RATE); // Tax is calculated on subtotal
-        const grandTotal = subtotal + shipping + taxAmount;
-        
-        // Find and update the tax element (needs to be added to HTML)
-        let taxEl = document.getElementById('tax-estimate');
-        if (!taxEl) {
-             taxEl = document.createElement('span');
-             taxEl.id = 'tax-estimate';
-        }
-        
-        // Update DOM
-        subtotalEl.textContent = formatNaira(subtotal);
-        shippingEl.textContent = formatNaira(shipping);
-        document.getElementById('shipping-rate').textContent = formatNaira(shipping); // Update shipping method text
-        
-        // Check for tax display element and update it or insert it
-        const taxRow = document.getElementById('tax-row');
-        if (!taxRow) {
-             const summaryContainer = document.querySelector('.space-y-2.py-4.border-b.border-gray-200');
-             const newTaxRow = document.createElement('div');
-             newTaxRow.id = 'tax-row';
-             newTaxRow.className = 'flex justify-between text-gray-700';
-             newTaxRow.innerHTML = `<span>Tax Estimate (${(TAX_RATE * 100).toFixed(0)}%)</span>`;
-             newTaxRow.appendChild(taxEl);
-             summaryContainer.appendChild(newTaxRow);
-        }
-        taxEl.textContent = formatNaira(taxAmount);
-        
-        grandTotalEl.textContent = formatNaira(grandTotal);
-
-        // Re-enable checkout elements
-        document.getElementById('checkout-form').style.opacity = '1';
-        checkoutButton.disabled = false;
+function hideMessageModal() {
+    const modalContainer = document.getElementById('message-modal-container');
+    if (modalContainer) {
+        modalContainer.classList.add('hidden');
+        modalContainer.onclick = null;
     }
+}
 
+// --- USER AUTHENTICATION & REDIRECTION FUNCTIONS (Reused) ---
+function isUserLoggedIn() {
+    return localStorage.getItem('outflickzAuthStatus') === 'loggedIn';
+}
 
-    // IMPORTANT: This function must be replaced by your actual server-side payment initiation logic.
-    function initiatePayment() {
-        const form = document.getElementById('checkout-form');
-        if (!form.checkValidity()) {
-            // Triggers native HTML validation errors (red borders, required messages)
-            form.reportValidity(); 
-            return;
-        }
-
-        const grandTotalText = document.getElementById('grand-total').textContent;
-        
-        if (grandTotalText === '₦0.00') {
-             displayMessage('Your cart is empty. Please add items before checking out.');
-             window.location.href = 'cart.html';
-             return;
-        }
-
-        // In a real application, you would collect form data (email, address, etc.)
-        // and send it to your backend (e.g., /api/checkout)
-        
-        // Placeholder for success:
-        alert(`✅ Payment initiated for ${grandTotalText}. Redirecting to Paystack... (Frontend Placeholder).`);
-        
-        // Clear local cart storage items after "successful" initiation
-        localStorage.removeItem(LOCAL_CART_KEY);
-        localStorage.setItem(CART_STORAGE_KEY, '0');
-        updateCartBadge(0);
-
-        // Simulate redirect to a payment gateway success page or order summary
-        // window.location.href = 'order_confirmation.html'; 
+function redirectToProfileOrLogin() {
+    if (isUserLoggedIn()) {
+        window.location.href = 'userprofile.html';
+    } else {
+        window.location.href = 'useraccount.html';
     }
+}
 
-    // --- Main Initialization ---
-    document.addEventListener('DOMContentLoaded', () => {
-        populateNigerianStates();
-        updateCartBadge();
-        renderOrderSummary(); 
-        populateContactInfo();
+function updateCartBadge() {
+    const badge = document.getElementById('cart-badge');
+    if (!badge) return;
+    const count = parseInt(localStorage.getItem(CART_STORAGE_KEY) || '0');
+    
+    if (count > 0) {
+        badge.textContent = count;
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+}
 
-        // Attach the hideMessageModal function to the close button (if used)
-        const closeButton = document.getElementById('message-modal-close-btn');
-        if (closeButton) {
-            closeButton.addEventListener('click', () => {
-                document.getElementById('message-modal-container').classList.add('hidden');
-            });
+
+// ---------------------------------------------------
+// --- CHECKOUT LOGIC ---
+// ---------------------------------------------------
+
+let checkoutStep = 1; // 1: Info, 2: Review, 3: Payment
+const STEPS = [
+    { id: 1, name: 'Shipping Info', sectionId: 'shipping-info-section' },
+    { id: 2, name: 'Review Order', sectionId: 'review-order-section' },
+    { id: 3, name: 'Payment', sectionId: 'payment-section' }
+];
+
+/**
+ * Renders the correct step content and updates the step indicators.
+ */
+function updateCheckoutView() {
+    // 1. Update Step Indicators
+    STEPS.forEach(step => {
+        const indicator = document.getElementById(`step-indicator-${step.id}`);
+        const section = document.getElementById(step.sectionId);
+        
+        section.classList.add('hidden'); // Hide all sections initially
+
+        if (step.id < checkoutStep) {
+            indicator.className = 'step-indicator step-complete';
+            indicator.innerHTML = '<i class="fas fa-check"></i>';
+        } else if (step.id === checkoutStep) {
+            indicator.className = 'step-indicator step-active';
+            indicator.textContent = step.id;
+            section.classList.remove('hidden'); // Show current section
+        } else {
+            indicator.className = 'step-indicator step-inactive';
+            indicator.textContent = step.id;
         }
     });
+    
+    // 2. Update Summary Section (if needed, typically done when totals change)
+    // We assume the totals are loaded via fetchInitialCartData for step 1
+    
+    // 3. Update button text/action based on the step
+    const nextBtn = document.getElementById('checkout-next-btn');
+    const btnText = document.getElementById('checkout-btn-text');
+    
+    if (checkoutStep === 1) {
+        btnText.textContent = 'Continue to Review';
+        nextBtn.onclick = validateAndProceedToReview;
+    } else if (checkoutStep === 2) {
+        btnText.textContent = 'Proceed to Payment';
+        nextBtn.onclick = proceedToPayment;
+    } else if (checkoutStep === 3) {
+        btnText.textContent = 'Confirm & Pay Now';
+        nextBtn.onclick = handleFinalOrderPlacement;
+    }
+}
+
+/**
+ * Validates shipping form data and moves to Step 2 (Review).
+ */
+function validateAndProceedToReview() {
+    const form = document.getElementById('shipping-form');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        displayMessage('Please fill out all required shipping fields.');
+        return;
+    }
+
+    // Capture the data (simulated for front-end)
+    const shippingData = {
+        firstName: document.getElementById('first-name').value,
+        lastName: document.getElementById('last-name').value,
+        email: document.getElementById('email').value,
+        phone: document.getElementById('phone').value,
+        street: document.getElementById('address-line-1').value,
+        city: document.getElementById('city').value,
+        state: document.getElementById('state').value,
+        zipCode: document.getElementById('zip-code').value,
+        country: document.getElementById('country').value,
+    };
+    localStorage.setItem('outflickzShippingData', JSON.stringify(shippingData));
+
+    // Update the review section with the data
+    document.getElementById('review-address-name').textContent = `${shippingData.firstName} ${shippingData.lastName}`;
+    document.getElementById('review-address-line1').textContent = shippingData.street;
+    document.getElementById('review-address-line2').textContent = `${shippingData.city}, ${shippingData.state} ${shippingData.zipCode}, ${shippingData.country}`;
+    document.getElementById('review-contact-info').textContent = `${shippingData.email} | ${shippingData.phone}`;
+
+    checkoutStep = 2;
+    updateCheckoutView();
+    window.scrollTo(0, 0); // Scroll to top for new section
+}
+
+
+/**
+ * Moves to Step 3 (Payment).
+ */
+function proceedToPayment() {
+    checkoutStep = 3;
+    updateCheckoutView();
+    window.scrollTo(0, 0); // Scroll to top for new section
+}
+
+/**
+ * Simulates a checkout API call (like the one that triggers processOrderCompletion on the backend).
+ */
+async function fetchInitialCartData() {
+    const currencySymbol = '₦';
+    const subtotalEl = document.getElementById('summary-subtotal');
+    const shippingCostEl = document.getElementById('summary-shipping-cost');
+    const taxEstimateEl = document.getElementById('summary-tax-estimate');
+    const estimatedTotalEl = document.getElementById('summary-estimated-total');
+    const itemsListEl = document.getElementById('review-items-list');
+    const paymentBtn = document.getElementById('checkout-next-btn');
+    
+    // Set loading state
+    subtotalEl.textContent = '...';
+    shippingCostEl.textContent = '...';
+    taxEstimateEl.textContent = '...';
+    estimatedTotalEl.textContent = '...';
+    itemsListEl.innerHTML = '<div class="text-center py-6 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Loading cart data...</div>';
+    paymentBtn.disabled = true;
+
+    // Redirect unauthenticated user
+    if (!isUserLoggedIn()) {
+        const localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
+        if (localCart.length === 0) {
+            displayMessage('Your cart is empty. Redirecting to home.');
+            setTimeout(() => window.location.href = 'homepage.html', 1500);
+            return;
+        } else {
+             displayMessage('Please log in to proceed to checkout with your saved items.');
+             setTimeout(redirectToProfileOrLogin, 1500);
+             return;
+        }
+    }
+
+
+    try {
+        const response = await fetch('/api/users/cart', { method: 'GET' });
+        
+        if (response.status === 401) {
+            displayMessage('Session expired. Please log in again.');
+            localStorage.setItem('outflickzAuthStatus', 'loggedOut');
+            setTimeout(redirectToProfileOrLogin, 1500);
+            return;
+        }
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch authenticated cart.');
+        }
+
+        const cartData = await response.json();
+        
+        if (cartData.items.length === 0) {
+            displayMessage('Your cart is empty. Redirecting to home.');
+            setTimeout(() => window.location.href = 'homepage.html', 1500);
+            return;
+        }
+        
+        // Render Summary
+        const subtotal = cartData.subtotal || 0;
+        const shipping = cartData.shipping || 0;
+        const tax = cartData.tax || 0;
+        const total = cartData.estimatedTotal || (subtotal + shipping + tax);
+
+        subtotalEl.textContent = `${currencySymbol}${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+        shippingCostEl.textContent = `${currencySymbol}${shipping.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+        taxEstimateEl.textContent = `${currencySymbol}${tax.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+        estimatedTotalEl.textContent = `${currencySymbol}${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+        
+        // Render Review Items List
+        itemsListEl.innerHTML = cartData.items.map(item => `
+            <div class="flex justify-between items-start py-2">
+                <div class="flex items-center">
+                    <img src="${item.imageUrl}" alt="${item.name}" class="w-10 h-10 rounded-md border mr-3">
+                    <div class="text-sm">
+                        <p class="font-medium text-gray-900">${item.name}</p>
+                        <p class="text-xs text-gray-500">${item.size} / ${item.color} (Qty: ${item.quantity})</p>
+                    </div>
+                </div>
+                <span class="text-sm font-semibold text-gray-900">${currencySymbol}${(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+            </div>
+        `).join('');
+
+        // Store the final total for payment simulation
+        localStorage.setItem('outflickzOrderTotal', total.toFixed(2));
+
+        // Enable button
+        paymentBtn.disabled = false;
+        
+    } catch (error) {
+        console.error('Error fetching cart data for checkout:', error);
+        itemsListEl.innerHTML = '<div class="text-center py-6 text-red-500">Error loading cart. Please go back to cart.</div>';
+        displayMessage('An error occurred loading your cart. Please try again.');
+        paymentBtn.disabled = true;
+    }
+}
+
+
+/**
+ * Handles the final step: Payment confirmation and order creation.
+ */
+async function handleFinalOrderPlacement() {
+    const paymentMethod = document.querySelector('input[name="payment-method"]:checked');
+    if (!paymentMethod) {
+        displayMessage('Please select a payment method.');
+        return;
+    }
+
+    const totalAmount = parseFloat(localStorage.getItem('outflickzOrderTotal') || 0);
+    const shippingAddress = JSON.parse(localStorage.getItem('outflickzShippingData'));
+
+    if (totalAmount <= 0 || !shippingAddress) {
+        displayMessage('Order data missing. Please refresh and try again.');
+        return;
+    }
+
+    // Disable button to prevent double submission
+    const payBtn = document.getElementById('checkout-next-btn');
+    payBtn.disabled = true;
+    payBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processing Order...';
+
+    // Simulate Payment/Order API Call (This is where the server-side logic would be triggered)
+    try {
+        const response = await fetch('/api/orders/place', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                shippingAddress: shippingAddress,
+                paymentMethod: paymentMethod.value,
+                totalAmount: totalAmount,
+                // Server should fetch items from user's cart automatically
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            // Success: Clear cart, update badge, redirect
+            localStorage.removeItem(LOCAL_CART_KEY);
+            localStorage.setItem(CART_STORAGE_KEY, '0');
+            localStorage.removeItem('outflickzOrderTotal');
+            updateCartBadge();
+            
+            displayMessage(`Order #${data.orderId || '0000'} successfully placed! Redirecting...`);
+            setTimeout(() => {
+                window.location.href = `orderconfirmation.html?id=${data.orderId || '0000'}`;
+            }, 3000);
+
+        } else if (response.status === 400 && data.message.includes("Insufficient stock")) {
+             displayMessage(data.message);
+             // Revert to cart or review page to adjust order
+             setTimeout(() => window.location.href = 'cart.html', 3000);
+        } else {
+            throw new Error(data.message || 'Payment failed. Please try a different method.');
+        }
+
+    } catch (error) {
+        console.error('Order placement error:', error);
+        displayMessage(error.message || 'A network error occurred. Please try again.');
+        
+        // Re-enable button on failure
+        payBtn.disabled = false;
+        payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
+    }
+}
+
+
+// --- Main Initialization ---
+document.addEventListener('DOMContentLoaded', () => {
+    // Initial checks and data loading
+    updateCartBadge();
+    fetchInitialCartData();
+    updateCheckoutView(); // Initialize step 1 view
+
+    // Attach the hideMessageModal function to the close button
+    const closeButton = document.getElementById('message-modal-close-btn');
+    if (closeButton) {
+        closeButton.addEventListener('click', hideMessageModal);
+    }
+});
 </script>
+</head>
+<body class="bg-gray-50 text-color-black min-h-screen">
 
-    <div id="message-modal-container" class="fixed inset-0 z-[100] hidden flex justify-center items-start pt-10" role="alert" aria-live="assertive">
-        <div class="modal-content bg-gray-900 text-white p-4 rounded-lg shadow-2xl max-w-sm w-full relative">
-            <p id="message-modal-text" class="text-sm font-medium"></p>
-            <button id="message-modal-close-btn" class="absolute top-1 right-1 text-gray-400 hover:text-white transition" aria-label="Close message">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-    </div>
-    
-    <header class="bg-white sticky top-0 z-50 shadow-md">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
-                <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-10">
-            </a>
+    <div id="message-modal-container" class="fixed inset-0 z-[100] hidden flex justify-center items-start pt-10" role="alert" aria-live="assertive">
+        <div class="modal-content bg-ash-dark text-white p-4 rounded-lg shadow-2xl max-w-sm w-full relative">
+            <p id="message-modal-text" class="text-sm font-medium"></p>
+            <button id="message-modal-close-btn" class="absolute top-1 right-1 text-gray-400 hover:text-white transition" aria-label="Close message">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+    
+    <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
+            <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
+                <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-10 sm:h-12 lg:h-10">
+            </a>
 
-            <nav class="hidden md:flex flex-grow justify-center space-x-8 text-sm lg:text-base" aria-label="Main Navigation">
-                <a href="homepage.html" class="font-medium text-gray-700 hover:text-ash-red transition duration-150">Homepage</a>
-                <a href="preorder.html" class="font-medium text-gray-700 hover:text-ash-red transition duration-150">Pre Order</a>
-                <a href="newarrivals.html" class="font-medium text-gray-700 hover:text-ash-red transition duration-150">New Arrivals</a>
-                <a href="wearscollection.html" class="font-medium text-gray-700 hover:text-ash-red transition duration-150">Wears Collections</a>
-                <a href="capcollection.html" class="font-medium text-gray-700 hover:text-ash-red transition duration-150">Cap Collections</a>
-            </nav>
+            <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
+                <a href="homepage.html" class="font-medium text-color-black hover:text-gray-600 transition">Homepage</a>
+                <a href="preorder.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
+                <a href="newarrivals.html" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
+                <a href="wearscollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Wears Collections</a>
+                <a href="capcollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Cap Collections</a>
+            </nav>
 
-            <div class="flex items-center space-x-3 sm:space-x-4">
-                <a href="cart.html" class="relative p-2 text-gray-600 hover:text-ash-red transition rounded-full" aria-label="Shopping Bag">
-                    <i class="fas fa-shopping-bag w-5 h-5"></i>
-                    <span id="cart-badge" class="absolute top-0 right-0 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-ash-red border border-white rounded-full transform translate-x-1/3 -translate-y-1/3 hidden">
-                    </span>
-                </a>
-                <button class="md:hidden p-2 text-gray-600 hover:text-ash-red transition rounded-full focus:outline-none" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
-                    <i class="fas fa-bars w-5 h-5"></i>
-                </button>
-            </div>
-        </div>
-    </header>
+            <div class="flex items-center space-x-2 sm:space-x-4">
+                <button id="profile-icon" 
+                class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" 
+                aria-label="User Account"
+                onclick="redirectToProfileOrLogin()">
+                    <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
+                </button>
+                <a href="cart.html" class="relative p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" aria-label="Shopping Bag">
+                    <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
+                    <span id="cart-badge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-ash-red rounded-full hidden">
+                        0
+                    </span>
+                </a>
+                <button class="md:hidden p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
+                    <i class="fas fa-bars w-5 h-5 sm:w-6 sm:h-6"></i>
+                </button>
+            </div>
+        </div>
+    </header>
 
-    <div id="mobile-menu" class="hidden md:hidden bg-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
-        <div class="px-4 pt-2 pb-3 space-y-1 text-base">
-            <a href="homepage.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-lg">Homepage</a>
-            <a href="preorder.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-lg">Pre Order</a>
-            <a href="newarrivals.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-lg">New Arrivals</a>
-            <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-lg">Wears Collection</a>
-            <a href="capcollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-lg">Cap Collection</a>
-            <a href="userprofile.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-lg">Account</a>
-        </div>
-    </div>
-    
-    <main class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
-        <h1 class="text-4xl font-extrabold text-gray-900 mb-8 sm:mb-10 border-b pb-4">Checkout</h1>
-        
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
-            
-            <div class="lg:col-span-2 space-y-8 bg-white p-6 sm:p-8 rounded-xl shadow-lg border border-gray-100">
-                <form id="checkout-form" onsubmit="event.preventDefault(); initiatePayment();">
-                    
-                    <div class="pb-6 border-b border-gray-200">
-                        <h2 class="text-2xl font-bold text-gray-800 mb-4">Contact</h2>
-                        <div class="space-y-4">
-                            <input type="email" id="contact-email" name="contact_email" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-ash-red focus:border-ash-red transition duration-150" placeholder="Email or mobile phone number" required>
-                            
-                            <div class="flex items-center">
-                                <input type="checkbox" id="news-offers" name="news_offers" class="h-4 w-4 text-ash-red border-gray-300 rounded focus:ring-ash-red">
-                                <label for="news-offers" class="ml-2 block text-sm text-gray-700">Email me with news and offers</label>
-                            </div>
-                        </div>
-                    </div>
+    <div id="mobile-menu" class="hidden md:hidden bg-color-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
+        <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
+            <a href="homepage.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Homepage</a>
+            <a href="preorder.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
+            <a href="newarrivals.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">New Arrivals</a>
+            <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Wears Collection</a>
+            <a href="capcollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cap Collection</a>
+            <a href="javascript:void(0);" onclick="redirectToProfileOrLogin()" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Account</a>
+        </div>
+    </div>
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-ash-dark mb-8 uppercase tracking-wide">
+            💳 Secure Checkout
+        </h1>
 
-                    <div class="pt-8 pb-6 border-b border-gray-200">
-                        <h2 class="text-2xl font-bold text-gray-800 mb-4">Delivery</h2>
-                        <div class="space-y-4">
-                            
-                            <select id="country" name="country" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-ash-red focus:border-ash-red transition duration-150" required>
-                                <option value="Nigeria" selected>Country: Nigeria</option>
-                            </select>
-                            
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <input type="text" id="first-name" name="first_name" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-ash-red focus:border-ash-red transition duration-150" placeholder="First name (optional)">
-                                <input type="text" id="last-name" name="last_name" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-ash-red focus:border-ash-red transition duration-150" placeholder="Last name (optional)">
-                            </div>
-                            
-                            <input type="text" id="address" name="address" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-ash-red focus:border-ash-red transition duration-150" placeholder="Address" required>
-                            <input type="text" id="apartment" name="apartment" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-ash-red focus:border-ash-red transition duration-150" placeholder="Apartment, suite, etc. (optional)">
+        <div class="flex justify-between items-center mb-10 text-center relative">
+            <div class="absolute inset-x-0 top-3 h-0.5 bg-gray-200 z-0"></div>
+            
+            <div class="flex-1 z-10">
+                <div id="step-indicator-1" class="step-indicator step-active w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-1 text-sm font-bold">1</div>
+                <span class="text-xs sm:text-sm text-ash-dark font-medium">Shipping Info</span>
+            </div>
+            
+            <div class="flex-1 z-10">
+                <div id="step-indicator-2" class="step-indicator step-inactive w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-1 text-sm font-bold">2</div>
+                <span class="text-xs sm:text-sm text-gray-500">Review Order</span>
+            </div>
+            
+            <div class="flex-1 z-10">
+                <div id="step-indicator-3" class="step-indicator step-inactive w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-1 text-sm font-bold">3</div>
+                <span class="text-xs sm:text-sm text-gray-500">Payment</span>
+            </div>
+        </div>
+        <div class="lg:grid lg:grid-cols-3 lg:gap-10">
+            
+            <div class="lg:col-span-2 space-y-8">
+                
+                <section id="shipping-info-section" class="bg-white p-6 sm:p-8 rounded-lg shadow-md border border-gray-100">
+                    <h2 class="text-2xl font-bold text-ash-dark mb-6 border-b pb-4">1. Shipping Information</h2>
+                    <form id="shipping-form" onsubmit="event.preventDefault(); validateAndProceedToReview();">
+                        <div class="grid grid-cols-1 gap-y-6 sm:grid-cols-2 sm:gap-x-6">
+                            <div>
+                                <label for="first-name" class="block text-sm font-medium text-gray-700">First name <span class="text-ash-red">*</span></label>
+                                <input type="text" id="first-name" name="first-name" autocomplete="given-name" required class="mt-1 block w-full border border-gray-300 rounded-sm shadow-sm py-2 px-3 focus:outline-none focus:ring-ash-red focus:border-ash-red">
+                            </div>
+                            <div>
+                                <label for="last-name" class="block text-sm font-medium text-gray-700">Last name <span class="text-ash-red">*</span></label>
+                                <input type="text" id="last-name" name="last-name" autocomplete="family-name" required class="mt-1 block w-full border border-gray-300 rounded-sm shadow-sm py-2 px-3 focus:outline-none focus:ring-ash-red focus:border-ash-red">
+                            </div>
+                            <div>
+                                <label for="email" class="block text-sm font-medium text-gray-700">Email address <span class="text-ash-red">*</span></label>
+                                <input type="email" id="email" name="email" autocomplete="email" required class="mt-1 block w-full border border-gray-300 rounded-sm shadow-sm py-2 px-3 focus:outline-none focus:ring-ash-red focus:border-ash-red">
+                            </div>
+                            <div>
+                                <label for="phone" class="block text-sm font-medium text-gray-700">Phone number <span class="text-ash-red">*</span></label>
+                                <input type="tel" id="phone" name="phone" autocomplete="tel" required class="mt-1 block w-full border border-gray-300 rounded-sm shadow-sm py-2 px-3 focus:outline-none focus:ring-ash-red focus:border-ash-red">
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label for="address-line-1" class="block text-sm font-medium text-gray-700">Street address <span class="text-ash-red">*</span></label>
+                                <input type="text" id="address-line-1" name="address-line-1" autocomplete="street-address" required class="mt-1 block w-full border border-gray-300 rounded-sm shadow-sm py-2 px-3 focus:outline-none focus:ring-ash-red focus:border-ash-red">
+                            </div>
+                            <div>
+                                <label for="city" class="block text-sm font-medium text-gray-700">City <span class="text-ash-red">*</span></label>
+                                <input type="text" id="city" name="city" autocomplete="address-level2" required class="mt-1 block w-full border border-gray-300 rounded-sm shadow-sm py-2 px-3 focus:outline-none focus:ring-ash-red focus:border-ash-red">
+                            </div>
+                            <div>
+                                <label for="state" class="block text-sm font-medium text-gray-700">State / Province <span class="text-ash-red">*</span></label>
+                                <input type="text" id="state" name="state" autocomplete="address-level1" required class="mt-1 block w-full border border-gray-300 rounded-sm shadow-sm py-2 px-3 focus:outline-none focus:ring-ash-red focus:border-ash-red">
+                            </div>
+                            <div>
+                                <label for="zip-code" class="block text-sm font-medium text-gray-700">ZIP / Postal code <span class="text-ash-red">*</span></label>
+                                <input type="text" id="zip-code" name="zip-code" autocomplete="postal-code" required class="mt-1 block w-full border border-gray-300 rounded-sm shadow-sm py-2 px-3 focus:outline-none focus:ring-ash-red focus:border-ash-red">
+                            </div>
+                            <div>
+                                <label for="country" class="block text-sm font-medium text-gray-700">Country <span class="text-ash-red">*</span></label>
+                                <select id="country" name="country" autocomplete="country-name" required class="mt-1 block w-full border border-gray-300 rounded-sm shadow-sm py-2 px-3 focus:outline-none focus:ring-ash-red focus:border-ash-red">
+                                    <option value="Nigeria">Nigeria</option>
+                                    <option value="Ghana">Ghana</option>
+                                </select>
+                            </div>
+                        </div>
+                    </form>
+                </section>
 
-                            <div class="grid grid-cols-3 gap-4">
-                                <input type="text" id="city" name="city" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-ash-red focus:border-ash-red transition duration-150" placeholder="City" required>
-                                <select id="state" name="state" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-ash-red focus:border-ash-red transition duration-150" required>
-                                    </select>
-                                <input type="text" id="postal-code" name="postal_code" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-ash-red focus:border-ash-red transition duration-150" placeholder="Postal code (optional)">
-                            </div>
-                            
-                            <input type="tel" id="phone" name="phone" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-ash-red focus:border-ash-red transition duration-150" placeholder="Phone" required>
+                <section id="review-order-section" class="bg-white p-6 sm:p-8 rounded-lg shadow-md border border-gray-100 hidden">
+                    <h2 class="text-2xl font-bold text-ash-dark mb-6 border-b pb-4">2. Review & Confirm</h2>
+                    
+                    <div class="space-y-6">
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <h3 class="text-lg font-semibold text-gray-900">Shipping Address</h3>
+                                <button onclick="checkoutStep = 1; updateCheckoutView();" class="text-sm font-medium text-ash-red hover:text-red-700">Change</button>
+                            </div>
+                            <div class="text-sm text-gray-700 p-4 bg-gray-50 rounded-md border">
+                                <p id="review-address-name" class="font-medium"></p>
+                                <p id="review-address-line1"></p>
+                                <p id="review-address-line2"></p>
+                                <p id="review-contact-info" class="mt-2 text-gray-500"></p>
+                            </div>
+                        </div>
 
-                            <div class="flex items-center pt-2">
-                                <input type="checkbox" id="save-info" name="save_info" class="h-4 w-4 text-ash-red border-gray-300 rounded focus:ring-ash-red">
-                                <label for="save-info" class="ml-2 block text-sm text-gray-700">Save this information for next time</label>
-                            </div>
-                        </div>
-                    </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2">Items in Order</h3>
+                            <div id="review-items-list" class="divide-y divide-gray-100 border border-gray-200 rounded-md p-2">
+                                </div>
+                        </div>
+                    </div>
+                </section>
 
-                    <div class="pt-8 pb-6 border-b border-gray-200">
-                        <h2 class="text-2xl font-bold text-gray-800 mb-4">Shipping method</h2>
-                        <div class="border border-gray-300 rounded-lg p-3 bg-white hover:bg-gray-50 transition duration-150 flex justify-between items-center cursor-pointer">
-                            <label for="shipping-standard" class="flex items-center space-x-3 w-full cursor-pointer">
-                                <input type="radio" id="shipping-standard" name="shipping-method" value="standard" class="h-4 w-4 text-ash-red border-gray-300 focus:ring-ash-red" checked required>
-                                <span class="text-gray-700">Standard Shipping (3-5 days)</span>
-                            </label>
-                            <span class="font-semibold text-gray-900" id="shipping-rate">TBD</span>
-                        </div>
-                    </div>
+                <section id="payment-section" class="bg-white p-6 sm:p-8 rounded-lg shadow-md border border-gray-100 hidden">
+                    <h2 class="text-2xl font-bold text-ash-dark mb-6 border-b pb-4">3. Payment</h2>
+                    
+                    <div class="space-y-6">
+                        <p class="text-gray-700">Please select your preferred payment method:</p>
 
-                    <div class="pt-8">
-                        <h2 class="text-2xl font-bold text-gray-800 mb-4">Payment</h2>
-                        <p class="text-sm text-gray-500 mb-4">All transactions are secure and encrypted.</p>
+                        <div class="space-y-4">
+                            <div class="relative flex items-start border border-gray-300 rounded-md p-4 transition-all focus-within:ring-2 focus-within:ring-ash-red">
+                                <div class="flex items-center h-5">
+                                    <input id="payment-paystack" name="payment-method" type="radio" value="Paystack/Card" checked class="focus:ring-ash-red h-4 w-4 text-ash-red border-gray-300">
+                                </div>
+                                <div class="ml-3 text-sm flex-1">
+                                    <label for="payment-paystack" class="font-medium text-gray-900 flex justify-between items-center">
+                                        Card Payment (Paystack)
+                                        <img src="https://i.imgur.com/7b1XvjW.png" alt="Paystack" class="h-5">
+                                    </label>
+                                    <p id="paystack-description" class="text-gray-500">Pay securely with your Visa, MasterCard, or Verve card.</p>
+                                </div>
+                            </div>
 
-                        <div class="border border-ash-red rounded-lg shadow-md">
-                            <div class="bg-gray-100 p-4 border-b border-ash-red flex justify-between items-center rounded-t-lg">
-                                <label for="paystack-radio" class="flex items-center space-x-3 cursor-pointer">
-                                    <input type="radio" id="paystack-radio" name="payment-method" value="paystack" class="h-4 w-4 text-ash-red border-ash-red focus:ring-ash-red" checked required>
-                                    <span class="font-semibold text-gray-800">Paystack</span>
-                                </label>
-                                <div class="flex space-x-2">
-                                    <i class="fab fa-cc-mastercard text-xl text-red-600"></i>
-                                    <i class="fab fa-cc-visa text-xl text-blue-600"></i>
-                                    <span class="text-sm font-medium text-gray-600">+5</span>
-                                </div>
-                            </div>
-                            <div class="p-4 bg-white text-center">
-                                <p class="text-sm text-gray-600">
-                                    After clicking **"Pay now"**, you will be **redirected to Paystack** to complete your purchase securely.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                </form>
-            </div>
-            
-            <div class="lg:col-span-1">
-                <div class="lg:sticky lg:top-24 bg-gray-100 p-6 sm:p-8 rounded-xl shadow-lg border border-gray-200">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-3">Order Summary</h2>
+                            <div class="relative flex items-start border border-gray-300 rounded-md p-4 transition-all focus-within:ring-2 focus-within:ring-ash-red">
+                                <div class="flex items-center h-5">
+                                    <input id="payment-bank" name="payment-method" type="radio" value="Bank Transfer" class="focus:ring-ash-red h-4 w-4 text-ash-red border-gray-300">
+                                </div>
+                                <div class="ml-3 text-sm flex-1">
+                                    <label for="payment-bank" class="font-medium text-gray-900">
+                                        Direct Bank Transfer (Manual)
+                                    </label>
+                                    <p id="bank-description" class="text-gray-500">Contact customer service with your order ID to complete payment.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6 border-t border-gray-200 pt-4">
+                            <div class="flex justify-between items-center">
+                                <p class="text-lg font-bold text-ash-dark">Total Due Now</p>
+                                <p id="final-total-due" class="text-2xl font-extrabold text-ash-red" data-total-amount="0">₦<span id="summary-estimated-total-final">0.00</span></p>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">By clicking "Confirm & Pay Now", you agree to our Terms of Use.</p>
+                        </div>
+                    </div>
+                </section>
+                
+                <div class="pt-6 border-t border-gray-200">
+                    <button id="checkout-next-btn" class="w-full bg-ash-red text-white hover:bg-red-700 transition duration-300 font-semibold py-4 rounded-sm shadow-lg uppercase tracking-widest text-base disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        <span id="checkout-btn-text">Continue to Review</span>
+                    </button>
+                    <a href="cart.html" class="mt-4 block text-center text-sm font-medium text-gray-600 hover:text-ash-red transition">
+                        &leftarrow; Return to Cart
+                    </a>
+                </div>
 
-                    <div id="order-items" class="space-y-4 pb-4 border-b border-gray-200">
-                        <div class="text-center py-6 text-gray-500 text-sm font-medium">
-                            <i class="fas fa-spinner fa-spin mr-2"></i> Loading items...
-                        </div>
-                    </div>
+            </div>
+            
+            <div class="mt-8 lg:mt-0 lg:col-span-1">
+                <div class="bg-color-white p-6 rounded-lg shadow-xl border border-gray-100 lg:sticky lg:top-20">
+                    <h2 class="text-xl font-bold text-ash-dark mb-6">Order Summary</h2>
 
-                    <div class="space-y-2 py-4 border-b border-gray-200">
-                        <div class="flex justify-between text-gray-700">
-                            <span>Subtotal</span>
-                            <span id="subtotal" class="font-medium">₦0.00</span>
-                        </div>
-                        <div class="flex justify-between text-gray-700">
-                            <span>Shipping</span>
-                            <span id="shipping" class="font-medium">₦0.00</span>
-                        </div>
-                    </div>
-                    
-                    <div class="flex justify-between items-center pt-4">
-                        <span class="text-xl font-bold text-gray-900">Total</span>
-                        <span class="text-2xl font-extrabold text-ash-red" id="grand-total">₦0.00</span>
-                    </div>
+                    <div class="space-y-4">
+                        <div class="flex justify-between text-sm text-gray-700">
+                            <span>Subtotal (Items)</span>
+                            <span id="summary-subtotal" class="font-semibold">₦0.00</span>
+                        </div>
+                        <div class="flex justify-between text-sm text-gray-700">
+                            <span>Shipping</span>
+                            <span id="summary-shipping-cost" class="font-semibold">₦0.00</span>
+                        </div>
+                        <div class="flex justify-between text-sm text-gray-700 border-t border-gray-200 pt-4">
+                            <span>Tax Estimate (5%)</span>
+                            <span id="summary-tax-estimate" class="font-semibold">₦0.00</span>
+                        </div>
+                    </div>
 
-                    <button type="submit" form="checkout-form" class="mt-6 w-full py-3 bg-ash-red text-white font-bold rounded-lg shadow-md hover:bg-ash-red-dark transition duration-150 focus:outline-none focus:ring-2 focus:ring-ash-red focus:ring-opacity-50" disabled>
-                        Pay now
-                    </button>
-                    <p class="text-xs text-gray-500 text-center mt-2">By placing this order, you agree to our Terms.</p>
-                </div>
-            </div>
+                    <div class="border-t border-gray-300 pt-4 mt-6 flex justify-between items-center">
+                        <p class="text-lg font-bold text-ash-dark">Estimated Total</p>
+                        <p id="summary-estimated-total" class="text-xl font-extrabold text-ash-red">₦0.00</p>
+                    </div>
 
-        </div>
-    </main>
-    
-    <footer class="bg-gray-900 text-gray-300 py-10 sm:py-14 border-t border-gray-800 mt-12">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
-                
-                <div class="col-span-2 lg:col-span-1">
-                    <a href="homepage.html" class="flex items-center mb-4">
-                        <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-8 filter grayscale invert">
-                    </a>
-                    <p class="text-sm text-gray-500">
-                        The home of exclusive street wear and limited edition drops. Elevate your style.
-                    </p>
-                    <div class="flex space-x-4 mt-4 text-gray-400">
-                        <a href="#" aria-label="Instagram" class="hover:text-ash-red transition"><i class="fab fa-instagram"></i></a>
-                        <a href="#" aria-label="Twitter" class="hover:text-ash-red transition"><i class="fab fa-twitter"></i></a>
-                        <a href="#" aria-label="Facebook" class="hover:text-ash-red transition"><i class="fab fa-facebook-f"></i></a>
-                    </div>
-                </div>
+                    <p class="text-xs text-gray-500 mt-2 text-right">Final price includes all duties and fees.</p>
 
-                <div class="col-span-1">
-                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Quick Links</h3>
-                    <ul class="space-y-2 text-sm">
-                        <li><a href="wearscollection.html" class="text-gray-400 hover:text-ash-red transition">Wears</a></li>
-                        <li><a href="capcollection.html" class="text-gray-400 hover:text-ash-red transition">Caps</a></li>
-                        <li><a href="newarrivals.html" class="text-gray-400 hover:text-ash-red transition">New Arrivals</a></li>
-                        <li><a href="preorder.html" class="text-gray-400 hover:text-ash-red transition">Pre-Order</a></li>
-                    </ul>
-                </div>
+                    <div class="mt-6 border-t border-gray-100 pt-6">
+                        <h3 class="text-sm font-semibold text-ash-dark mb-3">Guaranteed Security</h3>
+                        <div class="flex items-center text-sm text-gray-700 space-x-4">
+                            <i class="fas fa-lock text-lg text-green-600"></i>
+                            <p>All transactions are secured by **Paystack**.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-                <div class="col-span-1">
-                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Customer Care</h3>
-                    <ul class="space-y-2 text-sm">
-                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Contact Us</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Shipping & Returns</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">FAQ</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Size Guide</a></li>
-                    </ul>
-                </div>
+    </main>
+    
+    <footer class="bg-gray-900 text-gray-300 py-10 sm:py-14 border-t border-gray-800 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
+                
+                <div class="col-span-2 lg:col-span-1">
+                    <a href="homepage.html" class="flex items-center mb-4">
+                        <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-8 filter grayscale invert">
+                    </a>
+                    <p class="text-sm text-gray-500">
+                        The home of exclusive street wear and limited edition drops. Elevate your style.
+                    </p>
+                    <div class="flex space-x-4 mt-4 text-gray-400">
+                        <a href="#" aria-label="Instagram" class="hover:text-ash-red transition"><i class="fab fa-instagram"></i></a>
+                        <a href="#" aria-label="Twitter" class="hover:text-ash-red transition"><i class="fab fa-twitter"></i></a>
+                        <a href="#" aria-label="Facebook" class="hover:text-ash-red transition"><i class="fab fa-facebook-f"></i></a>
+                    </div>
+                </div>
 
-                <div class="col-span-2 md:col-span-1">
-                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Get In Touch</h3>
-                    <address class="text-sm not-italic space-y-2">
-                        <p class="text-gray-400">
-                            <i class="fas fa-map-marker-alt mr-2 text-ash-red"></i> 123 Streetwear Ave, City, Country
-                        </p>
-                        <p class="text-gray-400">
-                            <i class="fas fa-envelope mr-2 text-ash-red"></i> support@outflickz.com
-                        </p>
-                        <p class="text-gray-400">
-                            <i class="fas fa-phone mr-2 text-ash-red"></i> +1 (555) 123-4567
-                        </p>
-                    </address>
-                </div>
-            </div>
+                <div class="col-span-1">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Quick Links</h3>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="wearscollection.html" class="text-gray-400 hover:text-ash-red transition">Wears</a></li>
+                        <li><a href="capcollection.html" class="text-gray-400 hover:text-ash-red transition">Caps</a></li>
+                        <li><a href="newarrivals.html" class="text-gray-400 hover:text-ash-red transition">New Arrivals</a></li>
+                        <li><a href="preorder.html" class="text-gray-400 hover:text-ash-red transition">Pre-Order</a></li>
+                    </ul>
+                </div>
 
-            <div class="border-t border-gray-800 mt-10 pt-6">
-                <p class="text-center text-xs text-gray-500">
-                    &copy; 2025 Outflickz. All rights reserved. | <a href="#" class="hover:text-ash-red">Privacy Policy</a> | <a href="#" class="hover:text-ash-red">Terms of Use</a>
-                </p>
-            </div>
-        </div>
-    </footer>
+                <div class="col-span-1">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Customer Care</h3>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Contact Us</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Shipping & Returns</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">FAQ</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Size Guide</a></li>
+                    </ul>
+                </div>
 
-    <a href="https://wa.me/2347042882706?text=HELLO!%20WELCOME%20TO%20OUTFLICKZ!%20HOW%20CAN%20WE%20HELP%20YOU" 
-        target="_blank" 
-        class="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-3 sm:p-4 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-110" 
-        aria-label="Chat with us on WhatsApp">
-        <i class="fab fa-whatsapp text-2xl sm:text-3xl"></i>
-    </a>
-    
+                <div class="col-span-2 md:col-span-1">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Get In Touch</h3>
+                    <address class="text-sm not-italic space-y-2">
+                        <p class="text-gray-400">
+                            <i class="fas fa-map-marker-alt mr-2 text-ash-red"></i> 123 Streetwear Ave, City, Country
+                        </p>
+                        <p class="text-gray-400">
+                            <i class="fas fa-envelope mr-2 text-ash-red"></i> support@outflickz.com
+                        </p>
+                        <p class="text-gray-400">
+                            <i class="fas fa-phone mr-2 text-ash-red"></i> +1 (555) 123-4567
+                        </p>
+                    </address>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-800 mt-10 pt-6">
+                <p class="text-center text-xs text-gray-500">
+                    &copy; 2025 Outflickz. All rights reserved. | <a href="#" class="hover:text-ash-red">Privacy Policy</a> | <a href="#" class="hover:text-ash-red">Terms of Use</a>
+                </p>
+            </div>
+        </div>
+    </footer>
+    
+    <a href="https://wa.me/2347042882706?text=HELLO!%20WELCOME%20TO%20OUTFLICKZ!%20HOW%20CAN%20WE%20HELP%20YOU" 
+        target="_blank" 
+        class="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-3 sm:p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105" 
+        aria-label="Chat with us on WhatsApp">
+        <i class="fab fa-whatsapp text-2xl sm:text-3xl"></i>
+    </a>
+
 </body>
 </html>

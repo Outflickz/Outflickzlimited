@@ -2915,33 +2915,39 @@ app.put('/api/users/address', verifyUserToken, async (req, res) => {
         const { street, city, state, zip, country } = req.body;
         
         if (!street || !city || !country) {
-             return res.status(400).json({ message: 'Street, city, and country are required for the address.' });
+            return res.status(400).json({ message: 'Street, city, and country are required for the address.' });
         }
 
         const updatedUser = await User.findByIdAndUpdate(
             req.userId,
             {
-                // Note: The 'address' field is likely an embedded document or object in your schema
                 $set: {
                     'address.street': street,
                     'address.city': city,
-                    'address.state': state,
-                    'address.zip': zip,
-                    'address.country': country
+                    'address.state': state, // Include state
+                    'address.zip': zip, // Include zip
+                    'address.country': country // Include country
                 }
             },
-            { new: true, runValidators: true }
+            // Options: { new: true } returns the modified document rather than the original.
+            { new: true, runValidators: true, select: 'address' } 
         );
 
+        // Check if user was found (though verifyUserToken should prevent this unless account was deleted)
         if (!updatedUser) {
             return res.status(404).json({ message: 'User not found.' });
         }
 
-        res.status(200).json({ message: 'Contact address updated successfully.', address: updatedUser.address });
+        // SUCCESS: Send back the updated address object to the client
+        return res.status(200).json({ 
+            message: 'Contact address updated successfully!', 
+            address: updatedUser.address // Return just the updated address object
+        });
 
     } catch (error) {
-        console.error("Address update error:", error);
-        res.status(500).json({ message: 'Failed to update contact address.' });
+        console.error('Address update error:', error);
+        // Handle validation errors or other server errors
+        return res.status(500).json({ message: 'Server error during address update.' });
     }
 });
 

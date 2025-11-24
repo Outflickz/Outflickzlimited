@@ -2969,34 +2969,42 @@ app.get('/api/auth/status', verifyUserToken, (req, res) => {
     res.status(200).json({ message: 'Authenticated', isAuthenticated: true });
 });
 
+// =========================================================
 // 5. POST /api/users/cart - Add Item to Cart (Protected)
+// =========================================================
 app.post('/api/users/cart', verifyUserToken, async (req, res) => {
+    // Expected request body for a new item:
     const { productId, name, productType, size, color, price, quantity, imageUrl } = req.body;
     const userId = req.userId;
 
+    // Basic Input Validation
     if (!productId || !name || !productType || !size || !price || !quantity || price <= 0 || quantity < 1) {
         return res.status(400).json({ message: 'Missing or invalid item details.' });
     }
 
+    // New item object based on cartItemSchema (Mongoose automatically assigns _id)
     const newItem = {
         productId,
         name,
         productType,
         size,
-        color: color || 'N/A',
+        color: color || 'N/A', // Allow color to be optional
         price,
         quantity,
         imageUrl,
     };
 
     try {
+        // 1. Find the cart for the user
         let cart = await Cart.findOne({ userId });
 
+        // 2. If no cart exists, create a new one
         if (!cart) {
             cart = await Cart.create({ userId, items: [newItem] });
-            return res.status(201).json({ message: 'Cart created and item added.', items: cart.items, ...calculateCartTotals(cart.items) });
+            return res.status(201).json({ message: 'Cart created and item added.', cart: cart.items });
         }
 
+        // 3. Check if the item variant already exists in the cart (same productId, size, and color)
         const existingItemIndex = cart.items.findIndex(item =>
             item.productId.equals(productId) &&
             item.size === size &&
@@ -3004,14 +3012,18 @@ app.post('/api/users/cart', verifyUserToken, async (req, res) => {
         );
 
         if (existingItemIndex > -1) {
+            // Item exists: Update quantity
             cart.items[existingItemIndex].quantity += quantity;
             cart.items[existingItemIndex].updatedAt = Date.now();
         } else {
+            // Item does not exist: Add new item
             cart.items.push(newItem);
         }
 
+        // 4. Save the updated cart
         await cart.save();
         
+        // Return the current cart contents and totals (optional, but useful for frontend sync)
         const updatedCart = await Cart.findOne({ userId }).lean();
         const totals = calculateCartTotals(updatedCart.items);
 
@@ -3027,107 +3039,140 @@ app.post('/api/users/cart', verifyUserToken, async (req, res) => {
     }
 });
 
-
 // =========================================================
-// NEW: CHECKOUT API
+// 1. GET /api/users/cart - Retrieve Cart (Protected)
 // =========================================================
-
-// 6. POST /api/checkout - Initiate Checkout (Paystack) (Protected)
-app.post('/api/checkout', verifyUserToken, async (req, res) => {
-    const userId = req.userId;
-    const email = req.userEmail; // Assumes verifyUserToken attaches user email
-    
-    // Expected request body for checkout:
-    const { shippingAddress, paymentMethod } = req.body;
-
-    // 1. Basic Validation
-    if (!shippingAddress || !paymentMethod) {
-        return res.status(400).json({ message: 'Shipping address and payment method are required.' });
-    }
-    if (paymentMethod !== 'paystack') {
-        return res.status(400).json({ message: 'Only Paystack payment method is currently supported.' });
-    }
-
+app.get('/api/users/cart', verifyUserToken, async (req, res) => {
     try {
-        // 2. Fetch Cart and check contents
+        // req.userId is set by verifyUserToken middleware
+        const userId = req.userId;
+        
+        // Find the cart for the user
         const cart = await Cart.findOne({ userId }).lean();
 
-        if (!cart || cart.items.length === 0) {
-            return res.status(400).json({ message: 'Cannot checkout with an empty cart.' });
-        }
-
-        // 3. Calculate Total Amount (and convert to kobo/cent)
-        const totals = calculateCartTotals(cart.items);
-        const amountInKobo = Math.round(totals.totalAmount * 100);
-        
-        // 4. Create a unique order reference
-        const orderReference = `REF-${Date.now()}-${userId.substring(0, 5)}-${Math.random().toString(36).substr(2, 4)}`;
-
-        // 5. Create Order in Pending Status
-        const newOrder = await Order.create({
-            userId,
-            email,
-            items: cart.items.map(item => ({
-                // Map only necessary fields to the order
-                productId: item.productId,
-                name: item.name,
-                size: item.size,
-                color: item.color,
-                price: item.price,
-                quantity: item.quantity,
-            })),
-            shippingAddress,
-            totalAmount: totals.totalAmount, // Store in currency units
-            amountPaidKobo: amountInKobo,   // Store amount used for Paystack
-            paymentMethod: 'Paystack',
-            orderReference: orderReference,
-            status: 'Pending', // Initial status
-            createdAt: new Date(),
-        });
-
-        // 6. Initiate Paystack Transaction
-        const paystackResponse = await fetch(`${PAYSTACK_API_BASE_URL}/transaction/initialize`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${PAYSTACK_SECRET_KEY}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                email: email,
-                amount: amountInKobo, // Paystack requires amount in kobo/cent
-                reference: orderReference,
-                callback_url: 'http://your-frontend.com/payment-success-redirect', // Where Paystack redirects the user
-                metadata: {
-                    custom_fields: [
-                        { display_name: "Order ID", variable_name: "order_id", value: newOrder._id },
-                    ]
-                }
-            })
-        });
-
-        const paystackData = await paystackResponse.json();
-
-        if (paystackData.status === true) {
-            // 7. Success: Return the authorization URL to the frontend
-            res.status(200).json({
-                message: 'Payment initiated successfully.',
-                authorizationUrl: paystackData.data.authorization_url,
-                orderReference: orderReference,
+        if (!cart) {
+            // If no cart found, return an empty cart structure
+            return res.status(200).json({
+                items: [],
+                ...calculateCartTotals([]),
             });
-        } else {
-            console.error('Paystack initialization failed:', paystackData);
-            // Delete the pending order since payment initiation failed
-            // Note: In a real app, you might just update the status to 'Failed'
-            await Order.findByIdAndUpdate(newOrder._id, { status: 'Initialization Failed' });
-            res.status(500).json({ message: 'Payment gateway failed to initialize. Please try again.' });
         }
+        
+        const totals = calculateCartTotals(cart.items);
+
+        // Respond with the items and calculated totals
+        res.status(200).json({
+            items: cart.items, 
+            ...totals,
+        });
 
     } catch (error) {
-        console.error('Error during checkout process:', error);
-        res.status(500).json({ message: 'An internal error occurred during checkout.' });
+        console.error('Error fetching cart:', error);
+        res.status(500).json({ message: 'Failed to retrieve shopping bag.' });
     }
 });
 
+// =========================================================
+// 2. PATCH /api/users/cart/:itemId - Update Quantity (Protected)
+// =========================================================
+app.patch('/api/users/cart/:itemId', verifyUserToken, async (req, res) => {
+    try {
+        const userId = req.userId;
+        // The itemId is the Mongoose _id of the item sub-document
+        const itemId = req.params.itemId; 
+        const { quantity } = req.body;
+
+        const newQuantity = parseInt(quantity);
+        if (isNaN(newQuantity) || newQuantity < 1) {
+            return res.status(400).json({ message: 'Invalid quantity provided.' });
+        }
+        
+        // Find cart by userId and update the specific item's quantity using the positional operator ($)
+        const cart = await Cart.findOneAndUpdate(
+            { userId, 'items._id': itemId },
+            { 
+                '$set': { 
+                    'items.$.quantity': newQuantity, 
+                    'updatedAt': Date.now() 
+                } 
+            },
+            { new: true } // Return the updated document
+        );
+
+        if (!cart) {
+            return res.status(404).json({ message: 'Item not found in your cart.' });
+        }
+
+        res.status(200).json({ message: 'Quantity updated successfully.' });
+
+    } catch (error) {
+        console.error('Error updating item quantity:', error);
+        res.status(500).json({ message: 'Failed to update item quantity.' });
+    }
+});
+
+// =========================================================
+// 3. DELETE /api/users/cart/:itemId - Remove Single Item (Protected)
+// =========================================================
+app.delete('/api/users/cart/:itemId', verifyUserToken, async (req, res) => {
+    try {
+        const userId = req.userId;
+        const itemId = req.params.itemId;
+
+        // Pull the specific item sub-document from the items array
+        const cart = await Cart.findOneAndUpdate(
+            { userId },
+            { 
+                '$pull': { 
+                    items: { _id: itemId } 
+                },
+                '$set': { 
+                    'updatedAt': Date.now() 
+                } 
+            },
+            { new: true }
+        );
+
+        if (!cart) {
+            return res.status(404).json({ message: 'Cart not found.' });
+        }
+
+        res.status(200).json({ message: 'Item removed successfully.' });
+
+    } catch (error) {
+        console.error('Error removing item:', error);
+        res.status(500).json({ message: 'Failed to remove item.' });
+    }
+});
+
+// =========================================================
+// 4. DELETE /api/users/cart - Clear All Items (Protected)
+// =========================================================
+app.delete('/api/users/cart', verifyUserToken, async (req, res) => {
+    try {
+        const userId = req.userId;
+        
+        // Set the entire items array to an empty array
+        const cart = await Cart.findOneAndUpdate(
+            { userId },
+            { 
+                items: [],
+                updatedAt: Date.now() 
+            },
+            { new: true }
+        );
+
+        if (!cart) {
+            return res.status(404).json({ message: 'Cart not found to clear.' });
+        }
+
+        res.status(200).json({ message: 'Shopping bag cleared successfully.' });
+
+    } catch (error) {
+        console.error('Error clearing cart:', error);
+        res.status(500).json({ message: 'Failed to clear shopping bag.' });
+    }
+});
 
 // =========================================================
 // NEW: PAYSTACK WEBHOOK HANDLER

@@ -178,14 +178,17 @@ async function simulateAddToCart(productDetails) {
         quantity: productDetails.quantity || 1
     };
     
-    // Minimal data for API call (Backend only needs these fields)
-    const itemDataForAPI = {
-        productId: requiredDetails.productId,
-        quantity: requiredDetails.quantity,
-        size: requiredDetails.size,
-        color: requiredDetails.color,
-    };
-
+    // Construct minimal data for API call (Backend only needs these fields)
+const itemDataForAPI = {
+    productId: requiredDetails.productId,
+    name: requiredDetails.name,       // <-- ADDED
+    productType: requiredDetails.productType, // <-- ADDED
+    price: requiredDetails.price,     // <-- ADDED
+    quantity: requiredDetails.quantity,
+    size: requiredDetails.size,
+    color: requiredDetails.color,
+    imageUrl: requiredDetails.imageUrl // <-- ADDED (For completeness on backend)
+};
     // --- 2. Attempt Authenticated API Call ---
     try {
         const response = await fetch('/api/users/cart', {

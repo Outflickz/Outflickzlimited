@@ -2420,6 +2420,45 @@ app.get('/api/collections/newarrivals', async (req, res) => {
     }
 });
 
+// --- NEW PUBLIC ROUTE FOR CAPS ---
+// GET /api/collections/caps (For Homepage Display)
+app.get('/api/collections/caps', async (req, res) => {
+    try {
+        // Fetch only ACTIVE collections (CapCollection)
+        const collections = await CapCollection.find({ isActive: true }) 
+            .select('_id name tag price variations sizes totalStock') 
+            .sort({ createdAt: -1 })
+            .lean(); 
+
+        // Prepare the data for the public frontend
+        const publicCollections = await Promise.all(collections.map(async (collection) => {
+            
+            // Map Mongoose variation to a simpler public variant object
+            const variants = await Promise.all(collection.variations.map(async (v) => ({
+                color: v.colorHex,
+                frontImageUrl: await generateSignedUrl(v.frontImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Front+View+Error',
+                backImageUrl: await generateSignedUrl(v.backImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Back+View+Error'
+            })));
+
+            return {
+                _id: collection._id,
+                name: collection.name,
+                tag: collection.tag,
+                price: collection.price, 
+                availableSizes: collection.sizes,
+                availableStock: collection.totalStock, 
+                variants: variants
+            };
+        }));
+
+        res.status(200).json(publicCollections);
+    } catch (error) {
+        console.error('Error fetching public cap collections:', error);
+        res.status(500).json({ message: 'Server error while fetching cap collections for homepage.', details: error.message });
+    }
+});
+
+
 // GET /api/collections/preorder (For Homepage Display)
 app.get('/api/collections/preorder', async (req, res) => {
     try {

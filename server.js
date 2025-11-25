@@ -2419,105 +2419,54 @@ app.get('/api/collections/newarrivals', async (req, res) => {
         res.status(500).json({ message: 'Server error while fetching new arrivals for homepage.', details: error.message });
     }
 });
-// GET /api/collections/caps (For Homepage Display)
-app.get('/api/collections/caps', async (req, res) => {
-    try {
-        // Fetch only ACTIVE collections (CapCollection)
-        const collections = await CapCollection.find({ isActive: true }) 
-            .select('_id name tag price variations sizes totalStock') 
-            .sort({ createdAt: -1 })
-            .lean(); 
-
-        // Prepare the data for the public frontend
-        const publicCollections = await Promise.all(collections.map(async (collection) => {
-            
-            // Map Mongoose variation to a simpler public variant object (STEP 1: Create all variants)
-            const variants = await Promise.all(collection.variations.map(async (v) => ({
-                color: v.colorHex,
-                frontImageUrl: await generateSignedUrl(v.frontImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Front+View+Error',
-                backImageUrl: await generateSignedUrl(v.backImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Back+View+Error'
-            })));
-
-            // === 🛠️ FIX START: Extract the primary image URLs ===
-            const firstVariant = variants.length > 0 ? variants[0] : {};
-            const frontImageUrl = firstVariant.frontImageUrl || null;
-            const backImageUrl = firstVariant.backImageUrl || null;
-            // === 🛠️ FIX END ===
-
-            return {
-                _id: collection._id,
-                name: collection.name,
-                tag: collection.tag,
-                price: collection.price, 
-                availableSizes: collection.sizes,
-                availableStock: collection.totalStock, 
-                
-                // Promote primary images to the root level for the card component
-                frontImageUrl: frontImageUrl, 
-                backImageUrl: backImageUrl, 
-                
-                // Keep the full variants array for potential color switching features
-                variants: variants 
-            };
-        }));
-
-        res.status(200).json(publicCollections);
-    } catch (error) {
-        console.error('Error fetching public cap collections:', error);
-        res.status(500).json({ message: 'Server error while fetching cap collections for homepage.', details: error.message });
-    }
-});
 
 // GET /api/collections/preorder (For Homepage Display)
-// NOTE: This route assumes BLAZE_BUCKET_NAME, generateSignedUrl, and S3Client are accessible/imported
 app.get('/api/collections/preorder', async (req, res) => {
     try {
-        // 1. Fetch collections, including the necessary permanent variation paths.
+        // 1. Fetch collections, including all variations
         const collections = await PreOrderCollection.find({ isActive: true })
             .select('_id name tag price sizes totalStock availableDate variations')
             .sort({ createdAt: -1 })
             .lean();
 
         // 2. Transform the documents into the final public response structure.
-        const publicCollections = await Promise.all(collections.map(async (collection) => { // 🚨 Use Promise.all and async/await here
+        const publicCollections = await Promise.all(collections.map(async (collection) => {
             
-            // Extract the permanent (private) URLs for the primary variation
-            const firstVariation = collection.variations && collection.variations.length > 0
-                ? collection.variations[0] 
-                : {};
-            
-            const permanentFrontUrl = firstVariation.frontImageUrl || null;
-            const permanentBackUrl = firstVariation.backImageUrl || null;
+            // Map the internal 'variations' (Mongoose) to 'variants' (Public) with SIGNED URLs
+            const variants = await Promise.all(collection.variations.map(async (v) => ({
+                // Assuming 'v' has a color property or a way to derive one (e.g., from 'tag' or adding a color field to the schema)
+                // Since the original PreOrder schema didn't have a color, we use variationIndex or assume a color field exists.
+                variationIndex: v.variationIndex, 
+                frontImageUrl: await generateSignedUrl(v.frontImageUrl) || null,
+                backImageUrl: await generateSignedUrl(v.backImageUrl) || null,
+            })));
 
-            // === 🛠️ CRITICAL FIX: GENERATE SIGNED URLS ===
-            // This turns the permanent private URL into a temporary public link
-            const signedFrontUrl = await generateSignedUrl(permanentFrontUrl);
-            const signedBackUrl = await generateSignedUrl(permanentBackUrl);
-            // ===========================================
+            // --- A. Extract primary image from the first variant ---
+            const firstVariant = variants.length > 0 ? variants[0] : {};
+            const frontImageUrl = firstVariant.frontImageUrl || null;
+            const backImageUrl = firstVariant.backImageUrl || null;
 
             return {
                 _id: collection._id,
                 name: collection.name,
                 tag: collection.tag,
                 price: collection.price, 
-                // Rename for clarity on the frontend
                 availableSizes: collection.sizes,
                 availableStock: collection.totalStock, 
                 availableDate: collection.availableDate, 
                 
-                // Send the generated signed URLs to the frontend
-                frontImageUrl: signedFrontUrl, 
-                backImageUrl: signedBackUrl, 
-
+                // B. Primary Image URLs for quick display
+                frontImageUrl: frontImageUrl, 
+                backImageUrl: backImageUrl, 
+                
+                // C. 🚨 CRITICAL FIX: Include the full variants array for color swatches/switching
                 variants: variants 
-
             };
-        })); // 🚨 Close Promise.all
+        }));
 
-        // 3. Send the fully structured response
         res.status(200).json(publicCollections);
     } catch (error) {
-        console.error('Error fetching public pre-order collections and signing URLs:', error);
+        console.error('Error fetching public pre-order collections:', error);
         res.status(500).json({ 
             message: 'Server error while fetching public collections.', 
             details: error.message 

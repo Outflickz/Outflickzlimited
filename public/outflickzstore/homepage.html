@@ -377,11 +377,31 @@ function addToCart(collectionId, quantity) {
 async function simulateAddToCart(productDetails) {
     // --- 1. Gather all item details from DOM and input ---
     const card = document.querySelector(`.collection-card[data-collection-id="${productDetails.productId}"]`);
-    const selectedSizeInput = card ? card.querySelector(`input[name="size-${productDetails.productId}"]:checked`) : null;
-    const selectedColorInput = card ? card.querySelector(`input[name="color-${productDetails.productId}"]:checked`) : null;
+    if (!card) return;
+    
+    const selectedSizeInput = card.querySelector(`input[name="size-${productDetails.productId}"]:checked`);
+    const selectedColorInput = card.querySelector(`input[name="color-${productDetails.productId}"]:checked`);
     
     const size = selectedSizeInput ? selectedSizeInput.value : 'N/A';
     const color = selectedColorInput ? selectedColorInput.value : 'N/A';
+    
+    // ⭐️ CRITICAL FIX: Determine the selected image URL based on the chosen color
+    let selectedImageUrl = productDetails.imageUrl; // Default to the initial URL passed
+
+    if (selectedColorInput) {
+        const colorHex = selectedColorInput.value;
+        const colorMapContainer = card.querySelector(`#color-map-${productDetails.productId}`);
+        
+        if (colorMapContainer) {
+            const colorMap = JSON.parse(colorMapContainer.getAttribute('data-color-map'));
+            const newImageUrls = colorMap[colorHex];
+            
+            if (newImageUrls && newImageUrls.frontImageUrl) {
+                // Use the front view of the selected color variant
+                selectedImageUrl = newImageUrls.frontImageUrl; 
+            }
+        }
+    }
 
     // Unified item data structure for both API (minimal fields) and Local Cart (all fields)
     const requiredDetails = {
@@ -391,23 +411,25 @@ async function simulateAddToCart(productDetails) {
         color: color,
         price: productDetails.price,
         productType: productDetails.productType || 'WearsCollection',
-        imageUrl: productDetails.imageUrl,
+        // ⭐️ NOW using the dynamically selected image URL
+        imageUrl: selectedImageUrl, 
         quantity: productDetails.quantity || 1
     };
     
-   // Construct minimal data for API call (Backend only needs these fields)
-const itemDataForAPI = {
-    productId: requiredDetails.productId,
-    name: requiredDetails.name,       // <-- ADDED
-    productType: requiredDetails.productType, // <-- ADDED
-    price: requiredDetails.price,     // <-- ADDED
-    quantity: requiredDetails.quantity,
-    size: requiredDetails.size,
-    color: requiredDetails.color,
-    imageUrl: requiredDetails.imageUrl // <-- ADDED (For completeness on backend)
-};
+   // Construct minimal data for API call 
+   const itemDataForAPI = {
+       productId: requiredDetails.productId,
+       name: requiredDetails.name, 
+       productType: requiredDetails.productType, 
+       price: requiredDetails.price, 
+       quantity: requiredDetails.quantity,
+       size: requiredDetails.size,
+       color: requiredDetails.color,
+       // ⭐️ NOW passing the correct image URL to the API
+       imageUrl: requiredDetails.imageUrl 
+   };
     
-    // --- 2. Local Cart Fallback Helper Function (Used on 401/Catch) ---
+    // --- 2. Local Cart Fallback Helper Function (No change needed here) ---
     const handleLocalCartFallback = (details) => {
         let localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
         
@@ -424,6 +446,8 @@ const itemDataForAPI = {
         }
 
         localStorage.setItem(LOCAL_CART_KEY, JSON.stringify(localCart));
+        // NOTE: This line should probably calculate the total quantity, not item count
+        // For simplicity based on your original code, we'll keep the length for now:
         localStorage.setItem(CART_STORAGE_KEY, localCart.length.toString()); 
         updateCartBadge();
         

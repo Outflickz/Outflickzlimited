@@ -489,7 +489,6 @@
 
                 // Pre-fill Contact Info
                 document.getElementById('email').value = userData.email || '';
-                document.getElementById('phone').value = userData.phone || '';
 
                 // Pre-fill Shipping Info (if available)
                 if (userData.firstName) document.getElementById('first-name').value = userData.firstName;
@@ -509,7 +508,6 @@
                     firstName: userData.firstName,
                     lastName: userData.lastName,
                     email: userData.email,
-                    phone: userData.phone,
                     street: userData.address?.street,
                     city: userData.address?.city,
                     state: userData.address?.state,
@@ -579,38 +577,61 @@
       * Validates shipping form data and moves to Step 2 (Review).
       */
     function validateAndProceedToReview() {
-        const form = document.getElementById('shipping-form');
-        if (!form.checkValidity()) {
-            form.reportValidity();
-            displayMessage('Please fill out all required shipping fields.');
-            return;
-        }
+    const form = document.getElementById('shipping-form');
+    
+    // --- MODIFICATION 3: Make ZIP Code optional by manually checking required fields ---
+    // Instead of using form.checkValidity(), which depends on 'required' attribute in HTML, 
+    // we'll rely on the browser's native checkValidity for all *other* fields.
+    // NOTE: You must also remove the 'required' attribute from the 'zip-code' HTML input.
+    
+    // Temporarily remove 'required' from 'zip-code' if it exists for this check
+    const zipCodeEl = document.getElementById('zip-code');
+    const isZipRequired = zipCodeEl.hasAttribute('required');
+    if (isZipRequired) zipCodeEl.removeAttribute('required');
 
-        // Capture the data
-        const shippingData = {
-            firstName: document.getElementById('first-name').value,
-            lastName: document.getElementById('last-name').value,
-            email: document.getElementById('email').value,
-            phone: document.getElementById('phone').value,
-            street: document.getElementById('address-line-1').value,
-            city: document.getElementById('city').value,
-            state: document.getElementById('state').value,
-            zipCode: document.getElementById('zip-code').value,
-            country: document.getElementById('country').value,
-        };
-        localStorage.setItem('outflickzShippingData', JSON.stringify(shippingData));
-
-        // Update the review section with the data
-        document.getElementById('review-address-name').textContent = `${shippingData.firstName} ${shippingData.lastName}`;
-        document.getElementById('review-address-line1').textContent = shippingData.street;
-        document.getElementById('review-address-line2').textContent = `${shippingData.city}, ${shippingData.state} ${shippingData.zipCode}, ${shippingData.country}`;
-        document.getElementById('review-contact-info').textContent = `${shippingData.email} | ${shippingData.phone}`;
-
-        checkoutStep = 2;
-        updateCheckoutView();
-        window.scrollTo(0, 0); // Scroll to top for new section
+    if (!form.checkValidity()) {
+        // Re-add 'required' if we removed it before showing the error
+        if (isZipRequired) zipCodeEl.setAttribute('required', '');
+        
+        form.reportValidity();
+        displayMessage('Please fill out all required shipping fields.');
+        return;
     }
+    
+    // Re-add 'required' if we removed it, now that validation has passed
+    if (isZipRequired) zipCodeEl.setAttribute('required', '');
 
+
+    // Capture the data
+    const shippingData = {
+        firstName: document.getElementById('first-name').value,
+        lastName: document.getElementById('last-name').value,
+        email: document.getElementById('email').value,
+        // --- MODIFICATION 1: REMOVE PHONE NUMBER CAPTURE ---
+        phone: document.getElementById('phone').value, // Retain phone capture if the field is still in the form
+        street: document.getElementById('address-line-1').value,
+        city: document.getElementById('city').value,
+        state: document.getElementById('state').value,
+        zipCode: document.getElementById('zip-code').value, // Optional data is still captured
+        country: document.getElementById('country').value,
+    };
+    localStorage.setItem('outflickzShippingData', JSON.stringify(shippingData));
+
+    // Update the review section with the data
+    document.getElementById('review-address-name').textContent = `${shippingData.firstName} ${shippingData.lastName}`;
+    document.getElementById('review-address-line1').textContent = shippingData.street;
+    
+    // Use optional chaining/nullish coalescing for zipCode in case it's empty
+    const reviewZipCode = shippingData.zipCode ? `, ${shippingData.zipCode}` : '';
+    document.getElementById('review-address-line2').textContent = `${shippingData.city}, ${shippingData.state}${reviewZipCode}, ${shippingData.country}`;
+    
+    // --- MODIFICATION 1: REMOVE PHONE NUMBER FROM REVIEW DISPLAY ---
+    document.getElementById('review-contact-info').textContent = `${shippingData.email}` + (shippingData.phone ? ` | ${shippingData.phone}` : ''); // Display phone if available, but email is the focus
+
+    checkoutStep = 2;
+    updateCheckoutView();
+    window.scrollTo(0, 0); // Scroll to top for new section
+}
 
     /**
       * Moves to Step 3 (Payment).

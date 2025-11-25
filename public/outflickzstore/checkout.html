@@ -143,12 +143,6 @@
                                 <label for="email" class="block text-sm font-medium text-gray-700">Email address (for confirmations) <span class="text-ash-red">*</span></label>
                                 <input type="email" id="email" name="email" autocomplete="email" required class="mt-1 block w-full border border-gray-300 rounded-sm shadow-sm py-2 px-3 focus:outline-none focus:ring-ash-red focus:border-ash-red" placeholder="e.g., john.doe@example.com">
                             </div>
-                            
-                            <div class="sm:col-span-2">
-                                <label for="phone" class="block text-sm font-medium text-gray-700">Phone Number (for delivery) <span class="text-ash-red">*</span></label>
-                                <input type="tel" id="phone" name="phone" autocomplete="tel" required class="mt-1 block w-full border border-gray-300 rounded-sm shadow-sm py-2 px-3 focus:outline-none focus:ring-ash-red focus:border-ash-red" placeholder="e.g., +2348012345678">
-                            </div>
-
                             <div class="sm:col-span-2 border-t border-gray-200 pt-6 mt-6">
                                 <h3 class="text-lg font-semibold text-gray-900 mb-3">Shipping Details</h3>
                             </div>
@@ -174,8 +168,8 @@
                                 <input type="text" id="state" name="state" autocomplete="address-level1" required class="mt-1 block w-full border border-gray-300 rounded-sm shadow-sm py-2 px-3 focus:outline-none focus:ring-ash-red focus:border-ash-red">
                             </div>
                             <div>
-                                <label for="zip-code" class="block text-sm font-medium text-gray-700">ZIP / Postal code</label>
-                                <input type="text" id="zip-code" name="zip-code" autocomplete="postal-code" class="mt-1 block w-full border border-gray-300 rounded-sm shadow-sm py-2 px-3 focus:outline-none focus:ring-ash-red focus:border-ash-red">
+                                <label for="zip-code" class="block text-sm font-medium text-gray-700">ZIP / Postal code <span class="text-ash-red">*</span></label>
+                                <input type="text" id="zip-code" name="zip-code" autocomplete="postal-code" required class="mt-1 block w-full border border-gray-300 rounded-sm shadow-sm py-2 px-3 focus:outline-none focus:ring-ash-red focus:border-ash-red">
                             </div>
                             <div>
                                 <label for="country" class="block text-sm font-medium text-gray-700">Country <span class="text-ash-red">*</span></label>
@@ -241,7 +235,7 @@
                                     <label for="payment-bank" class="font-medium text-gray-900">
                                         Direct Bank Transfer (Manual)
                                     </label>
-                                    <p id="bank-description" class="text-gray-500">View details, make the transfer, and upload your receipt below.</p>
+                                    <p id="bank-description" class="text-gray-500">View details below and complete payment manually.</p>
                                     
                                     <div id="bank-details-info" class="mt-3 p-3 bg-gray-100 rounded-md border border-gray-200" style="display:none;">
                                         <h4 class="font-bold text-ash-dark mb-1">Outflickz Account Details:</h4>
@@ -251,21 +245,9 @@
                                             **Account Number:** 8149747864
                                         </p>
                                         <p class="text-xs text-ash-red mt-2">
-                                            **IMPORTANT:** Transfer the **₦<span id="summary-estimated-total-bank">0.00</span>** total.
+                                            **IMPORTANT:** Contact Customer Service with your payment Order ID as the payment narrative.
                                         </p>
-                                        
-                                        <div class="mt-4 pt-3 border-t border-gray-200">
-                                            <label for="payment-receipt" class="block text-sm font-medium text-gray-700 mb-1">Upload Payment Receipt <span class="text-ash-red">*</span></label>
-                                            <input type="file" id="payment-receipt" name="payment-receipt" accept="image/*, .pdf" class="block w-full text-sm text-gray-500
-                                                file:mr-4 file:py-2 file:px-4
-                                                file:rounded-full file:border-0
-                                                file:text-sm file:font-semibold
-                                                file:bg-ash-red/10 file:text-ash-red
-                                                hover:file:bg-ash-red/20"
-                                            >
-                                            <p class="text-xs text-gray-400 mt-1">Accepted formats: JPG, PNG, PDF.</p>
-                                        </div>
-                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         
@@ -424,7 +406,6 @@
         // --- PAYSTACK CONSTANTS ---
         const PAYSTACK_PUBLIC_KEY = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; // <<< REPLACE THIS WITH YOUR ACTUAL PUBLIC KEY!
         const CURRENCY_CODE = 'NGN'; // Nigerian Naira
-        const ADMIN_EMAIL = 'admin@outflickz.com'; // Placeholder for the admin's email
 
         // --- MESSAGE & MODAL DISPLAY FUNCTION (Reused) ---
         function displayMessage(message) {
@@ -484,6 +465,7 @@
         // --- NEW: FETCH USER DATA TO PRE-FILL FORM ---
         async function fetchUserData() {
             if (!isUserLoggedIn()) {
+                // If not logged in, rely on user input
                 return;
             }
 
@@ -528,6 +510,7 @@
                     zipCode: userData.address?.zipCode,
                     country: userData.address?.country
                 }));
+
             } catch (error) {
                 console.error('Error fetching user data:', error);
                 displayMessage('Could not load saved address. Please enter manually.');
@@ -586,338 +569,335 @@
             }
         }
 
-        /**
-        * Validates shipping form data and moves to Step 2 (Review).
-        */
-        function validateAndProceedToReview() {
-            const form = document.getElementById('shipping-form');
-            const zipCodeEl = document.getElementById('zip-code');
-            
-            // NOTE: Since phone is crucial for delivery and ZIP is optional in some countries,
-            // we manually check required fields.
-            
-            // Temporarily remove 'required' from 'zip-code' if it exists for this check
-            const isZipRequired = zipCodeEl.hasAttribute('required');
-            if (isZipRequired) zipCodeEl.removeAttribute('required');
+      /**
+      * Validates shipping form data and moves to Step 2 (Review).
+      */
+    function validateAndProceedToReview() {
+    const form = document.getElementById('shipping-form');
+    
+    // --- MODIFICATION 3: Make ZIP Code optional by manually checking required fields ---
+    // Instead of using form.checkValidity(), which depends on 'required' attribute in HTML, 
+    // we'll rely on the browser's native checkValidity for all *other* fields.
+    // NOTE: You must also remove the 'required' attribute from the 'zip-code' HTML input.
+    
+    // Temporarily remove 'required' from 'zip-code' if it exists for this check
+    const zipCodeEl = document.getElementById('zip-code');
+    const isZipRequired = zipCodeEl.hasAttribute('required');
+    if (isZipRequired) zipCodeEl.removeAttribute('required');
 
-            if (!form.checkValidity()) {
-                // Re-add 'required' if we removed it before showing the error
-                if (isZipRequired) zipCodeEl.setAttribute('required', '');
-                
-                form.reportValidity();
-                displayMessage('Please fill out all required shipping fields.');
+    if (!form.checkValidity()) {
+        // Re-add 'required' if we removed it before showing the error
+        if (isZipRequired) zipCodeEl.setAttribute('required', '');
+        
+        form.reportValidity();
+        displayMessage('Please fill out all required shipping fields.');
+        return;
+    }
+    
+    // Re-add 'required' if we removed it, now that validation has passed
+    if (isZipRequired) zipCodeEl.setAttribute('required', '');
+
+
+    // Capture the data
+    const shippingData = {
+        firstName: document.getElementById('first-name').value,
+        lastName: document.getElementById('last-name').value,
+        email: document.getElementById('email').value,
+        // --- MODIFICATION 1: REMOVE PHONE NUMBER CAPTURE ---
+        street: document.getElementById('address-line-1').value,
+        city: document.getElementById('city').value,
+        state: document.getElementById('state').value,
+        zipCode: document.getElementById('zip-code').value, // Optional data is still captured
+        country: document.getElementById('country').value,
+    };
+    localStorage.setItem('outflickzShippingData', JSON.stringify(shippingData));
+
+    // Update the review section with the data
+    document.getElementById('review-address-name').textContent = `${shippingData.firstName} ${shippingData.lastName}`;
+    document.getElementById('review-address-line1').textContent = shippingData.street;
+    
+    // Use optional chaining/nullish coalescing for zipCode in case it's empty
+    const reviewZipCode = shippingData.zipCode ? `, ${shippingData.zipCode}` : '';
+    document.getElementById('review-address-line2').textContent = `${shippingData.city}, ${shippingData.state}${reviewZipCode}, ${shippingData.country}`;
+    
+    // --- MODIFICATION 1: REMOVE PHONE NUMBER FROM REVIEW DISPLAY ---
+    document.getElementById('review-contact-info').textContent = `${shippingData.email}` + (shippingData.phone ? ` | ${shippingData.phone}` : ''); // Display phone if available, but email is the focus
+
+    checkoutStep = 2;
+    updateCheckoutView();
+    window.scrollTo(0, 0); // Scroll to top for new section
+}
+
+    /**
+      * Moves to Step 3 (Payment).
+      */
+    function proceedToPayment() {
+        checkoutStep = 3;
+        updateCheckoutView();
+        window.scrollTo(0, 0); // Scroll to top for new section
+    }
+
+    /**
+      * Fetches the initial cart data from the backend API.
+      */
+    async function fetchInitialCartData() {
+        const currencySymbol = '₦'; // Assuming '₦' is the correct currency symbol
+        const subtotalEl = document.getElementById('summary-subtotal');
+        const shippingCostEl = document.getElementById('summary-shipping-cost');
+        const taxEstimateEl = document.getElementById('summary-tax-estimate');
+        const estimatedTotalEl = document.getElementById('summary-estimated-total');
+        const finalTotalEl = document.getElementById('summary-estimated-total-final'); // Added for step 3
+        const itemsListEl = document.getElementById('review-items-list');
+        const paymentBtn = document.getElementById('checkout-next-btn');
+        
+        // Set loading state
+        subtotalEl.textContent = '...';
+        shippingCostEl.textContent = '...';
+        taxEstimateEl.textContent = '...';
+        estimatedTotalEl.textContent = '...';
+        finalTotalEl.textContent = '...'; // Added for step 3
+        itemsListEl.innerHTML = '<div class="text-center py-6 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Loading cart data...</div>';
+        paymentBtn.disabled = true;
+
+        // Redirect unauthenticated user
+        if (!isUserLoggedIn()) {
+            const localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
+            if (localCart.length === 0) {
+                displayMessage('Your cart is empty. Redirecting to home.');
+                setTimeout(() => window.location.href = 'homepage.html', 1500);
                 return;
+            } 
+            // NOTE: We don't redirect here, we let the user fill in the details manually.
+        }
+
+
+        try {
+            // === REAL API CALL START ===
+            // This is a placeholder for your actual server-side cart calculation endpoint.
+            const response = await fetch('/api/users/cart', {
+                    method: 'GET',
+                    // Add any necessary headers like Authorization/CORS if needed by your API
+            });
+
+            if (!response.ok) {
+                // If the response is not 2xx, throw an error
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to fetch cart data from API.');
             }
-            
-            // Re-add 'required' if we removed it, now that validation has passed
-            if (isZipRequired) zipCodeEl.setAttribute('required', '');
+
+            const cartData = await response.json();
+            /* cartData structure is expected to be:
+            { 
+                items: [{name, size, color, quantity, price, imageUrl}], 
+                subtotal: 32000.00, 
+                shipping: 2500.00, 
+                tax: 1725.00, 
+                estimatedTotal: 36225.00 
+            } */
+            // === REAL API CALL END ===
 
 
-            // Capture the data
-            const shippingData = {
-                firstName: document.getElementById('first-name').value,
-                lastName: document.getElementById('last-name').value,
-                email: document.getElementById('email').value,
-                street: document.getElementById('address-line-1').value,
-                city: document.getElementById('city').value,
-                state: document.getElementById('state').value,
-                zipCode: document.getElementById('zip-code').value, // Optional data is still captured
-                country: document.getElementById('country').value,
-            };
-            localStorage.setItem('outflickzShippingData', JSON.stringify(shippingData));
-
-            // Update the review section with the data
-            document.getElementById('review-address-name').textContent = `${shippingData.firstName} ${shippingData.lastName}`;
-            document.getElementById('review-address-line1').textContent = shippingData.street;
-            
-            // Use optional chaining/nullish coalescing for zipCode in case it's empty
-            const reviewZipCode = shippingData.zipCode ? `, ${shippingData.zipCode}` : '';
-            document.getElementById('review-address-line2').textContent = `${shippingData.city}, ${shippingData.state}${reviewZipCode}, ${shippingData.country}`;
-            
-            // Update contact info display to include phone
-            document.getElementById('review-contact-info').textContent = `${shippingData.email} | ${shippingData.phone}`;
-
-            checkoutStep = 2;
-            updateCheckoutView();
-            window.scrollTo(0, 0); // Scroll to top for new section
-        }
-
-        /**
-         * Moves to Step 3 (Payment).
-         */
-        function proceedToPayment() {
-            checkoutStep = 3;
-            updateCheckoutView();
-            window.scrollTo(0, 0); // Scroll to top for new section
-
-            // Also update the bank transfer total display (for user convenience)
-            const finalTotalText = document.getElementById('summary-estimated-total-final').textContent;
-            document.getElementById('summary-estimated-total-bank').textContent = finalTotalText;
-        }
-
-        /**
-         * Fetches the initial cart data from the backend API.
-         */
-        async function fetchInitialCartData() {
-            const currencySymbol = '₦'; // Assuming '₦' is the correct currency symbol
-            const subtotalEl = document.getElementById('summary-subtotal');
-            const shippingCostEl = document.getElementById('summary-shipping-cost');
-            const taxEstimateEl = document.getElementById('summary-tax-estimate');
-            const estimatedTotalEl = document.getElementById('summary-estimated-total');
-            const finalTotalEl = document.getElementById('summary-estimated-total-final'); // Added for step 3
-            const itemsListEl = document.getElementById('review-items-list');
-            const paymentBtn = document.getElementById('checkout-next-btn');
-            
-            // Set loading state
-            subtotalEl.textContent = '...';
-            shippingCostEl.textContent = '...';
-            taxEstimateEl.textContent = '...';
-            estimatedTotalEl.textContent = '...';
-            finalTotalEl.textContent = '...'; 
-            document.getElementById('summary-estimated-total-bank').textContent = '...'; // NEW: Bank display
-            itemsListEl.innerHTML = '<div class="text-center py-6 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Loading cart data...</div>';
-            paymentBtn.disabled = true;
-
-            // Simple cart check before API call
-            if (localStorage.getItem(CART_STORAGE_KEY) === '0' || !localStorage.getItem(LOCAL_CART_KEY)) {
+            if (cartData.items.length === 0) {
                 displayMessage('Your cart is empty. Redirecting to home.');
                 setTimeout(() => window.location.href = 'homepage.html', 1500);
                 return;
             }
+            
+            // Render Summary
+            const subtotal = cartData.subtotal || 0;
+            const shipping = cartData.shipping || 0;
+            const tax = cartData.tax || 0;
+            const total = cartData.estimatedTotal || (subtotal + shipping + tax);
 
-            try {
-                // === REAL API CALL START (Placeholder) ===
-                // This call is crucial as it should calculate the *final* total based on server-side logic (stock, shipping rates, etc.)
-                const response = await fetch('/api/checkout/cart-summary', { // Changed endpoint name for clarity
-                    method: 'GET',
-                    // Add headers/auth tokens as needed
-                });
+            subtotalEl.textContent = `${currencySymbol}${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+            shippingCostEl.textContent = `${currencySymbol}${shipping.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+            taxEstimateEl.textContent = `${currencySymbol}${tax.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+            estimatedTotalEl.textContent = `${currencySymbol}${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+            finalTotalEl.textContent = total.toLocaleString(undefined, { minimumFractionDigits: 2 }); // For Step 3
 
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({ message: 'API error.' }));
-                    throw new Error(errorData.message || 'Failed to fetch cart data from API.');
-                }
-
-                const cartData = await response.json();
-                /* cartData structure is expected to be:
-                { 
-                    items: [{name, size, color, quantity, price, imageUrl}], 
-                    subtotal: 32000.00, 
-                    shipping: 2500.00, 
-                    tax: 0.00, 
-                    estimatedTotal: 34500.00 
-                } */
-                // === REAL API CALL END ===
-
-                if (cartData.items.length === 0) {
-                    displayMessage('Your cart is empty. Redirecting to home.');
-                    setTimeout(() => window.location.href = 'homepage.html', 1500);
-                    return;
-                }
-                
-                // Render Summary
-                const subtotal = cartData.subtotal || 0;
-                const shipping = cartData.shipping || 0;
-                const tax = cartData.tax || 0;
-                const total = cartData.estimatedTotal || (subtotal + shipping + tax);
-
-                subtotalEl.textContent = `${currencySymbol}${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-                shippingCostEl.textContent = `${currencySymbol}${shipping.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-                taxEstimateEl.textContent = `${currencySymbol}${tax.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-                estimatedTotalEl.textContent = `${currencySymbol}${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-                finalTotalEl.textContent = total.toLocaleString(undefined, { minimumFractionDigits: 2 }); // For Step 3
-                document.getElementById('summary-estimated-total-bank').textContent = total.toLocaleString(undefined, { minimumFractionDigits: 2 }); // NEW: Bank display
-
-                // Render Review Items List
-                itemsListEl.innerHTML = cartData.items.map(item => `
-                    <div class="flex justify-between items-start py-2">
-                        <div class="flex items-center">
-                            <img src="${item.imageUrl}" alt="${item.name}" class="w-10 h-10 rounded-md border mr-3">
-                            <div class="text-sm">
-                                <p class="font-medium text-gray-900">${item.name}</p>
-                                <p class="text-xs text-gray-500">${item.size} / ${item.color} (Qty: ${item.quantity})</p>
-                            </div>
+            // Render Review Items List
+            itemsListEl.innerHTML = cartData.items.map(item => `
+                <div class="flex justify-between items-start py-2">
+                    <div class="flex items-center">
+                        <img src="${item.imageUrl}" alt="${item.name}" class="w-10 h-10 rounded-md border mr-3">
+                        <div class="text-sm">
+                            <p class="font-medium text-gray-900">${item.name}</p>
+                            <p class="text-xs text-gray-500">${item.size} / ${item.color} (Qty: ${item.quantity})</p>
                         </div>
-                        <span class="text-sm font-semibold text-gray-900">${currencySymbol}${(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                     </div>
-                `).join('');
+                    <span class="text-sm font-semibold text-gray-900">${currencySymbol}${(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                </div>
+            `).join('');
 
-                // Store the final total for payment simulation
-                localStorage.setItem('outflickzOrderTotal', total.toFixed(2));
+            // Store the final total for payment simulation
+            localStorage.setItem('outflickzOrderTotal', total.toFixed(2));
 
-                // Enable button
-                paymentBtn.disabled = false;
-                
-            } catch (error) {
-                console.error('Error fetching cart data for checkout:', error);
-                itemsListEl.innerHTML = '<div class="text-center py-6 text-red-500">Error loading cart. Please go back to cart.</div>';
-                displayMessage(error.message || 'An error occurred loading your cart. Please try again.');
-                paymentBtn.disabled = true;
-            }
+            // Enable button
+            paymentBtn.disabled = false;
+            
+        } catch (error) {
+            console.error('Error fetching cart data for checkout:', error);
+            itemsListEl.innerHTML = '<div class="text-center py-6 text-red-500">Error loading cart. Please go back to cart.</div>';
+            displayMessage(error.message || 'An error occurred loading your cart. Please try again.');
+            paymentBtn.disabled = true;
+        }
+    }
+
+
+    /**
+      * Handles the final step: Payment confirmation and order creation (Updated for Paystack/Bank Transfer).
+      */
+    async function handleFinalOrderPlacement() {
+        const paymentMethod = document.querySelector('input[name="payment-method"]:checked');
+        if (!paymentMethod) {
+            displayMessage('Please select a payment method.');
+            return;
         }
 
+        const totalAmount = parseFloat(localStorage.getItem('outflickzOrderTotal') || 0);
+        const shippingAddress = JSON.parse(localStorage.getItem('outflickzShippingData'));
+        const email = shippingAddress?.email;
 
-        /**
-         * Handles the final step: Payment confirmation and order creation.
-         */
-        async function handleFinalOrderPlacement() {
-            const paymentMethod = document.querySelector('input[name="payment-method"]:checked');
-            if (!paymentMethod) {
-                displayMessage('Please select a payment method.');
+        if (totalAmount <= 0 || !shippingAddress || !email) {
+            displayMessage('Order or contact data missing. Please refresh and try again.');
+            return;
+        }
+
+        // Disable button to prevent double submission
+        const payBtn = document.getElementById('checkout-next-btn');
+        payBtn.disabled = true;
+        payBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Initializing Payment...';
+
+        if (paymentMethod.value === 'Paystack/Card') {
+            // --- PAYSTACK INITIATION ---
+            
+            // NOTE: For production, Paystack recommends generating the reference (and possibly order) 
+            // on the server before initiating pop, but generating client-side is faster for testing.
+            const reference = `outflickz_${Date.now()}`;
+            
+            // Paystack script is now included in the head, so it should be defined
+            if (typeof PaystackPop === 'undefined') {
+                displayMessage('Paystack script not loaded. Please check your internet connection and page HTML.');
+                payBtn.disabled = false;
+                payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
                 return;
             }
 
-            const totalAmount = parseFloat(localStorage.getItem('outflickzOrderTotal') || 0);
-            const shippingAddress = JSON.parse(localStorage.getItem('outflickzShippingData'));
-            const email = shippingAddress?.email;
-
-            if (totalAmount <= 0 || !shippingAddress || !email) {
-                displayMessage('Order or contact data missing. Please refresh and try again.');
-                return;
-            }
-
-            // Disable button to prevent double submission
-            const payBtn = document.getElementById('checkout-next-btn');
-            payBtn.disabled = true;
-            payBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Initializing Payment...';
-
-            if (paymentMethod.value === 'Paystack/Card') {
-                // --- PAYSTACK INITIATION ---
-                // ... (Paystack Pop-up logic remains the same) ...
+            const handler = PaystackPop.setup({
+                key: PAYSTACK_PUBLIC_KEY,
+                email: email,
+                amount: totalAmount * 100, // Paystack expects amount in Kobo
+                ref: reference,
+                currency: CURRENCY_CODE,
                 
-                const reference = `outflickz_${Date.now()}`;
+                // Callback runs when user completes the payment process in the modal
+                callback: function(response){
+                    // The backend webhook (POST /api/paystack/webhook) will handle the official verification
+                    displayMessage('Payment successful! Finalizing order on the server...');
+                    // Redirect to a confirmation/waiting page using the Paystack reference
+                    window.location.href = `orderconfirmation.html?ref=${response.reference}&method=paystack`;
+                },
                 
-                if (typeof PaystackPop === 'undefined') {
-                    displayMessage('Paystack script not loaded. Please check your internet connection and page HTML.');
+                onClose: function(){
+                    // Re-enable button if user closes the modal
+                    displayMessage('Payment cancelled or abandoned. Please try again.');
                     payBtn.disabled = false;
                     payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
-                    return;
                 }
+            });
+            
+            // Open the payment modal
+            handler.openIframe();
+            
+            // Return to prevent the default API call
+            return; 
 
-                const handler = PaystackPop.setup({
-                    key: PAYSTACK_PUBLIC_KEY,
-                    email: email,
-                    amount: totalAmount * 100, // Paystack expects amount in Kobo
-                    ref: reference,
-                    currency: CURRENCY_CODE,
-                    
-                    callback: function(response){
-                        displayMessage('Payment successful! Finalizing order on the server...');
-                        // The server needs to handle verification and clear the cart/send admin email
-                        window.location.href = `orderconfirmation.html?ref=${response.reference}&method=paystack`;
-                    },
-                    
-                    onClose: function(){
-                        displayMessage('Payment cancelled or abandoned. Please try again.');
-                        payBtn.disabled = false;
-                        payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
-                    }
-                });
-                
-                handler.openIframe();
-                return; 
-
-            } else if (paymentMethod.value === 'Bank Transfer') {
-                // --- BANK TRANSFER (PENDING ORDER) INITIATION with FILE UPLOAD ---
-                
-                const receiptFile = document.getElementById('payment-receipt').files[0];
-
-                // **NEW VALIDATION: Check for receipt upload**
-                if (!receiptFile) {
-                    displayMessage('Please upload your bank transfer receipt image.');
-                    payBtn.disabled = false;
-                    payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
-                    return;
-                }
-                
-                payBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Uploading Receipt & Placing Order...';
-
-                // 1. Create FormData object to send file and JSON data
-                const formData = new FormData();
-                formData.append('paymentReceipt', receiptFile);
-                formData.append('shippingAddress', JSON.stringify(shippingAddress));
-                formData.append('paymentMethod', paymentMethod.value);
-                formData.append('totalAmount', totalAmount);
-                formData.append('adminEmail', ADMIN_EMAIL); // Passed for server-side email trigger
-
-                try {
-                    // REAL FETCH: Create a pending order on the server with file upload
-                    // NOTE: When sending FormData, explicitly setting the 'Content-Type' header can break the upload. 
-                    // The browser sets the correct 'Content-Type: multipart/form-data'.
-                    const response = await fetch('/api/orders/place/pending', {
+        } else if (paymentMethod.value === 'Bank Transfer') {
+            // --- BANK TRANSFER (PENDING ORDER) INITIATION ---
+            
+            // 1. Create the pending order on the server
+            try {
+                // REAL FETCH: Create a pending order on the server
+                const response = await fetch('/api/orders/place/pending', {
                         method: 'POST',
-                        body: formData
-                    });
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            shippingAddress: shippingAddress,
+                            paymentMethod: paymentMethod.value,
+                            totalAmount: totalAmount,
+                            // The server should retrieve the cart items from the user's session/DB
+                        })
+                });
 
-                    const data = await response.json();
-                    const isSuccess = response.ok; 
+                const data = await response.json();
+                const isSuccess = response.ok; // Check if the response status is 200-299
 
-                    if (isSuccess && data.orderId) {
-                        // Success: The server should have saved the receipt and sent the admin email.
-                        displayMessage(`Pending Order #${data.orderId} created! Admin notified. Redirecting...`);
-                        
-                        // Clear local storage items only if the order was successfully created on the server
-                        localStorage.removeItem(LOCAL_CART_KEY);
-                        localStorage.setItem(CART_STORAGE_KEY, '0');
-                        localStorage.removeItem('outflickzOrderTotal');
-                        updateCartBadge();
+                if (isSuccess && data.orderId) {
+                    // Success: Redirect to a page showing bank details and the new Order ID
+                    displayMessage(`Pending Order #${data.orderId} created! Redirecting to confirmation page.`);
+                    
+                    // Clear local storage items only if the order was successfully created on the server
+                    localStorage.removeItem(LOCAL_CART_KEY);
+                    localStorage.setItem(CART_STORAGE_KEY, '0');
+                    localStorage.removeItem('outflickzOrderTotal');
+                    updateCartBadge();
 
-                        setTimeout(() => {
-                            window.location.href = `orderconfirmation.html?id=${data.orderId}&method=banktransfer`;
-                        }, 3000);
+                    setTimeout(() => {
+                        window.location.href = `orderconfirmation.html?id=${data.orderId}&method=banktransfer`;
+                    }, 3000);
 
-                    } else {
-                        throw new Error(data.message || 'Failed to create pending order. Check server.');
-                    }
-
-                } catch (error) {
-                    console.error('Pending order placement error:', error);
-                    displayMessage(error.message || 'A network error occurred during receipt upload/order placement. Please try again.');
-                    payBtn.disabled = false;
-                    payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
+                } else {
+                    throw new Error(data.message || 'Failed to create pending order. Please check server response.');
                 }
-                
-            } else {
-                // Fallback for other payment methods if needed
-                displayMessage(`Payment method ${paymentMethod.value} selected, but not yet implemented.`);
+
+            } catch (error) {
+                console.error('Pending order placement error:', error);
+                displayMessage(error.message || 'A network error occurred. Please try again.');
                 payBtn.disabled = false;
                 payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
             }
+            
+        } else {
+            // Fallback for other payment methods if needed
+            displayMessage(`Payment method ${paymentMethod.value} selected, but not yet implemented.`);
+            payBtn.disabled = false;
+            payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
+        }
+    }
+
+    // --- Main Initialization ---
+    document.addEventListener('DOMContentLoaded', () => {
+        // Initial checks and data loading
+        updateCartBadge();
+        fetchInitialCartData();
+        updateCheckoutView(); // Initialize step 1 view
+        fetchUserData(); // NEW: Pre-fill user data if logged in
+
+        // Attach the hideMessageModal function to the close button
+        const closeButton = document.getElementById('message-modal-close-btn');
+        if (closeButton) {
+            closeButton.addEventListener('click', hideMessageModal);
         }
 
-        // --- Main Initialization ---
-        document.addEventListener('DOMContentLoaded', () => {
-            // Initial checks and data loading
-            updateCartBadge();
-            fetchInitialCartData();
-            updateCheckoutView(); // Initialize step 1 view
-            fetchUserData(); // NEW: Pre-fill user data if logged in
+        // --- Bank Details Toggle Initialization ---
+        const bankRadio = document.getElementById('payment-bank');
+        const paystackRadio = document.getElementById('payment-paystack');
+        const bankDetails = document.getElementById('bank-details-info');
 
-            // Attach the hideMessageModal function to the close button
-            const closeButton = document.getElementById('message-modal-close-btn');
-            if (closeButton) {
-                closeButton.addEventListener('click', hideMessageModal);
+        function toggleBankDetails() {
+            if (bankDetails) {
+                // Check if the bank radio button exists and is checked
+                const isBankChecked = bankRadio && bankRadio.checked;
+                bankDetails.style.display = isBankChecked ? 'block' : 'none';
             }
+        }
 
-            // --- Bank Details Toggle Initialization ---
-            const bankRadio = document.getElementById('payment-bank');
-            const paystackRadio = document.getElementById('payment-paystack');
-            const bankDetails = document.getElementById('bank-details-info');
+        if (bankRadio) bankRadio.addEventListener('change', toggleBankDetails);
+        if (paystackRadio) paystackRadio.addEventListener('change', toggleBankDetails);
 
-            function toggleBankDetails() {
-                if (bankDetails) {
-                    // Check if the bank radio button exists and is checked
-                    const isBankChecked = bankRadio && bankRadio.checked;
-                    bankDetails.style.display = isBankChecked ? 'block' : 'none';
-                }
-            }
-
-            if (bankRadio) bankRadio.addEventListener('change', toggleBankDetails);
-            if (paystackRadio) paystackRadio.addEventListener('change', toggleBankDetails);
-
-            // Initial check in case bank transfer is the default selected option
-            toggleBankDetails(); 
-        });
-    </script>
+        // Initial check in case bank transfer is the default selected option
+        toggleBankDetails(); 
+    });
+</script>
 </body>
 </html>

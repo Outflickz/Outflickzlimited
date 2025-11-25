@@ -623,9 +623,29 @@ const OrderSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     items: { type: [OrderItemSchema], required: true },
     totalAmount: { type: Number, required: true, min: 0.01 },
-    status: { type: String, default: 'completed', enum: ['pending', 'completed', 'cancelled', 'refunded'] }, // Assuming orders are marked completed after payment
+    status: { 
+        type: String, 
+        required: true,
+        // *** This expanded ENUM list is necessary for all your current routes ***
+        enum: [
+            'Pending',                         // Used by POST /api/orders/place/pending (Bank Transfer)
+            'Paid',                            // Used by POST /api/paystack/webhook (Success)
+            'Completed',                       // Your original successful status name (Can be merged with 'Paid')
+            'Cancelled',
+            'Refunded',
+            'Shipped', 'Delivered',            // Standard fulfillment statuses
+            'Verification Failed',             // Used by POST /api/paystack/webhook (Security check fail)
+            'Amount Mismatch (Manual Review)'  // Used by POST /api/paystack/webhook (Security check fail)
+        ], 
+        default: 'Pending' // Setting the default to 'Pending' is safer than 'Completed'
+    },
     shippingAddress: { type: Object, required: true },
     paymentMethod: { type: String, required: true },
+    // You may also want to add these fields based on the Paystack webhook logic you shared:
+    orderReference: { type: String, unique: true, sparse: true }, // For Paystack reference
+    amountPaidKobo: { type: Number, min: 0 },
+    paymentTxnId: { type: String, sparse: true },
+    paidAt: { type: Date }
 }, { timestamps: true });
 
 const Order = mongoose.models.Order || mongoose.model('Order', OrderSchema);
@@ -3341,6 +3361,7 @@ app.delete('/api/users/cart', verifyUserToken, async (req, res) => {
         res.status(500).json({ message: 'Failed to clear shopping bag.' });
     }
 });
+
 // 7. POST /api/paystack/webhook - Handle Paystack Notifications
 app.post('/api/paystack/webhook', async (req, res) => {
     // 1. Verify Webhook Signature (Security Crucial)
@@ -3463,7 +3484,6 @@ app.post('/api/orders/place/pending', verifyUserToken, async (req, res) => {
         }
 
         // 3. Create a new Order document with status 'Pending'
-        // CRITICAL: Map cart items to order items and ensure price is recorded (price at time of purchase)
         const orderItems = cart.items.map(item => ({
             productId: item.productId,
             productType: item.productType,
@@ -3471,18 +3491,23 @@ app.post('/api/orders/place/pending', verifyUserToken, async (req, res) => {
             priceAtTimeOfPurchase: item.price, // Store the price explicitly
             size: item.size,
             color: item.color,
-            // We use Mongoose's default _id for the item sub-document from the Cart model
         }));
+        
+        // **CRITICAL: Generate a reference for bank transfer orders**
+        // This is not used by Paystack webhook, but it ensures the 'orderReference' 
+        // field is present and unique, avoiding schema validation issues later.
+        const orderRef = `MANUAL-${Date.now()}-${userId.substring(0, 5)}`; 
 
         const newOrder = await Order.create({
             userId: userId,
             items: orderItems,
             shippingAddress: shippingAddress,
-            totalAmount: totalAmount, // Total price including shipping/tax
-            status: 'Pending', // Initial status for Bank Transfer
+            totalAmount: totalAmount, 
+            status: 'Pending', // Now valid due to schema update
             paymentMethod: paymentMethod,
-            amountPaidKobo: Math.round(totalAmount * 100), // Stored for safety/comparison
-            // orderReference: null for pending bank transfer, not set until payment is confirmed/manual
+            // Added fields to satisfy schema and webhook logic:
+            orderReference: orderRef, 
+            amountPaidKobo: Math.round(totalAmount * 100), // Required for Paystack webhook amount check
         });
 
         // 4. Clear the user's cart after successful order creation
@@ -3490,9 +3515,8 @@ app.post('/api/orders/place/pending', verifyUserToken, async (req, res) => {
             { userId },
             { items: [], updatedAt: Date.now() }
         );
-
-        // 5. Send confirmation email for pending order (optional but recommended)
-        // await sendOrderConfirmationEmail(newOrder, 'pending'); 
+        
+        // ... (Optional email sending logic) ...
         
         console.log(`Pending Order created: ${newOrder._id}`);
         
@@ -3505,6 +3529,7 @@ app.post('/api/orders/place/pending', verifyUserToken, async (req, res) => {
 
     } catch (error) {
         console.error('Error placing pending order:', error);
+        // This catch block handles validation errors from the database
         res.status(500).json({ message: 'Failed to create pending order due to a server error.' });
     }
 });

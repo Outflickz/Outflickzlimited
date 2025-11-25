@@ -3464,69 +3464,38 @@ app.post('/api/paystack/webhook', async (req, res) => {
 });
 
 // =========================================================
-// UPDATED: POST /api/orders/place/pending - Handle Receipt Upload & Order Creation (Protected)
+// NEW: POST /api/orders/place/pending - Create a Pending Order (Protected)
 // =========================================================
-app.post('/api/orders/place/pending', verifyUserToken, receiptUploadMiddleware, async (req, res) => {
-    // NOTE: We rely on the `receiptUploadMiddleware` (multer) to parse the request body and file.
-    
-    // 1. Extract and Parse Data
+app.post('/api/orders/place/pending', verifyUserToken, async (req, res) => {
     const userId = req.userId;
-    const receiptFile = req.file; // The uploaded file object (will be present if user selected a file)
-    
-    let { shippingAddress, paymentMethod, totalAmount, adminEmail } = req.body;
+    const { shippingAddress, paymentMethod, totalAmount } = req.body;
 
-    // Parse JSON strings and number back into objects/numbers
-    try {
-        shippingAddress = JSON.parse(shippingAddress);
-        totalAmount = parseFloat(totalAmount);
-    } catch (parseError) {
-        // Log the error and stop execution
-        console.error('Data parsing error:', parseError);
-        return res.status(400).json({ message: 'Invalid format for shipping address or total amount in request body.' });
-    }
-    
-    // 2. Initial Validation
+    // 1. Basic Input Validation
     if (!shippingAddress || !totalAmount || totalAmount <= 0) {
         return res.status(400).json({ message: 'Missing shipping address or invalid total amount.' });
     }
 
-    // 3. Conditional Receipt Handling (Backblaze B2 Upload)
-    let receiptUrl = null;
-    
-    if (paymentMethod === 'Bank Transfer') {
-        if (!receiptFile) {
-            return res.status(400).json({ message: 'Payment receipt file is required for Bank Transfer.' });
-        }
-        
-        try {
-            // Upload the file buffer from Multer memory storage to B2
-            receiptUrl = await uploadFileToPermanentStorage(receiptFile);
-        } catch (uploadError) {
-            console.error('B2 Upload Failed:', uploadError);
-            return res.status(500).json({ message: 'Failed to upload payment receipt. Please try again.' });
-        }
-    }
-    
-    // 4. Order Creation Logic
     try {
-        // Retrieve the user's current cart items
+        // 2. Retrieve the user's current cart items
         const cart = await Cart.findOne({ userId }).lean();
 
         if (!cart || cart.items.length === 0) {
             return res.status(400).json({ message: 'Cannot place order: Shopping bag is empty.' });
         }
 
-        // Prepare order items
+        // 3. Create a new Order document with status 'Pending'
         const orderItems = cart.items.map(item => ({
             productId: item.productId,
             productType: item.productType,
             quantity: item.quantity,
-            priceAtTimeOfPurchase: item.price,
+            priceAtTimeOfPurchase: item.price, // Store the price explicitly
             size: item.size,
             color: item.color,
         }));
         
-        // Generate a reference for manual orders
+        // **CRITICAL: Generate a reference for bank transfer orders**
+        // This is not used by Paystack webhook, but it ensures the 'orderReference' 
+        // field is present and unique, avoiding schema validation issues later.
         const orderRef = `MANUAL-${Date.now()}-${userId.substring(0, 5)}`; 
 
         const newOrder = await Order.create({
@@ -3534,51 +3503,33 @@ app.post('/api/orders/place/pending', verifyUserToken, receiptUploadMiddleware, 
             items: orderItems,
             shippingAddress: shippingAddress,
             totalAmount: totalAmount, 
-            status: 'Pending', // Order is pending verification
+            status: 'Pending', // Now valid due to schema update
             paymentMethod: paymentMethod,
+            // Added fields to satisfy schema and webhook logic:
             orderReference: orderRef, 
-            amountPaidKobo: Math.round(totalAmount * 100),
-            paymentReceiptUrl: receiptUrl, // Store the B2 permanent URL
+            amountPaidKobo: Math.round(totalAmount * 100), // Required for Paystack webhook amount check
         });
 
-        // 5. Clear the user's cart
+        // 4. Clear the user's cart after successful order creation
         await Cart.findOneAndUpdate(
             { userId },
             { items: [], updatedAt: Date.now() }
         );
         
-        // 6. Send Admin Email Notification
-        if (paymentMethod === 'Bank Transfer') {
-            const mailOptions = {
-                to: DEFAULT_ADMIN_EMAIL || 'outflickzlimited@gmail.com', 
-                subject: `NEW PENDING BANK TRANSFER ORDER #${newOrder._id}`,
-                html: `
-                    <p>A new order has been placed awaiting payment verification via Bank Transfer.</p>
-                    <p><strong>Order ID:</strong> ${newOrder._id}</p>
-                    <p><strong>Total Amount:</strong> ₦${totalAmount.toLocaleString()}</p>
-                    <p><strong>Customer Email:</strong> ${shippingAddress.email}</p>
-                    <p><strong>Shipping To:</strong> ${shippingAddress.street}, ${shippingAddress.city}</p>
-                    <p><strong>Receipt Link:</strong> <a href="${receiptUrl}">VIEW PAYMENT RECEIPT (Private B2 Link)</a></p>
-                    <p>Please log into the admin dashboard to verify the transfer and process the order.</p>
-                `,
-            };
-            
-            // Assuming the `sendEmail` utility exists and is configured
-            // await sendEmail(mailOptions);
-            console.log(`Admin email notification prepared and sent for Order ID: ${newOrder._id}`);
-        }
+        // ... (Optional email sending logic) ...
         
         console.log(`Pending Order created: ${newOrder._id}`);
         
-        // 7. Success Response
+        // Success response for the client-side JavaScript
         res.status(201).json({
-            message: 'Pending order placed successfully. Admin notified.',
+            message: 'Pending order placed successfully.',
             orderId: newOrder._id,
             status: newOrder.status
         });
 
     } catch (error) {
         console.error('Error placing pending order:', error);
+        // This catch block handles validation errors from the database
         res.status(500).json({ message: 'Failed to create pending order due to a server error.' });
     }
 });

@@ -3442,6 +3442,73 @@ app.post('/api/paystack/webhook', async (req, res) => {
     }
 });
 
+// =========================================================
+// NEW: POST /api/orders/place/pending - Create a Pending Order (Protected)
+// =========================================================
+app.post('/api/orders/place/pending', verifyUserToken, async (req, res) => {
+    const userId = req.userId;
+    const { shippingAddress, paymentMethod, totalAmount } = req.body;
+
+    // 1. Basic Input Validation
+    if (!shippingAddress || !totalAmount || totalAmount <= 0) {
+        return res.status(400).json({ message: 'Missing shipping address or invalid total amount.' });
+    }
+
+    try {
+        // 2. Retrieve the user's current cart items
+        const cart = await Cart.findOne({ userId }).lean();
+
+        if (!cart || cart.items.length === 0) {
+            return res.status(400).json({ message: 'Cannot place order: Shopping bag is empty.' });
+        }
+
+        // 3. Create a new Order document with status 'Pending'
+        // CRITICAL: Map cart items to order items and ensure price is recorded (price at time of purchase)
+        const orderItems = cart.items.map(item => ({
+            productId: item.productId,
+            productType: item.productType,
+            quantity: item.quantity,
+            priceAtTimeOfPurchase: item.price, // Store the price explicitly
+            size: item.size,
+            color: item.color,
+            // We use Mongoose's default _id for the item sub-document from the Cart model
+        }));
+
+        const newOrder = await Order.create({
+            userId: userId,
+            items: orderItems,
+            shippingAddress: shippingAddress,
+            totalAmount: totalAmount, // Total price including shipping/tax
+            status: 'Pending', // Initial status for Bank Transfer
+            paymentMethod: paymentMethod,
+            amountPaidKobo: Math.round(totalAmount * 100), // Stored for safety/comparison
+            // orderReference: null for pending bank transfer, not set until payment is confirmed/manual
+        });
+
+        // 4. Clear the user's cart after successful order creation
+        await Cart.findOneAndUpdate(
+            { userId },
+            { items: [], updatedAt: Date.now() }
+        );
+
+        // 5. Send confirmation email for pending order (optional but recommended)
+        // await sendOrderConfirmationEmail(newOrder, 'pending'); 
+        
+        console.log(`Pending Order created: ${newOrder._id}`);
+        
+        // Success response for the client-side JavaScript
+        res.status(201).json({
+            message: 'Pending order placed successfully.',
+            orderId: newOrder._id,
+            status: newOrder.status
+        });
+
+    } catch (error) {
+        console.error('Error placing pending order:', error);
+        res.status(500).json({ message: 'Failed to create pending order due to a server error.' });
+    }
+});
+
 // 6. GET /api/orders/:orderId (Fetch Single Order Details - Protected)
 app.get('/api/orders/:orderId', verifyUserToken, async function (req, res) {
     const orderId = req.params.orderId;

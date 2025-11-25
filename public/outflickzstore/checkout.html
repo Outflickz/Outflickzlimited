@@ -424,7 +424,7 @@
         // --- PAYSTACK CONSTANTS ---
         const PAYSTACK_PUBLIC_KEY = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; // <<< REPLACE THIS WITH YOUR ACTUAL PUBLIC KEY!
         const CURRENCY_CODE = 'NGN'; // Nigerian Naira
-        const DEFAULT_ADMIN_EMAIL="outflickzlimited@gmail.com"
+        const ADMIN_EMAIL = 'admin@outflickz.com'; // Placeholder for the admin's email
 
         // --- MESSAGE & MODAL DISPLAY FUNCTION (Reused) ---
         function displayMessage(message) {
@@ -635,7 +635,7 @@
             document.getElementById('review-address-line2').textContent = `${shippingData.city}, ${shippingData.state}${reviewZipCode}, ${shippingData.country}`;
             
             // Update contact info display to include phone
-            document.getElementById('review-contact-info').textContent = `${shippingData.email}`;
+            document.getElementById('review-contact-info').textContent = `${shippingData.email} | ${shippingData.phone}`;
 
             checkoutStep = 2;
             updateCheckoutView();
@@ -838,7 +838,7 @@
                 formData.append('shippingAddress', JSON.stringify(shippingAddress));
                 formData.append('paymentMethod', paymentMethod.value);
                 formData.append('totalAmount', totalAmount);
-                formData.append('adminEmail', DEFAULT_ADMIN_EMAIL); // Passed for server-side email trigger
+                formData.append('adminEmail', ADMIN_EMAIL); // Passed for server-side email trigger
 
                 try {
                     // REAL FETCH: Create a pending order on the server with file upload

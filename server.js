@@ -3516,7 +3516,6 @@ app.post('/api/orders/place/pending', verifyUserToken, async (req, res) => {
             { items: [], updatedAt: Date.now() }
         );
         
-        // ... (Optional email sending logic) ...
         
         console.log(`Pending Order created: ${newOrder._id}`);
         

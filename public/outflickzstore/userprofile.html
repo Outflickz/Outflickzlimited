@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User Profile | Outflickz</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"> 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <style>
         /* Define a primary brand color for ash-red to ensure consistency and modern look */
@@ -17,6 +17,8 @@
         .modal-backdrop {
             background-color: rgba(0, 0, 0, 0.7);
         }
+        /* Custom scroll-margin for smooth link jumps */
+        .scroll-mt-24 { scroll-margin-top: 6rem; } 
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen text-gray-900 antialiased">
@@ -28,7 +30,8 @@
         profile: {},
         address: {},
         status: {},
-        membership: {}
+        membership: {},
+        orders: [] // New property for orders
     };
 
     function redirectToProfileOrLogin() {
@@ -60,7 +63,7 @@
         document.getElementById('edit-profile-phone').value = currentProfileData.profile.phone || '';
     }
 
-   function openEditAddressModal() {
+    function openEditAddressModal() {
         const modal = document.getElementById('edit-address-modal');
         modal.classList.remove('hidden');
 
@@ -131,7 +134,7 @@
         } catch (error) {
             console.error('Profile Update Error:', error);
             if (!document.getElementById('status-message-container').classList.contains('bg-red-100')) {
-                 showStatusMessage('An unexpected error occurred during profile update.', false);
+                showStatusMessage('An unexpected error occurred during profile update.', false);
             }
         } finally {
             button.disabled = false;
@@ -179,7 +182,7 @@
         } catch (error) {
             console.error('Address Update Error:', error);
             if (!document.getElementById('status-message-container').classList.contains('bg-red-100')) {
-                 showStatusMessage('An unexpected error occurred during address update.', false);
+                showStatusMessage('An unexpected error occurred during address update.', false);
             }
         } finally {
             button.disabled = false;
@@ -187,6 +190,108 @@
         }
     }
 
+    // --- Fetch and Render Order History ---
+    async function fetchOrderHistory() {
+        try {
+            // SIMULATING A SUCCESSFUL API CALL AND DATA RETURN.
+            // Replace with actual fetch to: `${API_BASE_URL}/api/orders/history`
+            // const response = await fetch(`${API_BASE_URL}/api/orders/history`, { credentials: 'include' });
+            // if (!response.ok) throw new Error('Failed to fetch order history');
+            // const data = await response.json();
+            // currentProfileData.orders = data.orders || [];
+
+            // MOCK DATA for display purposes:
+            const mockOrders = [
+                { id: 'OFLK-2023-1001', date: '2023-11-20', total: 125.50, status: 'Delivered', items: 3 },
+                { id: 'OFLK-2023-1002', date: '2023-12-01', total: 69.99, status: 'Shipped', items: 1 },
+                { id: 'OFLK-2024-1003', date: '2024-01-15', total: 240.00, status: 'Processing', items: 4 },
+                { id: 'OFLK-2024-1004', date: '2024-02-10', total: 49.99, status: 'Cancelled', items: 1 }
+            ];
+            currentProfileData.orders = mockOrders;
+            
+            renderOrderHistory(currentProfileData.orders);
+        } catch (error) {
+            console.error('Error fetching order history:', error);
+            // Optionally show an error message in the order section
+            document.getElementById('order-history-list').innerHTML = '<p class="text-red-500">Failed to load order history. Please try again.</p>';
+        }
+    }
+
+    function renderOrderHistory(orders) {
+        const orderList = document.getElementById('order-history-list');
+        orderList.innerHTML = ''; // Clear existing content
+
+        if (orders.length === 0) {
+            orderList.innerHTML = '<p class="text-gray-500 italic">You have no previous orders.</p>';
+            return;
+        }
+
+        const tableBody = orders.map(order => {
+            let statusClass = '';
+            let statusIcon = '';
+            switch(order.status) {
+                case 'Delivered':
+                    statusClass = 'bg-green-100 text-green-800';
+                    statusIcon = 'check-circle';
+                    break;
+                case 'Shipped':
+                    statusClass = 'bg-blue-100 text-blue-800';
+                    statusIcon = 'truck';
+                    break;
+                case 'Processing':
+                    statusClass = 'bg-yellow-100 text-yellow-800';
+                    statusIcon = 'sync-alt fa-spin';
+                    break;
+                case 'Cancelled':
+                    statusClass = 'bg-red-100 text-red-800';
+                    statusIcon = 'times-circle';
+                    break;
+                default:
+                    statusClass = 'bg-gray-100 text-gray-700';
+                    statusIcon = 'info-circle';
+            }
+            const formattedDate = new Date(order.date).toLocaleDateString('en-US');
+            const formattedTotal = order.total.toFixed(2);
+
+            return `
+                <tr class="border-b hover:bg-gray-50 transition">
+                    <td class="px-6 py-4 font-medium text-gray-900">${order.id}</td>
+                    <td class="px-6 py-4">${formattedDate}</td>
+                    <td class="px-6 py-4">$${formattedTotal}</td>
+                    <td class="px-6 py-4">
+                        <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${statusClass}">
+                            <i class="fas fa-${statusIcon} mr-2"></i>
+                            ${order.status}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <a href="order-details.html?id=${order.id}" class="text-ash-red hover:text-ash-red-dark font-medium">
+                            View Details
+                        </a>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        orderList.innerHTML = `
+            <div class="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th scope="col" class="relative px-6 py-3"><span class="sr-only">Details</span></th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        ${tableBody}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
 
     /**
      * Populates the DOM with the latest user data object.
@@ -261,6 +366,9 @@
             // Store data globally and populate DOM
             currentProfileData = data;
             updateDOM(data); 
+            
+            // NEW: Fetch and render order history after profile data is loaded
+            await fetchOrderHistory(); 
 
             // Show content
             if (loadingIndicator) loadingIndicator.classList.add('hidden');
@@ -346,8 +454,8 @@
             
             <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
                 <aside class="lg:col-span-1">
-                    <nav class="space-y-2 p-2 bg-gray-50 rounded-lg border border-gray-100">
-                        <a href="userprofile.html" class="flex items-center p-3 rounded-lg bg-ash-red text-white font-bold transition duration-150 shadow-md">
+                    <nav class="space-y-2 p-2 bg-gray-50 rounded-lg border border-gray-100 sticky top-24">
+                        <a href="#profile-details" class="flex items-center p-3 rounded-lg bg-ash-red text-white font-bold transition duration-150 shadow-md">
                             <i class="fas fa-user-circle mr-3"></i> Profile Details
                         </a>
                         <a href="#order-history" class="flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition duration-150">
@@ -364,7 +472,7 @@
 
                 <section class="lg:col-span-3 space-y-10">
                     
-                    <div id="profile-details" class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div id="profile-details" class="scroll-mt-24 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                         <h3 class="font-extrabold text-2xl text-ash-red border-b-2 border-ash-red pb-3 mb-6 flex justify-between items-center">
                             Personal Information
                             <button onclick="openEditProfileModal()" class="text-sm text-blue-600 hover:text-blue-800 font-medium p-1 rounded-md transition duration-150" aria-label="Edit Profile Details">
@@ -400,7 +508,7 @@
                         </div>
                     </div>
                     
-                    <div id="contact-address" class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div id="contact-address" class="scroll-mt-24 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                         <h3 class="font-extrabold text-2xl text-ash-red border-b-2 border-ash-red pb-3 mb-6 flex justify-between items-center">
                             Contact Address
                             <button id="edit-address-button" onclick="openEditAddressModal()" class="text-sm text-blue-600 hover:text-blue-800 font-medium p-1 rounded-md transition duration-150" aria-label="Edit Contact Address">
@@ -422,6 +530,26 @@
                                 <p class="text-lg font-semibold" id="country">Not Set</p>
                             </div>
                         </div>
+                    </div>
+
+                    <div id="order-history" class="scroll-mt-24 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <h3 class="font-extrabold text-2xl text-ash-red border-b-2 border-ash-red pb-3 mb-6 flex justify-between items-center">
+                            Order History 🛒
+                        </h3>
+                        
+                        <div id="order-history-list">
+                            <div class="flex justify-center items-center py-10">
+                                <i class="fas fa-spinner fa-spin text-3xl text-ash-red"></i>
+                                <p class="ml-3 text-gray-600">Loading orders...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="settings" class="scroll-mt-24 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <h3 class="font-extrabold text-2xl text-ash-red border-b-2 border-ash-red pb-3 mb-6 flex justify-between items-center">
+                            Settings <i class="fas fa-cog"></i>
+                        </h3>
+                        <p class="text-gray-600">Future settings: Change Password, Notification Preferences, Delete Account.</p>
+                        <button class="mt-4 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition">Change Password</button>
                     </div>
 
                 </section>
@@ -576,6 +704,5 @@
         aria-label="Chat with us on WhatsApp">
         <i class="fab fa-whatsapp text-2xl sm:text-3xl"></i>
     </a>
-    
 </body>
 </html>

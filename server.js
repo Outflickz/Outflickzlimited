@@ -3363,6 +3363,134 @@ app.post('/api/paystack/webhook', async (req, res) => {
     }
 });
 
+// 6. GET /api/orders/:orderId (Fetch Single Order Details - Protected)
+app.get('/api/orders/:orderId', verifyUserToken, async function (req, res) {
+    const orderId = req.params.orderId;
+    const userId = req.userId; // Set by verifyUserToken middleware
+
+    if (!orderId) {
+        return res.status(400).json({ message: 'Order ID is required.' });
+    }
+    // Note: 401 should usually be handled by the middleware, but a check is safe.
+    if (!userId) {
+        return res.status(401).json({ message: 'Authentication required.' });
+    }
+
+    try {
+        // 1. Fetch the specific order document
+        const order = await Order.findOne({ 
+            _id: orderId, // Find by ID
+            userId: userId // AND ensure it belongs to the authenticated user
+        }).lean();
+
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found or access denied.' });
+        }
+
+        // 2. Fetch Display Details for each item (Product Name, Image, etc.)
+        const productDetailsPromises = order.items.map(async (item) => {
+            const Model = productModels[item.productType];
+            
+            if (!Model) {
+                console.warn(`[OrderDetails] Unknown product type: ${item.productType}`);
+                return { 
+                    ...item,
+                    name: 'Product Not Found',
+                    imageUrl: 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=Error',
+                    sku: 'N/A'
+                };
+            }
+
+            // Find the original product to get the display details
+            const product = await Model.findById(item.productId)
+                .select('name imageUrls') // Only need display data
+                .lean();
+
+            // Structure the item for the frontend
+            const displayItem = {
+                // Keep all original item fields (productId, priceAtTimeOfPurchase, quantity, size, etc.)
+                ...item, 
+                // Add the populated display fields
+                name: product ? product.name : 'Product Deleted',
+                // Use the first image URL if available
+                imageUrl: product && product.imageUrls && product.imageUrls.length > 0 ? product.imageUrls[0] : 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=No+Image',
+                // Derive a display SKU if the original product doesn't provide one
+                sku: `SKU-${item.productType.substring(0,3).toUpperCase()}-${item.size || 'UNK'}`
+            };
+            
+            // Clean up the Mongoose virtual _id field before sending
+            delete displayItem._id; 
+            
+            return displayItem;
+        });
+
+        // Resolve all concurrent product detail fetches
+        const populatedItems = await Promise.all(productDetailsPromises);
+        
+        // 3. Construct the final response object, including placeholders for front-end structure
+        const finalOrderDetails = {
+            ...order,
+            items: populatedItems,
+            // Add placeholders needed by the frontend renderOrderDetails for accurate financial breakdown
+            // If your orders do not track these explicitly, they must be calculated or assumed 0.
+            subtotal: order.totalAmount, // Assuming the order is simple (no tax/shipping breakdown on schema)
+            shippingFee: 0.00, 
+            tax: 0.00 
+        };
+
+        // 4. Send the populated details to the frontend
+        res.status(200).json(finalOrderDetails);
+
+    } catch (error) {
+        console.error('Error fetching order details:', error);
+        res.status(500).json({ message: 'Failed to retrieve order details due to a server error.' });
+    }
+});
+
+// =========================================================
+// 2. GET /api/orders/history - Retrieve Order History (Protected)
+// =========================================================
+app.get('/api/orders/history', verifyUserToken, async (req, res) => {
+    try {
+        // req.userId is set by verifyUserToken middleware
+        const userId = req.userId;
+
+        if (!userId) {
+             // Should theoretically be caught by verifyUserToken, but serves as a safety check
+            return res.status(401).json({ message: 'Authentication required to view order history.' });
+        }
+
+        // 1. Fetch orders from the database
+        const orders = await Order.find({ userId: userId })
+            // Select only the fields needed for the Order History table on the frontend:
+            .select('_id createdAt totalAmount status items')
+            // Sort by newest order first (descending by createdAt)
+            .sort({ createdAt: -1 })
+            .lean(); // Use .lean() for faster read operations
+
+        // 2. Format the output data for the frontend
+        const formattedOrders = orders.map(order => ({
+            // Use MongoDB's _id as the unique identifier (Order ID)
+            id: order._id, 
+            date: order.createdAt, // The date the order was created/placed
+            total: order.totalAmount,
+            status: order.status.charAt(0).toUpperCase() + order.status.slice(1), // Capitalize status for display
+            // Count the number of distinct products/lines in the order
+            items: order.items.length 
+        }));
+
+        // 3. Respond with the formatted order history list
+        res.status(200).json({
+            orders: formattedOrders,
+            message: 'Order history retrieved successfully.'
+        });
+
+    } catch (error) {
+        console.error('Error fetching order history:', error);
+        res.status(500).json({ message: 'Failed to retrieve order history due to a server error.' });
+    }
+});
+
 module.exports = {
     app,
     mongoose,

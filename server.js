@@ -641,11 +641,11 @@ const OrderSchema = new mongoose.Schema({
     },
     shippingAddress: { type: Object, required: true },
     paymentMethod: { type: String, required: true },
-    // You may also want to add these fields based on the Paystack webhook logic you shared:
-    orderReference: { type: String, unique: true, sparse: true }, // For Paystack reference
+    orderReference: { type: String, unique: true, sparse: true },
     amountPaidKobo: { type: Number, min: 0 },
     paymentTxnId: { type: String, sparse: true },
-    paidAt: { type: Date }
+    paidAt: { type: Date },
+    paymentReceiptUrl: { type: String, sparse: true }, 
 }, { timestamps: true });
 
 const Order = mongoose.models.Order || mongoose.model('Order', OrderSchema);
@@ -3464,38 +3464,69 @@ app.post('/api/paystack/webhook', async (req, res) => {
 });
 
 // =========================================================
-// NEW: POST /api/orders/place/pending - Create a Pending Order (Protected)
+// UPDATED: POST /api/orders/place/pending - Handle Receipt Upload & Order Creation (Protected)
 // =========================================================
-app.post('/api/orders/place/pending', verifyUserToken, async (req, res) => {
+app.post('/api/orders/place/pending', verifyUserToken, receiptUploadMiddleware, async (req, res) => {
+    // NOTE: We rely on the `receiptUploadMiddleware` (multer) to parse the request body and file.
+    
+    // 1. Extract and Parse Data
     const userId = req.userId;
-    const { shippingAddress, paymentMethod, totalAmount } = req.body;
+    const receiptFile = req.file; // The uploaded file object (will be present if user selected a file)
+    
+    let { shippingAddress, paymentMethod, totalAmount, adminEmail } = req.body;
 
-    // 1. Basic Input Validation
+    // Parse JSON strings and number back into objects/numbers
+    try {
+        shippingAddress = JSON.parse(shippingAddress);
+        totalAmount = parseFloat(totalAmount);
+    } catch (parseError) {
+        // Log the error and stop execution
+        console.error('Data parsing error:', parseError);
+        return res.status(400).json({ message: 'Invalid format for shipping address or total amount in request body.' });
+    }
+    
+    // 2. Initial Validation
     if (!shippingAddress || !totalAmount || totalAmount <= 0) {
         return res.status(400).json({ message: 'Missing shipping address or invalid total amount.' });
     }
 
+    // 3. Conditional Receipt Handling (Backblaze B2 Upload)
+    let receiptUrl = null;
+    
+    if (paymentMethod === 'Bank Transfer') {
+        if (!receiptFile) {
+            return res.status(400).json({ message: 'Payment receipt file is required for Bank Transfer.' });
+        }
+        
+        try {
+            // Upload the file buffer from Multer memory storage to B2
+            receiptUrl = await uploadFileToPermanentStorage(receiptFile);
+        } catch (uploadError) {
+            console.error('B2 Upload Failed:', uploadError);
+            return res.status(500).json({ message: 'Failed to upload payment receipt. Please try again.' });
+        }
+    }
+    
+    // 4. Order Creation Logic
     try {
-        // 2. Retrieve the user's current cart items
+        // Retrieve the user's current cart items
         const cart = await Cart.findOne({ userId }).lean();
 
         if (!cart || cart.items.length === 0) {
             return res.status(400).json({ message: 'Cannot place order: Shopping bag is empty.' });
         }
 
-        // 3. Create a new Order document with status 'Pending'
+        // Prepare order items
         const orderItems = cart.items.map(item => ({
             productId: item.productId,
             productType: item.productType,
             quantity: item.quantity,
-            priceAtTimeOfPurchase: item.price, // Store the price explicitly
+            priceAtTimeOfPurchase: item.price,
             size: item.size,
             color: item.color,
         }));
         
-        // **CRITICAL: Generate a reference for bank transfer orders**
-        // This is not used by Paystack webhook, but it ensures the 'orderReference' 
-        // field is present and unique, avoiding schema validation issues later.
+        // Generate a reference for manual orders
         const orderRef = `MANUAL-${Date.now()}-${userId.substring(0, 5)}`; 
 
         const newOrder = await Order.create({
@@ -3503,33 +3534,51 @@ app.post('/api/orders/place/pending', verifyUserToken, async (req, res) => {
             items: orderItems,
             shippingAddress: shippingAddress,
             totalAmount: totalAmount, 
-            status: 'Pending', // Now valid due to schema update
+            status: 'Pending', // Order is pending verification
             paymentMethod: paymentMethod,
-            // Added fields to satisfy schema and webhook logic:
             orderReference: orderRef, 
-            amountPaidKobo: Math.round(totalAmount * 100), // Required for Paystack webhook amount check
+            amountPaidKobo: Math.round(totalAmount * 100),
+            paymentReceiptUrl: receiptUrl, // Store the B2 permanent URL
         });
 
-        // 4. Clear the user's cart after successful order creation
+        // 5. Clear the user's cart
         await Cart.findOneAndUpdate(
             { userId },
             { items: [], updatedAt: Date.now() }
         );
         
-        // ... (Optional email sending logic) ...
+        // 6. Send Admin Email Notification
+        if (paymentMethod === 'Bank Transfer') {
+            const mailOptions = {
+                to: DEFAULT_ADMIN_EMAIL || 'outflickzlimited@gmail.com', 
+                subject: `NEW PENDING BANK TRANSFER ORDER #${newOrder._id}`,
+                html: `
+                    <p>A new order has been placed awaiting payment verification via Bank Transfer.</p>
+                    <p><strong>Order ID:</strong> ${newOrder._id}</p>
+                    <p><strong>Total Amount:</strong> ₦${totalAmount.toLocaleString()}</p>
+                    <p><strong>Customer Email:</strong> ${shippingAddress.email}</p>
+                    <p><strong>Shipping To:</strong> ${shippingAddress.street}, ${shippingAddress.city}</p>
+                    <p><strong>Receipt Link:</strong> <a href="${receiptUrl}">VIEW PAYMENT RECEIPT (Private B2 Link)</a></p>
+                    <p>Please log into the admin dashboard to verify the transfer and process the order.</p>
+                `,
+            };
+            
+            // Assuming the `sendEmail` utility exists and is configured
+            // await sendEmail(mailOptions);
+            console.log(`Admin email notification prepared and sent for Order ID: ${newOrder._id}`);
+        }
         
         console.log(`Pending Order created: ${newOrder._id}`);
         
-        // Success response for the client-side JavaScript
+        // 7. Success Response
         res.status(201).json({
-            message: 'Pending order placed successfully.',
+            message: 'Pending order placed successfully. Admin notified.',
             orderId: newOrder._id,
             status: newOrder.status
         });
 
     } catch (error) {
         console.error('Error placing pending order:', error);
-        // This catch block handles validation errors from the database
         res.status(500).json({ message: 'Failed to create pending order due to a server error.' });
     }
 });

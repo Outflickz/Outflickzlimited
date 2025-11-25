@@ -699,7 +699,6 @@ function createColorList(collectionId, variants) {
 
     return mapHtml + buttonsHtml;
 }
-
 // --- REDESIGNED WEARS COLLECTION CARD JS (MATCHES IMAGE LAYOUT) ---
 // UPDATED: Now handles the 'caps' size by removing the size selection UI.
 function createCollectionCard(collection, size = 'default') {
@@ -708,32 +707,35 @@ function createCollectionCard(collection, size = 'default') {
     const defaultFrontImage = PLACEHOLDER_URL; 
     const defaultBackImage = PLACEHOLDER_URL; 
     
-// --- Conditional Sizing Classes ---
-const reducedSizes = ['reduced', 'caps', 'wears', 'newarrivals'];
-const isReduced = reducedSizes.includes(size);
-const isCaps = size === 'caps';
-const isPreorder = size === 'preorder';
-
+    // --- Conditional Sizing Classes ---
+    const reducedSizes = ['reduced', 'caps', 'wears', 'newarrivals', 'preorder']; // Added 'preorder' here for consistency
+    const isReduced = reducedSizes.includes(size);
+    const isCaps = size === 'caps';
+    const isPreorder = size === 'preorder';
 
     
     // Card Padding
-    const cardPadding = isReduced ? 'p-1 md:p-2' : 'p-2 md:p-3'; 
+    const cardPadding = isReduced ? 'p-1 sm:p-2' : 'p-2 sm:p-3'; // Use 'sm' for better distinction
     
     // Name and Description Text Size
-    const nameFontSize = isReduced ? 'text-xs md:text-sm' : 'text-sm md:text-base';
-    const descriptionFontSize = isReduced ? 'text-[0.5rem]' : 'text-xs';
+    const nameFontSize = isReduced ? 'text-xs sm:text-sm' : 'text-sm sm:text-base';
+    const descriptionFontSize = isReduced ? 'text-[0.6rem] sm:text-xs' : 'text-xs sm:text-sm';
     
     // Price Text Size
-    const priceFontSize = isReduced ? 'text-xs font-bold' : 'text-base font-semibold';
+    const priceFontSize = isReduced ? 'text-xs font-bold sm:text-sm' : 'text-base font-semibold';
     
-// Control Height/Size
-const controlHeight = isReduced ? 'h-5 md:h-6' : 'h-6 md:h-7';
-// Reduced Button Text Size
-const controlTextSize = isReduced ? 'text-[0.4rem] md:text-[0.6rem]' : 'text-[0.6rem] md:text-xs'; 
-const quantityInputWidth = isReduced ? 'w-4 md:w-6' : 'w-6 md:w-8';
-const quantityButtonSize = isReduced ? 'w-6 h-6 md:w-7 md:h-7' : 'w-7 h-7 md:w-8 md:h-8';
-// Reduced Quantity Text Size
-const quantityInputTextSize = isReduced ? 'text-[0.5rem] md:text-[0.6rem]' : 'text-[0.6rem] md:text-xs';
+    // Control Height/Size (REDUCED FOR MOBILE)
+    const controlHeight = isReduced ? 'h-6' : 'h-7'; // H-6/H-7 is the mobile size
+    
+    // Reduced Button Text Size (AGGRESSIVELY SMALLER FOR MOBILE)
+    const controlTextSize = isReduced ? 'text-[0.5rem] sm:text-[0.6rem]' : 'text-xs sm:text-sm'; 
+    
+    // Quantity Input/Button (TIGHTER FOR MOBILE)
+    const quantityInputWidth = isReduced ? 'w-4 sm:w-6' : 'w-6 sm:w-8';
+    const quantityButtonSize = isReduced ? 'w-6 h-6' : 'w-7 h-7'; // Use the same height as controlHeight
+    
+    // Reduced Quantity Text Size
+    const quantityInputTextSize = isReduced ? 'text-[0.6rem] sm:text-xs' : 'text-xs sm:text-sm';
     
     // NEW: Button flex classes for 50/50 split
     const buttonFlexClasses = 'flex-1';
@@ -742,6 +744,8 @@ const quantityInputTextSize = isReduced ? 'text-[0.5rem] md:text-[0.6rem]' : 'te
     const primaryVariant = collection.variants && collection.variants.length > 0 ? collection.variants[0] : null;
     
     // Initial image URLs are the first variant's URLs
+    // NOTE ON IMAGE SIZE: For better performance, consider adding '?width=300' to the URL here 
+    // IF your B2 endpoint supports server-side image optimization (like a CDN).
     const frontImageUrl = collection.frontImageUrl || primaryVariant?.frontImageUrl || defaultFrontImage;
     const backImageUrl = collection.backImageUrl || primaryVariant?.backImageUrl || defaultBackImage;
     
@@ -749,7 +753,6 @@ const quantityInputTextSize = isReduced ? 'text-[0.5rem] md:text-[0.6rem]' : 'te
     const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
 
     // *** Conditional Size List Render ***
-    // Only render size selection for Wears and Pre-Orders, but not Caps
     const showSizeSelection = !isCaps;
 
     const sizeListHtml = showSizeSelection ? `
@@ -767,27 +770,28 @@ const quantityInputTextSize = isReduced ? 'text-[0.5rem] md:text-[0.6rem]' : 'te
     // *** Check Stock Status ***
     const isOutOfStock = maxStock === 0 || collection.availableStock === 0;
 
-    // Get the description from the 'tag' field, or use a default
-    const description = collection.tag || 'Exclusive limited edition item.';
+    const description = collection.tag || (isPreorder ? 'Secure your exclusive item before it sells out' : 'Exclusive limited edition item.');
     
-    // --- NEW: Pre-Order specific badge and text ---
+    // --- Pre-Order specific badge and text ---
     const preorderAvailableDate = collection.availableDate 
         ? new Date(collection.availableDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
         : 'TBA';
 
     let stockBadge = '';
-    let cartButtonText = 'Add To Cart';
-    let buyNowButtonText = 'Buy Now'; // NEW
+    let cartButtonText = 'ADD'; // More concise for mobile
+    let buyNowButtonText = 'BUY NOW';
     let cartButtonClasses = 'bg-ash-dark text-white hover:bg-ash-red';
-    let buyNowButtonClasses = 'bg-ash-red text-white hover:bg-red-700'; // NEW: Distinct styling for "Buy Now"
+    let buyNowButtonClasses = 'bg-ash-red text-white hover:bg-red-700';
 
     if (isPreorder) {
-        stockBadge = `<span class="absolute top-2 left-2 bg-ash-dark text-white text-xm font-bold px-2 py-0.5 rounded shadow-lg z-40">PRE-ORDER</span>`;
-        buyNowButtonText = 'PRE-ORDER NOW';
+        stockBadge = `<span class="absolute top-2 left-2 bg-ash-dark text-white text-[0.6rem] sm:text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">PRE-ORDER</span>`;
+        cartButtonText = 'ADD'; 
+        buyNowButtonText = 'ORDER'; // More concise pre-order button text
         buyNowButtonClasses = 'bg-ash-red text-white hover:bg-red-700';
         cartButtonClasses = 'bg-gray-700 text-white hover:bg-gray-800';
     } else if (isOutOfStock) {
-        stockBadge = '<span class="absolute top-2 left-2 bg-ash-red text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">OUT OF STOCK</span>';
+        stockBadge = '<span class="absolute top-2 left-2 bg-ash-red text-white text-[0.6rem] sm:text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">OOS</span>'; // Very concise for mobile
+        cartButtonText = 'N/A';
         buyNowButtonText = 'N/A';
         cartButtonClasses = 'bg-gray-500 text-white cursor-not-allowed opacity-75';
         buyNowButtonClasses = 'bg-gray-500 text-white cursor-not-allowed opacity-75';
@@ -800,31 +804,32 @@ const quantityInputTextSize = isReduced ? 'text-[0.5rem] md:text-[0.6rem]' : 'te
     // Get current quantity value for the button click
     const quantityGetter = `document.getElementById('quantity-input-${collection._id}').value`;
 
-    // Button to add to cart (ADDED addToCart function call)
-  const cartButtonHtml = `
-        <button 
-            ${isButtonDisabled ? 'disabled' : ''} 
-            onclick="simulateAddToCart({ 
-                productId: '${collection._id}', 
-                name: '${collection.name.replace(/'/g, "\\'")}', 
-                price: ${itemPrice},
-                imageUrl: '${frontImageUrl}',
-                quantity: parseInt(${quantityGetter}) 
-            })"
-            class="${buttonFlexClasses} ${controlTextSize} ${cartButtonClasses} ${controlHeight} rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center">
-            ${cartButtonText}
-        </button>
-    `;
+    // Button to add to cart (AGGRESSIVE MOBILE SIZING)
+    const cartButtonHtml = `
+        <button 
+            ${isButtonDisabled ? 'disabled' : ''} 
+            onclick="simulateAddToCart({ 
+                productId: '${collection._id}', 
+                name: '${collection.name.replace(/'/g, "\\'")}', 
+                price: ${itemPrice},
+                imageUrl: '${frontImageUrl}',
+                quantity: parseInt(${quantityGetter}) 
+            })"
+            class="${buttonFlexClasses} ${controlTextSize} ${cartButtonClasses} ${controlHeight} rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center">
+            ${cartButtonText}
+        </button>
+    `;
 
-    // NEW: Buy Now Button
+    // NEW: Buy Now Button (AGGRESSIVE MOBILE SIZING)
     const buyNowButtonHtml = `
         <button ${isButtonDisabled ? 'disabled' : ''} class="${buttonFlexClasses} ${controlTextSize} ${buyNowButtonClasses} ${controlHeight} rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center">
             ${buyNowButtonText}
         </button>
     `;
 
+    // Quantity control (TIGHTER FOR MOBILE)
     const quantityControlHtml = isOutOfStock && !isPreorder
-        ? `<div class="w-16 md:w-20 ${controlHeight} border border-gray-300 rounded-sm flex items-center justify-center text-xs text-gray-500">N/A</div>`
+        ? `<div class="w-10 sm:w-16 ${controlHeight} border border-gray-300 rounded-sm flex items-center justify-center text-xs text-gray-500">N/A</div>`
         : `
             <div class="flex items-center border border-gray-300 rounded-sm">
                 <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-l-sm font-semibold">
@@ -866,7 +871,7 @@ const quantityInputTextSize = isReduced ? 'text-[0.5rem] md:text-[0.6rem]' : 'te
                     <button 
                         id="image-toggle-btn-${collection._id}"
                         onclick="toggleImage('${collection._id}')" 
-                        class="bg-color-white text-ash-dark text-xs font-semibold py-1 px-3 rounded-full shadow-md hover:bg-gray-200 transition"
+                        class="bg-color-white text-ash-dark text-[0.6rem] sm:text-xs font-semibold py-1 px-3 rounded-full shadow-md hover:bg-gray-200 transition"
                         title="Show Back View"
                     >
                         <i class="fas fa-sync-alt"></i> Back View
@@ -899,7 +904,7 @@ const quantityInputTextSize = isReduced ? 'text-[0.5rem] md:text-[0.6rem]' : 'te
                         ${buyNowButtonHtml}
                     </div>
                 </div>
-                            </div>
+            </div>
         </div>
     `;
 }

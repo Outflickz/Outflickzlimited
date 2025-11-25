@@ -3462,17 +3462,23 @@ app.post('/api/paystack/webhook', async (req, res) => {
         res.status(500).send('Internal Server Error.'); 
     }
 });
-
 // =========================================================
 // NEW: POST /api/orders/place/pending - Create a Pending Order (Protected)
+// This route is used for manual Bank Transfer payments.
 // =========================================================
 app.post('/api/orders/place/pending', verifyUserToken, async (req, res) => {
     const userId = req.userId;
-    const { shippingAddress, paymentMethod, totalAmount } = req.body;
+    // CRITICAL UPDATE: Capture the receiptReference from the client (sent by the frontend for bank transfers)
+    const { shippingAddress, paymentMethod, totalAmount, receiptReference } = req.body; 
 
     // 1. Basic Input Validation
     if (!shippingAddress || !totalAmount || totalAmount <= 0) {
         return res.status(400).json({ message: 'Missing shipping address or invalid total amount.' });
+    }
+    // NEW VALIDATION: Ensure the receipt reference is provided for a Bank Transfer
+    // Assuming the client passes "Bank Transfer" as the paymentMethod for this path.
+    if (paymentMethod === 'Bank Transfer' && !receiptReference) {
+        return res.status(400).json({ message: 'Bank payment receipt reference is required for a Bank Transfer order.' });
     }
 
     try {
@@ -3494,8 +3500,6 @@ app.post('/api/orders/place/pending', verifyUserToken, async (req, res) => {
         }));
         
         // **CRITICAL: Generate a reference for bank transfer orders**
-        // This is not used by Paystack webhook, but it ensures the 'orderReference' 
-        // field is present and unique, avoiding schema validation issues later.
         const orderRef = `MANUAL-${Date.now()}-${userId.substring(0, 5)}`; 
 
         const newOrder = await Order.create({
@@ -3505,9 +3509,10 @@ app.post('/api/orders/place/pending', verifyUserToken, async (req, res) => {
             totalAmount: totalAmount, 
             status: 'Pending', // Now valid due to schema update
             paymentMethod: paymentMethod,
-            // Added fields to satisfy schema and webhook logic:
             orderReference: orderRef, 
-            amountPaidKobo: Math.round(totalAmount * 100), // Required for Paystack webhook amount check
+            amountPaidKobo: Math.round(totalAmount * 100),
+            paymentTxnId: receiptReference,
+            paymentReceiptUrl: receiptReference, // Could also use this if the schema is final
         });
 
         // 4. Clear the user's cart after successful order creation
@@ -3517,11 +3522,11 @@ app.post('/api/orders/place/pending', verifyUserToken, async (req, res) => {
         );
         
         
-        console.log(`Pending Order created: ${newOrder._id}`);
+        console.log(`Pending Order created: ${newOrder._id} with ref: ${receiptReference}`);
         
         // Success response for the client-side JavaScript
         res.status(201).json({
-            message: 'Pending order placed successfully.',
+            message: 'Pending order placed successfully. Awaiting payment verification.',
             orderId: newOrder._id,
             status: newOrder.status
         });
@@ -3541,7 +3546,6 @@ app.get('/api/orders/:orderId', verifyUserToken, async function (req, res) {
     if (!orderId) {
         return res.status(400).json({ message: 'Order ID is required.' });
     }
-    // Note: 401 should usually be handled by the middleware, but a check is safe.
     if (!userId) {
         return res.status(401).json({ message: 'Authentication required.' });
     }
@@ -3559,34 +3563,27 @@ app.get('/api/orders/:orderId', verifyUserToken, async function (req, res) {
 
         // 2. Fetch Display Details for each item (Product Name, Image, etc.)
         const productDetailsPromises = order.items.map(async (item) => {
+            // Use a copy of the item object for mutation
+            let displayItem = { ...item };
+            
             const Model = productModels[item.productType];
             
             if (!Model) {
                 console.warn(`[OrderDetails] Unknown product type: ${item.productType}`);
-                return { 
-                    ...item,
-                    name: 'Product Not Found',
-                    imageUrl: 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=Error',
-                    sku: 'N/A'
-                };
+                displayItem.name = 'Product Not Found';
+                displayItem.imageUrl = 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=Error';
+                displayItem.sku = 'N/A';
+            } else {
+                // Find the original product to get the display details
+                const product = await Model.findById(item.productId)
+                    .select('name imageUrls') // Only need display data
+                    .lean();
+
+                // Structure the item for the frontend
+                displayItem.name = product ? product.name : 'Product Deleted';
+                displayItem.imageUrl = product && product.imageUrls && product.imageUrls.length > 0 ? product.imageUrls[0] : 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=No+Image';
+                displayItem.sku = `SKU-${item.productType.substring(0,3).toUpperCase()}-${item.size || 'UNK'}`;
             }
-
-            // Find the original product to get the display details
-            const product = await Model.findById(item.productId)
-                .select('name imageUrls') // Only need display data
-                .lean();
-
-            // Structure the item for the frontend
-            const displayItem = {
-                // Keep all original item fields (productId, priceAtTimeOfPurchase, quantity, size, etc.)
-                ...item, 
-                // Add the populated display fields
-                name: product ? product.name : 'Product Deleted',
-                // Use the first image URL if available
-                imageUrl: product && product.imageUrls && product.imageUrls.length > 0 ? product.imageUrls[0] : 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=No+Image',
-                // Derive a display SKU if the original product doesn't provide one
-                sku: `SKU-${item.productType.substring(0,3).toUpperCase()}-${item.size || 'UNK'}`
-            };
             
             // Clean up the Mongoose virtual _id field before sending
             delete displayItem._id; 
@@ -3597,15 +3594,14 @@ app.get('/api/orders/:orderId', verifyUserToken, async function (req, res) {
         // Resolve all concurrent product detail fetches
         const populatedItems = await Promise.all(productDetailsPromises);
         
-        // 3. Construct the final response object, including placeholders for front-end structure
+        // 3. Construct the final response object, including placeholders
         const finalOrderDetails = {
             ...order,
             items: populatedItems,
-            // Add placeholders needed by the frontend renderOrderDetails for accurate financial breakdown
-            // If your orders do not track these explicitly, they must be calculated or assumed 0.
-            subtotal: order.totalAmount, // Assuming the order is simple (no tax/shipping breakdown on schema)
-            shippingFee: 0.00, 
-            tax: 0.00 
+            // Add placeholders needed by the frontend for accurate financial breakdown
+            subtotal: order.totalAmount, 
+            shippingFee: 0.00, // Assuming 0 if not tracked on the order schema
+            tax: 0.00 // Assuming 0 if not tracked on the order schema
         };
 
         // 4. Send the populated details to the frontend

@@ -1105,6 +1105,11 @@ const uploadFields = Array.from({ length: 4 }, (_, i) => [
     { name: `back-view-upload-${i + 1}`, maxCount: 1 }
 ]).flat();
 
+const singleReceiptUpload = multer({ 
+    storage: multer.memoryStorage(), // Use memory storage as defined
+    limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+}).single('receipt'); // 'receipt' must match the field name sent by the frontend
+
 // --- USER AUTHENTICATION API ROUTES ---
 
 const verifyUserToken = (req, res, next) => {
@@ -3462,80 +3467,116 @@ app.post('/api/paystack/webhook', async (req, res) => {
         res.status(500).send('Internal Server Error.'); 
     }
 });
+
 // =========================================================
 // NEW: POST /api/orders/place/pending - Create a Pending Order (Protected)
 // This route is used for manual Bank Transfer payments.
 // =========================================================
-app.post('/api/orders/place/pending', verifyUserToken, async (req, res) => {
-    const userId = req.userId;
-    // CRITICAL UPDATE: Capture the receiptReference from the client (sent by the frontend for bank transfers)
-    const { shippingAddress, paymentMethod, totalAmount, receiptReference } = req.body; 
+app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
+    
+    // 1. Run the Multer middleware to process the form data and file
+    singleReceiptUpload(req, res, async (err) => {
+        
+        // Handle Multer errors (e.g., file size limit)
+        if (err instanceof multer.MulterError) {
+            return res.status(400).json({ message: `File upload failed: ${err.message}` });
+        } else if (err) {
+            console.error('Unknown Multer Error:', err);
+            return res.status(500).json({ message: 'Error processing file upload.' });
+        }
+        
+        const userId = req.userId;
+        
+        // Form fields are now in req.body. Note: `totalAmount` will be a string.
+        const { shippingAddress: shippingAddressString, paymentMethod, totalAmount: totalAmountString } = req.body;
+        const receiptFile = req.file; // The uploaded file buffer is here
+        
+        // Convert string fields back to their proper type
+        const totalAmount = parseFloat(totalAmountString);
+        let shippingAddress;
 
-    // 1. Basic Input Validation
-    if (!shippingAddress || !totalAmount || totalAmount <= 0) {
-        return res.status(400).json({ message: 'Missing shipping address or invalid total amount.' });
-    }
-    // NEW VALIDATION: Ensure the receipt reference is provided for a Bank Transfer
-    // Assuming the client passes "Bank Transfer" as the paymentMethod for this path.
-    if (paymentMethod === 'Bank Transfer' && !receiptReference) {
-        return res.status(400).json({ message: 'Bank payment receipt reference is required for a Bank Transfer order.' });
-    }
-
-    try {
-        // 2. Retrieve the user's current cart items
-        const cart = await Cart.findOne({ userId }).lean();
-
-        if (!cart || cart.items.length === 0) {
-            return res.status(400).json({ message: 'Cannot place order: Shopping bag is empty.' });
+        try {
+            shippingAddress = JSON.parse(shippingAddressString);
+        } catch (e) {
+            return res.status(400).json({ message: 'Invalid shipping address format.' });
+        }
+        
+        // 2. Critical Input Validation
+        if (!shippingAddress || totalAmount <= 0 || isNaN(totalAmount)) {
+            return res.status(400).json({ message: 'Missing shipping address or invalid total amount.' });
         }
 
-        // 3. Create a new Order document with status 'Pending'
-        const orderItems = cart.items.map(item => ({
-            productId: item.productId,
-            productType: item.productType,
-            quantity: item.quantity,
-            priceAtTimeOfPurchase: item.price, // Store the price explicitly
-            size: item.size,
-            color: item.color,
-        }));
+        let paymentReceiptUrl = null;
         
-        // **CRITICAL: Generate a reference for bank transfer orders**
-        const orderRef = `MANUAL-${Date.now()}-${userId.substring(0, 5)}`; 
+        try {
+            // NEW VALIDATION: Ensure the receipt file is provided for a Bank Transfer
+            if (paymentMethod === 'Bank Transfer') {
+                if (!receiptFile) {
+                    return res.status(400).json({ message: 'Bank payment receipt image is required for a Bank Transfer order.' });
+                }
+                
+                // 3. Upload the receipt file to Backblaze B2
+                paymentReceiptUrl = await uploadFileToPermanentStorage(receiptFile);
+                
+                if (!paymentReceiptUrl) {
+                    throw new Error("Failed to get permanent URL after B2 upload.");
+                }
+            }
 
-        const newOrder = await Order.create({
-            userId: userId,
-            items: orderItems,
-            shippingAddress: shippingAddress,
-            totalAmount: totalAmount, 
-            status: 'Pending', // Now valid due to schema update
-            paymentMethod: paymentMethod,
-            orderReference: orderRef, 
-            amountPaidKobo: Math.round(totalAmount * 100),
-            paymentTxnId: receiptReference,
-            paymentReceiptUrl: receiptReference, // Could also use this if the schema is final
-        });
+            // 4. Retrieve the user's current cart items
+            const cart = await Cart.findOne({ userId }).lean();
 
-        // 4. Clear the user's cart after successful order creation
-        await Cart.findOneAndUpdate(
-            { userId },
-            { items: [], updatedAt: Date.now() }
-        );
-        
-        
-        console.log(`Pending Order created: ${newOrder._id} with ref: ${receiptReference}`);
-        
-        // Success response for the client-side JavaScript
-        res.status(201).json({
-            message: 'Pending order placed successfully. Awaiting payment verification.',
-            orderId: newOrder._id,
-            status: newOrder.status
-        });
+            if (!cart || cart.items.length === 0) {
+                return res.status(400).json({ message: 'Cannot place order: Shopping bag is empty.' });
+            }
 
-    } catch (error) {
-        console.error('Error placing pending order:', error);
-        // This catch block handles validation errors from the database
-        res.status(500).json({ message: 'Failed to create pending order due to a server error.' });
-    }
+            // 5. Create a new Order document with status 'Pending'
+            const orderItems = cart.items.map(item => ({
+                productId: item.productId,
+                productType: item.productType,
+                quantity: item.quantity,
+                priceAtTimeOfPurchase: item.price, // Store the price explicitly
+                size: item.size,
+                color: item.color,
+            }));
+            
+            // **CRITICAL: Generate a reference for bank transfer orders**
+            const orderRef = `MANUAL-${Date.now()}-${userId.substring(0, 5)}`; 
+
+            const newOrder = await Order.create({
+                userId: userId,
+                items: orderItems,
+                shippingAddress: shippingAddress,
+                totalAmount: totalAmount, 
+                status: 'Pending', 
+                paymentMethod: paymentMethod,
+                orderReference: orderRef, 
+                amountPaidKobo: Math.round(totalAmount * 100),
+                paymentTxnId: orderRef, // Use the order reference as the txn ID for now
+                paymentReceiptUrl: paymentReceiptUrl, // Store the B2 permanent URL here
+            });
+
+            // 6. Clear the user's cart after successful order creation
+            await Cart.findOneAndUpdate(
+                { userId },
+                { items: [], updatedAt: Date.now() }
+            );
+            
+            console.log(`Pending Order created: ${newOrder._id}. Receipt URL: ${paymentReceiptUrl}`);
+            
+            // Success response for the client-side JavaScript
+            res.status(201).json({
+                message: 'Pending order placed successfully. Awaiting payment verification.',
+                orderId: newOrder._id,
+                status: newOrder.status,
+                receiptUrl: paymentReceiptUrl // Optional: return the URL
+            });
+
+        } catch (error) {
+            console.error('Error placing pending order:', error);
+            res.status(500).json({ message: 'Failed to create pending order due to a server error.' });
+        }
+    });
 });
 
 // 6. GET /api/orders/:orderId (Fetch Single Order Details - Protected)

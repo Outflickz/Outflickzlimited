@@ -4,45 +4,61 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Order Confirmation | Outflickz</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
-    <link href="styles.css" rel="stylesheet"> 
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'ash-red': '#EF4444', // Example based on common design patterns for a brand accent
+                        'ash-dark': '#1F2937', // Example dark color
+                        'color-white': '#FFFFFF',
+                        'color-black': '#111827',
+                    }
+                }
+            }
+        }
+    </script>
 </head>
-<body class="bg-color-white text-color-black min-h-screen">
+<body class="bg-color-white text-gray-800 min-h-screen">
 
-     <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
-        <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
-            <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-10 sm:h-12 lg:h-10">
-        </a>
+    <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
+            <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
+                <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-8 sm:h-10">
+            </a>
 
-        <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
-            <a href="preorder.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
-            <a href="newarrivals.html" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
-            <a href="wearscollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Wears Collections</a>
-            <a href="capcollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Cap Collections</a>
-        </nav>
+            <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
+                <a href="preorder.html" class="font-medium text-color-black hover:text-ash-red transition">Pre Order</a>
+                <a href="newarrivals.html" class="font-medium text-color-black hover:text-ash-red transition">New Arrivals</a>
+                <a href="wearscollection.html" class="font-medium text-color-black hover:text-ash-red transition flex items-center">Wears Collections</a>
+                <a href="capcollection.html" class="font-medium text-color-black hover:text-ash-red transition flex items-center">Cap Collections</a>
+            </nav>
 
-      <div class="flex items-center space-x-2 sm:space-x-4">
-    <button id="profile-icon" 
-    class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" 
-    aria-label="User Account"
-    onclick="redirectToProfileOrLogin()">
-        <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
-    </button>
-    <a href="cart.html" class="relative p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" aria-label="Shopping Bag">
-        <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
-        <span id="cart-badge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-ash-red rounded-full hidden">
-            0
-        </span>
-    </a>
-    <button class="md:hidden p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
-        <i class="fas fa-bars w-5 h-5 sm:w-6 sm:h-6"></i>
-    </button>
-</div>
-</header>
-<div id="cart-alert" class="hidden fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 bg-green-500 text-white text-sm px-4 py-2 rounded-lg shadow-xl z-50 transition-all duration-500 opacity-0 -translate-y-10">
-    Item(s) added to cart!
-</div>
+            <div class="flex items-center space-x-2 sm:space-x-4">
+                <button id="profile-icon" 
+                    class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" 
+                    aria-label="User Account"
+                    onclick="redirectToProfileOrLogin()">
+                    <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
+                </button>
+                <a href="cart.html" class="relative p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" aria-label="Shopping Bag">
+                    <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
+                    <span id="cart-badge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-ash-red rounded-full hidden">
+                        0
+                    </span>
+                </a>
+                <button class="md:hidden p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
+                    <i class="fas fa-bars w-5 h-5 sm:w-6 sm:h-6"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div id="cart-alert" class="hidden fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 bg-green-500 text-white text-sm px-4 py-2 rounded-lg shadow-xl z-50 transition-all duration-500 opacity-0 -translate-y-10">
+        Item(s) added to cart!
+    </div>
 
     <div id="mobile-menu" class="hidden md:hidden bg-color-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
         <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
@@ -54,25 +70,23 @@
         </div>
     </div>
 
-
-    <main class="max-w-3xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-        <div id="confirmation-card" class="bg-white shadow-xl rounded-lg p-8 text-center">
-            <i id="confirmation-icon" class="fas fa-check-circle text-6xl text-green-500 mb-6"></i>
-            <h2 class="text-3xl font-extrabold text-gray-900 mb-2">
+    <main class="max-w-3xl mx-auto py-8 sm:py-12 px-4">
+        <div id="confirmation-card" class="bg-white shadow-xl rounded-lg p-6 sm:p-8 text-center border border-gray-100">
+            <i id="confirmation-icon" class="fas fa-check-circle text-5xl sm:text-6xl text-green-500 mb-6"></i>
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-2">
                 <span id="confirmation-title">Thank You for Your Order!</span>
             </h2>
-            <p id="confirmation-message" class="text-lg text-gray-600 mb-8">
+            <p id="confirmation-message" class="text-base sm:text-lg text-gray-600 mb-8">
                 Your order has been successfully placed and is now being processed.
             </p>
 
-            <div id="order-details-container" class="border border-gray-200 rounded-lg p-6 bg-gray-50">
-                <div class="flex justify-center items-center mb-4">
-                    <p class="text-xl font-semibold text-gray-700">Order Confirmation Number:</p>
-                    <p id="order-ref-number" class="ml-4 text-2xl font-bold text-indigo-600">#LOADING...</p>
+            <div id="order-details-container" class="border border-gray-200 rounded-lg p-4 sm:p-6 bg-gray-50">
+                <div class="flex flex-col sm:flex-row justify-center items-center mb-4">
+                    <p class="text-lg sm:text-xl font-semibold text-gray-700 mb-2 sm:mb-0">Order Confirmation Number:</p>
+                    <p id="order-ref-number" class="ml-0 sm:ml-4 text-xl sm:text-2xl font-bold text-indigo-600">#LOADING...</p>
                 </div>
-                <p id="payment-method-message" class="text-sm text-gray-500 mt-2">
-                    </p>
-                <p id="bank-transfer-details" class="text-sm text-red-500 font-medium mt-4 hidden">
+                <p id="payment-method-message" class="text-sm text-gray-500 mt-2"></p>
+                <p id="bank-transfer-details" class="text-sm text-red-500 font-medium mt-4 hidden text-left">
                     Please complete your **Bank Transfer** using the order number above within 48 hours. Your order will be confirmed once payment is received.
                 </p>
             </div>
@@ -84,12 +98,12 @@
                 </div>
             </div>
 
-            <div class="mt-10">
-                <a href="homepage.html" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+            <div class="mt-10 flex flex-col sm:flex-row justify-center items-center space-y-3 sm:space-y-0 sm:space-x-4">
+                <a href="homepage.html" class="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                     <i class="fas fa-home mr-2"></i>
                     Continue Shopping
                 </a>
-                <a id="view-orders-btn" href="userorders.html" class="ml-4 inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                <a id="view-orders-btn" href="userorders.html" class="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                     <i class="fas fa-list-alt mr-2"></i>
                     View Order History
                 </a>
@@ -97,13 +111,13 @@
         </div>
     </main>
     
-   <footer class="bg-gray-900 text-gray-300 py-10 sm:py-14 border-t border-gray-800">
+    <footer class="bg-gray-900 text-gray-300 py-10 sm:py-14 border-t border-gray-800">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
                 
                 <div class="col-span-2 lg:col-span-1">
                     <a href="homepage.html" class="flex items-center mb-4">
-                        <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-8 filter grayscale invert">
+                        <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-7 filter grayscale invert">
                     </a>
                     <p class="text-sm text-gray-500">
                         The home of exclusive street wear and limited edition drops. Elevate your style.
@@ -168,53 +182,58 @@
     </a>
     
 
-   <script>
-    // Placeholder for utility functions used in the main script (e.g., isUserLoggedIn, updateCartBadge, logoutUser)
+    <script>
+    // **MISSING GLOBAL VARIABLE** added for the JavaScript logic to work
+    const LOCAL_TAX_RATE = 0.05; 
+    
+    // --- UTILITY FUNCTIONS ---
     const LOCAL_CART_KEY = 'outflickzLocalCart'; 
     const CART_STORAGE_KEY = 'outflickzCartCount';
-    const CURRENCY_SYMBOL = '₦'; // Assuming Nigerian Naira (matches common practice in your Paystack setup)
-    const API_BASE_URL = ''; // Adjust if your API is on a different domain/path.
+    const CURRENCY_SYMBOL = '₦'; 
+    const API_BASE_URL = ''; 
 
-    // --- PLACEHOLDER UTILITY FUNCTIONS ---
     function isUserLoggedIn() {
-        // Placeholder: Replace with your actual user session check
         return localStorage.getItem('outflickzUser') === 'true'; 
     }
 
     function getAuthToken() {
-        // Retrieve the user's authentication token (required for protected routes)
-        // Adjust this based on where you store your JWT (e.g., localStorage, cookie)
         return localStorage.getItem('authToken'); 
     }
 
     function updateCartBadge() {
-        const count = localStorage.getItem(CART_STORAGE_KEY) || '0';
-        const badgeEl = document.getElementById('cart-item-count');
-        if (badgeEl) badgeEl.textContent = count;
-    }
-
-    function logoutUser() {
-        localStorage.removeItem('outflickzUser');
-        localStorage.removeItem('authToken'); // Clear token
-        localStorage.removeItem('outflickzShippingData');
-        window.location.reload(); 
-    }
-
-    function fetchUserData() {
-        const userStatusEl = document.getElementById('login-check');
-        const logoutBtnEl = document.getElementById('logout-btn');
-
-        if (isUserLoggedIn()) {
-            if (userStatusEl) userStatusEl.textContent = 'Logged In'; // e.g., 'Welcome, [User]'
-            if (logoutBtnEl) logoutBtnEl.classList.remove('hidden');
-        } else {
-            if (userStatusEl) userStatusEl.textContent = 'Guest'; 
-            if (logoutBtnEl) logoutBtnEl.classList.add('hidden');
+        // Ensure cart badge is correctly updated/hidden
+        const count = parseInt(localStorage.getItem(CART_STORAGE_KEY) || '0', 10);
+        const badgeEl = document.getElementById('cart-badge');
+        if (badgeEl) {
+            badgeEl.textContent = count;
+            if (count > 0) {
+                badgeEl.classList.remove('hidden');
+            } else {
+                badgeEl.classList.add('hidden');
+            }
         }
     }
-    // --- END PLACEHOLDER UTILITY FUNCTIONS ---
 
+    function redirectToProfileOrLogin() {
+        // Simple logic for redirect
+        window.location.href = isUserLoggedIn() ? 'useraccount.html' : 'login.html';
+    }
 
+    function toggleMenu() {
+        const mobileMenu = document.getElementById('mobile-menu');
+        const isExpanded = mobileMenu.classList.contains('hidden');
+        if (isExpanded) {
+            mobileMenu.classList.remove('hidden');
+            document.querySelector('button[aria-controls="mobile-menu"]').setAttribute('aria-expanded', 'true');
+        } else {
+            mobileMenu.classList.add('hidden');
+            document.querySelector('button[aria-controls="mobile-menu"]').setAttribute('aria-expanded', 'false');
+        }
+    }
+    
+    // ... (Other JavaScript functions like fetchOrderCollection, displayConfirmationDetails remain the same, 
+    // but the `fetchUserData` function is removed as its primary logic is not used on this page/has no corresponding DOM elements)
+    
     /**
      * Fetches the full order details (items, final amount) from the server.
      * @param {string} orderId - The MongoDB _id of the order.
@@ -276,8 +295,6 @@
             `;
 
             // 2. Email Notification Check (Handled by the server during checkout)
-            // You can optionally add a message here confirming the email was sent,
-            // but the server is responsible for dispatching it reliably.
             console.log(`Order details loaded. Confirmation email should have been sent to ${orderDetails.shippingAddress.email}.`);
 
 
@@ -293,8 +310,6 @@
      */
     function displayConfirmationDetails() {
         const urlParams = new URLSearchParams(window.location.search);
-        // The `id` is the MongoDB _id of the Order. 
-        // The `ref` (Paystack reference) may also be present and can be used as a fallback or cross-reference.
         const orderId = urlParams.get('id') || urlParams.get('ref'); 
         const method = urlParams.get('method');
 
@@ -306,13 +321,11 @@
         const bankDetailsEl = document.getElementById('bank-transfer-details');
 
         if (!orderId || !method) {
-            // Error/Fallback
             orderRefEl.textContent = 'N/A';
             confIconEl.classList.remove('fa-check-circle', 'text-green-500');
             confIconEl.classList.add('fa-exclamation-circle', 'text-red-500');
             confTitleEl.textContent = 'Confirmation Error';
             confMsgEl.textContent = 'Order details were not provided in the link. Please check your email or contact support.';
-            // Do not attempt to fetch collection on error
             return;
         }
 
@@ -339,7 +352,6 @@
         } 
         
         // **CRITICAL**: Call function to fetch collection details using the Order ID.
-        // We use the same ID for both methods because the server's API GET /api/orders/:orderId expects the MongoDB _id.
         fetchOrderCollection(orderId);
 
         // Ensure the cart badge is updated (cleared after a successful order)
@@ -350,11 +362,11 @@
 
     // --- Main Initialization ---
     document.addEventListener('DOMContentLoaded', () => {
-        fetchUserData(); // Checks login status and updates header
-        updateCartBadge(); // Ensures the cart badge is current
-        displayConfirmationDetails(); // Handles URL parameters, displays confirmation, and triggers order detail fetch
+        // fetchUserData(); // Removed: not strictly needed for this page's logic
+        updateCartBadge(); 
+        displayConfirmationDetails(); 
     });
-</script>
+    </script>
 
 </body>
 </html>

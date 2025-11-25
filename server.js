@@ -2419,8 +2419,6 @@ app.get('/api/collections/newarrivals', async (req, res) => {
         res.status(500).json({ message: 'Server error while fetching new arrivals for homepage.', details: error.message });
     }
 });
-
-// --- NEW PUBLIC ROUTE FOR CAPS ---
 // GET /api/collections/caps (For Homepage Display)
 app.get('/api/collections/caps', async (req, res) => {
     try {
@@ -2433,12 +2431,18 @@ app.get('/api/collections/caps', async (req, res) => {
         // Prepare the data for the public frontend
         const publicCollections = await Promise.all(collections.map(async (collection) => {
             
-            // Map Mongoose variation to a simpler public variant object
+            // Map Mongoose variation to a simpler public variant object (STEP 1: Create all variants)
             const variants = await Promise.all(collection.variations.map(async (v) => ({
                 color: v.colorHex,
                 frontImageUrl: await generateSignedUrl(v.frontImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Front+View+Error',
                 backImageUrl: await generateSignedUrl(v.backImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Back+View+Error'
             })));
+
+            // === 🛠️ FIX START: Extract the primary image URLs ===
+            const firstVariant = variants.length > 0 ? variants[0] : {};
+            const frontImageUrl = firstVariant.frontImageUrl || null;
+            const backImageUrl = firstVariant.backImageUrl || null;
+            // === 🛠️ FIX END ===
 
             return {
                 _id: collection._id,
@@ -2447,7 +2451,13 @@ app.get('/api/collections/caps', async (req, res) => {
                 price: collection.price, 
                 availableSizes: collection.sizes,
                 availableStock: collection.totalStock, 
-                variants: variants
+                
+                // Promote primary images to the root level for the card component
+                frontImageUrl: frontImageUrl, 
+                backImageUrl: backImageUrl, 
+                
+                // Keep the full variants array for potential color switching features
+                variants: variants 
             };
         }));
 
@@ -2459,31 +2469,31 @@ app.get('/api/collections/caps', async (req, res) => {
 });
 
 // GET /api/collections/preorder (For Homepage Display)
+// NOTE: This route assumes BLAZE_BUCKET_NAME, generateSignedUrl, and S3Client are accessible/imported
 app.get('/api/collections/preorder', async (req, res) => {
     try {
-        // 1. Fetch collections, selecting the necessary metadata fields AND variations.
-        // === 🛠️ FIX START: INCLUDE 'variations' FIELD ===
+        // 1. Fetch collections, including the necessary permanent variation paths.
         const collections = await PreOrderCollection.find({ isActive: true })
-            .select('_id name tag price sizes totalStock availableDate variations') // <--- ADDED 'variations'
+            .select('_id name tag price sizes totalStock availableDate variations')
             .sort({ createdAt: -1 })
             .lean();
-        // === 🛠️ FIX END ===
 
         // 2. Transform the documents into the final public response structure.
-        const publicCollections = collections.map(collection => {
+        const publicCollections = await Promise.all(collections.map(async (collection) => { // 🚨 Use Promise.all and async/await here
             
-            // === 🛠️ FIX START: EXTRACT IMAGE URLs ===
+            // Extract the permanent (private) URLs for the primary variation
             const firstVariation = collection.variations && collection.variations.length > 0
                 ? collection.variations[0] 
                 : {};
             
-            const frontImageUrl = firstVariation.frontImageUrl || null;
-            const backImageUrl = firstVariation.backImageUrl || null;
-            // NOTE: The images will still need to be "signed" if you are using a service like S3/GCS 
-            // that requires signed URLs for public access, but based on your admin code, 
-            // we assume the URLs are already public or signed upon creation/edit.
-            // If images don't display after this, ensure they are publically accessible or signed here.
-            // === 🛠️ FIX END ===
+            const permanentFrontUrl = firstVariation.frontImageUrl || null;
+            const permanentBackUrl = firstVariation.backImageUrl || null;
+
+            // === 🛠️ CRITICAL FIX: GENERATE SIGNED URLS ===
+            // This turns the permanent private URL into a temporary public link
+            const signedFrontUrl = await generateSignedUrl(permanentFrontUrl);
+            const signedBackUrl = await generateSignedUrl(permanentBackUrl);
+            // ===========================================
 
             return {
                 _id: collection._id,
@@ -2495,25 +2505,26 @@ app.get('/api/collections/preorder', async (req, res) => {
                 availableStock: collection.totalStock, 
                 availableDate: collection.availableDate, 
                 
-                // === 🛠️ FIX START: ADD IMAGE DATA TO RESPONSE ===
-                frontImageUrl: frontImageUrl, 
-                backImageUrl: backImageUrl, 
-                // === 🛠️ FIX END ===
-                
-                // NOTE: 'variants' array is omitted (correctly)
+                // Send the generated signed URLs to the frontend
+                frontImageUrl: signedFrontUrl, 
+                backImageUrl: signedBackUrl, 
+
+                variants: variants 
+
             };
-        });
+        })); // 🚨 Close Promise.all
 
         // 3. Send the fully structured response
         res.status(200).json(publicCollections);
     } catch (error) {
-        console.error('Error fetching public pre-order collections:', error);
+        console.error('Error fetching public pre-order collections and signing URLs:', error);
         res.status(500).json({ 
             message: 'Server error while fetching public collections.', 
             details: error.message 
         });
     }
 });
+
 // 1. POST /api/users/register (Create Account and Send Verification Code)
 app.post('/api/users/register', async (req, res) => {
     const { email, password, firstName, lastName } = req.body;

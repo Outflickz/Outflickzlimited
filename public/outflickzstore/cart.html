@@ -453,8 +453,8 @@ function calculateLocalTotals(localCart) {
         subtotal += price * quantity;
     });
 
-    const SHIPPING_RATE = 2000; 
-    const TAX_RATE = 0.075; 
+    const SHIPPING_RATE = 3000; 
+    const TAX_RATE = 0.00; 
     
     let tax = subtotal * TAX_RATE;
     let shipping = subtotal > 0 ? SHIPPING_RATE : 0;
@@ -824,7 +824,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <span id="shipping-cost" class="font-semibold">₦0.00</span>
                         </div>
                         <div class="flex justify-between text-sm text-gray-700 border-t border-gray-200 pt-4">
-                            <span>Tax Estimate (5%)</span>
+                            <span>Tax Estimate (0%)</span>
                             <span id="tax-estimate" class="font-semibold">₦0.00</span>
                         </div>
                     </div>

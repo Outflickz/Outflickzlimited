@@ -3495,14 +3495,24 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
         const totalAmount = parseFloat(totalAmountString);
         let shippingAddress;
 
+        // --- START: UPDATED ROBUST PARSING LOGIC ---
         try {
-            shippingAddress = JSON.parse(shippingAddressString);
+            // Check if the string is empty or null BEFORE attempting JSON.parse.
+            if (!shippingAddressString || shippingAddressString.trim() === '') {
+                // Set to null so the subsequent validation block can catch it.
+                shippingAddress = null; 
+            } else {
+                shippingAddress = JSON.parse(shippingAddressString);
+            }
         } catch (e) {
-            return res.status(400).json({ message: 'Invalid shipping address format.' });
+            // This now strictly catches malformed JSON strings (e.g., missing double quotes on keys).
+            return res.status(400).json({ message: 'Invalid shipping address format. Ensure the address object is stringified correctly.' });
         }
+        // --- END: UPDATED ROBUST PARSING LOGIC ---
         
-        // 2. Critical Input Validation
+        // 2. Critical Input Validation (This now correctly handles missing fields)
         if (!shippingAddress || totalAmount <= 0 || isNaN(totalAmount)) {
+            // The `shippingAddress` will be null if the string was empty/missing, triggering this message.
             return res.status(400).json({ message: 'Missing shipping address or invalid total amount.' });
         }
 

@@ -705,8 +705,8 @@ function createColorList(collectionId, variants) {
 function createCollectionCard(collection, size = 'default') {
     const currencySymbol = '₦'; 
     const PLACEHOLDER_URL = 'https://s3.us-west-004.backblazeb2.com/public/placeholder-image-v1.jpg';
-    const defaultFrontImage = ''; 
-    const defaultBackImage = ''; 
+    const defaultFrontImage = PLACEHOLDER_URL; 
+    const defaultBackImage = PLACEHOLDER_URL; 
     
 // --- Conditional Sizing Classes ---
 const reducedSizes = ['reduced', 'caps', 'wears', 'newarrivals'];
@@ -1096,7 +1096,6 @@ async function fetchAndRenderCapsCollection() {
         container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server (502/Down).</p>';
     }
 }
-
 // 🎯 PRE-ORDER COLLECTION JS FUNCTION
 async function fetchAndRenderPreorderCollections() {
     const container = document.getElementById('preorder-collections-grid');
@@ -1116,9 +1115,10 @@ async function fetchAndRenderPreorderCollections() {
         </div>`;
 
     try {
-        // ENDPOINT: /api/collections/preorder
+        // --- LOG 1: Check the API URL being used ---
         const preorderApiUrl = `${API_BASE_URL}/api/collections/preorder`; 
-
+        console.log(`[PRE-ORDER FETCH] Calling API endpoint: ${preorderApiUrl}`);
+        
         const response = await fetch(preorderApiUrl, {
             method: 'GET',
             headers: {
@@ -1127,22 +1127,30 @@ async function fetchAndRenderPreorderCollections() {
         });
 
         if (!response.ok) {
+            console.error(`[PRE-ORDER FETCH] API call failed with status: ${response.status}`);
             throw new Error(`Failed to load pre-order collections from server. Status: ${response.status}`);
         }
 
         const collections = await response.json();
+        
+        // --- LOG 2: Inspect the raw data received from the backend ---
+        console.log('[PRE-ORDER FETCH] Received Collections Data:', collections);
 
         container.innerHTML = '';
         
         let collectionsToRender = collections && collections.length > 0 ? collections : []; 
 
         if (collectionsToRender && collectionsToRender.length > 0) {
-            // Limit to the first 4 collections for the homepage view
             const limitedCollections = collectionsToRender.slice(0, 4);
             
-            limitedCollections.forEach(collection => {
+            limitedCollections.forEach((collection, index) => {
                 if (collection.price !== undefined && collection.price !== null) {
-                    // Pass 'preorder' size flag to enable pre-order specific logic/badges
+                    
+                    // --- LOG 3: Check the specific image URLs being passed to the card creator ---
+                    console.log(`[PRE-ORDER RENDER] Item #${index + 1} (${collection.name}):`);
+                    console.log(`   > frontImageUrl: ${collection.frontImageUrl}`);
+                    console.log(`   > backImageUrl: ${collection.backImageUrl}`);
+                    
                     container.innerHTML += createCollectionCard(collection, 'preorder');
                 }
             });
@@ -1151,6 +1159,7 @@ async function fetchAndRenderPreorderCollections() {
                 container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Pre-Order Collections are currently available.</p>`;
             }
         } else {
+            console.warn('[PRE-ORDER RENDER] No collections found to render.');
             container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Pre-Order Collections are currently available.</p>`;
         }
     } catch (error) {
@@ -1160,7 +1169,6 @@ async function fetchAndRenderPreorderCollections() {
         container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server (502/Down).</p>';
     }
 }
-
 
 document.addEventListener('DOMContentLoaded', () => {
     fetchAndRenderWearsCollections(); 

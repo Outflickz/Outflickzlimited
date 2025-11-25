@@ -223,6 +223,81 @@ async function generateHashAndSaveVerificationCode(user) {
     // Return the PLAIN TEXT code for sending via email
     return verificationCode;
 }
+
+// Function to format the HTML content for the order confirmation email
+function generateOrderEmailHtml(order) {
+    const itemsHtml = order.items.map(item => `
+        <tr>
+            <td style="padding: 8px; border: 1px solid #ddd;">${item.name} (${item.size}, ${item.color || 'N/A'})</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">${item.quantity}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">₦${(item.price * item.quantity).toFixed(2).toLocaleString()}</td>
+        </tr>
+    `).join('');
+
+    const subtotal = order.totalAmount / 1.01; // Assuming order.totalAmount includes tax/shipping
+    const tax = subtotal * TAX_RATE;
+    const shipping = order.items.length > 0 ? SHIPPING_COST : 0;
+    const finalTotal = order.totalAmount; // Assuming this is the final total from the database
+
+    return `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+            <h2>Order Confirmation: #${order._id}</h2>
+            <p>Hi ${order.shippingAddress.firstName},</p>
+            <p>Thank you for your order! Your order details are below.</p>
+
+            <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                <thead>
+                    <tr style="background-color: #f4f4f4;">
+                        <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Product</th>
+                        <th style="padding: 10px; border: 1px solid #ddd;">Qty</th>
+                        <th style="padding: 10px; border: 1px solid #ddd;">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itemsHtml}
+                </tbody>
+            </table>
+
+            <table style="width: 100%; margin-top: 20px;">
+                <tr><td style="padding: 5px 0;">Subtotal:</td><td style="text-align: right; font-weight: bold;">₦${subtotal.toFixed(2).toLocaleString()}</td></tr>
+                <tr><td style="padding: 5px 0;">Shipping:</td><td style="text-align: right; font-weight: bold;">₦${shipping.toFixed(2).toLocaleString()}</td></tr>
+                <tr><td style="padding: 5px 0;">Tax:</td><td style="text-align: right; font-weight: bold;">₦${tax.toFixed(2).toLocaleString()}</td></tr>
+                <tr><td style="padding: 10px 0; border-top: 2px solid #333;">**Order Total:**</td><td style="text-align: right; font-weight: bold; border-top: 2px solid #333; color: #4F46E5;">₦${finalTotal.toFixed(2).toLocaleString()}</td></tr>
+            </table>
+            
+            <h3 style="margin-top: 30px;">Shipping Details</h3>
+            <p>
+                **Name:** ${order.shippingAddress.firstName} ${order.shippingAddress.lastName}<br>
+                **Address:** ${order.shippingAddress.address}, ${order.shippingAddress.city}<br>
+                **Phone:** ${order.shippingAddress.phone}<br>
+                **Status:** ${order.status}
+            </p>
+
+            <p style="margin-top: 30px; text-align: center;">If you have any questions, please contact our support team.</p>
+        </div>
+    `;
+}
+
+/**
+ * Sends the order confirmation email.
+ * @param {Object} order The Mongoose order document.
+ * @param {string} type 'paid' or 'pending'
+ */
+async function sendOrderConfirmationEmail(order, type) {
+    const subject = type === 'paid' 
+        ? `✅ Your Order #${order._id.toString().substring(18)} is Confirmed and Paid!`
+        : `⏳ Order #${order._id.toString().substring(18)} Placed - Payment Pending`;
+    
+    const htmlContent = generateOrderEmailHtml(order);
+
+    try {
+        const info = await sendMail(order.shippingAddress.email, subject, htmlContent);
+        console.log(`Email sent: ${info.messageId} to ${order.shippingAddress.email}`);
+    } catch (error) {
+        console.error(`ERROR sending confirmation email for order ${order._id}:`, error);
+        // It's usually safe to log the error and proceed without throwing, as the core transaction is complete.
+    }
+}
 // -----------------------------------------------------------------
 
 
@@ -3266,31 +3341,26 @@ app.delete('/api/users/cart', verifyUserToken, async (req, res) => {
         res.status(500).json({ message: 'Failed to clear shopping bag.' });
     }
 });
-
-// =========================================================
-// NEW: PAYSTACK WEBHOOK HANDLER
-// =========================================================
-
 // 7. POST /api/paystack/webhook - Handle Paystack Notifications
 app.post('/api/paystack/webhook', async (req, res) => {
     // 1. Verify Webhook Signature (Security Crucial)
+    // NOTE: req.body must be the raw buffer for signature calculation!
     const secret = PAYSTACK_SECRET_KEY;
     const hash = crypto.createHmac('sha512', secret)
-        .update(req.body)
+        .update(req.body) 
         .digest('hex');
     
     if (hash !== req.headers['x-paystack-signature']) {
-        // Log unauthorized attempt and return 401
         console.error('Webhook verification failed: Invalid signature.');
         return res.status(401).send('Unauthorized access.');
     }
 
     // Convert raw body buffer to JSON object for processing
+    // NOTE: If using Express, ensure you have middleware to handle the raw body buffer for verification
     const event = JSON.parse(req.body.toString());
 
     // 2. Check Event Type
     if (event.event !== 'charge.success') {
-        // We only care about successful charges. Ignore other events (e.g., failed charges, subscription updates)
         return res.status(200).send(`Event type ${event.event} received but ignored.`);
     }
 
@@ -3309,7 +3379,6 @@ app.post('/api/paystack/webhook', async (req, res) => {
         const verificationData = await verificationResponse.json();
 
         if (verificationData.status !== true || verificationData.data.status !== 'success') {
-            // Log discrepancy and return
             console.error('Transaction verification failed via API:', verificationData);
             await Order.findOne({ orderReference })
                 .then(order => order && Order.findByIdAndUpdate(order._id, { status: 'Verification Failed' }));
@@ -3328,18 +3397,17 @@ app.post('/api/paystack/webhook', async (req, res) => {
 
         // 5. Final Checks (Amount and Status Check)
         if (order.amountPaidKobo !== verifiedAmountKobo) {
-            // Critical: Log fraud attempt or data mismatch
             console.error(`Amount mismatch for order ${order._id}. Expected: ${order.amountPaidKobo}, Received: ${verifiedAmountKobo}`);
             await Order.findByIdAndUpdate(order._id, { status: 'Amount Mismatch (Manual Review)' });
             return res.status(200).send('Amount mismatch, requires manual review.');
         }
 
         if (order.status === 'Paid') {
-            // Already processed, idempotent response
             return res.status(200).send('Order already processed.');
         }
 
         // 6. Update Order Status and Clear Cart
+        // Perform the update first to persist the crucial status change
         await Order.findByIdAndUpdate(order._id, {
             status: 'Paid',
             paymentTxnId: transactionData.id,
@@ -3351,15 +3419,26 @@ app.post('/api/paystack/webhook', async (req, res) => {
             { userId: order.userId },
             { items: [], updatedAt: Date.now() }
         );
-
-        console.log(`Order ${order._id} successfully marked as Paid and cart cleared.`);
         
-        // 7. Success response to Paystack
+        // 7. CRITICAL: SEND CONFIRMATION EMAIL
+        // We need the full order object for the email template
+        const updatedOrder = await Order.findById(order._id); 
+        if (updatedOrder) {
+            await sendOrderConfirmationEmail(updatedOrder, 'paid'); 
+        } else {
+            console.error(`Could not re-fetch order ${order._id} for email.`);
+        }
+
+        console.log(`Order ${order._id} successfully marked as Paid, cart cleared, and confirmation email triggered.`);
+        
+        // 8. Success response to Paystack
         res.status(200).send('Webhook received and order processed successfully.');
 
     } catch (error) {
         console.error('Internal error processing webhook:', error);
-        res.status(500).send('Internal Server Error.');
+        // It is generally safe to return 200 to the webhook provider even on failure
+        // so they stop retrying, provided you log the failure for manual review.
+        res.status(500).send('Internal Server Error.'); 
     }
 });
 

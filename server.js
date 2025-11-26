@@ -1304,6 +1304,53 @@ app.get('/api/admin/users/all', verifyToken, async (req, res) => {
         return res.status(500).json({ message: 'Server error: Failed to retrieve user list.' });
     }
 });
+
+// EXISTING: 1. GET /api/admin/users/:id (Fetch Single User Profile - Protected Admin)
+app.get('/api/admin/users/:id', verifyToken, async (req, res) => {
+    try {
+        const userId = req.params.id;
+
+        const user = await User.findById(userId)
+            .select('email profile address status membership')
+            .lean();
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+
+        const addressParts = [
+            user.address?.street,
+            user.address?.city,
+            user.address?.state,
+            user.address?.zip,
+            user.address?.country
+        ].filter(Boolean);
+        
+        const contactAddress = addressParts.length > 0 ? addressParts.join(', ') : 'No Address Provided';
+
+        const detailedUser = {
+            _id: user._id,
+            name: `${user.profile.firstName || ''} ${user.profile.lastName || ''}`.trim() || 'N/A',
+            email: user.email,
+            isMember: user.status.role === 'vip',
+            createdAt: user.membership.memberSince,
+            phone: user.profile.phone || 'N/A',
+            contactAddress: contactAddress
+        };
+
+        return res.status(200).json({ 
+            user: detailedUser
+        });
+
+    } catch (error) {
+        if (error.kind === 'ObjectId') {
+             return res.status(400).json({ message: 'Invalid User ID format.' });
+        }
+        console.error('Admin single user fetch error:', error);
+        return res.status(500).json({ message: 'Server error: Failed to retrieve user details.' });
+    }
+});
+
 app.get('/api/admin/users/:id/orders', verifyToken, async (req, res) => {
     try {
         const userId = req.params.id;
@@ -1362,7 +1409,8 @@ app.get('/api/admin/users/:id/orders', verifyToken, async (req, res) => {
                     
                     // Find the exact variation based on the saved variationIndex
                     const purchasedVariation = productInfo.variations.find(v => 
-                        // ✅ FIX: Robust comparison by converting both to strings to prevent type mismatch
+                        // ✅ FIX APPLIED: Ensure robust comparison by converting both to strings
+                        // This handles cases where one is stored as a number and the other as a string
                         String(v.variationIndex) === String(item.variationIndex)
                     );
 
@@ -1422,6 +1470,32 @@ app.get('/api/admin/users/:id/orders', verifyToken, async (req, res) => {
         }
         
         return res.status(500).json({ message: 'Server error: Failed to retrieve user orders. Check server logs for details.' });
+    }
+});
+
+// GET /api/admin/capscollections/:id - Fetch Single Cap Collection
+app.get('/api/admin/capscollections/:id', verifyToken, async (req, res) => {
+    try {
+        const collectionId = req.params.id;
+        const collection = await CapCollection.findById(collectionId).lean();
+
+        if (!collection) {
+            return res.status(404).json({ message: 'Cap Collection not found.' });
+        }
+
+        // Sign URLs
+        const signedVariations = await Promise.all(collection.variations.map(async (v) => ({
+            ...v,
+            frontImageUrl: await generateSignedUrl(v.frontImageUrl) || v.frontImageUrl, 
+            backImageUrl: await generateSignedUrl(v.backImageUrl) || v.backImageUrl 
+        })));
+        
+        collection.variations = signedVariations;
+
+        res.status(200).json(collection);
+    } catch (error) {
+        console.error('Error fetching cap collection:', error);
+        res.status(500).json({ message: 'Server error fetching cap collection data.' });
     }
 });
 

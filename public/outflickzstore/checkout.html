@@ -762,14 +762,15 @@
         const shippingData = localStorage.getItem('outflickzShippingData');
         const orderItems = localStorage.getItem('outflickzOrderItems');
 
-        const notificationPayload = {
-            orderId: orderId,
-            totalAmount: orderTotal,
-            paymentMethod: paymentMethod,
-            shippingDetails: JSON.parse(shippingData || '{}'),
-            items: JSON.parse(orderItems || '[]'),
-            adminEmail: DEFAULT_ADMIN_EMAIL
-        };
+       const notificationPayload = {
+        orderId: orderId,
+        totalAmount: orderTotal,
+        paymentMethod: paymentMethod,
+        shippingDetails: JSON.parse(shippingData || '{}'),
+        items: JSON.parse(orderItems || '[]'),
+        adminEmail: DEFAULT_ADMIN_EMAIL,
+        paymentReceiptUrl: paymentReceiptUrl, 
+    };
 
         try {
             // Replace with your actual server endpoint for sending admin emails
@@ -892,28 +893,34 @@
                 const data = await response.json();
                 const isSuccess = response.ok; 
 
-                if (isSuccess && data.orderId) {
-                    
-                    // 🎯 STEP 1: Send Admin Notification
-                    sendAdminOrderNotification(data.orderId, paymentMethod.value);
-                    
-                    // STEP 2: Handle Redirection
-                    displayMessage(`Pending Order #${data.orderId} created! Redirecting to confirmation page.`);
-                    
-                    // Clear local storage items only if the order was successfully created on the server
-                    localStorage.removeItem(LOCAL_CART_KEY);
-                    localStorage.setItem(CART_STORAGE_KEY, '0');
-                    localStorage.removeItem('outflickzOrderTotal');
-                    localStorage.removeItem('outflickzOrderItems'); // Clear items
-                    updateCartBadge();
+if (isSuccess && data.orderId) {
+    
+    // 🎯 STEP 1: Send Admin Notification
+    // **MODIFICATION:** Pass the paymentReceiptUrl (data.ReceiptUrl) 
+    // received from the server's response.
+    sendAdminOrderNotification(
+        data.orderId, 
+        paymentMethod.value, 
+        data.ReceiptUrl // <<< CORRECT: Pass the receipt URL here
+    );
+    
+    // STEP 2: Handle Redirection
+    displayMessage(`Pending Order #${data.orderId} created! Redirecting to confirmation page.`);
+    
+    // Clear local storage items only if the order was successfully created on the server
+    localStorage.removeItem(LOCAL_CART_KEY);
+    localStorage.setItem(CART_STORAGE_KEY, '0');
+    localStorage.removeItem('outflickzOrderTotal');
+    localStorage.removeItem('outflickzOrderItems'); // Clear items
+    updateCartBadge();
 
-                    setTimeout(() => {
-                        window.location.href = `orderconfirmation.html?id=${data.orderId}&method=banktransfer`;
-                    }, 3000);
+    setTimeout(() => {
+        window.location.href = `orderconfirmation.html?id=${data.orderId}&method=banktransfer`;
+    }, 3000);
 
-                } else {
-                    throw new Error(data.message || 'Failed to create pending order. Please check server response.');
-                }
+} else {
+    throw new Error(data.message || 'Failed to create pending order. Please check server response.');
+}
 
             } catch (error) {
                 console.error('Pending order placement error:', error);

@@ -3467,6 +3467,7 @@ app.post('/api/paystack/webhook', async (req, res) => {
         res.status(500).send('Internal Server Error.'); 
     }
 });
+// ASSUMPTION: The necessary functions (sendMail, generateSignedUrl) and configuration (BLAZE_BUCKET_NAME, etc.) are available in this scope.
 
 app.post('/api/notifications/admin-order-email', async (req, res) => {
     
@@ -3478,8 +3479,9 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
         shippingDetails, 
         items, 
         adminEmail,
-        // NEW: Receipt URL is now expected in the payload for Bank Transfer orders
-        receiptUrl 
+        // CORRECTION: Assuming the client sends the data as 'receiptUrl' 
+        // which contains the B2 permanent URL (paymentReceiptUrl from DB).
+        receiptUrl: paymentReceiptUrl // <-- Renames the incoming 'receiptUrl' to 'paymentReceiptUrl' 
     } = req.body;
 
     // 1. Basic Validation
@@ -3488,10 +3490,28 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
     }
 
     try {
+        // --- NEW STEP: Generate Signed URL for Private Receipt ---
+        let displayReceiptUrl = null; 
+        
+        // Only attempt to sign if it's a Bank Transfer AND we have a URL from the DB
+        if (paymentMethod === 'Bank Transfer' && paymentReceiptUrl) {
+            
+            // 🚨 CRITICAL: Call the B2 utility to get a time-limited, public-access URL
+            const signedUrl = await generateSignedUrl(paymentReceiptUrl); 
+            
+            // Use the signed URL for display. If signing fails, displayReceiptUrl remains null.
+            if (signedUrl) {
+                displayReceiptUrl = signedUrl;
+            } else {
+                console.warn(`[Admin Email] Could not generate signed URL for receipt: ${paymentReceiptUrl}. The receipt link will be missing or broken in the email.`);
+            }
+        }
+        // --- END: NEW STEP ---
+
         // 2. Format the Email Content (HTML)
         const paymentStatus = (paymentMethod === 'Paystack/Card') ? 'Payment Confirmed (Paystack)' : 'Payment Awaiting Verification (Bank Transfer)';
         
-        // --- Enhanced Item List with Thumbnails ---
+        // --- Enhanced Item List with Thumbnails (No change) ---
         const itemDetailsHtml = items.map(item => `
             <tr>
                 <!-- Product Name & Image (Combined Cell) -->
@@ -3526,8 +3546,8 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
             </tr>
         `).join('');
 
-        // --- Conditional Receipt Proof Block ---
-        const receiptProofHtml = (paymentMethod === 'Bank Transfer' && receiptUrl) ? `
+        // --- Conditional Receipt Proof Block (Uses the now public 'displayReceiptUrl') ---
+        const receiptProofHtml = (paymentMethod === 'Bank Transfer' && displayReceiptUrl) ? `
             <!-- Payment Receipt Proof -->
             <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 30px; border-collapse: collapse;">
                 <tr>
@@ -3535,14 +3555,15 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
                 </tr>
                 <tr>
                     <td align="center" style="padding: 15px 0;">
-                        <a href="${receiptUrl}" target="_blank" style="color: #000000; text-decoration: none; font-weight: bold;">
-                            <img src="${receiptUrl}" alt="Bank Transfer Receipt" width="300" style="display: block; max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px;">
+                        <!-- Use the signed URL for the link and the image source -->
+                        <a href="${displayReceiptUrl}" target="_blank" style="color: #000000; text-decoration: none; font-weight: bold;">
+                            <img src="${displayReceiptUrl}" alt="Bank Transfer Receipt" width="300" style="display: block; max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px;">
                         </a>
                     </td>
                 </tr>
                 <tr>
                     <td align="center" style="padding-top: 5px; font-size: 12px; color: #555;">
-                        Click image to view full receipt.
+                        Click image to view full receipt. (Link valid for 5 minutes)
                     </td>
                 </tr>
             </table>
@@ -3685,7 +3706,6 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
         `;
 
         // 3. Send the Email using your existing utility
-        // IMPORTANT: Using the provided function name: sendMail
         await sendMail(
             adminEmail,
             `[New Order] #${orderId} - ${paymentStatus}`,
@@ -3695,15 +3715,10 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
         console.log(`Admin notification sent successfully for Order ID: ${orderId} to ${adminEmail}`);
         
         // 4. Send a successful response back to the client
-        // This is sent immediately so the client can redirect the user without delay.
         res.status(200).json({ message: 'Admin notification request received and processing.' });
 
     } catch (error) {
         console.error('Error in POST /api/notifications/admin-order-email:', error);
-        
-        // We generally don't want the user checkout process to fail if ONLY the admin email fails.
-        // However, for debugging purposes, we return a 500 error here.
-        // In production, consider returning a 200 or 202 status after logging the failure.
         res.status(500).json({ message: 'Failed to dispatch admin email notification due to server error.' });
     }
 });

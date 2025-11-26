@@ -4402,6 +4402,80 @@ app.get('/api/orders/history', verifyUserToken, async (req, res) => {
     }
 });
 
+// =========================================================
+// 3. PUT /api/orders/:orderId/cancel - Order Cancellation (Protected)
+// =========================================================
+app.put('/api/orders/:orderId/cancel', verifyUserToken, async (req, res) => {
+    const orderId = req.params.orderId;
+    const userId = req.userId;
+
+    if (!orderId) {
+        return res.status(400).json({ message: 'Order ID is required.' });
+    }
+
+    try {
+        // Define which statuses are eligible for cancellation
+        const cancellableStatuses = ['pending', 'processing']; 
+
+        // 1. Find the order and ensure ownership and cancellable status
+        const order = await Order.findOne({ 
+            _id: orderId, 
+            userId: userId,
+            status: { $in: cancellableStatuses } // Order must be in a cancellable state
+        });
+
+        if (!order) {
+            // This handles four scenarios: 
+            // 1. Order ID is invalid
+            // 2. Order belongs to another user (security)
+            // 3. Order is already cancelled
+            // 4. Order is in a non-cancellable state (e.g., 'shipped')
+            const existingOrder = await Order.findOne({ _id: orderId, userId: userId });
+            
+            if (existingOrder && !cancellableStatuses.includes(existingOrder.status)) {
+                 return res.status(400).json({ 
+                    message: `Cannot cancel order. Current status is '${existingOrder.status}'.` 
+                });
+            }
+
+            return res.status(404).json({ message: 'Order not found or not eligible for cancellation.' });
+        }
+        
+        // 2. Update the order status to 'cancelled'
+        // Using findByIdAndUpdate ensures the update is Atomic
+        const updatedOrder = await Order.findByIdAndUpdate(
+            order._id,
+            { 
+                $set: { 
+                    status: 'cancelled',
+                    cancellationDate: new Date(), // Log the cancellation time
+                    // You might also log who cancelled it if needed (order.cancelledBy = userId)
+                } 
+            },
+            { new: true } // Return the updated document
+        );
+
+        // 3. IMPORTANT: Trigger Refund/Inventory Rollback Logic
+        // In a real e-commerce system, this is where you would call other services:
+        // * a payment service to process a full refund.
+        // * an inventory service to return the reserved stock quantity back to available inventory.
+        // For now, we log a message as a placeholder:
+        console.log(`[Cancellation Success] Order ${orderId} cancelled. Refund/Inventory rollback needed.`);
+
+
+        // 4. Send success response
+        res.status(200).json({ 
+            message: 'Order successfully cancelled. A refund has been initiated.', 
+            order: updatedOrder 
+        });
+
+    } catch (error) {
+        console.error('Error during order cancellation:', error);
+        // Log the specific ID for debugging
+        res.status(500).json({ message: `Failed to cancel order ${orderId} due to a server error.` });
+    }
+});
+
 module.exports = {
     WearsCollection,
     NewArrivals,

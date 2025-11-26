@@ -353,15 +353,14 @@ const adminSchema = new mongoose.Schema({
 const Admin = mongoose.models.Admin || mongoose.model('Admin', adminSchema);
 
 
-// --- User Schema for Customer Authentication (Compacted) ---
 const userSchema = new mongoose.Schema({
     email: { type: String, required: [true, 'Email is required'], unique: true, trim: true, lowercase: true },
     password: { type: String, required: [true, 'Password is required'], select: false },
     
-    // --- 🔑 ADDED: VERIFICATION FIELDS ---
+    // --- 🔑 VERIFICATION FIELDS ---
     verificationCode: { type: String, select: false },
     verificationCodeExpires: { type: Date, select: false },
-    // -------------------------------------
+    // -----------------------------
     
     profile: {
         firstName: { type: String, trim: true },
@@ -370,15 +369,18 @@ const userSchema = new mongoose.Schema({
         whatsapp: { type: String, trim: true }
     },
     
-    // --- 🏠 ADDED: CONTACT ADDRESS FIELD ---
+    // --- 🏠 CORRECTED CONTACT ADDRESS FIELD ---
     address: {
-        street: { type: String, trim: true },
-        city: { type: String, trim: true },
-        state: { type: String, trim: true },
-        zip: { type: String, trim: true },
-        country: { type: String, trim: true }
+        type: new mongoose.Schema({
+            street: { type: String, required: [true, 'Street is required'], trim: true },
+            city: { type: String, required: [true, 'City is required'], trim: true },
+            state: { type: String, trim: true },
+            zip: { type: String, trim: false }, // Correctly kept optional and trim: false
+            country: { type: String, required: [true, 'Country is required'], trim: true }
+        }),
+        required: [true, 'Address information is required'] // Ensure the whole object exists
     },
-    // -------------------------------------
+    // -----------------------------------------
 
     status: {
         role: { type: String, default: 'user', enum: ['user', 'vip'] },
@@ -3001,40 +3003,30 @@ app.get('/api/collections/preorder', async (req, res) => {
 });
 // 1. POST /api/users/register (Create Account and Send Verification Code)
 app.post('/api/users/register', async (req, res) => {
-    // 🔔 UPDATED: Destructure new fields: phone, whatsapp, and the single address string
-    const { email, password, firstName, lastName, phone, whatsapp, address } = req.body;
+    // 🔔 CRITICAL UPDATE: Destructure all fields, including the structured 'address' object
+    const { 
+        email, password, firstName, lastName, phone, whatsapp, address // This is now the object: { street, city, state, zip, country }
+    } = req.body;
 
-    // Basic Validation
-    if (!email || !password || password.length < 8) {
-        return res.status(400).json({ message: 'Invalid input. Email and a password of at least 8 characters are required.' });
+    // Basic Validation: Ensure core fields and required address fields are present
+    if (!email || !password || password.length < 8 || !address || !address.street || !address.city || !address.country) {
+        return res.status(400).json({ 
+            message: 'Invalid input. Email, password (min 8 chars), and the required address fields (street, city, country) are necessary.' 
+        });
     }
 
     let newUser; 
     let verificationCode;
     
-    // --- 🛠️ NEW: Address Parsing Logic (Assuming a comma-separated string from frontend) ---
-    // NOTE: This is a basic implementation. For production, the frontend should send structured fields.
-    const parsedAddress = {};
-    if (address) {
-        // Attempt a basic split, e.g., "Street 123, City, State, Zip, Country"
-        const parts = address.split(',').map(p => p.trim());
-        if (parts.length >= 5) {
-            parsedAddress.street = parts[0];
-            parsedAddress.city = parts[1];
-            parsedAddress.state = parts[2];
-            parsedAddress.zip = parts[3];
-            parsedAddress.country = parts[4];
-        } else if (parts.length >= 2) {
-             // Fallback for less structured address
-            parsedAddress.street = parts[0];
-            parsedAddress.city = parts[1];
-            parsedAddress.country = parts[parts.length - 1];
-        } else {
-            // Put the whole address string into the street field as a fallback
-            parsedAddress.street = address;
-        }
-    }
-    // ------------------------------------------------------------------------------------
+    // --- 🛠️ ADDRESS MAPPING: Create final address object with optional zip handling ---
+    const finalAddress = {
+        street: address.street,
+        city: address.city,
+        state: address.state,
+        zip: address.zip || null, // ZIP/Postal Code is optional, set to null if empty
+        country: address.country
+    };
+    // ----------------------------------------------------------------------------------
 
     try {
         // --- 🛠️ FIX: Use new User() and .save() to trigger the pre('save') hook ---
@@ -3044,22 +3036,21 @@ app.post('/api/users/register', async (req, res) => {
             profile: { 
                 firstName, 
                 lastName, 
-                // 🎉 NEW: Map phone and whatsapp to the profile object
                 phone, 
                 whatsapp 
             },
-            // 🎉 NEW: Map the parsed address object
-            address: parsedAddress,
+            // 🎉 UPDATED: Map the structured address object directly
+            address: finalAddress,
             status: { isVerified: false } // Set nested status field
         });
         
-        await newUser.save(); // <-- THIS IS THE CRITICAL CHANGE that hashes the password!
+        await newUser.save(); // <-- THIS IS THE CRITICAL CHANGE that hashes the password and saves the user
         // --------------------------------------------------------------------------
 
         // Generate and store the verification code (this updates the user again)
         verificationCode = await generateHashAndSaveVerificationCode(newUser);
 
-        // --- Send Verification Code Email Logic ---
+        // --- Send Verification Code Email Logic (UNMODIFIED) ---
         const verificationSubject = 'Outflickz: Your Account Verification Code';
         const verificationHtml = `
             <div style="background-color: #ffffffff; padding: 30px; border: 1px solid #ffffffff; max-width: 500px; margin: 0 auto; font-family: sans-serif; border-radius: 8px;">
@@ -3096,7 +3087,7 @@ app.post('/api/users/register', async (req, res) => {
             const existingUser = await User.findOne({ email });
 
             // Check if the existing user is NOT verified
-            if (existingUser && existingUser.status && !existingUser.status.isVerified) { // Added status check for robustness
+            if (existingUser && existingUser.status && !existingUser.status.isVerified) { 
                 try {
                     // Re-trigger the code generation and email send for the existing user
                     const newVerificationCode = await generateHashAndSaveVerificationCode(existingUser);

@@ -1436,6 +1436,58 @@ app.get('/api/admin/users/:id', verifyToken, async (req, res) => {
         return res.status(500).json({ message: 'Server error: Failed to retrieve user details.' });
     }
 });
+
+// NEW: 2. GET /api/admin/users/:id/orders (Fetch User Order History - Protected Admin)
+app.get('/api/admin/users/:userId/orders', verifyToken, async (req, res) => {
+    try {
+        const userId = req.params.userId;
+
+        // 1. Validate the user exists (Optional, but good practice)
+        const userExists = await User.exists({ _id: userId });
+        if (!userExists) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+
+        // 2. Fetch all orders for that user ID
+        // Sort by creation date descending (newest first)
+        const userOrders = await Order.find({ userId: userId }) 
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // 3. Augment the orders with product details for display
+        // We need to ensure each item has the 'name' and 'imageUrl' for the frontend table preview.
+        // NOTE: The implementation of the Order model should ideally already store product name/image
+        // at the time of purchase (denormalization). If not, you'd need a population step here, 
+        // but let's assume the Order model has the necessary denormalized fields (name, imageUrl, quantity).
+
+        // If the orders are simple, we'll return them as is. If they need augmentation, 
+        // the logic would look like this (assuming 'items' is an array of objects):
+        const augmentedOrders = userOrders.map(order => ({
+            ...order,
+            // Simple transformation to ensure item data exists for the frontend table
+            items: (order.items || []).map(item => ({
+                ...item,
+                // Ensure default values if backend data is incomplete
+                name: item.name || 'Unknown Product', 
+                imageUrl: item.imageUrl || 'https://default.image.url/placeholder.png' 
+            }))
+        }));
+
+        // Success Response
+        return res.status(200).json({ 
+            orders: augmentedOrders,
+            count: augmentedOrders.length
+        });
+
+    } catch (error) {
+        if (error.kind === 'ObjectId') {
+             return res.status(400).json({ message: 'Invalid User ID format.' });
+        }
+        console.error('Admin user orders fetch error:', error);
+        return res.status(500).json({ message: 'Server error: Failed to retrieve user order history.' });
+    }
+});
+
 // =========================================================
 // 8. GET /api/admin/orders/pending - Fetch All Pending Orders (Admin Protected)
 // NO CHANGE: This still provides the list view data efficiently.

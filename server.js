@@ -3589,6 +3589,100 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
     });
 });
 
+// =========================================================
+// NEW: POST /api/notifications/admin-order-email - Send Admin Notification (Unprotected)
+// This route is called by the client on successful order/payment initiation.
+// =========================================================
+app.post('/api/notifications/admin-order-email', async (req, res) => {
+    
+    // The payload is sent as JSON from the client-side 'sendAdminOrderNotification' function
+    const { 
+        orderId, 
+        totalAmount, 
+        paymentMethod, 
+        shippingDetails, 
+        items, 
+        adminEmail 
+    } = req.body;
+
+    // 1. Basic Validation
+    if (!orderId || !totalAmount || !adminEmail || !items || items.length === 0) {
+        return res.status(400).json({ message: 'Missing required notification data or order items.' });
+    }
+
+    try {
+        // 2. Format the Email Content (HTML)
+        const paymentStatus = (paymentMethod === 'Paystack/Card') ? 'Payment Confirmed (Paystack)' : 'Payment Awaiting Verification (Bank Transfer)';
+        
+        const itemDetailsHtml = items.map(item => `
+            <tr>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.name || 'N/A'}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.size} / ${item.color}</td>
+                <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${item.quantity}</td>
+                <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">₦${(item.price * item.quantity).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+            </tr>
+        `).join('');
+
+        const emailHtml = `
+            <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; max-width: 600px; margin: auto;">
+                <h2 style="color: #a80000; text-align: center;">🚨 NEW OUTFULICKZ ORDER PLACED!</h2>
+                <p>A new order has been created and requires immediate attention for fulfillment.</p>
+                
+                <hr style="border: none; border-top: 2px solid #a80000; margin: 15px 0;">
+
+                <h3 style="color: #333;">Order Summary</h3>
+                <p><strong>Order ID:</strong> ${orderId}</p>
+                <p><strong>Total Amount:</strong> ₦${parseFloat(totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                <p><strong>Payment Method:</strong> ${paymentMethod}</p>
+                <p><strong>Status:</strong> <span style="font-weight: bold; color: ${paymentStatus.includes('Confirmed') ? 'green' : 'orange'};">${paymentStatus}</span></p>
+
+                <h3 style="color: #333; margin-top: 20px;">Shipping Details</h3>
+                <p><strong>Customer:</strong> ${shippingDetails.firstName} ${shippingDetails.lastName}</p>
+                <p><strong>Email:</strong> ${shippingDetails.email}</p>
+                <p><strong>Address:</strong> ${shippingDetails.street}, ${shippingDetails.city}, ${shippingDetails.state}, ${shippingDetails.country} ${shippingDetails.zipCode ? `(${shippingDetails.zipCode})` : ''}</p>
+
+                <h3 style="color: #333; margin-top: 20px;">Items Ordered</h3>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                    <thead>
+                        <tr style="background-color: #f2f2f2;">
+                            <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Product</th>
+                            <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Details</th>
+                            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Qty</th>
+                            <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemDetailsHtml}
+                    </tbody>
+                </table>
+                <p style="margin-top: 20px; font-size: 0.9em; color: #666;">This is an automated notification. Please check the order management system for full details.</p>
+            </div>
+        `;
+
+        // 3. Send the Email using your existing utility
+        // IMPORTANT: Using the provided function name: sendMail
+        await sendMail(
+            adminEmail,
+            `[New Order] #${orderId} - ${paymentStatus}`,
+            emailHtml
+        );
+
+        console.log(`Admin notification sent successfully for Order ID: ${orderId} to ${adminEmail}`);
+        
+        // 4. Send a successful response back to the client
+        // This is sent immediately so the client can redirect the user without delay.
+        res.status(200).json({ message: 'Admin notification request received and processing.' });
+
+    } catch (error) {
+        console.error('Error in POST /api/notifications/admin-order-email:', error);
+        
+        // We generally don't want the user checkout process to fail if ONLY the admin email fails.
+        // However, for debugging purposes, we return a 500 error here.
+        // In production, consider returning a 200 or 202 status after logging the failure.
+        res.status(500).json({ message: 'Failed to dispatch admin email notification due to server error.' });
+    }
+});
+
 // 6. GET /api/orders/:orderId (Fetch Single Order Details - Protected)
 app.get('/api/orders/:orderId', verifyUserToken, async function (req, res) {
     const orderId = req.params.orderId;

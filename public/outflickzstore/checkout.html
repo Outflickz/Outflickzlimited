@@ -409,6 +409,8 @@
     const CART_STORAGE_KEY = 'outflickzCartCount';
     const LOCAL_CART_KEY = 'outflickzLocalCart';
     const API_BASE_URL = 'https://outflickz.netlify.app'; // Assuming this is your base path
+    // --- NEW CONSTANT FOR ADMIN EMAIL ---
+    const DEFAULT_ADMIN_EMAIL = "outflickzlimited@gmail.com"; 
 
     // --- PAYSTACK CONSTANTS ---
     const PAYSTACK_PUBLIC_KEY = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; // <<< REPLACE THIS WITH YOUR ACTUAL PUBLIC KEY!
@@ -610,7 +612,6 @@
             firstName: document.getElementById('first-name').value,
             lastName: document.getElementById('last-name').value,
             email: document.getElementById('email').value,
-            // --- MODIFICATION 1: REMOVE PHONE NUMBER CAPTURE ---
             street: document.getElementById('address-line-1').value,
             city: document.getElementById('city').value,
             state: document.getElementById('state').value,
@@ -627,8 +628,7 @@
         const reviewZipCode = shippingData.zipCode ? `, ${shippingData.zipCode}` : '';
         document.getElementById('review-address-line2').textContent = `${shippingData.city}, ${shippingData.state}${reviewZipCode}, ${shippingData.country}`;
         
-        // --- MODIFICATION 1: REMOVE PHONE NUMBER FROM REVIEW DISPLAY ---
-        document.getElementById('review-contact-info').textContent = `${shippingData.email}` + (shippingData.phone ? ` | ${shippingData.phone}` : ''); // Display phone if available, but email is the focus
+        document.getElementById('review-contact-info').textContent = `${shippingData.email}`;
 
         checkoutStep = 2;
         updateCheckoutView();
@@ -735,8 +735,9 @@
                     <span class="text-sm font-semibold text-gray-900">${currencySymbol}${(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                 </div>
             `).join('');
-
-            // Store the final total for payment simulation
+            
+            // Store cart items and total for server-side processing later
+            localStorage.setItem('outflickzOrderItems', JSON.stringify(cartData.items));
             localStorage.setItem('outflickzOrderTotal', total.toFixed(2));
 
             // Enable button
@@ -747,6 +748,45 @@
             itemsListEl.innerHTML = '<div class="text-center py-6 text-red-500">Error loading cart. Please go back to cart.</div>';
             displayMessage(error.message || 'An error occurred loading your cart. Please try again.');
             paymentBtn.disabled = true;
+        }
+    }
+
+
+    /**
+     * Helper function to notify admin of a new order.
+     * @param {string} orderId - The unique ID of the order.
+     * @param {string} paymentMethod - The payment method used.
+     */
+    async function sendAdminOrderNotification(orderId, paymentMethod) {
+        const orderTotal = localStorage.getItem('outflickzOrderTotal');
+        const shippingData = localStorage.getItem('outflickzShippingData');
+        const orderItems = localStorage.getItem('outflickzOrderItems');
+
+        const notificationPayload = {
+            orderId: orderId,
+            totalAmount: orderTotal,
+            paymentMethod: paymentMethod,
+            shippingDetails: JSON.parse(shippingData || '{}'),
+            items: JSON.parse(orderItems || '[]'),
+            adminEmail: DEFAULT_ADMIN_EMAIL
+        };
+
+        try {
+            // Replace with your actual server endpoint for sending admin emails
+            const response = await fetch('/api/notifications/admin-order-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(notificationPayload)
+            });
+
+            if (!response.ok) {
+                // Log failure but don't stop the user redirection
+                console.error('Failed to send admin notification email:', response.status);
+            }
+            // Do NOT wait for email response to redirect the user.
+
+        } catch (error) {
+            console.error('Network error while sending admin notification:', error);
         }
     }
 
@@ -778,11 +818,8 @@
         if (paymentMethod.value === 'Paystack/Card') {
             // --- PAYSTACK INITIATION ---
             
-            // NOTE: For production, Paystack recommends generating the reference (and possibly order) 
-            // on the server before initiating pop, but generating client-side is faster for testing.
             const reference = `outflickz_${Date.now()}`;
             
-            // Paystack script is now included in the head, so it should be defined
             if (typeof PaystackPop === 'undefined') {
                 displayMessage('Paystack script not loaded. Please check your internet connection and page HTML.');
                 payBtn.disabled = false;
@@ -799,14 +836,17 @@
                 
                 // Callback runs when user completes the payment process in the modal
                 callback: function(response){
-                    // The backend webhook (POST /api/paystack/webhook) will handle the official verification
+                    // Payment is confirmed by Paystack modal. Assume successful order creation here
+                    // NOTE: In a real system, the webhook handles final order creation. We simulate success here.
+
+                    // 🎯 STEP 1: Send Admin Notification (using the Paystack reference as the Order ID)
+                    sendAdminOrderNotification(response.reference, paymentMethod.value);
+
                     displayMessage('Payment successful! Finalizing order on the server...');
-                    // Redirect to a confirmation/waiting page using the Paystack reference
                     window.location.href = `orderconfirmation.html?ref=${response.reference}&method=paystack`;
                 },
                 
                 onClose: function(){
-                    // Re-enable button if user closes the modal
                     displayMessage('Payment cancelled or abandoned. Please try again.');
                     payBtn.disabled = false;
                     payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
@@ -816,63 +856,55 @@
             // Open the payment modal
             handler.openIframe();
             
-            // Return to prevent the default API call
             return; 
 
         } else if (paymentMethod.value === 'Bank Transfer') {
             
-            // --- NEW: VALIDATE RECEIPT UPLOAD ---
+            // --- VALIDATE RECEIPT UPLOAD ---
             const receiptInput = document.getElementById('bank-receipt-upload');
             
-            // Check if the receipt input exists and has a file attached
             if (!receiptInput || !receiptInput.files || receiptInput.files.length === 0) {
                 displayMessage('Please upload the payment receipt image to complete the bank transfer order.');
                 payBtn.disabled = false;
                 payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
-                
-                // Optional: Focus on the input to help the user
                 if (receiptInput) receiptInput.focus();
                 return;
             }
-            // File is present, proceed with order placement (simulated API call)
+            
             payBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Placing Order...';
             
             // --- BANK TRANSFER (PENDING ORDER) INITIATION ---
             
-            // 🛑 FIX APPLIED HERE: Using FormData to correctly send the file and stringified JSON data 
             const formData = new FormData();
-
-            // CRITICAL FIX 1: Stringify the shipping address object for the server to parse later
             formData.append('shippingAddress', JSON.stringify(shippingAddress));
-
-            // CRITICAL FIX 2: Append all other necessary fields
+            formData.append('orderItems', localStorage.getItem('outflickzOrderItems')); // Include items for server to process
             formData.append('paymentMethod', paymentMethod.value);
-            // Convert totalAmount to string for form data submission
             formData.append('totalAmount', totalAmount.toFixed(2)); 
-
-            // CRITICAL FIX 3: Append the file using the field name expected by Multer ('receipt')
             formData.append('receipt', receiptInput.files[0]); 
 
             try {
                 // REAL FETCH: Create a pending order on the server
                 const response = await fetch('/api/orders/place/pending', {
                     method: 'POST',
-                    // 🛑 IMPORTANT: REMOVED headers: { 'Content-Type': 'application/json' }, 
-                    // Fetch sets multipart/form-data automatically with FormData.
                     body: formData // Pass the FormData object directly
                 });
 
                 const data = await response.json();
-                const isSuccess = response.ok; // Check if the response status is 200-299
+                const isSuccess = response.ok; 
 
                 if (isSuccess && data.orderId) {
-                    // Success: Redirect to a page showing bank details and the new Order ID
+                    
+                    // 🎯 STEP 1: Send Admin Notification
+                    sendAdminOrderNotification(data.orderId, paymentMethod.value);
+                    
+                    // STEP 2: Handle Redirection
                     displayMessage(`Pending Order #${data.orderId} created! Redirecting to confirmation page.`);
                     
                     // Clear local storage items only if the order was successfully created on the server
                     localStorage.removeItem(LOCAL_CART_KEY);
                     localStorage.setItem(CART_STORAGE_KEY, '0');
                     localStorage.removeItem('outflickzOrderTotal');
+                    localStorage.removeItem('outflickzOrderItems'); // Clear items
                     updateCartBadge();
 
                     setTimeout(() => {

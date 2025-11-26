@@ -1304,52 +1304,6 @@ app.get('/api/admin/users/all', verifyToken, async (req, res) => {
         return res.status(500).json({ message: 'Server error: Failed to retrieve user list.' });
     }
 });
-// EXISTING: 1. GET /api/admin/users/:id (Fetch Single User Profile - Protected Admin)
-app.get('/api/admin/users/:id', verifyToken, async (req, res) => {
-    try {
-        const userId = req.params.id;
-
-        const user = await User.findById(userId)
-            .select('email profile address status membership')
-            .lean();
-
-        if (!user) {
-            return res.status(404).json({ message: 'User not found.' });
-        }
-
-        const addressParts = [
-            user.address?.street,
-            user.address?.city,
-            user.address?.state,
-            user.address?.zip,
-            user.address?.country
-        ].filter(Boolean);
-        
-        const contactAddress = addressParts.length > 0 ? addressParts.join(', ') : 'No Address Provided';
-
-        const detailedUser = {
-            _id: user._id,
-            name: `${user.profile.firstName || ''} ${user.profile.lastName || ''}`.trim() || 'N/A',
-            email: user.email,
-            isMember: user.status.role === 'vip',
-            createdAt: user.membership.memberSince,
-            phone: user.profile.phone || 'N/A',
-            contactAddress: contactAddress
-        };
-
-        return res.status(200).json({ 
-            user: detailedUser
-        });
-
-    } catch (error) {
-        if (error.kind === 'ObjectId') {
-             return res.status(400).json({ message: 'Invalid User ID format.' });
-        }
-        console.error('Admin single user fetch error:', error);
-        return res.status(500).json({ message: 'Server error: Failed to retrieve user details.' });
-    }
-});
-
 app.get('/api/admin/users/:id/orders', verifyToken, async (req, res) => {
     try {
         const userId = req.params.id;
@@ -1408,7 +1362,8 @@ app.get('/api/admin/users/:id/orders', verifyToken, async (req, res) => {
                     
                     // Find the exact variation based on the saved variationIndex
                     const purchasedVariation = productInfo.variations.find(v => 
-                        v.variationIndex === item.variationIndex
+                        // ✅ FIX: Robust comparison by converting both to strings to prevent type mismatch
+                        String(v.variationIndex) === String(item.variationIndex)
                     );
 
                     // Use the frontImageUrl of the matched variation, or the first one as a fallback
@@ -1421,7 +1376,7 @@ app.get('/api/admin/users/:id/orders', verifyToken, async (req, res) => {
                             imageUrl = productInfo.variations[0].frontImageUrl;
                             debugReason = 'Fallback: Found image from first variation (Index mismatch or image missing on specific variation).';
                         } else {
-                             debugReason = 'Fail: Matched variation image missing AND first variation image missing.';
+                            debugReason = 'Fail: Matched variation image missing AND first variation image missing.';
                         }
                     } else {
                         debugReason = 'Fail: Product Info found but the product has zero variations.';
@@ -1467,62 +1422,6 @@ app.get('/api/admin/users/:id/orders', verifyToken, async (req, res) => {
         }
         
         return res.status(500).json({ message: 'Server error: Failed to retrieve user orders. Check server logs for details.' });
-    }
-});
-
-// -----------------------------------------------------------------
-// 🧢 CAP COLLECTION API ROUTES (CRUD) 🧢
-// -----------------------------------------------------------------
-
-// GET /api/admin/capscollections - Fetch All Cap Collections
-app.get('/api/admin/capscollections', verifyToken, async (req, res) => {
-    try {
-        // 1. Fetch all collections
-        const collections = await CapCollection.find({})
-            .select('_id name tag price variations totalStock isActive')
-            .sort({ createdAt: -1 })
-            .lean();
-
-        // 2. Sign URLs for all collections
-        const signedCollections = await Promise.all(collections.map(async (collection) => {
-            const signedVariations = await Promise.all(collection.variations.map(async (v) => ({
-                ...v,
-                frontImageUrl: await generateSignedUrl(v.frontImageUrl) || v.frontImageUrl,
-                backImageUrl: await generateSignedUrl(v.backImageUrl) || v.backImageUrl
-            })));
-            return { ...collection, variations: signedVariations };
-        }));
-
-        res.status(200).json(signedCollections);
-    } catch (error) {
-        console.error('Error fetching cap collections:', error);
-        res.status(500).json({ message: 'Server error while fetching cap collections.', details: error.message });
-    }
-});
-
-// GET /api/admin/capscollections/:id - Fetch Single Cap Collection
-app.get('/api/admin/capscollections/:id', verifyToken, async (req, res) => {
-    try {
-        const collectionId = req.params.id;
-        const collection = await CapCollection.findById(collectionId).lean();
-
-        if (!collection) {
-            return res.status(404).json({ message: 'Cap Collection not found.' });
-        }
-
-        // Sign URLs
-        const signedVariations = await Promise.all(collection.variations.map(async (v) => ({
-            ...v,
-            frontImageUrl: await generateSignedUrl(v.frontImageUrl) || v.frontImageUrl, 
-            backImageUrl: await generateSignedUrl(v.backImageUrl) || v.backImageUrl 
-        })));
-        
-        collection.variations = signedVariations;
-
-        res.status(200).json(collection);
-    } catch (error) {
-        console.error('Error fetching cap collection:', error);
-        res.status(500).json({ message: 'Server error fetching cap collection data.' });
     }
 });
 

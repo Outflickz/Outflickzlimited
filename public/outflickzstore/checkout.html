@@ -762,14 +762,14 @@
         const shippingData = localStorage.getItem('outflickzShippingData');
         const orderItems = localStorage.getItem('outflickzOrderItems');
 
-       const notificationPayload = {
+      const notificationPayload = {
         orderId: orderId,
         totalAmount: orderTotal,
         paymentMethod: paymentMethod,
         shippingDetails: JSON.parse(shippingData || '{}'),
         items: JSON.parse(orderItems || '[]'),
         adminEmail: DEFAULT_ADMIN_EMAIL,
-        paymentReceiptUrl: paymentReceiptUrl, 
+        paymentReceiptUrl: paymentReceiptUrl, // <--- NOW CORRECTLY POPULATED
     };
 
         try {

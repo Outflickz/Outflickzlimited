@@ -1350,13 +1350,6 @@ app.get('/api/admin/users/:id', verifyToken, async (req, res) => {
     }
 });
 
-// =========================================================
-// 2. CORRECTED: GET /api/admin/users/:id/orders (Fetch Single User's Orders - Protected Admin)
-// 
-// This version fetches product details from all four product collections
-// (Wears, Caps, New Arrivals, PreOrders) and correctly extracts the image URL
-// based on the purchased item's variationIndex.
-// =========================================================
 app.get('/api/admin/users/:id/orders', verifyToken, async (req, res) => {
     try {
         const userId = req.params.id;
@@ -1407,9 +1400,11 @@ app.get('/api/admin/users/:id/orders', verifyToken, async (req, res) => {
                 // Default values for missing or deleted products
                 let imageUrl = 'https://via.placeholder.com/64x64/E0E7FF/4338CA?text=N/A';
                 let productName = 'Unknown Product (Deleted)';
+                let debugReason = 'No Product Info found (Product deleted/mismatched).';
 
                 if (productInfo) {
                     productName = productInfo.name;
+                    debugReason = 'Product Info found. Searching variations...';
                     
                     // Find the exact variation based on the saved variationIndex
                     const purchasedVariation = productInfo.variations.find(v => 
@@ -1419,11 +1414,30 @@ app.get('/api/admin/users/:id/orders', verifyToken, async (req, res) => {
                     // Use the frontImageUrl of the matched variation, or the first one as a fallback
                     if (purchasedVariation && purchasedVariation.frontImageUrl) {
                         imageUrl = purchasedVariation.frontImageUrl;
+                        debugReason = 'Success: Found image from matched variation.';
                     } else if (productInfo.variations.length > 0) {
                         // Fallback to the first variation's front image if exact match fails
-                        imageUrl = productInfo.variations[0].frontImageUrl || imageUrl;
+                        if (productInfo.variations[0].frontImageUrl) {
+                            imageUrl = productInfo.variations[0].frontImageUrl;
+                            debugReason = 'Fallback: Found image from first variation (Index mismatch or image missing on specific variation).';
+                        } else {
+                             debugReason = 'Fail: Matched variation image missing AND first variation image missing.';
+                        }
+                    } else {
+                        debugReason = 'Fail: Product Info found but the product has zero variations.';
                     }
                 }
+
+                // 🚨 CRITICAL DEBUGGING LOG 🚨
+                // This will output to your server console to diagnose the failure
+                if (imageUrl.includes('placeholder')) {
+                    console.log(`[ORDER IMAGE DEBUG FAILURE] Order ${order._id}, Item ${productIdStr}`);
+                    console.log(`  Reason: ${debugReason}`);
+                    console.log(`  Order Variation Index: ${item.variationIndex}`);
+                } else {
+                    console.log(`[ORDER IMAGE DEBUG SUCCESS] Order ${order._id}, Item ${productIdStr}. URL: ${imageUrl.substring(0, 50)}...`);
+                }
+
 
                 return {
                     ...item,
@@ -1448,8 +1462,6 @@ app.get('/api/admin/users/:id/orders', verifyToken, async (req, res) => {
         // Log the error in detail to the server console to find hidden issues
         console.error('Admin user orders fetch error:', error);
         
-        // This improved catch block ensures the frontend doesn't see a generic 500 error 
-        // if the issue is a malformed ID.
         if (error.name === 'CastError' || error.kind === 'ObjectId') {
             return res.status(400).json({ message: 'Invalid User ID or product ID format found in data.' });
         }

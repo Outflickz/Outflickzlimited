@@ -766,65 +766,73 @@
     }
 
     /**
-     * Handles account verification code submission.
-     */
-    async function handleVerification(event) {
-        event.preventDefault();
-        const code = document.getElementById('verify-code').value;
-        const verifyBtn = document.getElementById('verify-btn');
-        const email = pendingVerificationEmail;
+ * Handles account verification code submission.
+ */
+async function handleVerification(event) {
+    event.preventDefault();
+    // Trim whitespace from the code input immediately
+    const code = document.getElementById('verify-code').value.trim(); 
+    const verifyBtn = document.getElementById('verify-btn');
+    const email = pendingVerificationEmail;
 
-        if (!email) {
-            displayMessage('Error: No pending email found. Please create an account.', 'error');
-            showView('create');
-            return;
-        }
-
-        verifyBtn.textContent = 'Verifying...';
-        verifyBtn.disabled = true;
-
-        try {
-            const response = await fetch(VERIFY_ENDPOINT, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: email, code: code })
-            });
-
-            // ROBUST JSON PARSING
-            let data = {};
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-                data = await response.json();
-            } else if (!response.ok) {
-                throw new Error(`Server Error (${response.status}): Netlify could not find the function or the server crashed.`);
-            }
-            // END ROBUST PARSING
-
-
-            if (response.ok) {
-                displayMessage('Account verified successfully! You can now sign in.', 'success');
-
-                pendingVerificationEmail = '';
-                document.getElementById('verify-code').value = '';
-
-                setTimeout(() => {
-                    showView('login');
-                    document.getElementById('login-email').value = email; // Pre-fill email
-                }, 2000);
-
-            } else {
-                const errorMessage = data.message || `Verification API Error (${response.status}).`;
-                displayMessage(`Verification Failed: ${errorMessage}`, 'error');
-            }
-
-        } catch (error) {
-            console.error('Verification network failed:', error);
-            displayMessage(`Connection Error: ${error.message || 'Could not connect to the verification service.'}`, 'error');
-        } finally {
-            verifyBtn.textContent = 'Verify Account';
-            verifyBtn.disabled = false;
-        }
+    if (!email) {
+        displayMessage('Error: No pending email found. Please create an account.', 'error');
+        showView('create');
+        return;
     }
+
+    // ⭐ NEW CLIENT-SIDE VALIDATION: Check if code is present and has expected length
+    if (!code || code.length !== 6) { 
+        displayMessage('Please enter a valid 6-digit verification code.', 'error');
+        return; // Stop execution here if validation fails
+    }
+    // ⭐ END NEW VALIDATION
+
+    verifyBtn.textContent = 'Verifying...';
+    verifyBtn.disabled = true;
+
+    try {
+        const response = await fetch(VERIFY_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email, code: code })
+        });
+
+        // ROBUST JSON PARSING
+        let data = {};
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            data = await response.json();
+        } else if (!response.ok) {
+            throw new Error(`Server Error (${response.status}): Netlify could not find the function or the server crashed.`);
+        }
+        // END ROBUST PARSING
+
+
+        if (response.ok) {
+            displayMessage('Account verified successfully! You can now sign in.', 'success');
+
+            pendingVerificationEmail = '';
+            document.getElementById('verify-code').value = '';
+
+            setTimeout(() => {
+                showView('login');
+                document.getElementById('login-email').value = email; // Pre-fill email
+            }, 2000);
+
+        } else {
+            const errorMessage = data.message || `Verification API Error (${response.status}).`;
+            displayMessage(`Verification Failed: ${errorMessage}`, 'error');
+        }
+
+    } catch (error) {
+        console.error('Verification network failed:', error);
+        displayMessage(`Connection Error: ${error.message || 'Could not connect to the verification service.'}`, 'error');
+    } finally {
+        verifyBtn.textContent = 'Verify Account';
+        verifyBtn.disabled = false;
+    }
+}
 
     /**
      * Starts a cooldown timer for the Resend Code button.

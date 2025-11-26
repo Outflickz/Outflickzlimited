@@ -38,6 +38,11 @@
                 Dashboard
             </button>
             
+            <button id="btn-userorders" onclick="navigateToUserOrders()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                User Orders
+            </button>
+
             <button id="btn-wearscollection" onclick="navigateToWearsCollection()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
                 Wears Collection
@@ -216,7 +221,7 @@
         const newArrivalsStockElement = document.getElementById('new-arrivals-stock');
         const preOrderStockElement = document.getElementById('pre-order-stock');
         const registeredUsersElement = document.getElementById('registered-users');
-        const activeSubscriptionsElement = document.getElementById('active-subscriptions'); // ⭐ NEW ELEMENT
+        const activeSubscriptionsElement = document.getElementById('active-subscriptions'); 
         const loadingIndicator = document.getElementById('loading-indicator');
         const metricCards = document.getElementById('metric-cards');
         const sidebar = document.getElementById('sidebar');
@@ -224,6 +229,11 @@
         const contentSections = document.querySelectorAll('.content-section');
         const navButtons = document.querySelectorAll('nav button'); 
 
+        // ⭐ NEW FUNCTION for external navigation (User Orders) ⭐
+        function navigateToUserOrders() {
+            window.location.href = './userorders.html';
+        }
+        
         // Function for external navigation (Wears Collection)
         function navigateToWearsCollection() {
             window.location.href = './wearscollection.html';
@@ -244,7 +254,7 @@
             window.location.href = './preorders.html';
         }
 
-        // ⭐ NEW FUNCTION for external navigation (Membership) ⭐
+        // Function for external navigation (Membership)
         function navigateToMembership() {
             window.location.href = './membership.html'; 
         }
@@ -280,7 +290,7 @@
             const contentElement = document.getElementById(`content-${contentId}`);
             if (contentElement) {
                 contentElement.classList.remove('hidden');
-            } else if (['newarrivals', 'capscollection', 'wearscollection', 'preorders', 'membership'].includes(contentId)) { // ⭐ ADDED 'membership'
+            } else if (['userorders', 'newarrivals', 'capscollection', 'wearscollection', 'preorders', 'membership'].includes(contentId)) { // ⭐ ADDED 'userorders'
                 // Special handling for external links: they now redirect, so don't look for an internal section.
                 // We will update button styles, but not display an internal section.
                 console.log(`Content section 'content-${contentId}' is now a redirect. Reverting to dashboard view.`);
@@ -292,7 +302,7 @@
             navButtons.forEach(button => {
                 const buttonContentId = button.id.replace('btn-', '');
                 // List all redirect buttons here
-                if (['wearscollection', 'capscollection', 'newarrivals', 'preorders', 'membership', 'logout'].includes(buttonContentId)) { // ⭐ ADDED 'membership'
+                if (['userorders', 'wearscollection', 'capscollection', 'newarrivals', 'preorders', 'membership', 'logout'].includes(buttonContentId)) { // ⭐ ADDED 'userorders'
                     // Special handling for the buttons that *are* redirects to remove their internal 'click' activation style
                     button.classList.remove('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
                     button.classList.add('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
@@ -364,7 +374,7 @@
                     capsStock: data.capsStock || 0, 
                     newArrivalsStock: data.newArrivalsStock || 0, 
                     preOrderStock: data.preOrderStock || 0, 
-                    activeSubscriptions: data.activeSubscriptions || 0, // ⭐ NEW DATA FIELD
+                    activeSubscriptions: data.activeSubscriptions || 0, 
                     registeredUsers: data.userCount || 0,
                     recentActivity: data.recentActivity || [] 
                 };
@@ -395,13 +405,13 @@
 
                 totalSalesElement.textContent = salesFormatted;
                 
-                // Display NEW individual stock counts
+                // Display individual stock counts
                 wearsStockElement.textContent = data.wearsStock.toLocaleString();
                 capsStockElement.textContent = data.capsStock.toLocaleString();
                 newArrivalsStockElement.textContent = data.newArrivalsStock.toLocaleString();
                 preOrderStockElement.textContent = data.preOrderStock.toLocaleString();
                 
-                // ⭐ DISPLAY NEW ACTIVE SUBSCRIPTIONS COUNT
+                // DISPLAY ACTIVE SUBSCRIPTIONS COUNT
                 activeSubscriptionsElement.textContent = data.activeSubscriptions.toLocaleString();
                 
                 registeredUsersElement.textContent = data.registeredUsers.toLocaleString();
@@ -484,7 +494,7 @@
                         bgColor = 'bg-yellow-50';
                         icon = '📦';
                         break;
-                    // ⭐ NEW CASE: HANDLE MEMBERSHIP SUBSCRIPTION
+                    // NEW CASE: HANDLE MEMBERSHIP SUBSCRIPTION
                     case 'MEMBERSHIP_SUBSCRIBED':
                         borderColor = 'border-red-400';
                         bgColor = 'bg-red-50';

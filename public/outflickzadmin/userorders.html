@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-commerce Admin - User Orders</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="https://i.imgur.com/ioWFyQB.png">
+    <style>
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #05744b; /* emerald-400 */
+            border-radius: 4px;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem; /* Slightly reduced base font size */
+        }
+        .text-xl-reduced {
+            font-size: 1.5rem; /* Custom size for headings */
+        }
+        /* Custom style for the active link on this page */
+        #btn-userorders.active-link {
+            background-color: #059669; /* emerald-600 */
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex">
+
+    <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-emerald-900 text-white transform transition-transform duration-300 z-30 lg:translate-x-0 -translate-x-full shadow-2xl flex flex-col">
+        <div class="p-6 flex-shrink-0">
+            <img src="https://i.imgur.com/Fz9w1BA.png" alt="E-commerce Logo" class="h-10 w-auto mb-6 rounded-lg shadow-md border border-emerald-700">
+            <h1 class="text-xl font-extrabold text-emerald-400 border-t border-emerald-800 pt-4">Commerce Hub</h1>
+        </div>
+        
+        <nav class="space-y-2 px-4 flex-grow overflow-y-auto">
+            <button id="btn-dashboard" onclick="navigateToDashboard()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l-7-7-7 7m10 0v10a1 1 0 01-1 1h-3m-3 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-9 0h10"></path></svg>
+                Dashboard
+            </button>
+            
+            <button id="btn-userorders" onclick="setActiveContent('userorders')" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-emerald-600 hover:bg-emerald-700 active-link">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                User Orders
+            </button>
+
+            <button id="btn-wearscollection" onclick="navigateToWearsCollection()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                Wears Collection
+            </button>
+
+            <button id="btn-capscollection" onclick="navigateToCapsCollection()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 13h10M4 19v-6a3 3 0 013-3h10a3 3 0 013 3v6a3 3 0 01-3 3H7a3 3 0 01-3-3z"></path></svg>
+                Caps Collection
+            </button>
+            
+            <button id="btn-newarrivals" onclick="navigateToNewArrivals()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                New Arrivals
+            </button>
+            
+            <button id="btn-preorders" onclick="navigateToPreOrders()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                Pre-Order 
+            </button>
+            
+            <button id="btn-membership" onclick="navigateToMembership()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3v-5a2 2 0 00-2-2H5a2 2 0 00-2 2v5a3 3 0 003 3z"></path></svg>
+                Membership
+            </button>
+            <button id="btn-settings" onclick="navigateToSettings()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.526.34.813.486 1.066-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                Settings
+            </button>
+        </nav>
+        
+        <div class="p-4 flex-shrink-0 border-t border-emerald-800">
+            <button id="btn-logout" onclick="logoutAdmin()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-red-600 hover:bg-red-700 text-white shadow-lg">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                Log Out
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 lg:ml-64 p-4 transition-all duration-300">
+        <button id="sidebar-toggle" class="lg:hidden fixed top-4 left-4 z-40 p-2 bg-emerald-600 text-white rounded-lg shadow-lg hover:bg-emerald-700 transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        </button>
+
+        <section id="content-userorders" class="content-section p-6 pt-16 lg:pt-6">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6">Pending User Orders Management 📦</h2>
+
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <div class="flex justify-between items-center mb-4 border-b pb-3">
+                    <h3 class="text-xl font-semibold text-gray-700">Orders Awaiting Confirmation</h3>
+                    <span id="pending-count" class="text-sm font-bold text-red-600 bg-red-100 px-3 py-1 rounded-full">0 Pending</span>
+                </div>
+
+                <div id="loading-indicator" class="text-center p-10">
+                    <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600 inline-block"></div>
+                    <p class="mt-4 text-gray-600 text-sm">Fetching user orders...</p>
+                </div>
+
+                <div id="orders-table-container" class="overflow-x-auto hidden">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="orders-table-body" class="bg-white divide-y divide-gray-200">
+                            </tbody>
+                    </table>
+                </div>
+
+                <div id="empty-state" class="text-center p-10 hidden">
+                    <svg class="w-16 h-16 mx-auto text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                    <p class="mt-3 text-lg font-medium text-gray-700">All caught up!</p>
+                    <p class="text-sm text-gray-500">There are currently no orders requiring your confirmation.</p>
+                </div>
+                
+                <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // --- Shared JS Elements and Functions (Identical to Dashboard) ---
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const navButtons = document.querySelectorAll('nav button');
+        
+        // Navigation Functions (Redirects to other pages)
+        function navigateToDashboard() { window.location.href = './admin-dashboard.html'; }
+        function navigateToWearsCollection() { window.location.href = './wearscollection.html'; }
+        function navigateToCapsCollection() { window.location.href = './capscollection.html'; }
+        function navigateToNewArrivals() { window.location.href = './newarrivals.html'; }
+        function navigateToPreOrders() { window.location.href = './preorders.html'; }
+        function navigateToMembership() { window.location.href = './membership.html'; }
+        function navigateToSettings() { window.location.href = './settings.html'; } // Assuming a separate settings page
+        
+        // Log out function
+        function logoutAdmin() {
+            console.log("Logging out... Clearing admin token.");
+            localStorage.removeItem('adminToken');
+            window.location.href = './admin-login.html'; 
+        }
+
+        // Sidebar Toggle
+        document.addEventListener('DOMContentLoaded', () => {
+            // Highlight the current page's button
+            document.getElementById('btn-userorders').classList.add('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
+            document.getElementById('btn-userorders').classList.remove('hover:bg-emerald-800', 'text-emerald-200');
+            
+            sidebarToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('-translate-x-full');
+            });
+            
+            // Initial Data Load
+            loadUserOrders(); 
+        });
+        
+        // Helper function for currency formatting (NGN)
+        function formatNaira(amount) {
+            return new Intl.NumberFormat('en-NG', {
+                style: 'currency',
+                currency: 'NGN',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2
+            }).format(amount);
+        }
+        
+        // --- Order Specific JS Logic ---
+        
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const ordersTableContainer = document.getElementById('orders-table-container');
+        const ordersTableBody = document.getElementById('orders-table-body');
+        const pendingCountElement = document.getElementById('pending-count');
+        const emptyState = document.getElementById('empty-state');
+        const toastContainer = document.getElementById('toast-container');
+
+
+        /**
+         * Fetches a list of pending orders from the API.
+         */
+        async function fetchOrders() {
+            const token = localStorage.getItem('adminToken');
+            if (!token) {
+                console.error("No adminToken found. Redirecting to login.");
+                logoutAdmin();
+                return [];
+            }
+
+            try {
+                // Endpoint to fetch pending orders. Adjust as needed.
+                const response = await fetch('/api/admin/orders/pending', { 
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        logoutAdmin();
+                        return [];
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error('Error fetching orders:', error);
+                showToast('Failed to load orders. API error.', 'bg-red-500');
+                return [];
+            }
+        }
+        
+        /**
+         * Sends a request to the API to confirm (complete) an order.
+         * @param {string} orderId - The ID of the order to confirm.
+         */
+        async function confirmOrder(orderId) {
+            const token = localStorage.getItem('adminToken');
+            if (!token) {
+                logoutAdmin();
+                return;
+            }
+            
+            // Optimistically disable the button
+            const button = document.getElementById(`confirm-btn-${orderId}`);
+            button.disabled = true;
+            button.textContent = 'Confirming...';
+            button.classList.add('opacity-50');
+
+            try {
+                // Endpoint to confirm a specific order. Adjust to your backend route (e.g., PUT /orders/id/confirm)
+                const response = await fetch(`/api/admin/orders/${orderId}/confirm`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to confirm order: ${response.statusText}`);
+                }
+                
+                showToast(`Order #${orderId.substring(0, 8)} confirmed successfully!`, 'bg-emerald-500');
+                
+                // Reload the order list to reflect the change
+                loadUserOrders();
+
+            } catch (error) {
+                console.error('Confirmation error:', error);
+                showToast(`Failed to confirm order #${orderId.substring(0, 8)}.`, 'bg-red-500');
+                
+                // Re-enable on failure
+                button.disabled = false;
+                button.textContent = 'Confirm';
+                button.classList.remove('opacity-50');
+            }
+        }
+
+        /**
+         * Renders the fetched orders into the table.
+         * @param {Array<Object>} orders - The list of orders to render.
+         */
+        function renderOrders(orders) {
+            ordersTableBody.innerHTML = '';
+            
+            const pendingOrders = orders.filter(order => order.status === 'Pending');
+
+            pendingCountElement.textContent = `${pendingOrders.length} Pending`;
+
+            if (pendingOrders.length === 0) {
+                ordersTableContainer.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            ordersTableContainer.classList.remove('hidden');
+
+            pendingOrders.forEach(order => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-50';
+                
+                // Convert timestamp to readable date (Example: 2025-11-26)
+                const date = new Date(order.createdAt).toLocaleDateString();
+
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${order._id.substring(0, 8)}...</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${order.userName || order.email}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-emerald-600">${formatNaira(order.totalAmount)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${date}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                            ${order.status}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                        <button 
+                            id="confirm-btn-${order._id}"
+                            onclick="confirmOrder('${order._id}')" 
+                            class="text-white bg-emerald-600 hover:bg-emerald-700 py-1 px-3 rounded-lg text-xs transition duration-150 shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                        >
+                            Confirm
+                        </button>
+                    </td>
+                `;
+                ordersTableBody.appendChild(tr);
+            });
+        }
+        
+        /**
+         * Main function to fetch and display orders.
+         */
+        async function loadUserOrders() {
+            loadingIndicator.classList.remove('hidden');
+            ordersTableContainer.classList.add('hidden');
+            emptyState.classList.add('hidden');
+
+            const orders = await fetchOrders();
+
+            loadingIndicator.classList.add('hidden');
+            
+            renderOrders(orders);
+        }
+        
+        /**
+         * Displays a temporary notification (toast).
+         * @param {string} message - The message to display.
+         * @param {string} bgColorClass - Tailwind class for background color (e.g., 'bg-emerald-500').
+         */
+        function showToast(message, bgColorClass) {
+            const toast = document.createElement('div');
+            toast.className = `p-4 rounded-lg shadow-xl text-white ${bgColorClass} transition-opacity duration-300`;
+            toast.textContent = message;
+            
+            toastContainer.appendChild(toast);
+            
+            // Auto-hide the toast after 3 seconds
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+                setTimeout(() => toast.remove(), 500); // Remove from DOM after fade out
+            }, 3000);
+        }
+
+    </script>
+
+</body>
+</html>

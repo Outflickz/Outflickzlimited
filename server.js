@@ -1116,26 +1116,44 @@ app.get('/newarrivals', (req, res) => { res.sendFile(path.join(__dirname, 'publi
 app.get('/preorders', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzadmin', 'preorders.html')); }); 
 
 
-
-const verifyToken = (req, res, next) => {
+// This is the final, recommended middleware for admin routes
+const verifyAdminToken = (req, res, next) => {
+    // 1. Check for Authorization header format (Bearer <token>)
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ message: 'Access denied. No token provided or token format invalid.' });
     }
+    
+    // 2. Extract the token
     const token = authHeader.split(' ')[1];
+    
     try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        req.adminUser = decoded;
+        // NOTE: Use the appropriate secret (JWT_SECRET or JWT_ADMIN_SECRET)
+        const decoded = jwt.verify(token, JWT_SECRET); 
+        
+        // 3. CRUCIAL: Check for the 'admin' role
+        if (decoded.role !== 'admin') { 
+            return res.status(403).json({ message: 'Forbidden. Access limited to administrators.' });
+        }
+        
+        // 4. Attach admin data to the request (use consistent naming like req.adminUser)
+        req.adminUser = decoded; 
         next();
+        
     } catch (err) {
-        res.status(401).json({ message: 'Invalid or expired token.' });
+        // 5. Handle token errors
+        res.status(401).json({ message: 'Invalid or expired token. Please log in again.' });
     }
 };
 
+// The upload configuration remains the same
 const upload = multer({ 
     storage: multer.memoryStorage(),
     limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
+
+// Example Usage:
+// app.post('/api/admin/product', verifyAdminToken, upload.single('productImage'), (req, res) => { /* ... */ });
 
 // Define the expected file fields dynamically (e.g., front-view-upload-1, back-view-upload-1, up to index 4)
 const uploadFields = Array.from({ length: 4 }, (_, i) => [

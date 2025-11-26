@@ -164,60 +164,75 @@
 
         function logoutAdmin() {
             console.log("Logging out... Clearing admin token.");
+            // Assuming the token is stored in localStorage after admin login
             localStorage.removeItem('adminToken');
+            // In a real application, you'd also hit a backend logout endpoint to clear the HTTP-only cookie
             window.location.href = './admin-login.html'; 
         }
 
         // Helper function for date formatting
         function formatDate(dateString) {
-            const options = { year: 'numeric', month: 'short', day: 'numeric' };
-            return new Date(dateString).toLocaleDateString(undefined, options);
+            // Check if dateString is valid before attempting to parse
+            if (!dateString) return 'N/A';
+            try {
+                const options = { year: 'numeric', month: 'short', day: 'numeric' };
+                return new Date(dateString).toLocaleDateString(undefined, options);
+            } catch (e) {
+                return 'Invalid Date';
+            }
         }
 
         /**
          * Fetches all registered user data from the API.
+         * @returns {Promise<Array<Object> | null>} Array of user objects or null on failure/auth error.
          */
         async function fetchUserData() {
             const token = localStorage.getItem('adminToken');
             
             if (!token) {
                 console.error("No adminToken found. Redirecting to login.");
+                // Immediately call logout/redirect when no token is present
                 logoutAdmin();
                 return null;
             }
 
             try {
-                // IMPORTANT: Replace this with your actual backend endpoint (e.g., /api/admin/users/all)
+                // The correct endpoint from your backend implementation
                 const response = await fetch('/api/admin/users/all', { 
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
+                        // CRITICAL: Pass the token via Authorization header (Bearer scheme)
                         'Authorization': `Bearer ${token}` 
                     }
                 });
 
                 if (!response.ok) {
+                    // Handle 401/403 specifically to log out the admin
                     if (response.status === 401 || response.status === 403) {
-                        console.error('Unauthorized access. Token expired or invalid.');
+                        console.error(`Authentication error (${response.status}). Token expired or invalid.`);
                         logoutAdmin();
                         return null;
                     }
+                    // Handle other errors (e.g., 500)
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
                 const data = await response.json();
-                // Assuming data is an array of user objects: [{_id, name, email, isMember, createdAt}, ...]
+                // CRITICAL: The backend endpoint returns an object with a 'users' array and 'count'
+                // We return the 'users' array for the rendering function
                 return data.users || []; 
 
             } catch (error) {
                 console.error('Error fetching user data:', error);
+                // Return null to trigger the generic error message on the page
                 return null;
             }
         }
 
         /**
          * Renders the user data into the table.
-         * @param {Array<Object>} users - Array of user objects.
+         * @param {Array<Object>} users - Array of user objects matching the backend's transformed output.
          */
         function renderUserTable(users) {
             userTableBody.innerHTML = ''; // Clear previous data
@@ -229,9 +244,10 @@
             }
 
             users.forEach(user => {
-                const isMember = user.isMember; // Assuming 'isMember' field exists
-                const statusText = isMember ? 'Active' : 'Basic';
-                const statusColor = isMember ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800';
+                // The backend transformation should provide: _id, name, email, isMember, createdAt
+                const isMember = user.isMember; 
+                const statusText = isMember ? 'VIP Member' : 'Basic User';
+                const statusColor = isMember ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800'; // Changed color for VIP to reflect theme
                 
                 const row = document.createElement('tr');
                 row.className = 'hover:bg-gray-50';
@@ -249,7 +265,7 @@
                         ${formatDate(user.createdAt)}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button class="text-emerald-600 hover:text-emerald-900 transition duration-150">View Details</button>
+                        <button class="text-blue-600 hover:text-blue-900 transition duration-150">View Details</button>
                     </td>
                 `;
                 userTableBody.appendChild(row);
@@ -269,16 +285,17 @@
             loadingIndicator.classList.add('hidden');
 
             if (users === null) {
-                // Already handled redirect/error message in fetchUserData on Auth failure
+                // Auth error handled by logoutAdmin in fetchUserData. Show a relevant message.
                 errorMessage.classList.remove('hidden');
-                errorMessage.innerHTML = 'Authentication failed or token expired. Redirecting to login.';
-                // No need to continue if Auth failed and redirect is triggered
-            } else if (users) {
+                errorMessage.innerHTML = 'Authentication failed or token expired. Please log in again.';
+            } else if (Array.isArray(users)) {
+                // Success path
                 renderUserTable(users);
                 userTableContainer.classList.remove('hidden');
             } else {
-                // General fetch error
+                // General fetch error (e.g., network failed, 500 server error)
                 errorMessage.classList.remove('hidden');
+                errorMessage.innerHTML = 'Failed to load user data. Please check the network connection and API status.';
             }
         }
 

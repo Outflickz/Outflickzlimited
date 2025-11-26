@@ -1473,6 +1473,111 @@ app.get('/api/admin/users/:id/orders', verifyToken, async (req, res) => {
     }
 });
 
+// =========================================================
+// 8. GET /api/admin/orders/pending - Fetch All Pending Orders (Admin Protected)
+// This route is used by the Admin Dashboard to review orders awaiting payment verification.
+// =========================================================
+app.get('/api/admin/orders/pending', verifyToken, async (req, res) => {
+    try {
+        // Find all orders where the status is 'Pending'
+        // Sort by createdAt date in ascending order (oldest first)
+        const pendingOrders = await Order.find({ status: 'Pending' })
+            .select('_id userId totalAmount createdAt status paymentMethod paymentReceiptUrl subtotal shippingFee tax')
+            .sort({ createdAt: 1 })
+            .lean();
+
+        // 1. Get User Details for each pending order (for 'Customer' column)
+        const populatedOrders = await Promise.all(
+            pendingOrders.map(async (order) => {
+                // Fetch the user to get their name and email
+                const user = await User.findById(order.userId)
+                    .select('firstName lastName email')
+                    .lean();
+
+                // Construct the customer name/email for the dashboard display
+                const userName = user ? `${user.firstName} ${user.lastName}` : 'N/A';
+                const email = user ? user.email : 'Unknown User';
+                
+                return {
+                    ...order,
+                    userName: userName, // Added for the Admin table
+                    email: email,       // Added for the Admin table
+                };
+            })
+        );
+
+        // Send the complete list of pending orders
+        res.status(200).json(populatedOrders);
+
+    } catch (error) {
+        console.error('Error fetching pending orders:', error);
+        res.status(500).json({ message: 'Failed to retrieve pending orders.' });
+    }
+});
+
+// =========================================================
+// 9. PUT /api/admin/orders/:orderId/confirm - Confirm an Order (Admin Protected)
+// This verifies payment, changes status to 'Processing', and triggers inventory deduction.
+// =========================================================
+app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
+    const orderId = req.params.orderId;
+    const adminId = req.adminId; // Set by verifyAdminToken middleware
+
+    if (!orderId) {
+        return res.status(400).json({ message: 'Order ID is required for confirmation.' });
+    }
+
+    try {
+        // 1. Set the status from 'Pending' to 'Processing'
+        const updatedOrder = await Order.findOneAndUpdate(
+            { _id: orderId, status: 'Pending' }, // Only confirm if it's currently Pending
+            { 
+                $set: { 
+                    status: 'Processing', // Set the status to processing (payment confirmed)
+                    confirmedAt: new Date(), // Log confirmation time
+                    confirmedBy: adminId // Log which admin confirmed it
+                } 
+            },
+            { new: true } // Return the updated document
+        ).lean();
+
+        if (!updatedOrder) {
+            return res.status(404).json({ message: 'Order not found or not in a Pending state.' });
+        }
+        
+        // 2. CRITICAL STEP: Deduct Inventory and finalize status to 'Completed' in an atomic transaction
+        let finalOrder;
+        try {
+            finalOrder = await processOrderCompletion(orderId);
+            // After successful deduction, the order status is 'Completed'
+        } catch (inventoryError) {
+            // If inventory deduction fails (e.g., insufficient stock), we must revert the status.
+            // Or, more robustly, set a flag/status to indicate the issue for manual review.
+            // For now, let's just log the failure and return an error.
+            console.error('Inventory deduction failed during Admin confirmation:', inventoryError.message);
+            // Revert status to 'Amount Mismatch (Manual Review)' for safety
+            await Order.findByIdAndUpdate(orderId, { 
+                status: 'Amount Mismatch (Manual Review)', 
+                $push: { notes: `Inventory deduction failed on ${new Date().toISOString()}: ${inventoryError.message}` }
+            });
+            return res.status(500).json({ 
+                message: 'Payment confirmed, but inventory deduction failed. Order status flagged for manual review.',
+                error: inventoryError.message
+            });
+        }
+        
+        // 3. Success Response
+        res.status(200).json({ 
+            message: `Order ${orderId} confirmed and inventory deducted successfully. Status: ${finalOrder.status}.`,
+            order: finalOrder 
+        });
+
+    } catch (error) {
+        console.error(`Error confirming order ${orderId}:`, error);
+        res.status(500).json({ message: 'Failed to confirm order due to a server error.' });
+    }
+});
+
 // GET /api/admin/capscollections/:id - Fetch Single Cap Collection
 app.get('/api/admin/capscollections/:id', verifyToken, async (req, res) => {
     try {

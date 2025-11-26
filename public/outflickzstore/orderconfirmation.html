@@ -198,17 +198,10 @@ const API_BASE_URL = 'https://outflickz.netlify.app';
 // 🎯 FIX 1: Ensure AUTH Token retrieval functions are robustly defined
 // =================================================================
 
-// Function to retrieve the authentication token
-function getAuthToken() {
-    // Assuming the auth token is stored under 'authToken' in localStorage, 
-    // based on common security practices for handling authentication.
-    return localStorage.getItem('authToken'); 
-}
-
-function isUserLoggedIn() {
-    // Check if the user is marked as logged in AND if a token exists
-    return localStorage.getItem('outflickzUser') === 'true' && !!getAuthToken(); 
-}
+ // --- USER AUTHENTICATION & REDIRECTION FUNCTIONS (Reused) ---
+    function isUserLoggedIn() {
+        return localStorage.getItem('outflickzAuthStatus') === 'loggedIn';
+    }
 
 function updateCartBadge() {
     // Ensure cart badge is correctly updated/hidden

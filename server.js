@@ -3958,125 +3958,143 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
 // This route is used for manual Bank Transfer payments.
 // =========================================================
 app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
-    
-    // 1. Run the Multer middleware to process the form data and file
-    singleReceiptUpload(req, res, async (err) => {
-        
-        // Handle Multer errors (e.g., file size limit)
-        if (err instanceof multer.MulterError) {
-            return res.status(400).json({ message: `File upload failed: ${err.message}` });
-        } else if (err) {
-            console.error('Unknown Multer Error:', err);
-            return res.status(500).json({ message: 'Error processing file upload.' });
-        }
-        
-        const userId = req.userId;
-        
-        // Form fields are now in req.body. Note: `totalAmount` will be a string.
-        const { shippingAddress: shippingAddressString, paymentMethod, totalAmount: totalAmountString } = req.body;
-        const receiptFile = req.file; // The uploaded file buffer is here
-        
-        // Convert string fields back to their proper type
-        const totalAmount = parseFloat(totalAmountString);
-        let shippingAddress;
+    
+    // 1. Run the Multer middleware to process the form data and file
+    singleReceiptUpload(req, res, async (err) => {
+        
+        // Handle Multer errors (e.g., file size limit)
+        if (err instanceof multer.MulterError) {
+            return res.status(400).json({ message: `File upload failed: ${err.message}` });
+        } else if (err) {
+            console.error('Unknown Multer Error:', err);
+            return res.status(500).json({ message: 'Error processing file upload.' });
+        }
+        
+        const userId = req.userId;
+        
+        // Form fields are now in req.body. Note: all amounts will be strings.
+        const { 
+            shippingAddress: shippingAddressString, 
+            paymentMethod, 
+            totalAmount: totalAmountString, 
+            // ⭐ ADDED: Subtotal, Shipping Fee, and Tax fields must be extracted
+            subtotal: subtotalString,
+            shippingFee: shippingFeeString,
+            tax: taxString 
+        } = req.body;
+        
+        const receiptFile = req.file; // The uploaded file buffer is here
+        
+        // Convert string fields back to their proper type
+        const totalAmount = parseFloat(totalAmountString);
+        // ⭐ ADDED: Financial breakdown conversion
+        const subtotal = parseFloat(subtotalString || '0');
+        const shippingFee = parseFloat(shippingFeeString || '0');
+        const tax = parseFloat(taxString || '0');
 
-        // --- START: UPDATED ROBUST PARSING LOGIC ---
-        try {
-            // Check if the string is empty or null BEFORE attempting JSON.parse.
-            if (!shippingAddressString || shippingAddressString.trim() === '') {
-                // Set to null so the subsequent validation block can catch it.
-                shippingAddress = null; 
-            } else {
-                shippingAddress = JSON.parse(shippingAddressString);
-            }
-        } catch (e) {
-            // This now strictly catches malformed JSON strings (e.g., missing double quotes on keys).
-            return res.status(400).json({ message: 'Invalid shipping address format. Ensure the address object is stringified correctly.' });
-        }
-        // --- END: UPDATED ROBUST PARSING LOGIC ---
-        
-        // 2. Critical Input Validation (This now correctly handles missing fields)
-        if (!shippingAddress || totalAmount <= 0 || isNaN(totalAmount)) {
-            // The `shippingAddress` will be null if the string was empty/missing, triggering this message.
-            return res.status(400).json({ message: 'Missing shipping address or invalid total amount.' });
-        }
+        let shippingAddress;
 
-        let paymentReceiptUrl = null;
-        
-        try {
-            // NEW VALIDATION: Ensure the receipt file is provided for a Bank Transfer
-            if (paymentMethod === 'Bank Transfer') {
-                if (!receiptFile) {
-                    return res.status(400).json({ message: 'Bank payment receipt image is required for a Bank Transfer order.' });
-                }
-                
-                // 3. Upload the receipt file to Backblaze B2
-                paymentReceiptUrl = await uploadFileToPermanentStorage(receiptFile);
-                
-                if (!paymentReceiptUrl) {
-                    throw new Error("Failed to get permanent URL after B2 upload.");
-                }
-            }
+        // --- START: UPDATED ROBUST PARSING LOGIC ---
+        try {
+            // Check if the string is empty or null BEFORE attempting JSON.parse.
+            if (!shippingAddressString || shippingAddressString.trim() === '') {
+                // Set to null so the subsequent validation block can catch it.
+                shippingAddress = null; 
+            } else {
+                shippingAddress = JSON.parse(shippingAddressString);
+            }
+        } catch (e) {
+            // This now strictly catches malformed JSON strings (e.g., missing double quotes on keys).
+            return res.status(400).json({ message: 'Invalid shipping address format. Ensure the address object is stringified correctly.' });
+        }
+        // --- END: UPDATED ROBUST PARSING LOGIC ---
+        
+        // 2. Critical Input Validation
+        if (!shippingAddress || totalAmount <= 0 || isNaN(totalAmount)) {
+            // The `shippingAddress` will be null if the string was empty/missing, triggering this message.
+            return res.status(400).json({ message: 'Missing shipping address or invalid total amount.' });
+        }
 
-            // 4. Retrieve the user's current cart items
-            const cart = await Cart.findOne({ userId }).lean();
+        let paymentReceiptUrl = null;
+        
+        try {
+            // NEW VALIDATION: Ensure the receipt file is provided for a Bank Transfer
+            if (paymentMethod === 'Bank Transfer') {
+                if (!receiptFile) {
+                    return res.status(400).json({ message: 'Bank payment receipt image is required for a Bank Transfer order.' });
+                }
+                
+                // 3. Upload the receipt file to Backblaze B2
+                paymentReceiptUrl = await uploadFileToPermanentStorage(receiptFile);
+                
+                if (!paymentReceiptUrl) {
+                    throw new Error("Failed to get permanent URL after B2 upload.");
+                }
+            }
 
-            if (!cart || cart.items.length === 0) {
-                return res.status(400).json({ message: 'Cannot place order: Shopping bag is empty.' });
-            }
+            // 4. Retrieve the user's current cart items
+            const cart = await Cart.findOne({ userId }).lean();
 
-            // 5. Create a new Order document with status 'Pending'
-            const orderItems = cart.items.map(item => ({
-                productId: item.productId,
-                productType: item.productType,
-                quantity: item.quantity,
-                priceAtTimeOfPurchase: item.price, // Store the price explicitly
-                size: item.size,
-                color: item.color,
-            }));
-            
-            // **CRITICAL: Generate a reference for bank transfer orders**
-            const orderRef = `MANUAL-${Date.now()}-${userId.substring(0, 5)}`; 
+            if (!cart || cart.items.length === 0) {
+                return res.status(400).json({ message: 'Cannot place order: Shopping bag is empty.' });
+            }
 
-            const newOrder = await Order.create({
-                userId: userId,
-                items: orderItems,
-                shippingAddress: shippingAddress,
-                totalAmount: totalAmount, 
-                status: 'Pending', 
-                paymentMethod: paymentMethod,
-                orderReference: orderRef, 
-                amountPaidKobo: Math.round(totalAmount * 100),
-                paymentTxnId: orderRef, // Use the order reference as the txn ID for now
-                paymentReceiptUrl: paymentReceiptUrl, // Store the B2 permanent URL here
-            });
+            // 5. Create a new Order document with status 'Pending'
+            const orderItems = cart.items.map(item => ({
+                productId: item.productId,
+                productType: item.productType,
+                quantity: item.quantity,
+                priceAtTimeOfPurchase: item.price, // Store the price explicitly
+                size: item.size,
+                color: item.color,
+            }));
+            
+            // **CRITICAL: Generate a reference for bank transfer orders**
+            const orderRef = `MANUAL-${Date.now()}-${userId.substring(0, 5)}`; 
 
-            // 6. Clear the user's cart after successful order creation
-            await Cart.findOneAndUpdate(
-                { userId },
-                { items: [], updatedAt: Date.now() }
-            );
-            
-            console.log(`Pending Order created: ${newOrder._id}. Receipt URL: ${paymentReceiptUrl}`);
-            
-            // Extract first and last name from the parsed shipping address
-            const { firstName, lastName } = shippingAddress;
+            const newOrder = await Order.create({
+                userId: userId,
+                items: orderItems,
+                shippingAddress: shippingAddress,
+                totalAmount: totalAmount,
+                // ⭐ ADDED: Store the financial breakdown for record accuracy
+                subtotal: subtotal,
+                shippingFee: shippingFee,
+                tax: tax,
+                status: 'Pending', 
+                paymentMethod: paymentMethod,
+                orderReference: orderRef, 
+                amountPaidKobo: Math.round(totalAmount * 100),
+                paymentTxnId: orderRef, // Use the order reference as the txn ID for now
+                paymentReceiptUrl: paymentReceiptUrl, // Store the B2 permanent URL here
+            });
 
-            // Success response for the client-side JavaScript
-            res.status(201).json({
-                message: 'Pending order placed successfully. Awaiting payment verification.',
-                orderId: newOrder._id,
-                status: newOrder.status,
-                firstName: firstName,
-                lastName: lastName,
-                ReceiptUrl: paymentReceiptUrl
-            });
+            // 6. Clear the user's cart after successful order creation
+            await Cart.findOneAndUpdate(
+                { userId },
+                { items: [], updatedAt: Date.now() }
+            );
+            
+            console.log(`Pending Order created: ${newOrder._id}. Receipt URL: ${paymentReceiptUrl}`);
+            
+            // Extract first and last name from the parsed shipping address
+            const { firstName, lastName } = shippingAddress;
 
-        } catch (error) {
-            console.error('Error placing pending order:', error);
-            res.status(500).json({ message: 'Failed to create pending order due to a server error.' });
-        }
-    });
+            // Success response for the client-side JavaScript
+            res.status(201).json({
+                message: 'Pending order placed successfully. Awaiting payment verification.',
+                orderId: newOrder._id,
+                status: newOrder.status,
+                firstName: firstName,
+                lastName: lastName,
+                ReceiptUrl: paymentReceiptUrl
+            });
+
+        } catch (error) {
+            console.error('Error placing pending order:', error);
+            res.status(500).json({ message: 'Failed to create pending order due to a server error.' });
+        }
+    });
 });
 
 // 6. GET /api/orders/:orderId (Fetch Single Order Details - Protected)

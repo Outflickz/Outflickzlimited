@@ -173,6 +173,39 @@ async function deleteFileFromPermanentStorage(fileUrl) {
     }
 }
 
+// Helper to convert the stream from B2/S3 response body into a Buffer
+const streamToBuffer = (stream) => // Exported
+    new Promise((resolve, reject) => {
+        const chunks = [];
+        stream.on("data", (chunk) => chunks.push(chunk));
+        stream.on("error", reject);
+        stream.on("end", () => resolve(Buffer.concat(chunks)));
+    });
+
+
+/**
+ * Extracts the file key (path inside the bucket) from the permanent B2 URL.
+ * This function is synchronous.
+ */
+function getFileKeyFromUrl(fileUrl) { 
+    if (!fileUrl) return null;
+    try {
+        const urlObj = new URL(fileUrl);
+        const pathSegments = urlObj.pathname.split('/');
+        
+        // Find the index of the bucket name
+        const bucketNameIndex = pathSegments.findIndex(segment => segment === BLAZE_BUCKET_NAME);
+        if (bucketNameIndex === -1) return null;
+
+        // The file key is everything after the bucket name
+        return pathSegments.slice(bucketNameIndex + 1).join('/');
+
+    } catch (e) {
+        console.error('Error extracting file key:', e);
+        return null;
+    }
+}
+
 /**
  * Helper function to send email using the configured transporter.
  * This function was referenced but not defined in the original code.
@@ -3468,7 +3501,6 @@ app.post('/api/paystack/webhook', async (req, res) => {
     }
 });
 // ASSUMPTION: The necessary functions (sendMail, generateSignedUrl) and configuration (BLAZE_BUCKET_NAME, etc.) are available in this scope.
-
 app.post('/api/notifications/admin-order-email', async (req, res) => {
     
     // The payload is sent as JSON from the client-side 'sendAdminOrderNotification' function
@@ -3479,7 +3511,7 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
         shippingDetails, 
         items, 
         adminEmail,
-        paymentReceiptUrl: paymentReceiptUrl // <-- Renames the incoming 'receiptUrl' to 'paymentReceiptUrl' 
+        paymentReceiptUrl // The URL from B2/DB
     } = req.body;
 
     // 1. Basic Validation
@@ -3488,20 +3520,52 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
     }
 
     try {
-        // --- NEW STEP: Generate Signed URL for Private Receipt ---
-        let displayReceiptUrl = null; 
+        // --- NEW STEP: Prepare Attachments from B2 ---
+        const attachments = [];
+        let attachmentFileName = null; 
         
-        // Only attempt to sign if it's a Bank Transfer AND we have a URL from the DB
+        // Only attempt to attach if it's a Bank Transfer AND we have a B2 URL
         if (paymentMethod === 'Bank Transfer' && paymentReceiptUrl) {
             
-            // 🚨 CRITICAL: Call the B2 utility to get a time-limited, public-access URL
-            const signedUrl = await generateSignedUrl(paymentReceiptUrl); 
-            
-            // Use the signed URL for display. If signing fails, displayReceiptUrl remains null.
-            if (signedUrl) {
-                displayReceiptUrl = signedUrl;
-            } else {
-                console.warn(`[Admin Email] Could not generate signed URL for receipt: ${paymentReceiptUrl}. The receipt link will be missing or broken in the email.`);
+            try {
+                // a. Get the file key (path inside the bucket)
+                const fileKey = getFileKeyFromUrl(paymentReceiptUrl);
+
+                if (fileKey) {
+                    console.log(`Attempting to download receipt file: ${fileKey}`);
+
+                    // b. Create the GetObject command
+                    const getObjectCommand = new GetObjectCommand({
+                        Bucket: BLAZE_BUCKET_NAME,
+                        Key: fileKey,
+                    });
+
+                    // c. Send the command and get the response stream
+                    const response = await s3Client.send(getObjectCommand);
+
+                    // d. Set content type and filename
+                    const contentType = response.ContentType || 'application/octet-stream';
+                    const keyParts = fileKey.split('/');
+                    const suggestedFilename = keyParts[keyParts.length - 1] || 'payment-receipt';
+                    
+                    // e. Convert stream to Buffer
+                    const buffer = await streamToBuffer(response.Body);
+
+                    // f. Add to attachments array (Nodemailer format)
+                    attachments.push({
+                        filename: suggestedFilename,
+                        content: buffer,
+                        contentType: contentType,
+                    });
+
+                    attachmentFileName = suggestedFilename; 
+                    console.log(`Receipt attached successfully: ${suggestedFilename}`);
+                } else {
+                    console.warn(`[Admin Email] Could not extract file key from URL: ${paymentReceiptUrl}. Skipping receipt attachment.`);
+                }
+            } catch (downloadError) {
+                // Log the error but do NOT fail the entire email process
+                console.error(`[Admin Email] Failed to download receipt from B2:`, downloadError.message);
             }
         }
         // --- END: NEW STEP ---
@@ -3544,28 +3608,24 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
             </tr>
         `).join('');
 
-        // --- Conditional Receipt Proof Block (Uses the now public 'displayReceiptUrl') ---
-        const receiptProofHtml = (paymentMethod === 'Bank Transfer' && displayReceiptUrl) ? `
-            <!-- Payment Receipt Proof -->
-            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 30px; border-collapse: collapse;">
+        // --- Attachment Confirmation Block (NEW: Replaces inline image display) ---
+        const attachmentConfirmationHtml = attachmentFileName ? `
+            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 30px; border-collapse: collapse; border: 1px solid #c0e6c0; border-radius: 4px;">
                 <tr>
-                    <td style="font-size: 18px; font-weight: bold; color: #000000; padding-bottom: 10px; border-bottom: 2px solid #000000;">PAYMENT RECEIPT PROOF</td>
-                </tr>
-                <tr>
-                    <td align="center" style="padding: 15px 0;">
-                        <!-- Use the signed URL for the link and the image source -->
-                        <a href="${displayReceiptUrl}" target="_blank" style="color: #000000; text-decoration: none; font-weight: bold;">
-                            <img src="${displayReceiptUrl}" alt="Bank Transfer Receipt" width="300" style="display: block; max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px;">
-                        </a>
-                    </td>
-                </tr>
-                <tr>
-                    <td align="center" style="padding-top: 5px; font-size: 12px; color: #555;">
-                        Click image to view full receipt. (Link valid for 5 minutes)
+                    <td style="padding: 15px; background-color: #e0ffe0; font-size: 14px; color: #006400; font-weight: bold; text-align: center;">
+                        ✅ Payment Receipt Proof Attached: 
+                        <span style="font-weight: normal; color: #333;">${attachmentFileName}</span>
+                        <div style="font-size: 12px; color: #555; margin-top: 5px;">
+                            (Please check the email attachment for the file.)
+                        </div>
                     </td>
                 </tr>
             </table>
-        ` : '';
+        ` : (paymentMethod === 'Bank Transfer' ? `
+            <p style="margin-top: 30px; font-size: 14px; color: #FF4500; font-weight: bold; text-align: center;">
+                ⚠️ Bank Transfer Payment Selected: Receipt attachment failed or URL was missing.
+            </p>
+        ` : '');
 
         const emailHtml = `
 <!DOCTYPE html>
@@ -3678,8 +3738,8 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
                                 </tbody>
                             </table>
                             
-                            <!-- Receipt Proof (Conditional) -->
-                            ${receiptProofHtml}
+                            <!-- Attachment Confirmation (Conditional) -->
+                            ${attachmentConfirmationHtml}
 
                             <p style="margin-top: 40px; font-size: 12px; color: #777; text-align: center;">
                                 This is an automated notification. Please check the order management system for full details and fulfillment.
@@ -3703,11 +3763,13 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
 </html>
         `;
 
-        // 3. Send the Email using your existing utility
+        // 3. Send the Email, passing the attachments array
+        // Your sendMail function must be updated to accept a fourth attachments argument
         await sendMail(
             adminEmail,
             `[New Order] #${orderId} - ${paymentStatus}`,
-            emailHtml
+            emailHtml,
+            attachments // <-- NEW: Pass the attachments array
         );
 
         console.log(`Admin notification sent successfully for Order ID: ${orderId} to ${adminEmail}`);
@@ -3835,11 +3897,9 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
                 message: 'Pending order placed successfully. Awaiting payment verification.',
                 orderId: newOrder._id,
                 status: newOrder.status,
-                // --- ADDED FIRST NAME AND LAST NAME TO RESPONSE ---
                 firstName: firstName,
                 lastName: lastName,
-                // --------------------------------------------------
-                paymentReceiptUrl: paymentReceiptUrl 
+                ReceiptUrl: paymentReceiptUrl 
             });
 
         } catch (error) {

@@ -199,8 +199,8 @@
                         </thead>
                         <tbody id="order-history-body" class="bg-white divide-y divide-gray-200">
                             <tr>
-                                <td colspan="6" class="px-4 py-4 text-center text-sm text-gray-500">No orders found for this user.</td>
-                            </tr>
+                        <td colspan="7" class="px-4 py-4 text-center text-sm text-gray-500">No orders found for this user.</td>  
+                     </tr>
                         </tbody>
                     </table>
                 </div>
@@ -362,62 +362,72 @@
         }
         
         /**
-         * Renders the order history into the table, including product images.
-         * @param {Array<Object>} orders - Array of order objects.
-         */
-        function renderOrderHistory(orders) {
-            orderHistoryBody.innerHTML = ''; // Clear previous data
-            orderCountDisplay.textContent = `Total Orders: ${orders.length.toLocaleString()}`;
+ * Renders the order history into the table, including product images.
+ * @param {Array<Object>} orders - Array of order objects.
+ */
+function renderOrderHistory(orders) {
+    orderHistoryBody.innerHTML = ''; // Clear previous data
+    orderCountDisplay.textContent = `Total Orders: ${orders.length.toLocaleString()}`;
 
-            if (!orders || orders.length === 0) {
-                orderHistoryBody.innerHTML = '<tr><td colspan="6" class="px-4 py-4 text-center text-sm text-gray-500">No orders found for this user.</td></tr>';
-                return;
-            }
+    if (!orders || orders.length === 0) {
+        orderHistoryBody.innerHTML = '<tr><td colspan="7" class="px-4 py-4 text-center text-sm text-gray-500">No orders found for this user.</td></tr>';
+        return;
+    }
 
-            orders.forEach(order => {
-                const statusBadge = getStatusBadge(order.status);
-                
-                // Construct the product preview images/list
-                let productPreviewHtml = `<div class="flex -space-x-2 overflow-hidden">`;
-                const maxImages = 3;
-                
-                if (order.items && Array.isArray(order.items)) {
-                    order.items.slice(0, maxImages).forEach(item => {
-                        // ASSUMPTION: item has name, quantity, and imageUrl
-                        productPreviewHtml += `
-                            <img class="inline-block h-8 w-8 rounded-md ring-2 ring-white object-cover shadow-md" 
-                                src="${item.imageUrl || 'https://via.placeholder.com/32?text=?'}" 
-                                alt="${item.name || 'Product'}">
-                        `;
-                    });
-                    
-                    if (order.items.length > maxImages) {
-                         productPreviewHtml += `<span class="inline-flex items-center justify-center h-8 w-8 rounded-full bg-gray-200 text-xs text-gray-600 ring-2 ring-white shadow-md">
-                            +${order.items.length - maxImages}
-                        </span>`;
-                    }
-                } else {
-                    productPreviewHtml = '<span class="text-xs text-gray-500">N/A</span>';
-                }
-                productPreviewHtml += `</div>`;
-                
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-gray-50';
-                
-                // NOTE: Added the new <td> for Product Preview
-                row.innerHTML = `
-                    <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 truncate max-w-xs">${order._id}</td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">${formatDate(order.createdAt)}</td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700 font-semibold">${formatCurrency(order.totalAmount)}</td>
-                    <td class="px-4 py-4 whitespace-nowrap">${statusBadge}</td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm">${productPreviewHtml}</td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 max-w-xs truncate">${order.items.length} item(s)</td>
-                `;
-                orderHistoryBody.appendChild(row);
-            });
+    orders.forEach(order => {
+        const statusBadge = getStatusBadge(order.status);
+        
+        // --- FIX 1: Calculate Total Items from all items' quantities ---
+        let totalItemsCount = 0;
+        if (order.items && Array.isArray(order.items)) {
+            totalItemsCount = order.items.reduce((sum, item) => sum + (item.quantity || 1), 0);
+        } else {
+            totalItemsCount = 0; // No items in order
         }
         
-        // --- End Order History Functions ---
+        // --- FIX 2: Construct the Product Preview images/list with proper fallbacks ---
+        let productPreviewHtml = `<div class="flex -space-x-2 overflow-hidden items-center">`;
+        const maxImages = 3;
+        
+        if (order.items && Array.isArray(order.items) && order.items.length > 0) {
+            order.items.slice(0, maxImages).forEach(item => {
+                const imgUrl = item.imageUrl || 'https://via.placeholder.com/32x32?text=P'; // Fallback Placeholder
+                const productName = item.name || 'Product';
+                
+                productPreviewHtml += `
+                    <img class="inline-block h-8 w-8 rounded-md ring-2 ring-white object-cover shadow-md" 
+                         src="${imgUrl}" 
+                         alt="${productName}" 
+                         title="${productName} (x${item.quantity || 1})">
+                `;
+            });
+            
+            if (order.items.length > maxImages) {
+                 productPreviewHtml += `<span class="inline-flex items-center justify-center h-8 w-8 rounded-full bg-gray-200 text-xs text-gray-600 ring-2 ring-white shadow-md">
+                    +${order.items.length - maxImages}
+                 </span>`;
+            }
+        } else {
+            productPreviewHtml = '<span class="text-xs text-gray-500">No products</span>';
+        }
+        productPreviewHtml += `</div>`;
+        
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-gray-50';
+        
+        // Note: The colspan for the error message has been updated from 6 to 7 in the HTML block below.
+        row.innerHTML = `
+            <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 truncate max-w-xs">${order._id}</td>
+            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">${formatDate(order.createdAt)}</td>
+            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700 font-semibold">${formatCurrency(order.totalAmount)}</td>
+            <td class="px-4 py-4 whitespace-nowrap">${statusBadge}</td>
+            <td class="px-4 py-4 whitespace-nowrap text-sm">${productPreviewHtml}</td>
+            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 max-w-xs truncate">${totalItemsCount} item(s)</td>
+        `;
+        orderHistoryBody.appendChild(row);
+    });
+}
+        
 
 
         /**

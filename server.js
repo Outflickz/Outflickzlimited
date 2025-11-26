@@ -3468,9 +3468,249 @@ app.post('/api/paystack/webhook', async (req, res) => {
     }
 });
 
+app.post('/api/notifications/admin-order-email', async (req, res) => {
+    
+    // The payload is sent as JSON from the client-side 'sendAdminOrderNotification' function
+    const { 
+        orderId, 
+        totalAmount, 
+        paymentMethod, 
+        shippingDetails, 
+        items, 
+        adminEmail,
+        // NEW: Receipt URL is now expected in the payload for Bank Transfer orders
+        receiptUrl 
+    } = req.body;
+
+    // 1. Basic Validation
+    if (!orderId || !totalAmount || !adminEmail || !items || items.length === 0) {
+        return res.status(400).json({ message: 'Missing required notification data or order items.' });
+    }
+
+    try {
+        // 2. Format the Email Content (HTML)
+        const paymentStatus = (paymentMethod === 'Paystack/Card') ? 'Payment Confirmed (Paystack)' : 'Payment Awaiting Verification (Bank Transfer)';
+        
+        // --- Enhanced Item List with Thumbnails ---
+        const itemDetailsHtml = items.map(item => `
+            <tr>
+                <!-- Product Name & Image (Combined Cell) -->
+                <td style="padding: 12px 0 12px 0; border-bottom: 1px solid #eee; font-size: 14px; color: #333;">
+                    <table border="0" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="padding-right: 10px;">
+                                <img src="${item.imageUrl || 'https://placehold.co/40x40/f7f7f7/999?text=X'}" alt="Product" width="40" height="40" style="display: block; border: 1px solid #ddd; border-radius: 4px;">
+                            </td>
+                            <td>
+                                ${item.name || 'N/A'}
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+                
+                <!-- Details (Size and Color) -->
+                <td style="padding: 12px 0 12px 0; border-bottom: 1px solid #eee; font-size: 12px; color: #555;">
+                    <span style="display: block;">Size: <strong>${item.size || 'N/A'}</strong></span>
+                    <span style="display: block; margin-top: 2px;">Color: ${item.color || 'N/A'}</span>
+                </td>
+                
+                <!-- Quantity -->
+                <td style="padding: 12px 0 12px 0; border-bottom: 1px solid #eee; font-size: 14px; color: #333; text-align: center;">
+                    ${item.quantity}
+                </td>
+                
+                <!-- Subtotal -->
+                <td style="padding: 12px 0 12px 0; border-bottom: 1px solid #eee; font-size: 14px; color: #333; text-align: right;">
+                    ₦${(item.price * item.quantity).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                </td>
+            </tr>
+        `).join('');
+
+        // --- Conditional Receipt Proof Block ---
+        const receiptProofHtml = (paymentMethod === 'Bank Transfer' && receiptUrl) ? `
+            <!-- Payment Receipt Proof -->
+            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 30px; border-collapse: collapse;">
+                <tr>
+                    <td style="font-size: 18px; font-weight: bold; color: #000000; padding-bottom: 10px; border-bottom: 2px solid #000000;">PAYMENT RECEIPT PROOF</td>
+                </tr>
+                <tr>
+                    <td align="center" style="padding: 15px 0;">
+                        <a href="${receiptUrl}" target="_blank" style="color: #000000; text-decoration: none; font-weight: bold;">
+                            <img src="${receiptUrl}" alt="Bank Transfer Receipt" width="300" style="display: block; max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px;">
+                        </a>
+                    </td>
+                </tr>
+                <tr>
+                    <td align="center" style="padding-top: 5px; font-size: 12px; color: #555;">
+                        Click image to view full receipt.
+                    </td>
+                </tr>
+            </table>
+        ` : '';
+
+        const emailHtml = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Outfulickz Order</title>
+    <style>
+        @media only screen and (max-width: 600px) {
+            .container {
+                width: 100% !important;
+                padding: 0 10px !important;
+            }
+            .header-logo {
+                width: 150px !important;
+                height: auto !important;
+            }
+            .item-table td {
+                display: table-cell !important;
+            }
+        }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f4f4f4; font-family: Arial, sans-serif;">
+
+    <!-- Wrapper Table -->
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed;">
+        <tr>
+            <td align="center" style="padding: 20px 0;">
+                <table border="0" cellpadding="0" cellspacing="0" width="600" class="container" style="background-color: #ffffff; border: 1px solid #dddddd; border-radius: 8px;">
+                    
+                    <!-- Header with Logo -->
+                    <tr>
+                        <td align="center" style="padding: 20px 0 10px 0;">
+                            <img src="https://i.imgur.com/1Rxhi9q.jpeg" alt="Outfulickz Logo" class="header-logo" width="180" style="display: block; border: 0; max-width: 180px;">
+                        </td>
+                    </tr>
+
+                    <!-- Main Content -->
+                    <tr>
+                        <td style="padding: 20px 40px 40px 40px;">
+
+                            <h1 style="color: #000000; font-size: 24px; text-align: center; margin-bottom: 20px;">
+                                🚨 NEW ORDER PLACED 🚨
+                            </h1>
+                            <p style="font-size: 16px; color: #333; line-height: 1.5;">
+                                A new order has been created and requires immediate attention for fulfillment. Details are below.
+                            </p>
+                            
+                            <!-- Order Summary -->
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 25px; border-collapse: collapse;">
+                                <tr>
+                                    <td colspan="2" style="font-size: 18px; font-weight: bold; color: #000000; padding-bottom: 10px; border-bottom: 2px solid #000000;">ORDER SUMMARY</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px 0; font-size: 14px; color: #555; width: 50%;">Order ID:</td>
+                                    <td style="padding: 10px 0; font-size: 14px; color: #000000; font-weight: bold; text-align: right;">${orderId}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px 0; font-size: 14px; color: #555;">Payment Method:</td>
+                                    <td style="padding: 10px 0; font-size: 14px; color: #000000; text-align: right;">${paymentMethod}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px 0 20px 0; font-size: 14px; color: #555; border-bottom: 1px dashed #ccc;">Payment Status:</td>
+                                    <td style="padding: 10px 0 20px 0; font-size: 14px; font-weight: bold; text-align: right; color: ${paymentStatus.includes('Confirmed') ? 'green' : '#FFA500'}; border-bottom: 1px dashed #ccc;">${paymentStatus}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 20px 0 10px 0; font-size: 16px; font-weight: bold; color: #000000;">TOTAL AMOUNT:</td>
+                                    <td style="padding: 20px 0 10px 0; font-size: 18px; font-weight: bold; color: #000000; text-align: right;">₦${parseFloat(totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                </tr>
+                            </table>
+
+                            <!-- Shipping Details -->
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 30px; border-collapse: collapse;">
+                                <tr>
+                                    <td colspan="2" style="font-size: 18px; font-weight: bold; color: #000000; padding-bottom: 10px; border-bottom: 2px solid #000000;">SHIPPING DETAILS</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px 0 5px 0; font-size: 14px; color: #000000; font-weight: bold;" colspan="2">
+                                        ${shippingDetails.firstName} ${shippingDetails.lastName}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 5px 0; font-size: 14px; color: #555;" colspan="2">Email: ${shippingDetails.email}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 5px 0 10px 0; font-size: 14px; color: #555; border-bottom: 1px dashed #ccc;" colspan="2">
+                                        Address: ${shippingDetails.street}, ${shippingDetails.city}, ${shippingDetails.state}, ${shippingDetails.country} ${shippingDetails.zipCode ? `(${shippingDetails.zipCode})` : ''}
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Items Ordered -->
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%" class="item-table" style="margin-top: 30px; border-collapse: collapse;">
+                                <tr>
+                                    <td colspan="4" style="font-size: 18px; font-weight: bold; color: #000000; padding-bottom: 10px; border-bottom: 2px solid #000000;">ITEMS ORDERED</td>
+                                </tr>
+                                
+                                <thead>
+                                    <tr style="text-align: left; background-color: #f7f7f7;">
+                                        <th style="padding: 10px 0; font-size: 12px; color: #555; font-weight: normal; width: 40%;">PRODUCT</th>
+                                        <th style="padding: 10px 0; font-size: 12px; color: #555; font-weight: normal; width: 30%;">DETAILS</th>
+                                        <th style="padding: 10px 0; font-size: 12px; color: #555; font-weight: normal; width: 10%; text-align: center;">QTY</th>
+                                        <th style="padding: 10px 0; font-size: 12px; color: #555; font-weight: normal; width: 20%; text-align: right;">SUBTOTAL</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${itemDetailsHtml}
+                                </tbody>
+                            </table>
+                            
+                            <!-- Receipt Proof (Conditional) -->
+                            ${receiptProofHtml}
+
+                            <p style="margin-top: 40px; font-size: 12px; color: #777; text-align: center;">
+                                This is an automated notification. Please check the order management system for full details and fulfillment.
+                            </p>
+
+                        </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                        <td align="center" style="background-color: #f7f7f7; padding: 15px 40px; border-radius: 0 0 8px 8px;">
+                            <p style="margin: 0; font-size: 11px; color: #999;">&copy; ${new Date().getFullYear()} OUTFULICKZ. All rights reserved.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+</body>
+</html>
+        `;
+
+        // 3. Send the Email using your existing utility
+        // IMPORTANT: Using the provided function name: sendMail
+        await sendMail(
+            adminEmail,
+            `[New Order] #${orderId} - ${paymentStatus}`,
+            emailHtml
+        );
+
+        console.log(`Admin notification sent successfully for Order ID: ${orderId} to ${adminEmail}`);
+        
+        // 4. Send a successful response back to the client
+        // This is sent immediately so the client can redirect the user without delay.
+        res.status(200).json({ message: 'Admin notification request received and processing.' });
+
+    } catch (error) {
+        console.error('Error in POST /api/notifications/admin-order-email:', error);
+        
+        // We generally don't want the user checkout process to fail if ONLY the admin email fails.
+        // However, for debugging purposes, we return a 500 error here.
+        // In production, consider returning a 200 or 202 status after logging the failure.
+        res.status(500).json({ message: 'Failed to dispatch admin email notification due to server error.' });
+    }
+});
+
 // =========================================================
-// NEW: POST /api/orders/place/pending - Create a Pending Order (Protected)
-// This route is used for manual Bank Transfer payments.
+// 7. POST /api/orders/place/pending - Create a Pending Order (Protected)
+// This route is used for manual Bank Transfer payments. (No changes needed here)
 // =========================================================
 app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
     
@@ -3587,215 +3827,6 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
             res.status(500).json({ message: 'Failed to create pending order due to a server error.' });
         }
     });
-});
-
-app.post('/api/notifications/admin-order-email', async (req, res) => {
-    
-    // The payload is sent as JSON from the client-side 'sendAdminOrderNotification' function
-    const { 
-        orderId, 
-        totalAmount, 
-        paymentMethod, 
-        shippingDetails, 
-        items, 
-        adminEmail 
-    } = req.body;
-
-    // 1. Basic Validation
-    if (!orderId || !totalAmount || !adminEmail || !items || items.length === 0) {
-        return res.status(400).json({ message: 'Missing required notification data or order items.' });
-    }
-
-    try {
-        // 2. Format the Email Content (HTML)
-        const paymentStatus = (paymentMethod === 'Paystack/Card') ? 'Payment Confirmed (Paystack)' : 'Payment Awaiting Verification (Bank Transfer)';
-        
-        const itemDetailsHtml = items.map(item => `
-            <tr>
-                <!-- Product Name -->
-                <td style="padding: 12px 0 12px 0; border-bottom: 1px solid #eee; font-size: 14px; color: #333;">
-                    ${item.name || 'N/A'}
-                </td>
-                
-                <!-- Details (Size and Color) -->
-                <td style="padding: 12px 0 12px 0; border-bottom: 1px solid #eee; font-size: 12px; color: #555;">
-                    <span style="display: block;">Size: <strong>${item.size || 'N/A'}</strong></span>
-                    <span style="display: block; margin-top: 2px;">Color: ${item.color || 'N/A'}</span>
-                </td>
-                
-                <!-- Quantity -->
-                <td style="padding: 12px 0 12px 0; border-bottom: 1px solid #eee; font-size: 14px; color: #333; text-align: center;">
-                    ${item.quantity}
-                </td>
-                
-                <!-- Subtotal -->
-                <td style="padding: 12px 0 12px 0; border-bottom: 1px solid #eee; font-size: 14px; color: #333; text-align: right;">
-                    ₦${(item.price * item.quantity).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                </td>
-            </tr>
-        `).join('');
-
-        const emailHtml = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>New Outfulickz Order</title>
-    <style>
-        @media only screen and (max-width: 600px) {
-            .container {
-                width: 100% !important;
-                padding: 0 10px !important;
-            }
-            .header-logo {
-                width: 150px !important;
-                height: auto !important;
-            }
-            .content-table, .content-table th, .content-table td {
-                font-size: 14px !important;
-                display: block;
-                width: 100%;
-                box-sizing: border-box;
-            }
-            .item-table td {
-                display: table-cell !important; /* Keep item table structure */
-            }
-        }
-    </style>
-</head>
-<body style="margin: 0; padding: 0; background-color: #f4f4f4; font-family: Arial, sans-serif;">
-
-    <!-- Wrapper Table -->
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed;">
-        <tr>
-            <td align="center" style="padding: 20px 0;">
-                <table border="0" cellpadding="0" cellspacing="0" width="600" class="container" style="background-color: #ffffff; border: 1px solid #dddddd; border-radius: 8px;">
-                    
-                    <!-- Header with Logo -->
-                    <tr>
-                        <td align="center" style="padding: 20px 0 10px 0;">
-                            <img src="https://i.imgur.com/1Rxhi9q.jpeg" alt="Outfulickz Logo" class="header-logo" width="180" style="display: block; border: 0; max-width: 180px;">
-                        </td>
-                    </tr>
-
-                    <!-- Main Content -->
-                    <tr>
-                        <td style="padding: 20px 40px 40px 40px;">
-
-                            <h1 style="color: #000000; font-size: 24px; text-align: center; margin-bottom: 20px;">
-                                🚨 NEW ORDER PLACED 🚨
-                            </h1>
-                            <p style="font-size: 16px; color: #333; line-height: 1.5;">
-                                A new order has been created and requires immediate attention for fulfillment. Details are below.
-                            </p>
-                            
-                            <!-- Order Summary -->
-                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 25px; border-collapse: collapse;">
-                                <tr>
-                                    <td colspan="2" style="font-size: 18px; font-weight: bold; color: #000000; padding-bottom: 10px; border-bottom: 2px solid #000000;">ORDER SUMMARY</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 10px 0; font-size: 14px; color: #555; width: 50%;">Order ID:</td>
-                                    <td style="padding: 10px 0; font-size: 14px; color: #000000; font-weight: bold; text-align: right;">${orderId}</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 10px 0; font-size: 14px; color: #555;">Payment Method:</td>
-                                    <td style="padding: 10px 0; font-size: 14px; color: #000000; text-align: right;">${paymentMethod}</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 10px 0 20px 0; font-size: 14px; color: #555; border-bottom: 1px dashed #ccc;">Payment Status:</td>
-                                    <td style="padding: 10px 0 20px 0; font-size: 14px; font-weight: bold; text-align: right; color: ${paymentStatus.includes('Confirmed') ? 'green' : '#FFA500'}; border-bottom: 1px dashed #ccc;">${paymentStatus}</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 20px 0 10px 0; font-size: 16px; font-weight: bold; color: #000000;">TOTAL AMOUNT:</td>
-                                    <td style="padding: 20px 0 10px 0; font-size: 18px; font-weight: bold; color: #000000; text-align: right;">₦${parseFloat(totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                                </tr>
-                            </table>
-
-                            <!-- Shipping Details -->
-                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 30px; border-collapse: collapse;">
-                                <tr>
-                                    <td colspan="2" style="font-size: 18px; font-weight: bold; color: #000000; padding-bottom: 10px; border-bottom: 2px solid #000000;">SHIPPING DETAILS</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 10px 0 5px 0; font-size: 14px; color: #000000; font-weight: bold;" colspan="2">
-                                        ${shippingDetails.firstName} ${shippingDetails.lastName}
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 5px 0; font-size: 14px; color: #555;" colspan="2">Email: ${shippingDetails.email}</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 5px 0 10px 0; font-size: 14px; color: #555; border-bottom: 1px dashed #ccc;" colspan="2">
-                                        Address: ${shippingDetails.street}, ${shippingDetails.city}, ${shippingDetails.state}, ${shippingDetails.country} ${shippingDetails.zipCode ? `(${shippingDetails.zipCode})` : ''}
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <!-- Items Ordered -->
-                            <table border="0" cellpadding="0" cellspacing="0" width="100%" class="item-table" style="margin-top: 30px; border-collapse: collapse;">
-                                <tr>
-                                    <td colspan="4" style="font-size: 18px; font-weight: bold; color: #000000; padding-bottom: 10px; border-bottom: 2px solid #000000;">ITEMS ORDERED</td>
-                                </tr>
-                                
-                                <thead>
-                                    <tr style="text-align: left; background-color: #f7f7f7;">
-                                        <th style="padding: 10px 0; font-size: 12px; color: #555; font-weight: normal; width: 40%;">PRODUCT</th>
-                                        <th style="padding: 10px 0; font-size: 12px; color: #555; font-weight: normal; width: 30%;">DETAILS</th>
-                                        <th style="padding: 10px 0; font-size: 12px; color: #555; font-weight: normal; width: 10%; text-align: center;">QTY</th>
-                                        <th style="padding: 10px 0; font-size: 12px; color: #555; font-weight: normal; width: 20%; text-align: right;">SUBTOTAL</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${itemDetailsHtml}
-                                </tbody>
-                            </table>
-                            
-                            <p style="margin-top: 40px; font-size: 12px; color: #777; text-align: center;">
-                                This is an automated notification. Please check the order management system for full details and fulfillment.
-                            </p>
-
-                        </td>
-                    </tr>
-                    
-                    <!-- Footer -->
-                    <tr>
-                        <td align="center" style="background-color: #f7f7f7; padding: 15px 40px; border-radius: 0 0 8px 8px;">
-                            <p style="margin: 0; font-size: 11px; color: #999;">&copy; ${new Date().getFullYear()} OUTFULICKZ. All rights reserved.</p>
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-    </table>
-
-</body>
-</html>
-        `;
-
-        // 3. Send the Email using your existing utility
-        // IMPORTANT: Using the provided function name: sendMail
-        await sendMail(
-            adminEmail,
-            `[New Order] #${orderId} - ${paymentStatus}`,
-            emailHtml
-        );
-
-        console.log(`Admin notification sent successfully for Order ID: ${orderId} to ${adminEmail}`);
-        
-        // 4. Send a successful response back to the client
-        // This is sent immediately so the client can redirect the user without delay.
-        res.status(200).json({ message: 'Admin notification request received and processing.' });
-
-    } catch (error) {
-        console.error('Error in POST /api/notifications/admin-order-email:', error);
-        
-        // We generally don't want the user checkout process to fail if ONLY the admin email fails.
-        // However, for debugging purposes, we return a 500 error here.
-        // In production, consider returning a 200 or 202 status after logging the failure.
-        res.status(500).json({ message: 'Failed to dispatch admin email notification due to server error.' });
-    }
 });
 
 // 6. GET /api/orders/:orderId (Fetch Single Order Details - Protected)

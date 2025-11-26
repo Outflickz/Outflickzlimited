@@ -132,60 +132,65 @@
             </div>
         </section>
 
+        <section id="content-user-details" class="content-section p-6 pt-16 lg:pt-6 hidden">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center justify-between">
+                <span class="flex items-center space-x-2">
+                    <span>User Profile:</span>
+                    <span id="details-header-name" class="text-emerald-700 text-xl font-bold"></span>
+                </span>
+                <button onclick="showMembershipList()" class="bg-gray-200 text-gray-700 px-4 py-2 text-sm rounded-lg hover:bg-gray-300 transition flex items-center space-x-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                    <span>Back to List</span>
+                </button>
+            </h2>
+
+            <div id="details-loading-indicator" class="text-center p-10 bg-white rounded-xl shadow-lg">
+                <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600 inline-block"></div>
+                <p class="mt-4 text-gray-600 text-sm">Loading user profile...</p>
+            </div>
+            
+            <div id="user-profile-data" class="bg-white p-6 rounded-xl shadow-lg space-y-6 hidden">
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-b pb-4">
+                    <div>
+                        <p class="text-xs font-medium text-gray-500">Email Address</p>
+                        <p class="text-lg font-medium text-gray-900" id="detail-email"></p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium text-gray-500">Joined On</p>
+                        <p class="text-lg text-gray-700" id="detail-joined"></p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <p class="text-xs font-medium text-gray-500">Membership Status</p>
+                        <p class="text-xl font-bold" id="detail-status"></p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium text-gray-500">Contact Phone 📞</p>
+                        <p class="text-lg text-gray-700" id="detail-phone"></p>
+                    </div>
+                </div>
+
+                <div>
+                    <p class="text-xs font-medium text-gray-500 mb-1">Shipping Address 🏠</p>
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <p class="text-base text-gray-700" id="detail-address">No Address Provided</p>
+                    </div>
+                </div>
+
+                </div>
+            
+            <div id="details-error-message" class="hidden text-center p-8 bg-red-100 text-red-700 rounded-xl shadow-lg mt-6">
+                Could not load user data. Check network connection or API status.
+            </div>
+        </section>
         <section id="content-dashboard" class="content-section hidden"></section>
         <section id="content-settings" class="content-section hidden"></section>
 
     </main>
-
-    <div id="user-details-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden items-center justify-center">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg m-4 transform transition-all overflow-hidden">
-            <div class="p-6">
-                <div class="flex justify-between items-center border-b pb-3 mb-4">
-                    <h3 class="text-xl font-bold text-emerald-800">User Profile Details</h3>
-                    <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
-                </div>
-
-                <div id="modal-content-area">
-                    <div id="modal-loading" class="text-center p-8">
-                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500 inline-block"></div>
-                        <p class="mt-2 text-sm text-gray-600">Loading user profile...</p>
-                    </div>
-
-                    <div id="user-profile-data" class="space-y-4 hidden">
-                        <div class="border-b pb-3">
-                            <h4 class="text-lg font-semibold text-gray-700" id="detail-name"></h4>
-                            <p class="text-sm text-gray-500" id="detail-email"></p>
-                        </div>
-                        
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <p class="text-xs font-medium text-gray-500">Membership Status</p>
-                                <p class="text-base font-medium" id="detail-status"></p>
-                            </div>
-                            <div>
-                                <p class="text-xs font-medium text-gray-500">Joined On</p>
-                                <p class="text-base text-gray-700" id="detail-joined"></p>
-                            </div>
-                        </div>
-
-                        <div>
-                            <p class="text-xs font-medium text-gray-500 mb-1">Contact Details 📞</p>
-                            <div class="bg-gray-50 p-3 rounded-lg space-y-2">
-                                <p class="text-sm text-gray-700"><span class="font-semibold w-24 inline-block">Phone:</span> <span id="detail-phone"></span></p>
-                                <p class="text-sm text-gray-700"><span class="font-semibold w-24 inline-block">Address:</span> <span id="detail-address"></span></p>
-                            </div>
-                        </div>
-
-                        <div class="pt-4 border-t text-right">
-                            <button onclick="closeModal()" class="bg-emerald-500 text-white px-4 py-2 rounded-lg hover:bg-emerald-600 transition">Close</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    
     <script>
         // --- JAVASCRIPT LOGIC ---
         
@@ -198,17 +203,20 @@
         const errorMessage = document.getElementById('error-message');
         const userCountDisplay = document.getElementById('user-count');
 
-        // --- NEW MODAL VARIABLES ---
-        const userDetailsModal = document.getElementById('user-details-modal');
-        const modalLoading = document.getElementById('modal-loading');
+        // --- NEW SECTION VARIABLES ---
+        const contentMembership = document.getElementById('content-membership');
+        const contentUserDetails = document.getElementById('content-user-details');
+        const detailsLoadingIndicator = document.getElementById('details-loading-indicator');
         const userProfileData = document.getElementById('user-profile-data');
-        const detailName = document.getElementById('detail-name');
+        const detailsErrorMessage = document.getElementById('details-error-message');
+        
+        const detailsHeaderName = document.getElementById('details-header-name');
         const detailEmail = document.getElementById('detail-email');
         const detailStatus = document.getElementById('detail-status');
         const detailJoined = document.getElementById('detail-joined');
         const detailPhone = document.getElementById('detail-phone');
         const detailAddress = document.getElementById('detail-address');
-        // --- END NEW MODAL VARIABLES ---
+        // --- END NEW SECTION VARIABLES ---
 
         // --- Navigation Functions (Matching admin-dashboard.html) ---
 
@@ -237,11 +245,18 @@
             }
         }
         
-        // --- Modal Control Functions ---
+        // --- View Switching Functions ---
         
-        function closeModal() {
-            userDetailsModal.classList.add('hidden');
-            userDetailsModal.classList.remove('flex'); // Hide the modal
+        /** Shows the main user list table and hides the details view. */
+        function showMembershipList() {
+            contentUserDetails.classList.add('hidden');
+            contentMembership.classList.remove('hidden');
+        }
+
+        /** Shows the single user details view and hides the main list. */
+        function showUserDetailsView() {
+            contentMembership.classList.add('hidden');
+            contentUserDetails.classList.remove('hidden');
         }
 
         /**
@@ -257,9 +272,10 @@
                 return null;
             }
 
-            // Show loading indicator inside the modal
-            modalLoading.classList.remove('hidden');
+            // Show loading indicator inside the details section
+            detailsLoadingIndicator.classList.remove('hidden');
             userProfileData.classList.add('hidden');
+            detailsErrorMessage.classList.add('hidden');
             
             try {
                 // Ensure the URL matches your backend route structure
@@ -286,19 +302,18 @@
                 return null;
             } finally {
                 // Hide loading indicator regardless of success/failure
-                modalLoading.classList.add('hidden');
+                detailsLoadingIndicator.classList.add('hidden');
             }
         }
 
 
         /**
-         * Handles the click of the 'View Details' button, opens the modal, and fetches data.
+         * Handles the click of the 'View Details' button and loads the data into the details section.
          * @param {string} userId - The ID of the user whose details to view.
          */
         async function viewUserDetails(userId) {
-            // Show the modal
-            userDetailsModal.classList.add('flex');
-            userDetailsModal.classList.remove('hidden');
+            // 1. Switch the view
+            showUserDetailsView();
 
             const user = await fetchUserDetails(userId);
 
@@ -307,28 +322,26 @@
                 
                 const isMember = user.isMember;
                 const statusText = isMember ? 'VIP Member 🌟' : 'Basic User';
-                const statusColor = isMember ? 'text-emerald-700 font-bold' : 'text-gray-700';
+                let statusColor = isMember ? 'text-emerald-700' : 'text-gray-700';
 
                 // Render basic info
-                detailName.textContent = user.name || 'N/A';
+                detailsHeaderName.textContent = user.name || 'N/A';
                 detailEmail.textContent = user.email;
-                detailStatus.className = `text-base font-medium ${statusColor}`;
+                
+                // Set status text and color
+                detailStatus.className = `text-xl font-bold ${statusColor}`;
                 detailStatus.textContent = statusText;
+                
                 detailJoined.textContent = formatDate(user.createdAt);
                 
-                // Render contact info (NEW FIELDS)
+                // Render contact info
                 detailPhone.textContent = user.phone || 'N/A';
                 detailAddress.textContent = user.contactAddress || 'No Address Provided';
 
                 userProfileData.classList.remove('hidden');
             } else {
-                // Handle fetch failure by showing an error message inside the modal
-                document.getElementById('modal-content-area').innerHTML = `
-                    <div class="text-center p-8 text-red-600">
-                        <p class="mb-4">Could not load user data. Check network connection or API status.</p>
-                        <button onclick="closeModal()" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition">Close</button>
-                    </div>
-                `;
+                // Handle fetch failure by showing an error message in the details section
+                detailsErrorMessage.classList.remove('hidden');
             }
         }
         
@@ -375,7 +388,6 @@
 
         /**
          * Renders the user data into the table.
-         * This function is updated to call the new viewUserDetails function.
          * @param {Array<Object>} users - Array of user objects matching the backend's transformed output.
          */
         function renderUserTable(users) {
@@ -395,6 +407,7 @@
                 const row = document.createElement('tr');
                 row.className = 'hover:bg-gray-50';
                 
+                // NOTE: The inline onclick calls the global viewUserDetails function
                 row.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 truncate max-w-xs">${user._id}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${user.name || 'N/A'}</td>
@@ -422,6 +435,7 @@
             loadingIndicator.classList.remove('hidden');
             userTableContainer.classList.add('hidden');
             errorMessage.classList.add('hidden');
+            contentUserDetails.classList.add('hidden'); // Ensure details view is hidden initially
 
             const users = await fetchUserData();
 
@@ -429,7 +443,8 @@
 
             if (users === null) {
                 errorMessage.classList.remove('hidden');
-                errorMessage.innerHTML = 'Authentication failed or token expired. Redirecting to login.';
+                // The fetchUserData already calls logoutAdmin() if the token is bad
+                errorMessage.innerHTML = 'Authentication failed or token expired. Please refresh.';
             } else if (Array.isArray(users)) {
                 renderUserTable(users);
                 userTableContainer.classList.remove('hidden');

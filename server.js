@@ -1273,22 +1273,75 @@ app.get('/api/admin/dashboard/stats', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Failed to retrieve dashboard stats.' });
     }
 });
+// NEW: 1. GET /api/admin/users/:id (Fetch Single User Profile - Protected Admin)
+app.get('/api/admin/users/:id', verifyToken, async (req, res) => {
+    try {
+        const userId = req.params.id;
 
+        // Fetch the specific user by ID. Select all necessary fields for the admin modal.
+        const user = await User.findById(userId)
+            .select('email profile address status membership')
+            .lean();
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+
+        // Transform the address fields into a single contactAddress string
+        const addressParts = [
+            user.address?.street,
+            user.address?.city,
+            user.address?.state,
+            user.address?.zip,
+            user.address?.country
+        ].filter(Boolean); // Filter out null/undefined/empty strings
+        
+        const contactAddress = addressParts.length > 0 ? addressParts.join(', ') : 'No Address Provided';
+
+        // Prepare the detailed user object for the modal
+        const detailedUser = {
+            _id: user._id,
+            name: `${user.profile.firstName || ''} ${user.profile.lastName || ''}`.trim() || 'N/A',
+            email: user.email,
+            isMember: user.status.role === 'vip',
+            createdAt: user.membership.memberSince,
+            phone: user.profile.phone || 'N/A', // Assuming phone is stored in user.profile
+            contactAddress: contactAddress
+        };
+
+        // Success Response
+        return res.status(200).json({ 
+            user: detailedUser
+        });
+
+    } catch (error) {
+        // Handle CastError for invalid IDs gracefully
+        if (error.kind === 'ObjectId') {
+             return res.status(400).json({ message: 'Invalid User ID format.' });
+        }
+        console.error('Admin single user fetch error:', error);
+        return res.status(500).json({ message: 'Server error: Failed to retrieve user details.' });
+    }
+});
+
+
+// UPDATED: GET /api/admin/users/all
 app.get('/api/admin/users/all', verifyToken, async (req, res) => {
     try {
-        // Fetch all users. Select only necessary fields and exclude the password (which is selected: false by default, but we re-specify for clarity).
+        // Fetch all users. Select fields needed for the table and the dedicated detail endpoint (profile.phone).
         const users = await User.find({})
             .select('email profile address status membership')
             .lean(); // Use .lean() for faster query performance since we are only reading
 
-        // Transform the data to match the frontend's expected format (if needed, but here we just return the array)
+        // Transform the data to match the frontend's expected format
         const transformedUsers = users.map(user => ({
             _id: user._id,
             name: `${user.profile.firstName || ''} ${user.profile.lastName || ''}`.trim() || 'N/A',
             email: user.email,
             isMember: user.status.role === 'vip', // Determine membership status
             createdAt: user.membership.memberSince,
-            // Include other fields if the admin needs them, but for the table, this is enough
+            // Include phone here if you want it immediately available, but the dedicated endpoint is safer for sensitive data.
+            // For now, only table fields are included:
         }));
 
 
@@ -1304,6 +1357,7 @@ app.get('/api/admin/users/all', verifyToken, async (req, res) => {
         return res.status(500).json({ message: 'Server error: Failed to retrieve user list.' });
     }
 });
+
 // -----------------------------------------------------------------
 // 🧢 CAP COLLECTION API ROUTES (CRUD) 🧢
 // -----------------------------------------------------------------

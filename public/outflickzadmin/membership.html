@@ -137,6 +137,55 @@
 
     </main>
 
+    <div id="user-details-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg m-4 transform transition-all overflow-hidden">
+            <div class="p-6">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h3 class="text-xl font-bold text-emerald-800">User Profile Details</h3>
+                    <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+
+                <div id="modal-content-area">
+                    <div id="modal-loading" class="text-center p-8">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500 inline-block"></div>
+                        <p class="mt-2 text-sm text-gray-600">Loading user profile...</p>
+                    </div>
+
+                    <div id="user-profile-data" class="space-y-4 hidden">
+                        <div class="border-b pb-3">
+                            <h4 class="text-lg font-semibold text-gray-700" id="detail-name"></h4>
+                            <p class="text-sm text-gray-500" id="detail-email"></p>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <p class="text-xs font-medium text-gray-500">Membership Status</p>
+                                <p class="text-base font-medium" id="detail-status"></p>
+                            </div>
+                            <div>
+                                <p class="text-xs font-medium text-gray-500">Joined On</p>
+                                <p class="text-base text-gray-700" id="detail-joined"></p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <p class="text-xs font-medium text-gray-500 mb-1">Contact Details 📞</p>
+                            <div class="bg-gray-50 p-3 rounded-lg space-y-2">
+                                <p class="text-sm text-gray-700"><span class="font-semibold w-24 inline-block">Phone:</span> <span id="detail-phone"></span></p>
+                                <p class="text-sm text-gray-700"><span class="font-semibold w-24 inline-block">Address:</span> <span id="detail-address"></span></p>
+                            </div>
+                        </div>
+
+                        <div class="pt-4 border-t text-right">
+                            <button onclick="closeModal()" class="bg-emerald-500 text-white px-4 py-2 rounded-lg hover:bg-emerald-600 transition">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     <script>
         // --- JAVASCRIPT LOGIC ---
         
@@ -149,13 +198,22 @@
         const errorMessage = document.getElementById('error-message');
         const userCountDisplay = document.getElementById('user-count');
 
+        // --- NEW MODAL VARIABLES ---
+        const userDetailsModal = document.getElementById('user-details-modal');
+        const modalLoading = document.getElementById('modal-loading');
+        const userProfileData = document.getElementById('user-profile-data');
+        const detailName = document.getElementById('detail-name');
+        const detailEmail = document.getElementById('detail-email');
+        const detailStatus = document.getElementById('detail-status');
+        const detailJoined = document.getElementById('detail-joined');
+        const detailPhone = document.getElementById('detail-phone');
+        const detailAddress = document.getElementById('detail-address');
+        // --- END NEW MODAL VARIABLES ---
+
         // --- Navigation Functions (Matching admin-dashboard.html) ---
 
-        // Local navigation functions for the current page
         function navigateToDashboard() { window.location.href = './admin-dashboard.html'; }
-        function navigateToSettings() { window.location.href = './admin-dashboard.html?view=settings'; } // Example: Navigate back to dashboard and pass a view parameter
-
-        // External navigation functions (for pages with their own dedicated HTML)
+        function navigateToSettings() { window.location.href = './admin-dashboard.html?view=settings'; }
         function navigateToWearsCollection() { window.location.href = './wearscollection.html'; }
         function navigateToCapsCollection() { window.location.href = './capscollection.html'; }
         function navigateToNewArrivals() { window.location.href = './newarrivals.html'; }
@@ -164,15 +222,12 @@
 
         function logoutAdmin() {
             console.log("Logging out... Clearing admin token.");
-            // Assuming the token is stored in localStorage after admin login
             localStorage.removeItem('adminToken');
-            // In a real application, you'd also hit a backend logout endpoint to clear the HTTP-only cookie
             window.location.href = './admin-login.html'; 
         }
 
         // Helper function for date formatting
         function formatDate(dateString) {
-            // Check if dateString is valid before attempting to parse
             if (!dateString) return 'N/A';
             try {
                 const options = { year: 'numeric', month: 'short', day: 'numeric' };
@@ -181,9 +236,105 @@
                 return 'Invalid Date';
             }
         }
+        
+        // --- Modal Control Functions ---
+        
+        function closeModal() {
+            userDetailsModal.classList.add('hidden');
+            userDetailsModal.classList.remove('flex'); // Hide the modal
+        }
 
         /**
-         * Fetches all registered user data from the API.
+         * Fetches the full profile details for a specific user ID.
+         * Assumes a protected GET /api/admin/users/:id endpoint exists.
+         * @param {string} userId - The ID of the user to fetch.
+         * @returns {Promise<Object | null>} Single user object with full details or null on error.
+         */
+        async function fetchUserDetails(userId) {
+            const token = localStorage.getItem('adminToken');
+            if (!token) {
+                logoutAdmin();
+                return null;
+            }
+
+            // Show loading indicator inside the modal
+            modalLoading.classList.remove('hidden');
+            userProfileData.classList.add('hidden');
+            
+            try {
+                // Ensure the URL matches your backend route structure
+                const response = await fetch(`/api/admin/users/${userId}`, { 
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        logoutAdmin();
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                return data.user; // ASSUMPTION: Backend returns { user: {...} }
+
+            } catch (error) {
+                console.error(`Error fetching user details for ID ${userId}:`, error);
+                return null;
+            } finally {
+                // Hide loading indicator regardless of success/failure
+                modalLoading.classList.add('hidden');
+            }
+        }
+
+
+        /**
+         * Handles the click of the 'View Details' button, opens the modal, and fetches data.
+         * @param {string} userId - The ID of the user whose details to view.
+         */
+        async function viewUserDetails(userId) {
+            // Show the modal
+            userDetailsModal.classList.add('flex');
+            userDetailsModal.classList.remove('hidden');
+
+            const user = await fetchUserDetails(userId);
+
+            if (user) {
+                // ASSUMPTION: The user object contains: name, email, isMember, createdAt, phone, contactAddress
+                
+                const isMember = user.isMember;
+                const statusText = isMember ? 'VIP Member 🌟' : 'Basic User';
+                const statusColor = isMember ? 'text-emerald-700 font-bold' : 'text-gray-700';
+
+                // Render basic info
+                detailName.textContent = user.name || 'N/A';
+                detailEmail.textContent = user.email;
+                detailStatus.className = `text-base font-medium ${statusColor}`;
+                detailStatus.textContent = statusText;
+                detailJoined.textContent = formatDate(user.createdAt);
+                
+                // Render contact info (NEW FIELDS)
+                detailPhone.textContent = user.phone || 'N/A';
+                detailAddress.textContent = user.contactAddress || 'No Address Provided';
+
+                userProfileData.classList.remove('hidden');
+            } else {
+                // Handle fetch failure by showing an error message inside the modal
+                document.getElementById('modal-content-area').innerHTML = `
+                    <div class="text-center p-8 text-red-600">
+                        <p class="mb-4">Could not load user data. Check network connection or API status.</p>
+                        <button onclick="closeModal()" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition">Close</button>
+                    </div>
+                `;
+            }
+        }
+        
+        
+        /**
+         * Fetches all registered user data from the API (used for the main table).
          * @returns {Promise<Array<Object> | null>} Array of user objects or null on failure/auth error.
          */
         async function fetchUserData() {
@@ -191,47 +342,40 @@
             
             if (!token) {
                 console.error("No adminToken found. Redirecting to login.");
-                // Immediately call logout/redirect when no token is present
                 logoutAdmin();
                 return null;
             }
 
             try {
-                // The correct endpoint from your backend implementation
                 const response = await fetch('/api/admin/users/all', { 
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
-                        // CRITICAL: Pass the token via Authorization header (Bearer scheme)
                         'Authorization': `Bearer ${token}` 
                     }
                 });
 
                 if (!response.ok) {
-                    // Handle 401/403 specifically to log out the admin
                     if (response.status === 401 || response.status === 403) {
                         console.error(`Authentication error (${response.status}). Token expired or invalid.`);
                         logoutAdmin();
                         return null;
                     }
-                    // Handle other errors (e.g., 500)
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
                 const data = await response.json();
-                // CRITICAL: The backend endpoint returns an object with a 'users' array and 'count'
-                // We return the 'users' array for the rendering function
-                return data.users || []; 
+                return data.users || []; // ASSUMPTION: Backend returns { users: [...], count: 50 }
 
             } catch (error) {
                 console.error('Error fetching user data:', error);
-                // Return null to trigger the generic error message on the page
                 return null;
             }
         }
 
         /**
          * Renders the user data into the table.
+         * This function is updated to call the new viewUserDetails function.
          * @param {Array<Object>} users - Array of user objects matching the backend's transformed output.
          */
         function renderUserTable(users) {
@@ -244,10 +388,9 @@
             }
 
             users.forEach(user => {
-                // The backend transformation should provide: _id, name, email, isMember, createdAt
                 const isMember = user.isMember; 
                 const statusText = isMember ? 'VIP Member' : 'Basic User';
-                const statusColor = isMember ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800'; // Changed color for VIP to reflect theme
+                const statusColor = isMember ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800';
                 
                 const row = document.createElement('tr');
                 row.className = 'hover:bg-gray-50';
@@ -265,7 +408,7 @@
                         ${formatDate(user.createdAt)}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button class="text-blue-600 hover:text-blue-900 transition duration-150">View Details</button>
+                        <button onclick="viewUserDetails('${user._id}')" class="text-blue-600 hover:text-blue-900 transition duration-150">View Details</button>
                     </td>
                 `;
                 userTableBody.appendChild(row);
@@ -285,15 +428,12 @@
             loadingIndicator.classList.add('hidden');
 
             if (users === null) {
-                // Auth error handled by logoutAdmin in fetchUserData. Show a relevant message.
                 errorMessage.classList.remove('hidden');
-                errorMessage.innerHTML = 'Authentication failed or token expired. Please log in again.';
+                errorMessage.innerHTML = 'Authentication failed or token expired. Redirecting to login.';
             } else if (Array.isArray(users)) {
-                // Success path
                 renderUserTable(users);
                 userTableContainer.classList.remove('hidden');
             } else {
-                // General fetch error (e.g., network failed, 500 server error)
                 errorMessage.classList.remove('hidden');
                 errorMessage.innerHTML = 'Failed to load user data. Please check the network connection and API status.';
             }

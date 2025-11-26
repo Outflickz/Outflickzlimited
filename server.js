@@ -3589,10 +3589,6 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
     });
 });
 
-// =========================================================
-// NEW: POST /api/notifications/admin-order-email - Send Admin Notification (Unprotected)
-// This route is called by the client on successful order/payment initiation.
-// =========================================================
 app.post('/api/notifications/admin-order-email', async (req, res) => {
     
     // The payload is sent as JSON from the client-side 'sendAdminOrderNotification' function
@@ -3616,47 +3612,166 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
         
         const itemDetailsHtml = items.map(item => `
             <tr>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.name || 'N/A'}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.size} / ${item.color}</td>
-                <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${item.quantity}</td>
-                <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">₦${(item.price * item.quantity).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                <!-- Product Name -->
+                <td style="padding: 12px 0 12px 0; border-bottom: 1px solid #eee; font-size: 14px; color: #333;">
+                    ${item.name || 'N/A'}
+                </td>
+                
+                <!-- Details (Size and Color) -->
+                <td style="padding: 12px 0 12px 0; border-bottom: 1px solid #eee; font-size: 12px; color: #555;">
+                    <span style="display: block;">Size: <strong>${item.size || 'N/A'}</strong></span>
+                    <span style="display: block; margin-top: 2px;">Color: ${item.color || 'N/A'}</span>
+                </td>
+                
+                <!-- Quantity -->
+                <td style="padding: 12px 0 12px 0; border-bottom: 1px solid #eee; font-size: 14px; color: #333; text-align: center;">
+                    ${item.quantity}
+                </td>
+                
+                <!-- Subtotal -->
+                <td style="padding: 12px 0 12px 0; border-bottom: 1px solid #eee; font-size: 14px; color: #333; text-align: right;">
+                    ₦${(item.price * item.quantity).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                </td>
             </tr>
         `).join('');
 
         const emailHtml = `
-            <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; max-width: 600px; margin: auto;">
-                <h2 style="color: #a80000; text-align: center;">🚨 NEW OUTFULICKZ ORDER PLACED!</h2>
-                <p>A new order has been created and requires immediate attention for fulfillment.</p>
-                
-                <hr style="border: none; border-top: 2px solid #a80000; margin: 15px 0;">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Outfulickz Order</title>
+    <style>
+        @media only screen and (max-width: 600px) {
+            .container {
+                width: 100% !important;
+                padding: 0 10px !important;
+            }
+            .header-logo {
+                width: 150px !important;
+                height: auto !important;
+            }
+            .content-table, .content-table th, .content-table td {
+                font-size: 14px !important;
+                display: block;
+                width: 100%;
+                box-sizing: border-box;
+            }
+            .item-table td {
+                display: table-cell !important; /* Keep item table structure */
+            }
+        }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f4f4f4; font-family: Arial, sans-serif;">
 
-                <h3 style="color: #333;">Order Summary</h3>
-                <p><strong>Order ID:</strong> ${orderId}</p>
-                <p><strong>Total Amount:</strong> ₦${parseFloat(totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                <p><strong>Payment Method:</strong> ${paymentMethod}</p>
-                <p><strong>Status:</strong> <span style="font-weight: bold; color: ${paymentStatus.includes('Confirmed') ? 'green' : 'orange'};">${paymentStatus}</span></p>
+    <!-- Wrapper Table -->
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed;">
+        <tr>
+            <td align="center" style="padding: 20px 0;">
+                <table border="0" cellpadding="0" cellspacing="0" width="600" class="container" style="background-color: #ffffff; border: 1px solid #dddddd; border-radius: 8px;">
+                    
+                    <!-- Header with Logo -->
+                    <tr>
+                        <td align="center" style="padding: 20px 0 10px 0;">
+                            <img src="https://i.imgur.com/1Rxhi9q.jpeg" alt="Outfulickz Logo" class="header-logo" width="180" style="display: block; border: 0; max-width: 180px;">
+                        </td>
+                    </tr>
 
-                <h3 style="color: #333; margin-top: 20px;">Shipping Details</h3>
-                <p><strong>Customer:</strong> ${shippingDetails.firstName} ${shippingDetails.lastName}</p>
-                <p><strong>Email:</strong> ${shippingDetails.email}</p>
-                <p><strong>Address:</strong> ${shippingDetails.street}, ${shippingDetails.city}, ${shippingDetails.state}, ${shippingDetails.country} ${shippingDetails.zipCode ? `(${shippingDetails.zipCode})` : ''}</p>
+                    <!-- Main Content -->
+                    <tr>
+                        <td style="padding: 20px 40px 40px 40px;">
 
-                <h3 style="color: #333; margin-top: 20px;">Items Ordered</h3>
-                <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
-                    <thead>
-                        <tr style="background-color: #f2f2f2;">
-                            <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Product</th>
-                            <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Details</th>
-                            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Qty</th>
-                            <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Subtotal</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${itemDetailsHtml}
-                    </tbody>
+                            <h1 style="color: #000000; font-size: 24px; text-align: center; margin-bottom: 20px;">
+                                🚨 NEW ORDER PLACED 🚨
+                            </h1>
+                            <p style="font-size: 16px; color: #333; line-height: 1.5;">
+                                A new order has been created and requires immediate attention for fulfillment. Details are below.
+                            </p>
+                            
+                            <!-- Order Summary -->
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 25px; border-collapse: collapse;">
+                                <tr>
+                                    <td colspan="2" style="font-size: 18px; font-weight: bold; color: #000000; padding-bottom: 10px; border-bottom: 2px solid #000000;">ORDER SUMMARY</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px 0; font-size: 14px; color: #555; width: 50%;">Order ID:</td>
+                                    <td style="padding: 10px 0; font-size: 14px; color: #000000; font-weight: bold; text-align: right;">${orderId}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px 0; font-size: 14px; color: #555;">Payment Method:</td>
+                                    <td style="padding: 10px 0; font-size: 14px; color: #000000; text-align: right;">${paymentMethod}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px 0 20px 0; font-size: 14px; color: #555; border-bottom: 1px dashed #ccc;">Payment Status:</td>
+                                    <td style="padding: 10px 0 20px 0; font-size: 14px; font-weight: bold; text-align: right; color: ${paymentStatus.includes('Confirmed') ? 'green' : '#FFA500'}; border-bottom: 1px dashed #ccc;">${paymentStatus}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 20px 0 10px 0; font-size: 16px; font-weight: bold; color: #000000;">TOTAL AMOUNT:</td>
+                                    <td style="padding: 20px 0 10px 0; font-size: 18px; font-weight: bold; color: #000000; text-align: right;">₦${parseFloat(totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                </tr>
+                            </table>
+
+                            <!-- Shipping Details -->
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 30px; border-collapse: collapse;">
+                                <tr>
+                                    <td colspan="2" style="font-size: 18px; font-weight: bold; color: #000000; padding-bottom: 10px; border-bottom: 2px solid #000000;">SHIPPING DETAILS</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px 0 5px 0; font-size: 14px; color: #000000; font-weight: bold;" colspan="2">
+                                        ${shippingDetails.firstName} ${shippingDetails.lastName}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 5px 0; font-size: 14px; color: #555;" colspan="2">Email: ${shippingDetails.email}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 5px 0 10px 0; font-size: 14px; color: #555; border-bottom: 1px dashed #ccc;" colspan="2">
+                                        Address: ${shippingDetails.street}, ${shippingDetails.city}, ${shippingDetails.state}, ${shippingDetails.country} ${shippingDetails.zipCode ? `(${shippingDetails.zipCode})` : ''}
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Items Ordered -->
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%" class="item-table" style="margin-top: 30px; border-collapse: collapse;">
+                                <tr>
+                                    <td colspan="4" style="font-size: 18px; font-weight: bold; color: #000000; padding-bottom: 10px; border-bottom: 2px solid #000000;">ITEMS ORDERED</td>
+                                </tr>
+                                
+                                <thead>
+                                    <tr style="text-align: left; background-color: #f7f7f7;">
+                                        <th style="padding: 10px 0; font-size: 12px; color: #555; font-weight: normal; width: 40%;">PRODUCT</th>
+                                        <th style="padding: 10px 0; font-size: 12px; color: #555; font-weight: normal; width: 30%;">DETAILS</th>
+                                        <th style="padding: 10px 0; font-size: 12px; color: #555; font-weight: normal; width: 10%; text-align: center;">QTY</th>
+                                        <th style="padding: 10px 0; font-size: 12px; color: #555; font-weight: normal; width: 20%; text-align: right;">SUBTOTAL</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${itemDetailsHtml}
+                                </tbody>
+                            </table>
+                            
+                            <p style="margin-top: 40px; font-size: 12px; color: #777; text-align: center;">
+                                This is an automated notification. Please check the order management system for full details and fulfillment.
+                            </p>
+
+                        </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                        <td align="center" style="background-color: #f7f7f7; padding: 15px 40px; border-radius: 0 0 8px 8px;">
+                            <p style="margin: 0; font-size: 11px; color: #999;">&copy; ${new Date().getFullYear()} OUTFULICKZ. All rights reserved.</p>
+                        </td>
+                    </tr>
                 </table>
-                <p style="margin-top: 20px; font-size: 0.9em; color: #666;">This is an automated notification. Please check the order management system for full details.</p>
-            </div>
+            </td>
+        </tr>
+    </table>
+
+</body>
+</html>
         `;
 
         // 3. Send the Email using your existing utility

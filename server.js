@@ -3500,7 +3500,7 @@ app.post('/api/paystack/webhook', async (req, res) => {
         res.status(500).send('Internal Server Error.'); 
     }
 });
-// ASSUMPTION: The necessary functions (sendMail, generateSignedUrl) and configuration (BLAZE_BUCKET_NAME, etc.) are available in this scope.
+
 app.post('/api/notifications/admin-order-email', async (req, res) => {
     
     // The payload is sent as JSON from the client-side 'sendAdminOrderNotification' function
@@ -3520,7 +3520,7 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
     }
 
     try {
-        // --- NEW STEP: Prepare Attachments from B2 ---
+        // --- STEP 1: Prepare Attachments from B2 ---
         const attachments = [];
         let attachmentFileName = null; 
         
@@ -3546,7 +3546,7 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
                     // d. Set content type and filename
                     const contentType = response.ContentType || 'application/octet-stream';
                     const keyParts = fileKey.split('/');
-                    const suggestedFilename = keyParts[keyParts.length - 1] || 'payment-receipt';
+                    const suggestedFilename = keyParts[keyParts.length - 1] || 'payment-receipt.jpg'; 
                     
                     // e. Convert stream to Buffer
                     const buffer = await streamToBuffer(response.Body);
@@ -3564,19 +3564,17 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
                     console.warn(`[Admin Email] Could not extract file key from URL: ${paymentReceiptUrl}. Skipping receipt attachment.`);
                 }
             } catch (downloadError) {
-                // Log the error but do NOT fail the entire email process
                 console.error(`[Admin Email] Failed to download receipt from B2:`, downloadError.message);
             }
         }
-        // --- END: NEW STEP ---
+        // --- END: STEP 1 ---
 
         // 2. Format the Email Content (HTML)
         const paymentStatus = (paymentMethod === 'Paystack/Card') ? 'Payment Confirmed (Paystack)' : 'Payment Awaiting Verification (Bank Transfer)';
         
-        // --- Enhanced Item List with Thumbnails (No change) ---
+        // --- Item List HTML ---
         const itemDetailsHtml = items.map(item => `
             <tr>
-                <!-- Product Name & Image (Combined Cell) -->
                 <td style="padding: 12px 0 12px 0; border-bottom: 1px solid #eee; font-size: 14px; color: #333;">
                     <table border="0" cellpadding="0" cellspacing="0">
                         <tr>
@@ -3590,25 +3588,22 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
                     </table>
                 </td>
                 
-                <!-- Details (Size and Color) -->
                 <td style="padding: 12px 0 12px 0; border-bottom: 1px solid #eee; font-size: 12px; color: #555;">
                     <span style="display: block;">Size: <strong>${item.size || 'N/A'}</strong></span>
                     <span style="display: block; margin-top: 2px;">Color: ${item.color || 'N/A'}</span>
                 </td>
                 
-                <!-- Quantity -->
                 <td style="padding: 12px 0 12px 0; border-bottom: 1px solid #eee; font-size: 14px; color: #333; text-align: center;">
                     ${item.quantity}
                 </td>
                 
-                <!-- Subtotal -->
                 <td style="padding: 12px 0 12px 0; border-bottom: 1px solid #eee; font-size: 14px; color: #333; text-align: right;">
                     ₦${(item.price * item.quantity).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </td>
             </tr>
         `).join('');
 
-        // --- Attachment Confirmation Block (NEW: Replaces inline image display) ---
+        // --- Attachment Confirmation Block ---
         const attachmentConfirmationHtml = attachmentFileName ? `
             <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 30px; border-collapse: collapse; border: 1px solid #c0e6c0; border-radius: 4px;">
                 <tr>
@@ -3636,44 +3631,29 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
     <title>New Outfulickz Order</title>
     <style>
         @media only screen and (max-width: 600px) {
-            .container {
-                width: 100% !important;
-                padding: 0 10px !important;
-            }
-            .header-logo {
-                width: 150px !important;
-                height: auto !important;
-            }
-            .item-table td {
-                display: table-cell !important;
-            }
+            .container { width: 100% !important; padding: 0 10px !important; }
+            .header-logo { width: 150px !important; height: auto !important; }
+            .item-table td { display: table-cell !important; }
         }
     </style>
 </head>
 <body style="margin: 0; padding: 0; background-color: #f4f4f4; font-family: Arial, sans-serif;">
-
-    <!-- Wrapper Table -->
     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed;">
         <tr>
             <td align="center" style="padding: 20px 0;">
                 <table border="0" cellpadding="0" cellspacing="0" width="600" class="container" style="background-color: #ffffff; border: 1px solid #dddddd; border-radius: 8px;">
-                    
-                    <!-- Header with Logo -->
                     <tr>
                         <td align="center" style="padding: 20px 0 10px 0;">
                             <img src="https://i.imgur.com/1Rxhi9q.jpeg" alt="Outfulickz Logo" class="header-logo" width="180" style="display: block; border: 0; max-width: 180px;">
                         </td>
                     </tr>
-
-                    <!-- Main Content -->
                     <tr>
                         <td style="padding: 20px 40px 40px 40px;">
-
                             <h1 style="color: #000000; font-size: 24px; text-align: center; margin-bottom: 20px;">
                                 🚨 NEW ORDER PLACED 🚨
                             </h1>
                             <p style="font-size: 16px; color: #333; line-height: 1.5;">
-                                A new order has been created and requires immediate attention for fulfillment. Details are below.
+                                A new order has been created and requires immediate attention for fulfillment.
                             </p>
                             
                             <!-- Order Summary -->
@@ -3758,18 +3738,16 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
             </td>
         </tr>
     </table>
-
 </body>
 </html>
         `;
 
         // 3. Send the Email, passing the attachments array
-        // Your sendMail function must be updated to accept a fourth attachments argument
         await sendMail(
             adminEmail,
             `[New Order] #${orderId} - ${paymentStatus}`,
             emailHtml,
-            attachments // <-- NEW: Pass the attachments array
+            attachments 
         );
 
         console.log(`Admin notification sent successfully for Order ID: ${orderId} to ${adminEmail}`);
@@ -3782,6 +3760,8 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
         res.status(500).json({ message: 'Failed to dispatch admin email notification due to server error.' });
     }
 });
+// --- END: ADMIN ORDER EMAIL NOTIFICATION ROUTE -
+
 
 // =========================================================
 // 7. POST /api/orders/place/pending - Create a Pending Order (Protected)

@@ -57,6 +57,11 @@
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
                 Pre-Order 
             </button>
+            
+            <button id="btn-membership" onclick="navigateToMembership()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3v-5a2 2 0 00-2-2H5a2 2 0 00-2 2v5a3 3 0 003 3z"></path></svg>
+                Membership
+            </button>
             <button id="btn-settings" onclick="setActiveContent('settings')" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.526.34.813.486 1.066-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                 Settings
@@ -146,6 +151,18 @@
                     </div>
                 </div>
 
+                <div class="bg-white p-5 rounded-xl shadow-md border-b-4 border-red-500 hover:shadow-xl transition duration-300">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-red-100 text-red-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3v-5a2 2 0 00-2-2H5a2 2 0 00-2 2v5a3 3 0 003 3z"></path></svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-xs font-medium text-gray-500 uppercase">Active Subscriptions</p>
+                            <p id="active-subscriptions" class="text-2xl font-extrabold text-gray-900 mt-1">0</p>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="bg-white p-5 rounded-xl shadow-md border-b-4 border-purple-500 hover:shadow-xl transition duration-300">
                     <div class="flex items-center">
                         <div class="p-3 rounded-full bg-purple-100 text-purple-600">
@@ -160,10 +177,10 @@
             </div>
             
            <div class="mt-8 bg-white p-6 rounded-xl shadow-lg border-t-2 border-gray-200">
-    <h3 class="text-xl font-semibold mb-4 text-gray-700">Recent Activity Log 🔔</h3>
-    <p class="text-gray-500 text-sm mb-4">Latest actions requiring.</p>
-    <ul class="mt-4 space-y-2 text-sm text-gray-600">
-            </ul>
+    <h3 class="text-xl font-semibold mb-4 text-gray-700">Recent Activity Log 🔔</h3>
+    <p class="text-gray-500 text-sm mb-4">Latest actions requiring.</p>
+    <ul class="mt-4 space-y-2 text-sm text-gray-600">
+            </ul>
 </div>
 
         </section>
@@ -194,54 +211,50 @@
         // --- JAVASCRIPT LOGIC ---
 
         const totalSalesElement = document.getElementById('total-sales');
-        const wearsStockElement = document.getElementById('wears-stock'); // NEW
-        const capsStockElement = document.getElementById('caps-stock'); // NEW
-        const newArrivalsStockElement = document.getElementById('new-arrivals-stock'); // NEW
-        const preOrderStockElement = document.getElementById('pre-order-stock'); // NEW
+        const wearsStockElement = document.getElementById('wears-stock');
+        const capsStockElement = document.getElementById('caps-stock');
+        const newArrivalsStockElement = document.getElementById('new-arrivals-stock');
+        const preOrderStockElement = document.getElementById('pre-order-stock');
         const registeredUsersElement = document.getElementById('registered-users');
+        const activeSubscriptionsElement = document.getElementById('active-subscriptions'); // ⭐ NEW ELEMENT
         const loadingIndicator = document.getElementById('loading-indicator');
         const metricCards = document.getElementById('metric-cards');
         const sidebar = document.getElementById('sidebar');
         const sidebarToggle = document.getElementById('sidebar-toggle');
         const contentSections = document.querySelectorAll('.content-section');
-        // Include all navigation buttons in this list for styling/active state logic
         const navButtons = document.querySelectorAll('nav button'); 
 
         // Function for external navigation (Wears Collection)
         function navigateToWearsCollection() {
-            // Redirects the browser to the specified file path
             window.location.href = './wearscollection.html';
         }
 
         // Function for external navigation (Caps Collection)
         function navigateToCapsCollection() {
-            // Redirects the browser to the specified file path, as requested
             window.location.href = './capscollection.html';
         }
         
         // Function for external navigation (New Arrivals)
         function navigateToNewArrivals() {
-            // Redirects the browser to the specified file path, as requested
             window.location.href = './newarrivals.html';
         }
 
-        // NEW FUNCTION for external navigation (Pre-Order Management)
+        // Function for external navigation (Pre-Order Management)
         function navigateToPreOrders() {
-            // Redirects the browser to the specified file path, as requested
             window.location.href = './preorders.html';
+        }
+
+        // ⭐ NEW FUNCTION for external navigation (Membership) ⭐
+        function navigateToMembership() {
+            window.location.href = './membership.html'; 
         }
         
         /**
          * Handles the admin logout process.
-         * 1. Clears local data (e.g., adminToken).
-         * 2. Redirects to the login page.
          */
         function logoutAdmin() {
-            // 1. Clear authentication data
             console.log("Logging out... Clearing admin token.");
             localStorage.removeItem('adminToken');
-            
-            // 2. Redirect to the admin login page
             window.location.href = './admin-login.html'; 
         }
 
@@ -267,7 +280,7 @@
             const contentElement = document.getElementById(`content-${contentId}`);
             if (contentElement) {
                 contentElement.classList.remove('hidden');
-            } else if (['newarrivals', 'capscollection', 'wearscollection', 'preorders'].includes(contentId)) {
+            } else if (['newarrivals', 'capscollection', 'wearscollection', 'preorders', 'membership'].includes(contentId)) { // ⭐ ADDED 'membership'
                 // Special handling for external links: they now redirect, so don't look for an internal section.
                 // We will update button styles, but not display an internal section.
                 console.log(`Content section 'content-${contentId}' is now a redirect. Reverting to dashboard view.`);
@@ -279,7 +292,7 @@
             navButtons.forEach(button => {
                 const buttonContentId = button.id.replace('btn-', '');
                 // List all redirect buttons here
-                if (['wearscollection', 'capscollection', 'newarrivals', 'preorders', 'logout'].includes(buttonContentId)) {
+                if (['wearscollection', 'capscollection', 'newarrivals', 'preorders', 'membership', 'logout'].includes(buttonContentId)) { // ⭐ ADDED 'membership'
                     // Special handling for the buttons that *are* redirects to remove their internal 'click' activation style
                     button.classList.remove('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
                     button.classList.add('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
@@ -345,20 +358,19 @@
                 }
 
               const data = await response.json();
-                return {
-                    totalSales: data.totalSales || 0,
-                    wearsStock: data.wearsStock || 0, 
-                    capsStock: data.capsStock || 0, 
-                    newArrivalsStock: data.newArrivalsStock || 0, 
-                    preOrderStock: data.preOrderStock || 0, 
-                    registeredUsers: data.userCount || 0,
-                    // NEW: Pass the activity log data
-                    recentActivity: data.recentActivity || [] 
-                };
+                return {
+                    totalSales: data.totalSales || 0,
+                    wearsStock: data.wearsStock || 0, 
+                    capsStock: data.capsStock || 0, 
+                    newArrivalsStock: data.newArrivalsStock || 0, 
+                    preOrderStock: data.preOrderStock || 0, 
+                    activeSubscriptions: data.activeSubscriptions || 0, // ⭐ NEW DATA FIELD
+                    registeredUsers: data.userCount || 0,
+                    recentActivity: data.recentActivity || [] 
+                };
 
             } catch (error) {
                 console.error('Error fetching dashboard data:', error);
-                // In a real application, you might show a generic error message on the dashboard
                 return null;
             }
         }
@@ -384,10 +396,13 @@
                 totalSalesElement.textContent = salesFormatted;
                 
                 // Display NEW individual stock counts
-                wearsStockElement.textContent = data.wearsStock.toLocaleString(); // NEW
-                capsStockElement.textContent = data.capsStock.toLocaleString(); // NEW
-                newArrivalsStockElement.textContent = data.newArrivalsStock.toLocaleString(); // NEW
-                preOrderStockElement.textContent = data.preOrderStock.toLocaleString(); // NEW
+                wearsStockElement.textContent = data.wearsStock.toLocaleString();
+                capsStockElement.textContent = data.capsStock.toLocaleString();
+                newArrivalsStockElement.textContent = data.newArrivalsStock.toLocaleString();
+                preOrderStockElement.textContent = data.preOrderStock.toLocaleString();
+                
+                // ⭐ DISPLAY NEW ACTIVE SUBSCRIPTIONS COUNT
+                activeSubscriptionsElement.textContent = data.activeSubscriptions.toLocaleString();
                 
                 registeredUsersElement.textContent = data.registeredUsers.toLocaleString();
                 metricCards.classList.remove('hidden');
@@ -397,98 +412,104 @@
                 metricCards.innerHTML = '<div class="md:col-span-3 text-center p-8 bg-red-100 text-red-700 rounded-xl shadow-lg">Failed to load dashboard data. Please check the API connection.</div>';
                 metricCards.classList.remove('hidden');
             }
- /**
-     * Function to calculate "time ago" string
-     * Defined once for efficiency.
-     */
-    function formatTimeAgo(date) {
-        const seconds = Math.floor((new Date() - new Date(date)) / 1000);
-        let interval = seconds / 31536000;
-        if (interval > 1) return Math.floor(interval) + " years ago";
-        interval = seconds / 2592000;
-        if (interval > 1) return Math.floor(interval) + " months ago";
-        interval = seconds / 86400;
-        if (interval > 1) return Math.floor(interval) + " days ago";
-        interval = seconds / 3600;
-        if (interval > 1) return Math.floor(interval) + " hours ago";
-        interval = seconds / 60;
-        if (interval > 1) return Math.floor(interval) + " minutes ago";
-        return Math.floor(seconds) + " seconds ago";
-    }
-
-    /**
-     * Dynamically renders the recent activity log on the dashboard.
-     * @param {Array<Object>} activities - Array of recent activity objects.
-     */
-    function renderActivityLog(activities) {
-        // Using the selector from your latest snippet
-        const logList = document.querySelector('#content-dashboard .mt-8 ul');
-        if (!logList) return; // Exit if the list element isn't found
-
-        // Clear existing mock content
-        logList.innerHTML = '';
-        
-        if (activities.length === 0) {
-            logList.innerHTML = '<li class="p-3 text-center text-gray-400">No recent activity recorded.</li>';
-            return;
+        /**
+             * Function to calculate "time ago" string
+             * Defined once for efficiency.
+             */
+        function formatTimeAgo(date) {
+            const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+            let interval = seconds / 31536000;
+            if (interval > 1) return Math.floor(interval) + " years ago";
+            interval = seconds / 2592000;
+            if (interval > 1) return Math.floor(interval) + " months ago";
+            interval = seconds / 86400;
+            if (interval > 1) return Math.floor(interval) + " days ago";
+            interval = seconds / 3600;
+            if (interval > 1) return Math.floor(interval) + " hours ago";
+            interval = seconds / 60;
+            if (interval > 1) return Math.floor(interval) + " minutes ago";
+            return Math.floor(seconds) + " seconds ago";
         }
-        
-        activities.forEach(activity => {
-            const li = document.createElement('li');
-            // Added items-center for vertical alignment and space-y-2 for spacing
-            li.className = 'p-3 border-l-4 rounded-md flex justify-between items-center space-y-2'; 
-            
-            let borderColor = 'border-gray-200';
-            let bgColor = '';
-            let icon = '➡️'; // Default icon
 
-            // Apply colors based on event type for quick visual cues
-            switch (activity.eventType) {
-                case 'ORDER_PLACED':
-                    borderColor = 'border-emerald-400';
-                    bgColor = 'bg-emerald-50';
-                    icon = '✅';
-                    break;
-                case 'REGISTERED':
-                    borderColor = 'border-cyan-400';
-                    bgColor = 'bg-cyan-50';
-                    icon = '🆕';
-                    break;
-                case 'FORGOT_PASSWORD':
-                    borderColor = 'border-amber-400';
-                    bgColor = 'bg-amber-50';
-                    icon = '⚠️';
-                    break;
-                case 'LOGIN': // <-- ADDED CASE: Handle the successful user login event
-                    borderColor = 'border-purple-400';
-                    bgColor = 'bg-purple-50';
-                    icon = '🔑';
-                    break;
-                case 'PRODUCT_ADDED': // Handling other common event types
-                    borderColor = 'border-yellow-400';
-                    bgColor = 'bg-yellow-50';
-                    icon = '📦';
-                    break;
-                // Default case handles ADD_TO_CART and others
+        /**
+         * Dynamically renders the recent activity log on the dashboard.
+         * @param {Array<Object>} activities - Array of recent activity objects.
+         */
+        function renderActivityLog(activities) {
+            // Using the selector from your latest snippet
+            const logList = document.querySelector('#content-dashboard .mt-8 ul');
+            if (!logList) return; // Exit if the list element isn't found
+
+            // Clear existing mock content
+            logList.innerHTML = '';
+            
+            if (activities.length === 0) {
+                logList.innerHTML = '<li class="p-3 text-center text-gray-400">No recent activity recorded.</li>';
+                return;
             }
+            
+            activities.forEach(activity => {
+                const li = document.createElement('li');
+                // Added items-center for vertical alignment and space-y-2 for spacing
+                li.className = 'p-3 border-l-4 rounded-md flex justify-between items-center space-y-2'; 
+                
+                let borderColor = 'border-gray-200';
+                let bgColor = '';
+                let icon = '➡️'; // Default icon
 
-            li.classList.add(borderColor, bgColor);
-            
-            // Using the efficient formatTimeAgo function defined outside this loop
-            const timeAgo = formatTimeAgo(activity.timestamp);
-            
-            li.innerHTML = `
-                <span class="flex items-center space-x-2">
-                    <span class="text-lg">${icon}</span>
-                    <span>${activity.description}</span>
-                </span>
-                <span class="text-xs text-gray-400">${timeAgo}</span>
-            `;
-            
-            logList.appendChild(li);
-        });
-    }
+                // Apply colors based on event type for quick visual cues
+                switch (activity.eventType) {
+                    case 'ORDER_PLACED':
+                        borderColor = 'border-emerald-400';
+                        bgColor = 'bg-emerald-50';
+                        icon = '✅';
+                        break;
+                    case 'REGISTERED':
+                        borderColor = 'border-cyan-400';
+                        bgColor = 'bg-cyan-50';
+                        icon = '🆕';
+                        break;
+                    case 'FORGOT_PASSWORD':
+                        borderColor = 'border-amber-400';
+                        bgColor = 'bg-amber-50';
+                        icon = '⚠️';
+                        break;
+                    case 'LOGIN': 
+                        borderColor = 'border-purple-400';
+                        bgColor = 'bg-purple-50';
+                        icon = '🔑';
+                        break;
+                    case 'PRODUCT_ADDED': 
+                        borderColor = 'border-yellow-400';
+                        bgColor = 'bg-yellow-50';
+                        icon = '📦';
+                        break;
+                    // ⭐ NEW CASE: HANDLE MEMBERSHIP SUBSCRIPTION
+                    case 'MEMBERSHIP_SUBSCRIBED':
+                        borderColor = 'border-red-400';
+                        bgColor = 'bg-red-50';
+                        icon = '💳';
+                        break;
+                    // Default case handles ADD_TO_CART and others
+                }
+
+                li.classList.add(borderColor, bgColor);
+                
+                // Using the efficient formatTimeAgo function defined outside this loop
+                const timeAgo = formatTimeAgo(activity.timestamp);
+                
+                li.innerHTML = `
+                    <span class="flex items-center space-x-2">
+                        <span class="text-lg">${icon}</span>
+                        <span>${activity.description}</span>
+                    </span>
+                    <span class="text-xs text-gray-400">${timeAgo}</span>
+                `;
+                
+                logList.appendChild(li);
+            });
         }
+    }
     </script>
 </body>
 </html>

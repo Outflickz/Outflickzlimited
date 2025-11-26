@@ -366,7 +366,8 @@ const userSchema = new mongoose.Schema({
     profile: {
         firstName: { type: String, trim: true },
         lastName: { type: String, trim: true },
-        phone: { type: String, trim: true } // Assuming you might want phone here for completeness
+        phone: { type: String, trim: true },
+        whatsapp: { type: String, trim: true }
     },
     
     // --- 🏠 ADDED: CONTACT ADDRESS FIELD ---
@@ -2998,10 +2999,10 @@ app.get('/api/collections/preorder', async (req, res) => {
         });
     }
 });
-
 // 1. POST /api/users/register (Create Account and Send Verification Code)
 app.post('/api/users/register', async (req, res) => {
-    const { email, password, firstName, lastName } = req.body;
+    // 🔔 UPDATED: Destructure new fields: phone, whatsapp, and the single address string
+    const { email, password, firstName, lastName, phone, whatsapp, address } = req.body;
 
     // Basic Validation
     if (!email || !password || password.length < 8) {
@@ -3010,13 +3011,45 @@ app.post('/api/users/register', async (req, res) => {
 
     let newUser; 
     let verificationCode;
+    
+    // --- 🛠️ NEW: Address Parsing Logic (Assuming a comma-separated string from frontend) ---
+    // NOTE: This is a basic implementation. For production, the frontend should send structured fields.
+    const parsedAddress = {};
+    if (address) {
+        // Attempt a basic split, e.g., "Street 123, City, State, Zip, Country"
+        const parts = address.split(',').map(p => p.trim());
+        if (parts.length >= 5) {
+            parsedAddress.street = parts[0];
+            parsedAddress.city = parts[1];
+            parsedAddress.state = parts[2];
+            parsedAddress.zip = parts[3];
+            parsedAddress.country = parts[4];
+        } else if (parts.length >= 2) {
+             // Fallback for less structured address
+            parsedAddress.street = parts[0];
+            parsedAddress.city = parts[1];
+            parsedAddress.country = parts[parts.length - 1];
+        } else {
+            // Put the whole address string into the street field as a fallback
+            parsedAddress.street = address;
+        }
+    }
+    // ------------------------------------------------------------------------------------
 
     try {
         // --- 🛠️ FIX: Use new User() and .save() to trigger the pre('save') hook ---
         newUser = new User({
             email,
             password, // Password is now passed to the pre-save hook
-            profile: { firstName, lastName },
+            profile: { 
+                firstName, 
+                lastName, 
+                // 🎉 NEW: Map phone and whatsapp to the profile object
+                phone, 
+                whatsapp 
+            },
+            // 🎉 NEW: Map the parsed address object
+            address: parsedAddress,
             status: { isVerified: false } // Set nested status field
         });
         
@@ -3141,7 +3174,8 @@ app.post('/api/users/resend-verification', async (req, res) => {
             return res.status(200).json({ message: 'If an account exists, a new verification code has been sent.' });
         }
         
-        if (user.isVerified) {
+        // FIX: Check nested status field
+        if (user.status && user.status.isVerified) {
              return res.status(400).json({ message: 'Account is already verified. Please proceed to login.' });
         }
         
@@ -3168,7 +3202,6 @@ app.post('/api/users/resend-verification', async (req, res) => {
 
                 <p style="font-family: sans-serif; margin-top: 20px; line-height: 1.6; font-size: 14px; color: #555555;">If you did not request a new code, please secure your account immediately.</p>
 
-                <!-- Footer -->
                 <p style="font-size: 10px; margin-top: 30px; border-top: 1px solid #e0e0e0; padding-top: 10px; color: #888888; text-align: center;">&copy; ${new Date().getFullYear()} Outflickz Limited.</p>
             </div>
         `;
@@ -3204,9 +3237,6 @@ app.post('/api/users/verify', async (req, res) => {
         }
 
         // 1. Check if already verified
-        // NOTE: Mongoose might return user.isVerified as undefined here 
-        // if status.isVerified was not set, but the logical check below covers it.
-        // For accurate pre-check, you might need to select 'status.isVerified' as well.
         if (user.status && user.status.isVerified) { 
              return res.status(400).json({ message: 'Account is already verified.' });
         }
@@ -3255,55 +3285,55 @@ app.post('/api/users/verify', async (req, res) => {
 // 2. POST /api/users/login (Login) - MODIFIED
 // =========================================================
 app.post('/api/users/login', async (req, res) => {
-    // ⚠️ New: Extract localCartItems from the request body 
-    // The frontend should send this payload on login
-    const { email, password, localCartItems } = req.body; 
+    // ⚠️ New: Extract localCartItems from the request body 
+    // The frontend should send this payload on login
+    const { email, password, localCartItems } = req.body; 
 
-    try {
-        // NOTE: Ensure you import and have access to the logActivity function here!
-        // const { logActivity } = require('./utils/activityLogger');
-        
-        const user = await User.findOne({ email }).select('+password').lean();
-        
-        // 1. Check for user existence and password match
-        if (!user || !(await bcrypt.compare(password, user.password))) {
-            return res.status(401).json({ message: 'Invalid email or password.' });
-        }
-        
-        // 2. Check verification status
-        if (!user.status.isVerified) {
-            return res.status(403).json({ 
-                message: 'Account not verified. Please verify your email to log in.',
-                needsVerification: true,
-                userId: user._id
-            });
-        }
+    try {
+        // NOTE: Ensure you import and have access to the logActivity function here!
+        // const { logActivity } = require('./utils/activityLogger');
+        
+        const user = await User.findOne({ email }).select('+password').lean();
+        
+        // 1. Check for user existence and password match
+        if (!user || !(await bcrypt.compare(password, user.password))) {
+            return res.status(401).json({ message: 'Invalid email or password.' });
+        }
+        
+        // 2. Check verification status
+        if (!user.status.isVerified) {
+            return res.status(403).json({ 
+                message: 'Account not verified. Please verify your email to log in.',
+                needsVerification: true,
+                userId: user._id
+            });
+        }
 
-        // 3. Create the JWT token
-        const token = jwt.sign(
-            { id: user._id, email: user.email, role: user.status.role || 'user' }, 
-            JWT_SECRET, 
-            { expiresIn: '2h' } 
-        );
-        
-        // --- 🔑 Set the Token as an HTTP-only Cookie ---
-        const isProduction = process.env.NODE_ENV === 'production';
-        
-        res.cookie('outflickzToken', token, {
-            httpOnly: true,
-            secure: isProduction,
-            sameSite: isProduction ? 'strict' : 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000 
-        });
-        // -------------------------------------------------
+        // 3. Create the JWT token
+        const token = jwt.sign(
+            { id: user._id, email: user.email, role: user.status.role || 'user' }, 
+            JWT_SECRET, 
+            { expiresIn: '2h' } 
+        );
+        
+        // --- 🔑 Set the Token as an HTTP-only Cookie ---
+        const isProduction = process.env.NODE_ENV === 'production';
+        
+        res.cookie('outflickzToken', token, {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? 'strict' : 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000 
+        });
+        // -------------------------------------------------
 
-        // 4. ✨ Merge Local Cart Items into the Database Cart ✨
-        if (localCartItems && Array.isArray(localCartItems) && localCartItems.length > 0) {
-            // This function handles finding the user's permanent cart and merging/updating quantities
-            await mergeLocalCart(user._id, localCartItems);
-            console.log(`Cart merged for user: ${user._id}`);
-        }
-        // -----------------------------------------------------------------------
+        // 4. ✨ Merge Local Cart Items into the Database Cart ✨
+        if (localCartItems && Array.isArray(localCartItems) && localCartItems.length > 0) {
+            // This function handles finding the user's permanent cart and merging/updating quantities
+            await mergeLocalCart(user._id, localCartItems);
+            console.log(`Cart merged for user: ${user._id}`);
+        }
+        // -----------------------------------------------------------------------
         
         // 5. 🔔 CRITICAL NEW STEP: Log the successful login event 🔔
         // Ensure you have a 'logActivity' function imported and defined!
@@ -3321,18 +3351,18 @@ app.post('/api/users/login', async (req, res) => {
         }
         // -----------------------------------------------------------------------
 
-        // 6. Send the successful JSON response 
-        delete user.password; 
+        // 6. Send the successful JSON response 
+        delete user.password; 
 
-        res.status(200).json({ 
-            message: 'Login successful',
-            user: user
-        });
+        res.status(200).json({ 
+            message: 'Login successful',
+            user: user
+        });
 
-    } catch (error) {
-        console.error("User login error:", error);
-        res.status(500).json({ message: 'Server error during login.' });
-    }
+    } catch (error) {
+        console.error("User login error:", error);
+        res.status(500).json({ message: 'Server error during login.' });
+    }
 });
 
 // 3. GET /api/users/account (Fetch Profile - Protected)
@@ -3364,7 +3394,8 @@ app.get('/api/users/account', verifyUserToken, async (req, res) => {
 // 4. PUT /api/users/profile (Update Personal Info - Protected)
 app.put('/api/users/profile', verifyUserToken, async (req, res) => {
     try {
-        const { firstName, lastName, phone } = req.body;
+        // 🔔 UPDATED: Destructure new fields: whatsapp
+        const { firstName, lastName, phone, whatsapp } = req.body;
         
         if (!firstName || !lastName) {
              return res.status(400).json({ message: 'First name and last name are required.' });
@@ -3377,7 +3408,8 @@ app.put('/api/users/profile', verifyUserToken, async (req, res) => {
                 $set: {
                     'profile.firstName': firstName,
                     'profile.lastName': lastName,
-                    'profile.phone': phone || null // Update phone if provided
+                    'profile.phone': phone || null, // Update phone if provided
+                    'profile.whatsapp': whatsapp || null // 🎉 NEW: Update whatsapp if provided
                 }
             },
             { new: true, runValidators: true }

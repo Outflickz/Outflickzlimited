@@ -1351,7 +1351,11 @@ app.get('/api/admin/users/:id', verifyToken, async (req, res) => {
 });
 
 // =========================================================
-// 2. NEW: GET /api/admin/users/:id/orders (Fetch Single User's Orders - Protected Admin)
+// 2. CORRECTED: GET /api/admin/users/:id/orders (Fetch Single User's Orders - Protected Admin)
+// 
+// This version fetches product details from all four product collections
+// (Wears, Caps, New Arrivals, PreOrders) and correctly extracts the image URL
+// based on the purchased item's variationIndex.
 // =========================================================
 app.get('/api/admin/users/:id/orders', verifyToken, async (req, res) => {
     try {
@@ -1368,44 +1372,71 @@ app.get('/api/admin/users/:id/orders', verifyToken, async (req, res) => {
         const allProductIds = orders.flatMap(order => 
             order.items.map(item => item.productId)
         );
-        const uniqueProductIds = [...new Set(allProductIds.map(id => id.toString()))];
-
-        // 3. Fetch product details (Names and Image URLs) from Wear and Cap collections
-        // We use a general function to fetch product details based on the ID.
-        // This is a simplification; a more robust solution would use Mongoose aggregation.
         
-        const wearDetails = await Wear.find({ _id: { $in: uniqueProductIds } }).select('name imageUrl').lean();
-        const capDetails = await Cap.find({ _id: { $in: uniqueProductIds } }).select('name imageUrl').lean();
+        // CRITICAL FIX: Convert unique string IDs back into Mongoose ObjectIds for $in query
+        const uniqueProductObjectIds = [
+            ...new Set(allProductIds.map(id => id.toString()))
+        ].map(idStr => new mongoose.Types.ObjectId(idStr)); 
 
+        // 3. Fetch product details (Names and Variations array for image URL) from ALL collections
+        // Projection: Only retrieve 'name' and 'variations'
+        const projection = 'name variations'; 
+        
+        const wears = await WearsCollection.find({ _id: { $in: uniqueProductObjectIds } }).select(projection).lean();
+        const caps = await CapCollection.find({ _id: { $in: uniqueProductObjectIds } }).select(projection).lean();
+        const newArrivals = await NewArrivals.find({ _id: { $in: uniqueProductObjectIds } }).select(projection).lean();
+        const preOrders = await PreOrderCollection.find({ _id: { $in: uniqueProductObjectIds } }).select(projection).lean(); 
+
+        const allProducts = [...wears, ...caps, ...newArrivals, ...preOrders];
+        
+        // 4. Build Product Map (productId string -> { name, variations })
         const productMap = {};
-        [...wearDetails, ...capDetails].forEach(product => {
+        allProducts.forEach(product => {
             productMap[product._id.toString()] = {
                 name: product.name,
-                imageUrl: product.imageUrl // Key field for the frontend
+                variations: product.variations
             };
         });
 
-        // 4. Transform and merge product details into the orders array
+        // 5. Transform and merge product details into the orders array
         const detailedOrders = orders.map(order => {
             const detailedItems = order.items.map(item => {
                 const productIdStr = item.productId.toString();
-                const productInfo = productMap[productIdStr] || { name: 'Unknown Product', imageUrl: 'https://via.placeholder.com/32?text=N/A' };
+                const productInfo = productMap[productIdStr];
+                
+                // Default values for missing or deleted products
+                let imageUrl = 'https://via.placeholder.com/64x64/E0E7FF/4338CA?text=N/A';
+                let productName = 'Unknown Product (Deleted)';
+
+                if (productInfo) {
+                    productName = productInfo.name;
+                    
+                    // Find the exact variation based on the saved variationIndex
+                    const purchasedVariation = productInfo.variations.find(v => 
+                        v.variationIndex === item.variationIndex
+                    );
+
+                    // Use the frontImageUrl of the matched variation, or the first one as a fallback
+                    if (purchasedVariation && purchasedVariation.frontImageUrl) {
+                        imageUrl = purchasedVariation.frontImageUrl;
+                    } else if (productInfo.variations.length > 0) {
+                        // Fallback to the first variation's front image if exact match fails
+                        imageUrl = productInfo.variations[0].frontImageUrl || imageUrl;
+                    }
+                }
 
                 return {
                     ...item,
-                    name: productInfo.name,
-                    imageUrl: productInfo.imageUrl, // This is what the frontend needs
-                    quantity: item.quantity,
-                    price: item.priceAtTimeOfPurchase,
+                    name: productName,
+                    imageUrl: imageUrl, // Key field for the frontend
+                    // Ensure the correct price field is used
+                    price: item.priceAtTimeOfPurchase, 
                 };
             });
 
             return {
                 ...order,
                 items: detailedItems,
-                // Ensure totalAmount and createdAt are passed as expected by the frontend
-                totalAmount: order.totalAmount, 
-                createdAt: order.createdAt
             };
         });
 
@@ -1414,11 +1445,16 @@ app.get('/api/admin/users/:id/orders', verifyToken, async (req, res) => {
         });
 
     } catch (error) {
-        if (error.kind === 'ObjectId') {
-            return res.status(400).json({ message: 'Invalid User ID format.' });
-        }
+        // Log the error in detail to the server console to find hidden issues
         console.error('Admin user orders fetch error:', error);
-        return res.status(500).json({ message: 'Server error: Failed to retrieve user orders.' });
+        
+        // This improved catch block ensures the frontend doesn't see a generic 500 error 
+        // if the issue is a malformed ID.
+        if (error.name === 'CastError' || error.kind === 'ObjectId') {
+            return res.status(400).json({ message: 'Invalid User ID or product ID format found in data.' });
+        }
+        
+        return res.status(500).json({ message: 'Server error: Failed to retrieve user orders. Check server logs for details.' });
     }
 });
 

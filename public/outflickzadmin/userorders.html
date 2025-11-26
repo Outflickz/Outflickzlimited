@@ -217,426 +217,453 @@
 
     </main>
 
-    <script>
-        // --- Shared JS Elements and Functions (Identical to Dashboard) ---
-        const sidebar = document.getElementById('sidebar');
-        const sidebarToggle = document.getElementById('sidebar-toggle');
-        const navButtons = document.querySelectorAll('nav button');
-        
-        // Navigation Functions (Redirects to other pages)
-        function navigateToDashboard() { window.location.href = './admin-dashboard.html'; }
-        function navigateToWearsCollection() { window.location.href = './wearscollection.html'; }
-        function navigateToCapsCollection() { window.location.href = './capscollection.html'; }
-        function navigateToNewArrivals() { window.location.href = './newarrivals.html'; }
-        function navigateToPreOrders() { window.location.href = './preorders.html'; }
-        function navigateToMembership() { window.location.href = './membership.html'; }
-        function navigateToSettings() { window.location.href = './settings.html'; } // Assuming a separate settings page
-        
-        // Log out function
-        function logoutAdmin() {
-            console.log("Logging out... Clearing admin token.");
-            localStorage.removeItem('adminToken');
-            window.location.href = './admin-login.html'; 
-        }
+   <script>
+    // --- Shared JS Elements and Functions (Identical to Dashboard) ---
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const navButtons = document.querySelectorAll('nav button');
+    
+    // Navigation Functions (Redirects to other pages)
+    function navigateToDashboard() { window.location.href = './admin-dashboard.html'; }
+    function navigateToWearsCollection() { window.location.href = './wearscollection.html'; }
+    function navigateToCapsCollection() { window.location.href = './capscollection.html'; }
+    function navigateToNewArrivals() { window.location.href = './newarrivals.html'; }
+    function navigateToPreOrders() { window.location.href = './preorders.html'; }
+    function navigateToMembership() { window.location.href = './membership.html'; }
+    function navigateToSettings() { window.location.href = './settings.html'; } // Assuming a separate settings page
+    
+    // Log out function
+    function logoutAdmin() {
+        console.log("Logging out... Clearing admin token.");
+        localStorage.removeItem('adminToken');
+        window.location.href = './admin-login.html'; 
+    }
 
-        // Global variable to store the currently loaded orders
-        let globalOrdersData = [];
+    // Global variable to store the currently loaded orders
+    // NOTE: This global storage is less critical now that we have a dedicated detail API call.
+    let globalOrdersData = [];
 
-        // Show/Hide Content Sections
-        function showContent(sectionId) {
-            document.querySelectorAll('.content-section').forEach(section => {
-                section.classList.add('hidden');
-            });
-            document.getElementById(`content-${sectionId}`).classList.remove('hidden');
-            
-            // Re-hide sidebar on mobile after navigation
-            if (window.innerWidth < 1024) {
-                sidebar.classList.add('-translate-x-full');
-            }
-        }
+    // Show/Hide Content Sections
+    function showContent(sectionId) {
+        document.querySelectorAll('.content-section').forEach(section => {
+            section.classList.add('hidden');
+        });
+        document.getElementById(`content-${sectionId}`).classList.remove('hidden');
         
-        // Sidebar Toggle & Initial Load
-        document.addEventListener('DOMContentLoaded', () => {
-            // Highlight the current page's button
-            document.getElementById('btn-userorders').classList.add('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
-            document.getElementById('btn-userorders').classList.remove('hover:bg-emerald-800', 'text-emerald-200');
-            
-            sidebarToggle.addEventListener('click', () => {
-                sidebar.classList.toggle('-translate-x-full');
-            });
-            
-            // Initial Data Load
-            loadUserOrders(); 
+        // Re-hide sidebar on mobile after navigation
+        if (window.innerWidth < 1024) {
+            sidebar.classList.add('-translate-x-full');
+        }
+    }
+    
+    // Sidebar Toggle & Initial Load
+    document.addEventListener('DOMContentLoaded', () => {
+        // Highlight the current page's button
+        document.getElementById('btn-userorders').classList.add('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
+        document.getElementById('btn-userorders').classList.remove('hover:bg-emerald-800', 'text-emerald-200');
+        
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('-translate-x-full');
         });
         
-        // Helper function for currency formatting (NGN)
-        function formatNaira(amount) {
-            // Ensure amount is a number for formatting
-            const numAmount = Number(amount); 
-            if (isNaN(numAmount)) return 'N/A';
-            
-            return new Intl.NumberFormat('en-NG', {
-                style: 'currency',
-                currency: 'NGN',
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 2
-            }).format(numAmount);
-        }
+        // Initial Data Load
+        loadUserOrders(); 
+    });
+    
+    // Helper function for currency formatting (NGN)
+    function formatNaira(amount) {
+        // Ensure amount is a number for formatting
+        const numAmount = Number(amount); 
+        if (isNaN(numAmount)) return 'N/A';
         
-        // Helper function for date formatting
-        function formatDate(dateString) {
-            const date = new Date(dateString);
-            return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-        }
+        return new Intl.NumberFormat('en-NG', {
+            style: 'currency',
+            currency: 'NGN',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2
+        }).format(numAmount);
+    }
+    
+    // Helper function for date formatting
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    }
 
-        // --- Order Specific JS Logic ---
-        const loadingIndicator = document.getElementById('loading-indicator');
-        const ordersTableContainer = document.getElementById('orders-table-container');
-        const ordersTableBody = document.getElementById('orders-table-body');
-        const pendingCountElement = document.getElementById('pending-count');
-        const emptyState = document.getElementById('empty-state');
-        const toastContainer = document.getElementById('toast-container');
-        const detailItemsBody = document.getElementById('detail-items-body');
+    // --- Order Specific JS Logic ---
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const ordersTableContainer = document.getElementById('orders-table-container');
+    const ordersTableBody = document.getElementById('orders-table-body');
+    const pendingCountElement = document.getElementById('pending-count');
+    const emptyState = document.getElementById('empty-state');
+    const toastContainer = document.getElementById('toast-container');
+    const detailItemsBody = document.getElementById('detail-items-body');
 
-        // --- CONFIRMATION HANDLERS (Called from Detail View) ---
-        
-        // Use a global variable to hold the ID of the order currently displayed in details
-        let currentDetailOrderId = null; 
-        
-        async function confirmOrderFromDetails() {
-            if (currentDetailOrderId) {
-                await confirmOrder(currentDetailOrderId);
-                // After confirmation, navigate back to the list
+    // --- CONFIRMATION HANDLERS (Called from Detail View) ---
+    
+    // Use a global variable to hold the ID of the order currently displayed in details
+    let currentDetailOrderId = null; 
+    
+    async function confirmOrderFromDetails() {
+        if (currentDetailOrderId) {
+            await confirmOrder(currentDetailOrderId);
+            // After confirmation, navigate back to the list
+            showContent('userorders');
+        }
+    }
+    
+    // Placeholder for the Cancel functionality (You'll need a backend route for this)
+    function cancelOrderFromDetails() {
+        if (currentDetailOrderId) {
+            if (confirm(`Are you sure you want to CANCEL Order #${currentDetailOrderId.substring(0, 8)}? This action is usually irreversible.`)) {
+                // TODO: Implement API call to PUT /api/admin/orders/:orderId/cancel
+                showToast(`Order #${currentDetailOrderId.substring(0, 8)} cancelled (Backend not implemented yet).`, 'bg-amber-500');
+                // For now, just navigate back to the list and reload
                 showContent('userorders');
+                loadUserOrders();
             }
         }
+    }
+
+
+    /**
+     * Fetches a list of pending orders from the API.
+     */
+    async function fetchOrders() {
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            console.error("No adminToken found. Redirecting to login.");
+            logoutAdmin();
+            return [];
+        }
+
+        try {
+            // Using the backend route: GET /api/admin/orders/pending
+            const response = await fetch('/api/admin/orders/pending', { 
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
+                }
+            });
+
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    logoutAdmin();
+                    return [];
+                }
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching orders:', error);
+            showToast('Failed to load orders. API error.', 'bg-red-500');
+            return [];
+        }
+    }
+
+    /**
+     * Fetches detailed order information (including augmented items) for a single order.
+     * This uses the dedicated new backend route: GET /api/admin/orders/:orderId
+     * @param {string} orderId - The ID of the order to confirm.
+     * @returns {Promise<Object|null>} - The full, augmented order object.
+     */
+    async function fetchDetailedOrder(orderId) {
+          const token = localStorage.getItem('adminToken');
+          if (!token) {
+              logoutAdmin();
+              return null;
+          }
         
-        // Placeholder for the Cancel functionality (You'll need a backend route for this)
-        function cancelOrderFromDetails() {
-            if (currentDetailOrderId) {
-                if (confirm(`Are you sure you want to CANCEL Order #${currentDetailOrderId.substring(0, 8)}? This action is usually irreversible.`)) {
-                    // TODO: Implement API call to PUT /api/admin/orders/:orderId/cancel
-                    showToast(`Order #${currentDetailOrderId.substring(0, 8)} cancelled (Backend not implemented yet).`, 'bg-amber-500');
-                    // For now, just navigate back to the list and reload
-                    showContent('userorders');
-                    loadUserOrders();
-                }
-            }
-        }
+          try {
+              // ✅ REAL API CALL: Use the new single order detail endpoint
+              const response = await fetch(`/api/admin/orders/${orderId}`, {
+                  method: 'GET',
+                  headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${token}`
+                  }
+              });
+              
+              if (!response.ok) {
+                  if (response.status === 404) {
+                      throw new Error("Order not found.");
+                  }
+                  throw new Error(`Failed to fetch order details. Status: ${response.status}`);
+              }
 
+              // The backend now returns the full order object with items augmented 
+              // with 'name', 'imageUrl', and 'userName'/'email'.
+              return await response.json();
 
-        /**
-         * Fetches a list of pending orders from the API.
-         */
-        async function fetchOrders() {
-            const token = localStorage.getItem('adminToken');
-            if (!token) {
-                console.error("No adminToken found. Redirecting to login.");
-                logoutAdmin();
-                return [];
-            }
+          } catch (error) {
+              console.error('Error fetching detailed order:', error);
+              showToast(error.message || `Failed to load details for order #${orderId.substring(0, 8)}.`, 'bg-red-500');
+              return null;
+          }
+    }
+    
+    /**
+     * Renders the full details of a single order into the dedicated section.
+     * @param {Object} order - The single order object with full details.
+     */
+    function renderOrderDetail(order) {
+        currentDetailOrderId = order._id; // Set the current order ID
+        showContent('orderdetails'); // Switch view
 
-            try {
-                // Using the backend route: GET /api/admin/orders/pending
-                const response = await fetch('/api/admin/orders/pending', { 
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}` 
-                    }
-                });
+        // 1. HEADER
+        document.getElementById('detail-order-id').textContent = order._id.substring(0, 8);
 
-                if (!response.ok) {
-                    if (response.status === 401 || response.status === 403) {
-                        logoutAdmin();
-                        return [];
-                    }
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                return await response.json();
-            } catch (error) {
-                console.error('Error fetching orders:', error);
-                showToast('Failed to load orders. API error.', 'bg-red-500');
-                return [];
-            }
-        }
-
-        /**
-         * Fetches detailed order information (including items) for a single order.
-         * This usually requires a separate backend route like GET /api/admin/orders/:orderId/details
-         * For this frontend implementation, we assume a new endpoint that returns the full, detailed order object.
-         * @param {string} orderId - The ID of the order to confirm.
-         */
-        async function fetchDetailedOrder(orderId) {
-             const token = localStorage.getItem('adminToken');
-             try {
-                // For this example, we'll try to use the existing data if possible,
-                // but a real-world app would need a dedicated endpoint to get the full order object, 
-                // including all item details (like variation info, etc.) which might not be in the /pending payload.
-                // Since the initial backend code has GET /api/admin/users/:id/orders, we'll assume a similar
-                // single order detail endpoint exists, or that the pending list contains enough data.
-                
-                // --- MOCK API CALL for full detail ---
-                // For simplicity, we'll look it up in the globalOrdersData
-                const order = globalOrdersData.find(o => o._id === orderId);
-                
-                if (!order) {
-                    throw new Error("Order details not found in local cache.");
-                }
-
-                // In a real app, this would be an API call:
-                // const response = await fetch(`/api/admin/orders/${orderId}/details`, { ... });
-                // const fullOrderDetails = await response.json();
-                
-                // For demonstration, we'll return the found order and add mock item data
-                return {
-                    ...order,
-                    // Mock items, as the initial /pending route doesn't have them
-                    // A real API call to /api/admin/orders/:id would be needed.
-                    items: [
-                        { productId: 'mock1', name: 'Premium Tee', variation: 'Black / Large', quantity: 2, priceAtTimeOfPurchase: 8000, subtotal: 16000 },
-                        { productId: 'mock2', name: 'Baseball Cap', variation: 'White / One Size', quantity: 1, priceAtTimeOfPurchase: 5000, subtotal: 5000 },
-                    ]
-                };
-
-             } catch (error) {
-                console.error('Error fetching detailed order:', error);
-                showToast(`Failed to load details for order #${orderId.substring(0, 8)}.`, 'bg-red-500');
-                return null;
-             }
-        }
+        // 2. SUMMARY CARD
+        // 🚀 Using real userName and email fetched from the dedicated endpoint
+        document.getElementById('detail-customer-name').textContent = order.userName || 'N/A';
+        document.getElementById('detail-customer-email').textContent = order.email || 'N/A';
+        document.getElementById('detail-date').textContent = formatDate(order.createdAt);
+        document.getElementById('detail-payment-method').textContent = order.paymentMethod || 'Bank Transfer'; // Default if missing
+        document.getElementById('detail-subtotal').textContent = formatNaira(order.subtotal);
+        document.getElementById('detail-shipping').textContent = formatNaira(order.shippingFee);
+        document.getElementById('detail-tax').textContent = formatNaira(order.tax);
+        document.getElementById('detail-total').textContent = formatNaira(order.totalAmount);
         
-        /**
-         * Renders the full details of a single order into the dedicated section.
-         * @param {Object} order - The single order object with full details.
-         */
-        function renderOrderDetail(order) {
-            currentDetailOrderId = order._id; // Set the current order ID
-            showContent('orderdetails'); // Switch view
-
-            // 1. HEADER
-            document.getElementById('detail-order-id').textContent = order._id.substring(0, 8);
-
-            // 2. SUMMARY CARD
-            document.getElementById('detail-customer-name').textContent = order.userName;
-            document.getElementById('detail-customer-email').textContent = order.email;
-            document.getElementById('detail-date').textContent = formatDate(order.createdAt);
-            document.getElementById('detail-payment-method').textContent = order.paymentMethod || 'Bank Transfer'; // Default if missing
-            document.getElementById('detail-subtotal').textContent = formatNaira(order.subtotal);
-            document.getElementById('detail-shipping').textContent = formatNaira(order.shippingFee);
-            document.getElementById('detail-tax').textContent = formatNaira(order.tax);
-            document.getElementById('detail-total').textContent = formatNaira(order.totalAmount);
+        // 3. ORDER ITEMS
+        detailItemsBody.innerHTML = '';
+        // 🚀 Using the augmented 'items' array which contains 'name' and 'imageUrl'
+        order.items.forEach(item => {
+            const itemRow = document.createElement('tr');
+            itemRow.className = 'border-b hover:bg-gray-50';
             
-            // 3. ORDER ITEMS
-            detailItemsBody.innerHTML = '';
-            // NOTE: Since the backend /pending route does not return items, 
-            // the item data here is MOCK data for demonstration. 
-            // A real implementation needs an API endpoint that returns item details.
-            order.items.forEach(item => {
-                const itemRow = document.createElement('tr');
-                itemRow.className = 'border-b hover:bg-gray-50';
-                itemRow.innerHTML = `
-                    <td class="px-4 py-3 text-sm font-medium text-gray-900 flex items-center">
-                        <img src="https://placehold.co/32x32/CBD5E1/475569/png?text=P" alt="Product Image" class="w-8 h-8 rounded mr-2">
-                        ${item.name}
-                    </td>
-                    <td class="px-4 py-3 text-sm text-gray-600">${item.variation || 'N/A'}</td>
-                    <td class="px-4 py-3 text-sm text-gray-900 text-right">${formatNaira(item.priceAtTimeOfPurchase || item.price)}</td>
-                    <td class="px-4 py-3 text-sm text-gray-600 text-center">${item.quantity}</td>
-                    <td class="px-4 py-3 text-sm font-semibold text-gray-900 text-right">${formatNaira(item.subtotal || (item.quantity * item.price))}</td>
-                `;
-                detailItemsBody.appendChild(itemRow);
+            // Determine the price to display (use the priceAtTimeOfPurchase from the order item)
+            const itemPrice = item.price || item.priceAtTimeOfPurchase;
+            const itemSubtotal = item.subtotal || (item.quantity * itemPrice);
+            
+            itemRow.innerHTML = `
+                <td class="px-4 py-3 text-sm font-medium text-gray-900 flex items-center">
+                    <img src="${item.imageUrl || 'https://placehold.co/32x32/CBD5E1/475569/png?text=P'}" 
+                         alt="${item.name} image" class="w-8 h-8 rounded mr-2 object-cover">
+                    ${item.name}
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-600">${item.variation || 'N/A'}</td>
+                <td class="px-4 py-3 text-sm text-gray-900 text-right">${formatNaira(itemPrice)}</td>
+                <td class="px-4 py-3 text-sm text-gray-600 text-center">${item.quantity}</td>
+                <td class="px-4 py-3 text-sm font-semibold text-gray-900 text-right">${formatNaira(itemSubtotal)}</td>
+            `;
+            detailItemsBody.appendChild(itemRow);
+        });
+        
+        // 4. PAYMENT RECEIPT
+        const receiptContainer = document.getElementById('receipt-container');
+        receiptContainer.innerHTML = ''; // Clear previous content
+
+        if (order.paymentReceiptUrl) {
+            receiptContainer.innerHTML = `
+                <a href="${order.paymentReceiptUrl}" target="_blank" class="block w-full h-80 overflow-hidden bg-gray-100 rounded-lg group">
+                    <img src="${order.paymentReceiptUrl}" alt="Payment Receipt" class="object-contain w-full h-full transition duration-300 group-hover:opacity-80"/>
+                </a>
+                <a href="${order.paymentReceiptUrl}" target="_blank" class="mt-3 inline-flex items-center text-sm font-medium text-emerald-600 hover:text-emerald-800 transition">
+                    View Full Receipt in New Tab 
+                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                </a>
+            `;
+        } else {
+            receiptContainer.innerHTML = '<p class="text-gray-500 p-8">No receipt image uploaded for this order.</p>';
+        }
+        
+        // Update Action Card state (Color) based on status
+        const actionCard = document.getElementById('detail-actions-card');
+        actionCard.classList.remove('border-red-500', 'border-gray-300');
+        if (order.status === 'Pending') {
+             actionCard.classList.add('border-yellow-300');
+        } else {
+            actionCard.classList.add('border-gray-300');
+        }
+        
+        // Update action button visibility/text
+        const confirmBtn = document.getElementById('detail-confirm-btn');
+        if (order.status === 'Pending') {
+            confirmBtn.classList.remove('hidden');
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = '✅ Confirm Payment & Process Order';
+            confirmBtn.classList.remove('opacity-50');
+        } else {
+            confirmBtn.classList.add('hidden');
+        }
+        
+    }
+    
+    /**
+     * Sends a request to the API to confirm (complete) an order.
+     * @param {string} orderId - The ID of the order to confirm.
+     */
+    async function confirmOrder(orderId) {
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            logoutAdmin();
+            return;
+        }
+        
+        // Target the button in the details section for a better UX when confirming from detail view
+        const button = document.getElementById(`detail-confirm-btn`) || document.getElementById(`confirm-btn-${orderId}`);
+        if (button) {
+            button.disabled = true;
+            button.textContent = 'Confirming...';
+            button.classList.add('opacity-50');
+        }
+
+        try {
+            // Endpoint: PUT /api/admin/orders/:orderId/confirm
+            const response = await fetch(`/api/admin/orders/${orderId}/confirm`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
             });
             
-            // 4. PAYMENT RECEIPT
-            const receiptContainer = document.getElementById('receipt-container');
-            receiptContainer.innerHTML = ''; // Clear previous content
+            const responseData = await response.json();
 
-            if (order.paymentReceiptUrl) {
-                receiptContainer.innerHTML = `
-                    <a href="${order.paymentReceiptUrl}" target="_blank" class="block w-full h-80 overflow-hidden bg-gray-100 rounded-lg group">
-                        <img src="${order.paymentReceiptUrl}" alt="Payment Receipt" class="object-contain w-full h-full transition duration-300 group-hover:opacity-80"/>
-                    </a>
-                    <a href="${order.paymentReceiptUrl}" target="_blank" class="mt-3 inline-flex items-center text-sm font-medium text-emerald-600 hover:text-emerald-800 transition">
-                        View Full Receipt in New Tab 
-                        <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-                    </a>
-                `;
+            if (!response.ok) {
+                // Check for specific backend errors, e.g., inventory failure
+                if (response.status === 500 && responseData.error && responseData.message.includes('inventory deduction failed')) {
+                    throw new Error(responseData.message || 'Payment confirmed, but inventory failed.');
+                }
+                throw new Error(responseData.message || `Failed to confirm order: ${response.statusText}`);
+            }
+            
+            showToast(`Order #${orderId.substring(0, 8)} confirmed and processed successfully!`, 'bg-emerald-500');
+            
+            // Reload the order list to reflect the change
+            await loadUserOrders();
+
+        } catch (error) {
+            console.error('Confirmation error:', error);
+            
+            // Check if we are still in the detail view
+            if (currentDetailOrderId === orderId) {
+                // Update detail action button for the error state
+                const actionCard = document.getElementById('detail-actions-card');
+                actionCard.classList.remove('border-yellow-300');
+                actionCard.classList.add('border-red-500');
+                showToast(error.message || `Failed to confirm order #${orderId.substring(0, 8)}.`, 'bg-red-500');
             } else {
-                receiptContainer.innerHTML = '<p class="text-gray-500 p-8">No receipt image uploaded for this order.</p>';
-            }
-        }
-        
-        /**
-         * Sends a request to the API to confirm (complete) an order.
-         * @param {string} orderId - The ID of the order to confirm.
-         */
-        async function confirmOrder(orderId) {
-            const token = localStorage.getItem('adminToken');
-            if (!token) {
-                logoutAdmin();
-                return;
+                showToast(error.message || `Failed to confirm order #${orderId.substring(0, 8)}.`, 'bg-red-500');
             }
             
-            // Target the button in the details section for a better UX when confirming from detail view
-            const button = document.getElementById(`detail-confirm-btn`) || document.getElementById(`confirm-btn-${orderId}`);
+            // Re-enable button on failure
             if (button) {
-                button.disabled = true;
-                button.textContent = 'Confirming...';
-                button.classList.add('opacity-50');
-            }
-
-            try {
-                // Endpoint: PUT /api/admin/orders/:orderId/confirm
-                const response = await fetch(`/api/admin/orders/${orderId}/confirm`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-                
-                const responseData = await response.json();
-
-                if (!response.ok) {
-                     // Check for specific backend errors, e.g., inventory failure
-                    if (response.status === 500 && responseData.error && responseData.error.includes('Inventory deduction failed')) {
-                        throw new Error(responseData.message || 'Payment confirmed, but inventory failed.');
-                    }
-                    throw new Error(`Failed to confirm order: ${response.statusText}`);
-                }
-                
-                showToast(`Order #${orderId.substring(0, 8)} confirmed and processed successfully!`, 'bg-emerald-500');
-                
-                // Reload the order list to reflect the change
-                await loadUserOrders();
-
-            } catch (error) {
-                console.error('Confirmation error:', error);
-                
-                // Check if we are still in the detail view
-                if (currentDetailOrderId === orderId) {
-                    // Update detail action button for the error state
-                    const actionCard = document.getElementById('detail-actions-card');
-                    actionCard.classList.remove('border-yellow-300');
-                    actionCard.classList.add('border-red-500');
-                    showToast(error.message || `Failed to confirm order #${orderId.substring(0, 8)}.`, 'bg-red-500');
-                } else {
-                    showToast(error.message || `Failed to confirm order #${orderId.substring(0, 8)}.`, 'bg-red-500');
-                }
-                
-                // Re-enable button on failure
-                if (button) {
-                    button.disabled = false;
-                    button.textContent = '✅ Confirm Payment & Process Order';
-                    button.classList.remove('opacity-50');
-                }
+                button.disabled = false;
+                button.textContent = '✅ Confirm Payment & Process Order';
+                button.classList.remove('opacity-50');
             }
         }
+    }
 
-        /**
-         * Renders the fetched orders into the table.
-         * @param {Array<Object>} orders - The list of orders to render.
-         */
-        function renderOrders(orders) {
-            ordersTableBody.innerHTML = '';
-            globalOrdersData = orders; // Save data globally for detail view access
-            
-            const pendingOrders = orders.filter(order => order.status === 'Pending');
-
-            pendingCountElement.textContent = `${pendingOrders.length} Pending`;
-
-            if (pendingOrders.length === 0) {
-                ordersTableContainer.classList.add('hidden');
-                emptyState.classList.remove('hidden');
-                return;
-            }
-
-            emptyState.classList.add('hidden');
-            ordersTableContainer.classList.remove('hidden');
-
-            pendingOrders.forEach(order => {
-                const tr = document.createElement('tr');
-                tr.className = 'hover:bg-gray-50';
-                
-                const date = formatDate(order.createdAt);
-
-                tr.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${order._id.substring(0, 8)}...</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${order.userName || order.email}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-emerald-600">${formatNaira(order.totalAmount)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${date}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                            ${order.status}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                        <button 
-                            id="view-btn-${order._id}"
-                            onclick="handleViewDetails('${order._id}')" 
-                            class="text-white bg-blue-600 hover:bg-blue-700 py-1 px-3 rounded-lg text-xs transition duration-150 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                        >
-                            View Details
-                        </button>
-                    </td>
-                `;
-                ordersTableBody.appendChild(tr);
-            });
-        }
+    /**
+     * Renders the fetched orders into the table.
+     * @param {Array<Object>} orders - The list of orders to render.
+     */
+    function renderOrders(orders) {
+        ordersTableBody.innerHTML = '';
+        globalOrdersData = orders; // Save data globally 
         
-        /**
-         * Handles the click on 'View Details' and loads the order details section.
-         * @param {string} orderId - The ID of the order to view.
-         */
-        async function handleViewDetails(orderId) {
-            // Show loading state or temporarily disable interaction
-            showToast(`Loading details for order #${orderId.substring(0, 8)}...`, 'bg-blue-500');
-            
-            // In a real application, you would make an API call here to get the full details (including items, which the pending list lacks)
-            const orderDetails = await fetchDetailedOrder(orderId); 
-            
-            if (orderDetails) {
-                renderOrderDetail(orderDetails);
-            }
-        }
-        
-        /**
-         * Main function to fetch and display orders.
-         */
-        async function loadUserOrders() {
-            loadingIndicator.classList.remove('hidden');
+        const pendingOrders = orders.filter(order => order.status === 'Pending');
+
+        pendingCountElement.textContent = `${pendingOrders.length} Pending`;
+
+        if (pendingOrders.length === 0) {
             ordersTableContainer.classList.add('hidden');
-            emptyState.classList.add('hidden');
-
-            const orders = await fetchOrders();
-
-            loadingIndicator.classList.add('hidden');
-            
-            renderOrders(orders);
+            emptyState.classList.remove('hidden');
+            return;
         }
+
+        emptyState.classList.add('hidden');
+        ordersTableContainer.classList.remove('hidden');
+
+        pendingOrders.forEach(order => {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-gray-50';
+            
+            const date = formatDate(order.createdAt);
+            // 🚀 The /api/admin/orders/pending route now returns userName and email
+            const customerDisplay = order.userName && order.userName !== 'N/A' ? order.userName : order.email;
+
+            tr.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${order._id.substring(0, 8)}...</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${customerDisplay}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-emerald-600">${formatNaira(order.totalAmount)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${date}</td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                        ${order.status}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                    <button 
+                        id="view-btn-${order._id}"
+                        onclick="handleViewDetails('${order._id}')" 
+                        class="text-white bg-blue-600 hover:bg-blue-700 py-1 px-3 rounded-lg text-xs transition duration-150 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    >
+                        View Details
+                    </button>
+                </td>
+            `;
+            ordersTableBody.appendChild(tr);
+        });
+    }
+    
+    /**
+     * Handles the click on 'View Details' and loads the order details section.
+     * @param {string} orderId - The ID of the order to view.
+     */
+    async function handleViewDetails(orderId) {
+        // Show loading state 
+        showToast(`Loading details for order #${orderId.substring(0, 8)}...`, 'bg-blue-500');
         
-        /**
-         * Displays a temporary notification (toast).
-         * @param {string} message - The message to display.
-         * @param {string} bgColorClass - Tailwind class for background color (e.g., 'bg-emerald-500').
-         */
-        function showToast(message, bgColorClass) {
-            const toast = document.createElement('div');
-            toast.className = `p-4 rounded-lg shadow-xl text-white ${bgColorClass} transition-opacity duration-300`;
-            toast.textContent = message;
-            
-            toastContainer.appendChild(toast);
-            
-            // Auto-hide the toast after 3 seconds
-            setTimeout(() => {
-                toast.classList.add('opacity-0');
-                setTimeout(() => toast.remove(), 500); // Remove from DOM after fade out
-            }, 3000);
+        // 🚀 Call the REAL API endpoint
+        const orderDetails = await fetchDetailedOrder(orderId); 
+        
+        if (orderDetails) {
+            renderOrderDetail(orderDetails);
+            // Dismiss the loading toast if successful (it will fade automatically, but clearing ensures no overlap)
+            toastContainer.innerHTML = '';
         }
+    }
+    
+    /**
+     * Main function to fetch and display orders.
+     */
+    async function loadUserOrders() {
+        loadingIndicator.classList.remove('hidden');
+        ordersTableContainer.classList.add('hidden');
+        emptyState.classList.add('hidden');
 
-    </script>
+        const orders = await fetchOrders();
+
+        loadingIndicator.classList.add('hidden');
+        
+        renderOrders(orders);
+    }
+    
+    /**
+     * Displays a temporary notification (toast).
+     * @param {string} message - The message to display.
+     * @param {string} bgColorClass - Tailwind class for background color (e.g., 'bg-emerald-500').
+     */
+    function showToast(message, bgColorClass) {
+        const toast = document.createElement('div');
+        toast.className = `p-4 rounded-lg shadow-xl text-white ${bgColorClass} transition-opacity duration-300`;
+        toast.textContent = message;
+        
+        toastContainer.appendChild(toast);
+        
+        // Auto-hide the toast after 3 seconds
+        setTimeout(() => {
+            toast.classList.add('opacity-0');
+            setTimeout(() => toast.remove(), 500); // Remove from DOM after fade out
+        }, 3000);
+    }
+
+</script>
 
 </body>
 </html>

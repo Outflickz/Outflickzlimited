@@ -401,7 +401,8 @@ userSchema.pre('save', async function(next) {
 
 const User = mongoose.models.User || mongoose.model('User', userSchema);
 
-// --- Product Variation Sub-Schema (Supporting Dual Images) ---
+
+// --- CORRECTED Product Variation Sub-Schema ---
 
 const ProductVariationSchema = new mongoose.Schema({
     variationIndex: { 
@@ -410,24 +411,27 @@ const ProductVariationSchema = new mongoose.Schema({
         min: 1, 
         max: 4 
     },
-    
     frontImageUrl: { 
         type: String, 
-        required: [true, 'Front view image URL is required'], // Stores the permanent B2 URL
+        required: [true, 'Front view image URL is required'],
         trim: true 
     }, 
     backImageUrl: { 
         type: String, 
-        required: [true, 'Back view image URL is required'], // Stores the permanent B2 URL
+        required: [true, 'Back view image URL is required'],
         trim: true 
     }, 
-    
     colorHex: { 
         type: String, 
         required: [true, 'Color Hex code is required'], 
-        // Standard full hex code validation
         match: [/^#[0-9A-F]{6}$/i, 'Color must be a valid hex code (e.g., #RRGGBB)'] 
-    }
+    },
+    
+    // ⚠️ CRITICAL ADDITION: Stock array for per-size inventory tracking
+    sizes: [{
+        size: { type: String, required: true }, // e.g., 'S', 'M', 'L'
+        stock: { type: Number, required: true, min: 0, default: 0 } // Stock count for this specific size/variation combination
+    }]
 }, { _id: false });
 
 
@@ -722,6 +726,7 @@ const cartSchema = new mongoose.Schema({
 
 const Cart = mongoose.models.Cart || mongoose.model('Cart', cartSchema);
 module.exports = Cart;
+
 
 const ActivityLogSchema = new mongoose.Schema({
     // Type of event: 'LOGIN', 'ORDER_PLACED', 'REGISTERED', 'FORGOT_PASSWORD', 'ADD_TO_CART'
@@ -4009,6 +4014,12 @@ app.get('/api/orders/history', verifyUserToken, async (req, res) => {
 });
 
 module.exports = {
+    WearsCollection,
+    NewArrivals,
+    CapCollection,
+    PreOrderCollection,
+    Order,
+    Cart,
     app,
     mongoose,
     populateInitialData,

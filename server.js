@@ -3879,7 +3879,7 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
                 status: newOrder.status,
                 firstName: firstName,
                 lastName: lastName,
-                ReceiptUrl: paymentReceiptUrl 
+                paymentReceiptUrl: paymentReceiptUrl
             });
 
         } catch (error) {

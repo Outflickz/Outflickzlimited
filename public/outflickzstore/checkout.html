@@ -901,7 +901,7 @@ if (isSuccess && data.orderId) {
     sendAdminOrderNotification(
         data.orderId, 
         paymentMethod.value, 
-        data.ReceiptUrl // <<< CORRECT: Pass the receipt URL here
+        data.paymentReceiptUrl // <<< CORRECT: Pass the receipt URL here
     );
     
     // STEP 2: Handle Redirection

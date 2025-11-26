@@ -1399,7 +1399,7 @@ app.get('/api/admin/users/:id/orders', verifyToken, async (req, res) => {
                 const productInfo = productMap[productIdStr];
                 
                 // Default values for missing or deleted products
-                let imageUrl = 'https://via.placeholder.com/64x64/E0E7FF/4338CA?text=N/A';
+                let imageUrl = 'https://placehold.co/32x32/CBD5E1/475569/png?text=N/A';
                 let productName = 'Unknown Product (Deleted)';
                 let debugReason = 'No Product Info found (Product deleted/mismatched).';
 

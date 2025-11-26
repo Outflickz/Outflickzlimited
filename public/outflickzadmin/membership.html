@@ -375,7 +375,7 @@ function renderOrderHistory(orders) {
     }
 
     // Define a fallback image URL for failed loads
-    const FALLBACK_IMAGE_URL = 'https://via.placeholder.com/32x32/CBD5E1/475569?text=N/A';
+const FALLBACK_IMAGE_URL = 'https://placehold.co/32x32/CBD5E1/475569/png?text=N/A';
     
     orders.forEach(order => {
         const statusBadge = getStatusBadge(order.status);

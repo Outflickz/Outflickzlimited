@@ -1247,7 +1247,7 @@ app.post('/api/admin/login', async (req, res) => {
         const token = jwt.sign(
             { id: adminUser.id, email: adminUser.email, role: 'admin' }, 
             JWT_SECRET, 
-            { expiresIn: '24h' }
+            { expiresIn: '2h' }
         );
         
         res.status(200).json({ token, message: 'Login successful' });
@@ -3120,7 +3120,7 @@ app.post('/api/users/login', async (req, res) => {
         const token = jwt.sign(
             { id: user._id, email: user.email, role: user.status.role || 'user' }, 
             JWT_SECRET, 
-            { expiresIn: '7d' } 
+            { expiresIn: '2h' } 
         );
         
         // --- 🔑 Set the Token as an HTTP-only Cookie ---

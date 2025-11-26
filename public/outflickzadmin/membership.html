@@ -263,22 +263,23 @@
             window.location.href = './admin-login.html'; 
         }
 
-        // Helper function for date formatting
-        function formatDate(dateString) {
-            if (!dateString) return 'N/A';
-            try {
-                const options = { year: 'numeric', month: 'short', day: 'numeric' };
-                return new Date(dateString).toLocaleDateString(undefined, options);
-            } catch (e) {
-                return 'Invalid Date';
-            }
-        }
-        
-        // Helper function for currency formatting
-        function formatCurrency(amount) {
-            if (typeof amount !== 'number') return 'N/A';
-            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
-        }
+      // Helper function for date formatting
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            try {
+                const options = { year: 'numeric', month: 'short', day: 'numeric' };
+                return new Date(dateString).toLocaleDateString(undefined, options);
+            } catch (e) {
+                return 'Invalid Date';
+            }
+        }
+        
+        // Helper function for currency formatting
+        function formatCurrency(amount) {
+            if (typeof amount !== 'number') return 'N/A';
+            // UPDATED: Changed from 'en-US', 'USD' to 'en-NG', 'NGN' (Naira)
+            return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount);
+        }
 
         // Helper function to determine status badge classes
         function getStatusBadge(status) {

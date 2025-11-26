@@ -1304,8 +1304,7 @@ app.get('/api/admin/users/all', verifyToken, async (req, res) => {
         return res.status(500).json({ message: 'Server error: Failed to retrieve user list.' });
     }
 });
-
-// NEW: 1. GET /api/admin/users/:id (Fetch Single User Profile - Protected Admin)
+// EXISTING: 1. GET /api/admin/users/:id (Fetch Single User Profile - Protected Admin)
 app.get('/api/admin/users/:id', verifyToken, async (req, res) => {
     try {
         const userId = req.params.id;
@@ -1350,6 +1349,79 @@ app.get('/api/admin/users/:id', verifyToken, async (req, res) => {
         return res.status(500).json({ message: 'Server error: Failed to retrieve user details.' });
     }
 });
+
+// =========================================================
+// 2. NEW: GET /api/admin/users/:id/orders (Fetch Single User's Orders - Protected Admin)
+// =========================================================
+app.get('/api/admin/users/:id/orders', verifyToken, async (req, res) => {
+    try {
+        const userId = req.params.id;
+
+        // 1. Fetch Orders for the specific userId
+        const orders = await Order.find({ userId: userId }).sort({ createdAt: -1 }).lean();
+
+        if (!orders || orders.length === 0) {
+            return res.status(200).json({ orders: [] });
+        }
+
+        // 2. Get all unique product IDs from all orders
+        const allProductIds = orders.flatMap(order => 
+            order.items.map(item => item.productId)
+        );
+        const uniqueProductIds = [...new Set(allProductIds.map(id => id.toString()))];
+
+        // 3. Fetch product details (Names and Image URLs) from Wear and Cap collections
+        // We use a general function to fetch product details based on the ID.
+        // This is a simplification; a more robust solution would use Mongoose aggregation.
+        
+        const wearDetails = await Wear.find({ _id: { $in: uniqueProductIds } }).select('name imageUrl').lean();
+        const capDetails = await Cap.find({ _id: { $in: uniqueProductIds } }).select('name imageUrl').lean();
+
+        const productMap = {};
+        [...wearDetails, ...capDetails].forEach(product => {
+            productMap[product._id.toString()] = {
+                name: product.name,
+                imageUrl: product.imageUrl // Key field for the frontend
+            };
+        });
+
+        // 4. Transform and merge product details into the orders array
+        const detailedOrders = orders.map(order => {
+            const detailedItems = order.items.map(item => {
+                const productIdStr = item.productId.toString();
+                const productInfo = productMap[productIdStr] || { name: 'Unknown Product', imageUrl: 'https://via.placeholder.com/32?text=N/A' };
+
+                return {
+                    ...item,
+                    name: productInfo.name,
+                    imageUrl: productInfo.imageUrl, // This is what the frontend needs
+                    quantity: item.quantity,
+                    price: item.priceAtTimeOfPurchase,
+                };
+            });
+
+            return {
+                ...order,
+                items: detailedItems,
+                // Ensure totalAmount and createdAt are passed as expected by the frontend
+                totalAmount: order.totalAmount, 
+                createdAt: order.createdAt
+            };
+        });
+
+        return res.status(200).json({ 
+            orders: detailedOrders
+        });
+
+    } catch (error) {
+        if (error.kind === 'ObjectId') {
+            return res.status(400).json({ message: 'Invalid User ID format.' });
+        }
+        console.error('Admin user orders fetch error:', error);
+        return res.status(500).json({ message: 'Server error: Failed to retrieve user orders.' });
+    }
+});
+
 // -----------------------------------------------------------------
 // 🧢 CAP COLLECTION API ROUTES (CRUD) 🧢
 // -----------------------------------------------------------------

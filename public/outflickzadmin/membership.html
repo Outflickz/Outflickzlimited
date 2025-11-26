@@ -149,9 +149,10 @@
                 <p class="mt-4 text-gray-600 text-sm">Loading user profile...</p>
             </div>
             
-            <div id="user-profile-data" class="bg-white p-6 rounded-xl shadow-lg space-y-6 hidden">
+            <div id="user-profile-data" class="bg-white p-6 rounded-xl shadow-lg space-y-8 hidden">
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-b pb-4">
+                <h3 class="text-xl font-semibold text-gray-800 border-b pb-2">Basic Information</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
                         <p class="text-xs font-medium text-gray-500">Email Address</p>
                         <p class="text-lg font-medium text-gray-900" id="detail-email"></p>
@@ -160,32 +161,56 @@
                         <p class="text-xs font-medium text-gray-500">Joined On</p>
                         <p class="text-lg text-gray-700" id="detail-joined"></p>
                     </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <p class="text-xs font-medium text-gray-500">Membership Status</p>
                         <p class="text-xl font-bold" id="detail-status"></p>
                     </div>
+                </div>
+
+                <h3 class="text-xl font-semibold text-gray-800 border-b pb-2">Contact & Shipping</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <p class="text-xs font-medium text-gray-500">Contact Phone 📞</p>
                         <p class="text-lg text-gray-700" id="detail-phone"></p>
                     </div>
-                </div>
-
-                <div>
-                    <p class="text-xs font-medium text-gray-500 mb-1">Shipping Address 🏠</p>
-                    <div class="bg-gray-50 p-4 rounded-lg">
-                        <p class="text-base text-gray-700" id="detail-address">No Address Provided</p>
+                    <div>
+                        <p class="text-xs font-medium text-gray-500">Shipping Address 🏠</p>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <p class="text-base text-gray-700" id="detail-address">No Address Provided</p>
+                        </div>
                     </div>
                 </div>
 
+                <h3 class="text-xl font-semibold text-gray-800 border-b pb-2 flex items-center space-x-2">
+                    <span>Order History 📦</span>
+                    <span id="order-count" class="text-sm font-normal bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full">Total Orders: 0</span>
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Placed</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Preview</th> 
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Items</th> 
+                            </tr>
+                        </thead>
+                        <tbody id="order-history-body" class="bg-white divide-y divide-gray-200">
+                            <tr>
+                                <td colspan="6" class="px-4 py-4 text-center text-sm text-gray-500">No orders found for this user.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
                 </div>
             
             <div id="details-error-message" class="hidden text-center p-8 bg-red-100 text-red-700 rounded-xl shadow-lg mt-6">
                 Could not load user data. Check network connection or API status.
             </div>
         </section>
+
         <section id="content-dashboard" class="content-section hidden"></section>
         <section id="content-settings" class="content-section hidden"></section>
 
@@ -216,6 +241,10 @@
         const detailJoined = document.getElementById('detail-joined');
         const detailPhone = document.getElementById('detail-phone');
         const detailAddress = document.getElementById('detail-address');
+        
+        // NEW Order History Elements
+        const orderHistoryBody = document.getElementById('order-history-body');
+        const orderCountDisplay = document.getElementById('order-count');
         // --- END NEW SECTION VARIABLES ---
 
         // --- Navigation Functions (Matching admin-dashboard.html) ---
@@ -245,6 +274,38 @@
             }
         }
         
+        // Helper function for currency formatting
+        function formatCurrency(amount) {
+            if (typeof amount !== 'number') return 'N/A';
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+        }
+
+        // Helper function to determine status badge classes
+        function getStatusBadge(status) {
+            let className = '';
+            let text = status || 'N/A';
+            
+            switch (status) {
+                case 'Delivered':
+                    className = 'bg-green-100 text-green-800';
+                    break;
+                case 'Shipped':
+                    className = 'bg-blue-100 text-blue-800';
+                    break;
+                case 'Processing':
+                    className = 'bg-yellow-100 text-yellow-800';
+                    break;
+                case 'Cancelled':
+                    className = 'bg-red-100 text-red-800';
+                    break;
+                default:
+                    className = 'bg-gray-100 text-gray-800';
+                    break;
+            }
+            
+            return `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${className}">${text}</span>`;
+        }
+        
         // --- View Switching Functions ---
         
         /** Shows the main user list table and hides the details view. */
@@ -258,6 +319,105 @@
             contentMembership.classList.add('hidden');
             contentUserDetails.classList.remove('hidden');
         }
+        
+        // --- Order History Fetch Function ---
+        
+        /**
+         * Fetches the order history for a specific user ID.
+         * Assumes a protected GET /api/admin/users/:id/orders endpoint exists.
+         * @param {string} userId - The ID of the user to fetch orders for.
+         * @returns {Promise<Array<Object> | null>} Array of order objects or null on error.
+         */
+        async function fetchUserOrders(userId) {
+            const token = localStorage.getItem('adminToken');
+            if (!token) return null;
+
+            try {
+                // ASSUMPTION: Backend route for orders for a user
+                const response = await fetch(`/api/admin/users/${userId}/orders`, { 
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}` 
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                         // Don't log out here, let viewUserDetails handle primary auth
+                        throw new Error("Order API Auth Failure");
+                    }
+                    throw new Error(`Order HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                // ASSUMPTION: Backend returns { orders: [...] }
+                // Orders array is expected to have an 'items' array, where each item has 'name', 'quantity', and 'imageUrl'.
+                return data.orders || []; 
+
+            } catch (error) {
+                console.error(`Error fetching user orders for ID ${userId}:`, error);
+                return null;
+            }
+        }
+        
+        /**
+         * Renders the order history into the table, including product images.
+         * @param {Array<Object>} orders - Array of order objects.
+         */
+        function renderOrderHistory(orders) {
+            orderHistoryBody.innerHTML = ''; // Clear previous data
+            orderCountDisplay.textContent = `Total Orders: ${orders.length.toLocaleString()}`;
+
+            if (!orders || orders.length === 0) {
+                orderHistoryBody.innerHTML = '<tr><td colspan="6" class="px-4 py-4 text-center text-sm text-gray-500">No orders found for this user.</td></tr>';
+                return;
+            }
+
+            orders.forEach(order => {
+                const statusBadge = getStatusBadge(order.status);
+                
+                // Construct the product preview images/list
+                let productPreviewHtml = `<div class="flex -space-x-2 overflow-hidden">`;
+                const maxImages = 3;
+                
+                if (order.items && Array.isArray(order.items)) {
+                    order.items.slice(0, maxImages).forEach(item => {
+                        // ASSUMPTION: item has name, quantity, and imageUrl
+                        productPreviewHtml += `
+                            <img class="inline-block h-8 w-8 rounded-md ring-2 ring-white object-cover shadow-md" 
+                                src="${item.imageUrl || 'https://via.placeholder.com/32?text=?'}" 
+                                alt="${item.name || 'Product'}">
+                        `;
+                    });
+                    
+                    if (order.items.length > maxImages) {
+                         productPreviewHtml += `<span class="inline-flex items-center justify-center h-8 w-8 rounded-full bg-gray-200 text-xs text-gray-600 ring-2 ring-white shadow-md">
+                            +${order.items.length - maxImages}
+                        </span>`;
+                    }
+                } else {
+                    productPreviewHtml = '<span class="text-xs text-gray-500">N/A</span>';
+                }
+                productPreviewHtml += `</div>`;
+                
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                
+                // NOTE: Added the new <td> for Product Preview
+                row.innerHTML = `
+                    <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 truncate max-w-xs">${order._id}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">${formatDate(order.createdAt)}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700 font-semibold">${formatCurrency(order.totalAmount)}</td>
+                    <td class="px-4 py-4 whitespace-nowrap">${statusBadge}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm">${productPreviewHtml}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 max-w-xs truncate">${order.items.length} item(s)</td>
+                `;
+                orderHistoryBody.appendChild(row);
+            });
+        }
+        
+        // --- End Order History Functions ---
+
 
         /**
          * Fetches the full profile details for a specific user ID.
@@ -309,13 +469,17 @@
 
         /**
          * Handles the click of the 'View Details' button and loads the data into the details section.
+         * Updated to include Order History.
          * @param {string} userId - The ID of the user whose details to view.
          */
         async function viewUserDetails(userId) {
             // 1. Switch the view
             showUserDetailsView();
 
-            const user = await fetchUserDetails(userId);
+            const userPromise = fetchUserDetails(userId);
+            const ordersPromise = fetchUserOrders(userId); // Fetch orders concurrently
+
+            const [user, orders] = await Promise.all([userPromise, ordersPromise]);
 
             if (user) {
                 // ASSUMPTION: The user object contains: name, email, isMember, createdAt, phone, contactAddress
@@ -337,6 +501,15 @@
                 // Render contact info
                 detailPhone.textContent = user.phone || 'N/A';
                 detailAddress.textContent = user.contactAddress || 'No Address Provided';
+
+                // Render Order History
+                if (orders !== null) {
+                    renderOrderHistory(orders);
+                } else {
+                    // Handle orders fetch failure (if separate from user details failure)
+                    orderHistoryBody.innerHTML = '<tr><td colspan="6" class="px-4 py-4 text-center text-sm text-red-500">Failed to load order history.</td></tr>';
+                    orderCountDisplay.textContent = `Total Orders: N/A`;
+                }
 
                 userProfileData.classList.remove('hidden');
             } else {
@@ -458,6 +631,10 @@
         // --- Initialization and Event Listeners ---
 
         document.addEventListener('DOMContentLoaded', () => {
+            // Expose global functions required by inline HTML handlers
+            window.viewUserDetails = viewUserDetails;
+            window.showMembershipList = showMembershipList;
+
             loadMembershipData();
 
             // Toggle sidebar visibility on mobile

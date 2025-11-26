@@ -1118,22 +1118,37 @@ app.get('/preorders', (req, res) => { res.sendFile(path.join(__dirname, 'public'
 
 
 const verifyToken = (req, res, next) => {
+    // 1. Check for Authorization header format (Bearer <token>)
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ message: 'Access denied. No token provided or token format invalid.' });
     }
+    
+    // 2. Extract the token
     const token = authHeader.split(' ')[1];
+    
     try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        req.adminUser = decoded;
+        // Use the defined secret (JWT_SECRET in this scope)
+        const decoded = jwt.verify(token, JWT_SECRET); 
+        
+        // 3. CRUCIAL: Check for the 'admin' role (Authorization)
+        if (decoded.role !== 'admin') { 
+            return res.status(403).json({ message: 'Forbidden. Access limited to administrators.' });
+        }
+        
+        // 4. Attach admin data (req.adminUser = { id: 123, role: 'admin' })
+        req.adminUser = decoded; 
         next();
+        
     } catch (err) {
-        res.status(401).json({ message: 'Invalid or expired token.' });
+        // 5. Handle verification errors (Signature mismatch, expiry, etc.)
+        res.status(401).json({ message: 'Invalid or expired token. Please log in again.' });
     }
 };
 
+// --- Multer Configuration (upload) ---
 const upload = multer({ 
-    storage: multer.memoryStorage(),
+    storage: multer.memoryStorage(), // Stores file buffer in req.file.buffer
     limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
 
@@ -1257,6 +1272,37 @@ app.get('/api/admin/dashboard/stats', verifyToken, async (req, res) => {
         console.error("Dashboard Stats API Error:", error.message);
         res.status(500).json({ message: 'Failed to retrieve dashboard stats.' });
     }
+});
+
+app.get('/api/admin/users/all', verifyToken, async (req, res) => {
+    try {
+        // Fetch all users. Select only necessary fields and exclude the password (which is selected: false by default, but we re-specify for clarity).
+        const users = await User.find({})
+            .select('email profile address status membership')
+            .lean(); // Use .lean() for faster query performance since we are only reading
+
+        // Transform the data to match the frontend's expected format (if needed, but here we just return the array)
+        const transformedUsers = users.map(user => ({
+            _id: user._id,
+            name: `${user.profile.firstName || ''} ${user.profile.lastName || ''}`.trim() || 'N/A',
+            email: user.email,
+            isMember: user.status.role === 'vip', // Determine membership status
+            createdAt: user.membership.memberSince,
+            // Include other fields if the admin needs them, but for the table, this is enough
+        }));
+
+
+        // Success Response
+        return res.status(200).json({ 
+            users: transformedUsers,
+            count: transformedUsers.length
+        });
+
+    } catch (error) {
+        console.error('Admin user fetch error:', error);
+        // Return a generic server error
+        return res.status(500).json({ message: 'Server error: Failed to retrieve user list.' });
+    }
 });
 // -----------------------------------------------------------------
 // 🧢 CAP COLLECTION API ROUTES (CRUD) 🧢

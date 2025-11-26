@@ -27,6 +27,9 @@
             background-color: #059669; /* emerald-600 */
             color: white;
         }
+        .content-section {
+            min-height: calc(100vh - 3rem); /* Ensure full height for content sections */
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen flex">
@@ -43,7 +46,7 @@
                 Dashboard
             </button>
             
-            <button id="btn-userorders" onclick="setActiveContent('userorders')" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-emerald-600 hover:bg-emerald-700 active-link">
+            <button id="btn-userorders" onclick="showContent('userorders')" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-emerald-600 hover:bg-emerald-700 active-link">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
                 User Orders
             </button>
@@ -131,6 +134,86 @@
                 <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
             </div>
         </section>
+        
+        <section id="content-orderdetails" class="content-section p-6 pt-16 lg:pt-6 hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-semibold text-gray-800">Order Details: <span id="detail-order-id" class="text-emerald-600"></span></h2>
+                <button onclick="showContent('userorders')" class="flex items-center text-sm font-medium text-gray-600 hover:text-gray-800 transition">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                    Back to Pending List
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="bg-white p-6 rounded-xl shadow-lg">
+                        <h3 class="text-xl font-semibold text-gray-700 mb-4">Ordered Items</h3>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Variation</th>
+                                        <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                                        <th class="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
+                                        <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="detail-items-body" class="bg-white divide-y divide-gray-200">
+                                    </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-xl shadow-lg">
+                        <h3 class="text-xl font-semibold text-gray-700 mb-4">Payment Receipt 🧾</h3>
+                        <div id="receipt-container" class="border border-gray-200 p-4 rounded-lg bg-gray-50 text-center">
+                            </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-1 space-y-6">
+                    <div class="bg-white p-6 rounded-xl shadow-lg">
+                        <h3 class="text-xl font-semibold text-gray-700 mb-4">Order Summary</h3>
+                        <div class="space-y-2 text-sm">
+                            <p class="flex justify-between border-b pb-1"><span>Customer:</span> <span id="detail-customer-name" class="font-medium text-gray-900"></span></p>
+                            <p class="flex justify-between border-b pb-1"><span>Email:</span> <span id="detail-customer-email" class="font-medium text-gray-900"></span></p>
+                            <p class="flex justify-between border-b pb-1"><span>Date Placed:</span> <span id="detail-date" class="font-medium text-gray-900"></span></p>
+                            <p class="flex justify-between border-b pb-1"><span>Payment Method:</span> <span id="detail-payment-method" class="font-medium text-gray-900"></span></p>
+                            <p class="flex justify-between border-b pb-1"><span>Subtotal:</span> <span id="detail-subtotal" class="font-medium text-gray-900"></span></p>
+                            <p class="flex justify-between border-b pb-1"><span>Shipping Fee:</span> <span id="detail-shipping" class="font-medium text-gray-900"></span></p>
+                            <p class="flex justify-between border-b pb-1"><span>Tax:</span> <span id="detail-tax" class="font-medium text-gray-900"></span></p>
+                            <p class="flex justify-between pt-2 border-t border-gray-300">
+                                <span class="text-lg font-bold">Total Amount:</span> 
+                                <span id="detail-total" class="text-lg font-bold text-emerald-600"></span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <div id="detail-actions-card" class="bg-white p-6 rounded-xl shadow-lg border border-yellow-300">
+                        <h3 class="text-xl font-semibold text-red-600 mb-4">Confirm Order Payment</h3>
+                        <p class="text-sm text-gray-600 mb-4">Confirming this order will verify the payment, set the status to 'Processing', and initiate **inventory deduction** on the backend.</p>
+
+                        <div class="space-y-3">
+                            <button 
+                                id="detail-confirm-btn" 
+                                onclick="confirmOrderFromDetails()"
+                                class="w-full bg-emerald-600 text-white py-3 rounded-lg font-bold text-base hover:bg-emerald-700 transition duration-150 shadow-md"
+                            >
+                                ✅ Confirm Payment & Process Order
+                            </button>
+                            <button 
+                                id="detail-cancel-btn" 
+                                onclick="cancelOrderFromDetails()"
+                                class="w-full bg-red-600 text-white py-3 rounded-lg font-bold text-base hover:bg-red-700 transition duration-150 shadow-md"
+                            >
+                                ❌ Cancel Order
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
 
     </main>
 
@@ -156,7 +239,23 @@
             window.location.href = './admin-login.html'; 
         }
 
-        // Sidebar Toggle
+        // Global variable to store the currently loaded orders
+        let globalOrdersData = [];
+
+        // Show/Hide Content Sections
+        function showContent(sectionId) {
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.add('hidden');
+            });
+            document.getElementById(`content-${sectionId}`).classList.remove('hidden');
+            
+            // Re-hide sidebar on mobile after navigation
+            if (window.innerWidth < 1024) {
+                sidebar.classList.add('-translate-x-full');
+            }
+        }
+        
+        // Sidebar Toggle & Initial Load
         document.addEventListener('DOMContentLoaded', () => {
             // Highlight the current page's button
             document.getElementById('btn-userorders').classList.add('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
@@ -172,22 +271,58 @@
         
         // Helper function for currency formatting (NGN)
         function formatNaira(amount) {
+            // Ensure amount is a number for formatting
+            const numAmount = Number(amount); 
+            if (isNaN(numAmount)) return 'N/A';
+            
             return new Intl.NumberFormat('en-NG', {
                 style: 'currency',
                 currency: 'NGN',
                 minimumFractionDigits: 0,
                 maximumFractionDigits: 2
-            }).format(amount);
+            }).format(numAmount);
         }
         
+        // Helper function for date formatting
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
         // --- Order Specific JS Logic ---
-        
         const loadingIndicator = document.getElementById('loading-indicator');
         const ordersTableContainer = document.getElementById('orders-table-container');
         const ordersTableBody = document.getElementById('orders-table-body');
         const pendingCountElement = document.getElementById('pending-count');
         const emptyState = document.getElementById('empty-state');
         const toastContainer = document.getElementById('toast-container');
+        const detailItemsBody = document.getElementById('detail-items-body');
+
+        // --- CONFIRMATION HANDLERS (Called from Detail View) ---
+        
+        // Use a global variable to hold the ID of the order currently displayed in details
+        let currentDetailOrderId = null; 
+        
+        async function confirmOrderFromDetails() {
+            if (currentDetailOrderId) {
+                await confirmOrder(currentDetailOrderId);
+                // After confirmation, navigate back to the list
+                showContent('userorders');
+            }
+        }
+        
+        // Placeholder for the Cancel functionality (You'll need a backend route for this)
+        function cancelOrderFromDetails() {
+            if (currentDetailOrderId) {
+                if (confirm(`Are you sure you want to CANCEL Order #${currentDetailOrderId.substring(0, 8)}? This action is usually irreversible.`)) {
+                    // TODO: Implement API call to PUT /api/admin/orders/:orderId/cancel
+                    showToast(`Order #${currentDetailOrderId.substring(0, 8)} cancelled (Backend not implemented yet).`, 'bg-amber-500');
+                    // For now, just navigate back to the list and reload
+                    showContent('userorders');
+                    loadUserOrders();
+                }
+            }
+        }
 
 
         /**
@@ -202,7 +337,7 @@
             }
 
             try {
-                // Endpoint to fetch pending orders. Adjust as needed.
+                // Using the backend route: GET /api/admin/orders/pending
                 const response = await fetch('/api/admin/orders/pending', { 
                     method: 'GET',
                     headers: {
@@ -226,6 +361,112 @@
                 return [];
             }
         }
+
+        /**
+         * Fetches detailed order information (including items) for a single order.
+         * This usually requires a separate backend route like GET /api/admin/orders/:orderId/details
+         * For this frontend implementation, we assume a new endpoint that returns the full, detailed order object.
+         * @param {string} orderId - The ID of the order to confirm.
+         */
+        async function fetchDetailedOrder(orderId) {
+             const token = localStorage.getItem('adminToken');
+             try {
+                // For this example, we'll try to use the existing data if possible,
+                // but a real-world app would need a dedicated endpoint to get the full order object, 
+                // including all item details (like variation info, etc.) which might not be in the /pending payload.
+                // Since the initial backend code has GET /api/admin/users/:id/orders, we'll assume a similar
+                // single order detail endpoint exists, or that the pending list contains enough data.
+                
+                // --- MOCK API CALL for full detail ---
+                // For simplicity, we'll look it up in the globalOrdersData
+                const order = globalOrdersData.find(o => o._id === orderId);
+                
+                if (!order) {
+                    throw new Error("Order details not found in local cache.");
+                }
+
+                // In a real app, this would be an API call:
+                // const response = await fetch(`/api/admin/orders/${orderId}/details`, { ... });
+                // const fullOrderDetails = await response.json();
+                
+                // For demonstration, we'll return the found order and add mock item data
+                return {
+                    ...order,
+                    // Mock items, as the initial /pending route doesn't have them
+                    // A real API call to /api/admin/orders/:id would be needed.
+                    items: [
+                        { productId: 'mock1', name: 'Premium Tee', variation: 'Black / Large', quantity: 2, priceAtTimeOfPurchase: 8000, subtotal: 16000 },
+                        { productId: 'mock2', name: 'Baseball Cap', variation: 'White / One Size', quantity: 1, priceAtTimeOfPurchase: 5000, subtotal: 5000 },
+                    ]
+                };
+
+             } catch (error) {
+                console.error('Error fetching detailed order:', error);
+                showToast(`Failed to load details for order #${orderId.substring(0, 8)}.`, 'bg-red-500');
+                return null;
+             }
+        }
+        
+        /**
+         * Renders the full details of a single order into the dedicated section.
+         * @param {Object} order - The single order object with full details.
+         */
+        function renderOrderDetail(order) {
+            currentDetailOrderId = order._id; // Set the current order ID
+            showContent('orderdetails'); // Switch view
+
+            // 1. HEADER
+            document.getElementById('detail-order-id').textContent = order._id.substring(0, 8);
+
+            // 2. SUMMARY CARD
+            document.getElementById('detail-customer-name').textContent = order.userName;
+            document.getElementById('detail-customer-email').textContent = order.email;
+            document.getElementById('detail-date').textContent = formatDate(order.createdAt);
+            document.getElementById('detail-payment-method').textContent = order.paymentMethod || 'Bank Transfer'; // Default if missing
+            document.getElementById('detail-subtotal').textContent = formatNaira(order.subtotal);
+            document.getElementById('detail-shipping').textContent = formatNaira(order.shippingFee);
+            document.getElementById('detail-tax').textContent = formatNaira(order.tax);
+            document.getElementById('detail-total').textContent = formatNaira(order.totalAmount);
+            
+            // 3. ORDER ITEMS
+            detailItemsBody.innerHTML = '';
+            // NOTE: Since the backend /pending route does not return items, 
+            // the item data here is MOCK data for demonstration. 
+            // A real implementation needs an API endpoint that returns item details.
+            order.items.forEach(item => {
+                const itemRow = document.createElement('tr');
+                itemRow.className = 'border-b hover:bg-gray-50';
+                itemRow.innerHTML = `
+                    <td class="px-4 py-3 text-sm font-medium text-gray-900 flex items-center">
+                        <img src="https://placehold.co/32x32/CBD5E1/475569/png?text=P" alt="Product Image" class="w-8 h-8 rounded mr-2">
+                        ${item.name}
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-600">${item.variation || 'N/A'}</td>
+                    <td class="px-4 py-3 text-sm text-gray-900 text-right">${formatNaira(item.priceAtTimeOfPurchase || item.price)}</td>
+                    <td class="px-4 py-3 text-sm text-gray-600 text-center">${item.quantity}</td>
+                    <td class="px-4 py-3 text-sm font-semibold text-gray-900 text-right">${formatNaira(item.subtotal || (item.quantity * item.price))}</td>
+                `;
+                detailItemsBody.appendChild(itemRow);
+            });
+            
+            // 4. PAYMENT RECEIPT
+            const receiptContainer = document.getElementById('receipt-container');
+            receiptContainer.innerHTML = ''; // Clear previous content
+
+            if (order.paymentReceiptUrl) {
+                receiptContainer.innerHTML = `
+                    <a href="${order.paymentReceiptUrl}" target="_blank" class="block w-full h-80 overflow-hidden bg-gray-100 rounded-lg group">
+                        <img src="${order.paymentReceiptUrl}" alt="Payment Receipt" class="object-contain w-full h-full transition duration-300 group-hover:opacity-80"/>
+                    </a>
+                    <a href="${order.paymentReceiptUrl}" target="_blank" class="mt-3 inline-flex items-center text-sm font-medium text-emerald-600 hover:text-emerald-800 transition">
+                        View Full Receipt in New Tab 
+                        <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    </a>
+                `;
+            } else {
+                receiptContainer.innerHTML = '<p class="text-gray-500 p-8">No receipt image uploaded for this order.</p>';
+            }
+        }
         
         /**
          * Sends a request to the API to confirm (complete) an order.
@@ -238,14 +479,16 @@
                 return;
             }
             
-            // Optimistically disable the button
-            const button = document.getElementById(`confirm-btn-${orderId}`);
-            button.disabled = true;
-            button.textContent = 'Confirming...';
-            button.classList.add('opacity-50');
+            // Target the button in the details section for a better UX when confirming from detail view
+            const button = document.getElementById(`detail-confirm-btn`) || document.getElementById(`confirm-btn-${orderId}`);
+            if (button) {
+                button.disabled = true;
+                button.textContent = 'Confirming...';
+                button.classList.add('opacity-50');
+            }
 
             try {
-                // Endpoint to confirm a specific order. Adjust to your backend route (e.g., PUT /orders/id/confirm)
+                // Endpoint: PUT /api/admin/orders/:orderId/confirm
                 const response = await fetch(`/api/admin/orders/${orderId}/confirm`, {
                     method: 'PUT',
                     headers: {
@@ -253,24 +496,42 @@
                         'Authorization': `Bearer ${token}`
                     }
                 });
+                
+                const responseData = await response.json();
 
                 if (!response.ok) {
+                     // Check for specific backend errors, e.g., inventory failure
+                    if (response.status === 500 && responseData.error && responseData.error.includes('Inventory deduction failed')) {
+                        throw new Error(responseData.message || 'Payment confirmed, but inventory failed.');
+                    }
                     throw new Error(`Failed to confirm order: ${response.statusText}`);
                 }
                 
-                showToast(`Order #${orderId.substring(0, 8)} confirmed successfully!`, 'bg-emerald-500');
+                showToast(`Order #${orderId.substring(0, 8)} confirmed and processed successfully!`, 'bg-emerald-500');
                 
                 // Reload the order list to reflect the change
-                loadUserOrders();
+                await loadUserOrders();
 
             } catch (error) {
                 console.error('Confirmation error:', error);
-                showToast(`Failed to confirm order #${orderId.substring(0, 8)}.`, 'bg-red-500');
                 
-                // Re-enable on failure
-                button.disabled = false;
-                button.textContent = 'Confirm';
-                button.classList.remove('opacity-50');
+                // Check if we are still in the detail view
+                if (currentDetailOrderId === orderId) {
+                    // Update detail action button for the error state
+                    const actionCard = document.getElementById('detail-actions-card');
+                    actionCard.classList.remove('border-yellow-300');
+                    actionCard.classList.add('border-red-500');
+                    showToast(error.message || `Failed to confirm order #${orderId.substring(0, 8)}.`, 'bg-red-500');
+                } else {
+                    showToast(error.message || `Failed to confirm order #${orderId.substring(0, 8)}.`, 'bg-red-500');
+                }
+                
+                // Re-enable button on failure
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = '✅ Confirm Payment & Process Order';
+                    button.classList.remove('opacity-50');
+                }
             }
         }
 
@@ -280,6 +541,7 @@
          */
         function renderOrders(orders) {
             ordersTableBody.innerHTML = '';
+            globalOrdersData = orders; // Save data globally for detail view access
             
             const pendingOrders = orders.filter(order => order.status === 'Pending');
 
@@ -298,8 +560,7 @@
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-gray-50';
                 
-                // Convert timestamp to readable date (Example: 2025-11-26)
-                const date = new Date(order.createdAt).toLocaleDateString();
+                const date = formatDate(order.createdAt);
 
                 tr.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${order._id.substring(0, 8)}...</td>
@@ -313,16 +574,32 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                         <button 
-                            id="confirm-btn-${order._id}"
-                            onclick="confirmOrder('${order._id}')" 
-                            class="text-white bg-emerald-600 hover:bg-emerald-700 py-1 px-3 rounded-lg text-xs transition duration-150 shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                            id="view-btn-${order._id}"
+                            onclick="handleViewDetails('${order._id}')" 
+                            class="text-white bg-blue-600 hover:bg-blue-700 py-1 px-3 rounded-lg text-xs transition duration-150 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                         >
-                            Confirm
+                            View Details
                         </button>
                     </td>
                 `;
                 ordersTableBody.appendChild(tr);
             });
+        }
+        
+        /**
+         * Handles the click on 'View Details' and loads the order details section.
+         * @param {string} orderId - The ID of the order to view.
+         */
+        async function handleViewDetails(orderId) {
+            // Show loading state or temporarily disable interaction
+            showToast(`Loading details for order #${orderId.substring(0, 8)}...`, 'bg-blue-500');
+            
+            // In a real application, you would make an API call here to get the full details (including items, which the pending list lacks)
+            const orderDetails = await fetchDetailedOrder(orderId); 
+            
+            if (orderDetails) {
+                renderOrderDetail(orderDetails);
+            }
         }
         
         /**

@@ -1090,6 +1090,92 @@ async function mergeLocalCart(userId, localItems) {
     }
 }
 
+/**
+ * Takes a list of order documents and adds 'name' and 'imageUrl' to each item 
+ * by fetching product details from all relevant collections.
+ * * @param {Array<Object>} orders - Array of order documents (must have an 'items' array).
+ * @returns {Promise<Array<Object>>} - Orders with augmented item details.
+ */
+async function augmentOrdersWithProductDetails(orders) {
+    if (!orders || orders.length === 0) {
+        return [];
+    }
+    
+    // 1. Get all unique product IDs from all orders
+    const allProductIds = orders.flatMap(order => 
+        order.items.map(item => item.productId)
+    );
+    
+    // Convert unique string IDs back into Mongoose ObjectIds for $in query
+    const uniqueProductObjectIds = [
+        ...new Set(allProductIds.map(id => id.toString()))
+    ].map(idStr => new mongoose.Types.ObjectId(idStr)); 
+
+    // 2. Fetch product details (Names and Variations array for image URL)
+    const projection = 'name variations'; 
+    
+    const wears = await WearsCollection.find({ _id: { $in: uniqueProductObjectIds } }).select(projection).lean();
+    const caps = await CapCollection.find({ _id: { $in: uniqueProductObjectIds } }).select(projection).lean();
+    const newArrivals = await NewArrivals.find({ _id: { $in: uniqueProductObjectIds } }).select(projection).lean();
+    const preOrders = await PreOrderCollection.find({ _id: { $in: uniqueProductObjectIds } }).select(projection).lean(); 
+
+    const allProducts = [...wears, ...caps, ...newArrivals, ...preOrders];
+    
+    // 3. Build Product Map (productId string -> { name, variations })
+    const productMap = {};
+    allProducts.forEach(product => {
+        productMap[product._id.toString()] = {
+            name: product.name,
+            variations: product.variations
+        };
+    });
+
+    // 4. Transform and merge product details into the orders array
+    const detailedOrders = orders.map(order => {
+        const detailedItems = order.items.map(item => {
+            const productIdStr = item.productId.toString();
+            const productInfo = productMap[productIdStr];
+            
+            let imageUrl = 'https://placehold.co/32x32/CBD5E1/475569/png?text=N/A';
+            let productName = 'Unknown Product (Deleted)';
+
+            if (productInfo) {
+                productName = productInfo.name;
+                
+                // Find the exact variation based on the saved variationIndex
+                const purchasedVariation = productInfo.variations.find(v => 
+                    // Ensure robust comparison by converting both to strings
+                    String(v.variationIndex) === String(item.variationIndex)
+                );
+
+                // Use the frontImageUrl of the matched variation, or the first one as a fallback
+                if (purchasedVariation && purchasedVariation.frontImageUrl) {
+                    imageUrl = purchasedVariation.frontImageUrl;
+                } else if (productInfo.variations.length > 0) {
+                    // Fallback to the first variation's front image if exact match fails
+                    if (productInfo.variations[0].frontImageUrl) {
+                        imageUrl = productInfo.variations[0].frontImageUrl;
+                    }
+                }
+            }
+
+            return {
+                ...item,
+                name: productName,
+                imageUrl: imageUrl, // Key field for the frontend
+                price: item.priceAtTimeOfPurchase, 
+            };
+        });
+
+        return {
+            ...order,
+            items: detailedItems,
+        };
+    });
+    
+    return detailedOrders;
+}
+
 // --- EXPRESS CONFIGURATION AND MIDDLEWARE ---
 const app = express();
 // Ensure express.json() is used BEFORE the update route, but after the full form route
@@ -1350,137 +1436,13 @@ app.get('/api/admin/users/:id', verifyToken, async (req, res) => {
         return res.status(500).json({ message: 'Server error: Failed to retrieve user details.' });
     }
 });
-
-app.get('/api/admin/users/:id/orders', verifyToken, async (req, res) => {
-    try {
-        const userId = req.params.id;
-
-        // 1. Fetch Orders for the specific userId
-        const orders = await Order.find({ userId: userId }).sort({ createdAt: -1 }).lean();
-
-        if (!orders || orders.length === 0) {
-            return res.status(200).json({ orders: [] });
-        }
-
-        // 2. Get all unique product IDs from all orders
-        const allProductIds = orders.flatMap(order => 
-            order.items.map(item => item.productId)
-        );
-        
-        // CRITICAL FIX: Convert unique string IDs back into Mongoose ObjectIds for $in query
-        const uniqueProductObjectIds = [
-            ...new Set(allProductIds.map(id => id.toString()))
-        ].map(idStr => new mongoose.Types.ObjectId(idStr)); 
-
-        // 3. Fetch product details (Names and Variations array for image URL) from ALL collections
-        // Projection: Only retrieve 'name' and 'variations'
-        const projection = 'name variations'; 
-        
-        const wears = await WearsCollection.find({ _id: { $in: uniqueProductObjectIds } }).select(projection).lean();
-        const caps = await CapCollection.find({ _id: { $in: uniqueProductObjectIds } }).select(projection).lean();
-        const newArrivals = await NewArrivals.find({ _id: { $in: uniqueProductObjectIds } }).select(projection).lean();
-        const preOrders = await PreOrderCollection.find({ _id: { $in: uniqueProductObjectIds } }).select(projection).lean(); 
-
-        const allProducts = [...wears, ...caps, ...newArrivals, ...preOrders];
-        
-        // 4. Build Product Map (productId string -> { name, variations })
-        const productMap = {};
-        allProducts.forEach(product => {
-            productMap[product._id.toString()] = {
-                name: product.name,
-                variations: product.variations
-            };
-        });
-
-        // 5. Transform and merge product details into the orders array
-        const detailedOrders = orders.map(order => {
-            const detailedItems = order.items.map(item => {
-                const productIdStr = item.productId.toString();
-                const productInfo = productMap[productIdStr];
-                
-                // Default values for missing or deleted products
-                let imageUrl = 'https://placehold.co/32x32/CBD5E1/475569/png?text=N/A';
-                let productName = 'Unknown Product (Deleted)';
-                let debugReason = 'No Product Info found (Product deleted/mismatched).';
-
-                if (productInfo) {
-                    productName = productInfo.name;
-                    debugReason = 'Product Info found. Searching variations...';
-                    
-                    // Find the exact variation based on the saved variationIndex
-                    const purchasedVariation = productInfo.variations.find(v => 
-                        // ✅ FIX APPLIED: Ensure robust comparison by converting both to strings
-                        // This handles cases where one is stored as a number and the other as a string
-                        String(v.variationIndex) === String(item.variationIndex)
-                    );
-
-                    // Use the frontImageUrl of the matched variation, or the first one as a fallback
-                    if (purchasedVariation && purchasedVariation.frontImageUrl) {
-                        imageUrl = purchasedVariation.frontImageUrl;
-                        debugReason = 'Success: Found image from matched variation.';
-                    } else if (productInfo.variations.length > 0) {
-                        // Fallback to the first variation's front image if exact match fails
-                        if (productInfo.variations[0].frontImageUrl) {
-                            imageUrl = productInfo.variations[0].frontImageUrl;
-                            debugReason = 'Fallback: Found image from first variation (Index mismatch or image missing on specific variation).';
-                        } else {
-                            debugReason = 'Fail: Matched variation image missing AND first variation image missing.';
-                        }
-                    } else {
-                        debugReason = 'Fail: Product Info found but the product has zero variations.';
-                    }
-                }
-
-                // 🚨 CRITICAL DEBUGGING LOG 🚨
-                // This will output to your server console to diagnose the failure
-                if (imageUrl.includes('placeholder')) {
-                    console.log(`[ORDER IMAGE DEBUG FAILURE] Order ${order._id}, Item ${productIdStr}`);
-                    console.log(`  Reason: ${debugReason}`);
-                    console.log(`  Order Variation Index: ${item.variationIndex}`);
-                } else {
-                    console.log(`[ORDER IMAGE DEBUG SUCCESS] Order ${order._id}, Item ${productIdStr}. URL: ${imageUrl.substring(0, 50)}...`);
-                }
-
-
-                return {
-                    ...item,
-                    name: productName,
-                    imageUrl: imageUrl, // Key field for the frontend
-                    // Ensure the correct price field is used
-                    price: item.priceAtTimeOfPurchase, 
-                };
-            });
-
-            return {
-                ...order,
-                items: detailedItems,
-            };
-        });
-
-        return res.status(200).json({ 
-            orders: detailedOrders
-        });
-
-    } catch (error) {
-        // Log the error in detail to the server console to find hidden issues
-        console.error('Admin user orders fetch error:', error);
-        
-        if (error.name === 'CastError' || error.kind === 'ObjectId') {
-            return res.status(400).json({ message: 'Invalid User ID or product ID format found in data.' });
-        }
-        
-        return res.status(500).json({ message: 'Server error: Failed to retrieve user orders. Check server logs for details.' });
-    }
-});
-
 // =========================================================
 // 8. GET /api/admin/orders/pending - Fetch All Pending Orders (Admin Protected)
-// This route is used by the Admin Dashboard to review orders awaiting payment verification.
+// NO CHANGE: This still provides the list view data efficiently.
 // =========================================================
 app.get('/api/admin/orders/pending', verifyToken, async (req, res) => {
     try {
         // Find all orders where the status is 'Pending'
-        // Sort by createdAt date in ascending order (oldest first)
         const pendingOrders = await Order.find({ status: 'Pending' })
             .select('_id userId totalAmount createdAt status paymentMethod paymentReceiptUrl subtotal shippingFee tax')
             .sort({ createdAt: 1 })
@@ -1489,19 +1451,17 @@ app.get('/api/admin/orders/pending', verifyToken, async (req, res) => {
         // 1. Get User Details for each pending order (for 'Customer' column)
         const populatedOrders = await Promise.all(
             pendingOrders.map(async (order) => {
-                // Fetch the user to get their name and email
                 const user = await User.findById(order.userId)
                     .select('firstName lastName email')
                     .lean();
 
-                // Construct the customer name/email for the dashboard display
                 const userName = user ? `${user.firstName} ${user.lastName}` : 'N/A';
                 const email = user ? user.email : 'Unknown User';
                 
                 return {
                     ...order,
                     userName: userName, // Added for the Admin table
-                    email: email,       // Added for the Admin table
+                    email: email,       // Added for the Admin table
                 };
             })
         );
@@ -1515,9 +1475,56 @@ app.get('/api/admin/orders/pending', verifyToken, async (req, res) => {
     }
 });
 
+
+// =========================================================
+// 8b. GET /api/admin/orders/:orderId - Fetch Single Detailed Order (Admin Protected)
+// NEW ROUTE: Used for the 'View Details' section.
+// =========================================================
+app.get('/api/admin/orders/:orderId', verifyToken, async (req, res) => {
+    try {
+        const orderId = req.params.orderId;
+
+        // 1. Fetch the single order
+        const order = await Order.findById(orderId).lean();
+
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found.' });
+        }
+        
+        // 2. Augment order items with product details (name, imageUrl)
+        const detailedOrders = await augmentOrdersWithProductDetails([order]);
+        const detailedOrder = detailedOrders[0];
+
+        // 3. Get User Details (Name and Email)
+        const user = await User.findById(detailedOrder.userId)
+            .select('firstName lastName email')
+            .lean();
+
+        const userName = user ? `${user.firstName} ${user.lastName}` : 'N/A';
+        const email = user ? user.email : 'Unknown User';
+        
+        // 4. Combine all details
+        const finalDetailedOrder = {
+            ...detailedOrder,
+            userName: userName,
+            email: email
+        };
+
+        return res.status(200).json(finalDetailedOrder);
+
+    } catch (error) {
+        console.error(`Error fetching order details for ${req.params.orderId}:`, error);
+        if (error.name === 'CastError' || error.kind === 'ObjectId') {
+             return res.status(400).json({ message: 'Invalid Order ID format.' });
+        }
+        return res.status(500).json({ message: 'Server error: Failed to retrieve order details.' });
+    }
+});
+
+
 // =========================================================
 // 9. PUT /api/admin/orders/:orderId/confirm - Confirm an Order (Admin Protected)
-// This verifies payment, changes status to 'Processing', and triggers inventory deduction.
+// NO CHANGE: This remains the confirmation handler.
 // =========================================================
 app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
     const orderId = req.params.orderId;
@@ -1548,12 +1555,11 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
         // 2. CRITICAL STEP: Deduct Inventory and finalize status to 'Completed' in an atomic transaction
         let finalOrder;
         try {
+            // Assume processOrderCompletion is a defined function that handles inventory logic
             finalOrder = await processOrderCompletion(orderId);
             // After successful deduction, the order status is 'Completed'
         } catch (inventoryError) {
-            // If inventory deduction fails (e.g., insufficient stock), we must revert the status.
-            // Or, more robustly, set a flag/status to indicate the issue for manual review.
-            // For now, let's just log the failure and return an error.
+            // If inventory deduction fails (e.g., insufficient stock), revert status to Manual Review.
             console.error('Inventory deduction failed during Admin confirmation:', inventoryError.message);
             // Revert status to 'Amount Mismatch (Manual Review)' for safety
             await Order.findByIdAndUpdate(orderId, { 

@@ -3469,258 +3469,125 @@ app.post('/api/paystack/webhook', async (req, res) => {
 });
 // ASSUMPTION: The necessary functions (sendMail, generateSignedUrl) and configuration (BLAZE_BUCKET_NAME, etc.) are available in this scope.
 
-app.post('/api/notifications/admin-order-email', async (req, res) => {
+// =========================================================
+// 7. POST /api/orders/place/pending - Create a Pending Order (Protected)
+// This route is used for manual Bank Transfer payments. (No changes needed here)
+// =========================================================
+app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
     
-    // The payload is sent as JSON from the client-side 'sendAdminOrderNotification' function
-    const { 
-        orderId, 
-        totalAmount, 
-        paymentMethod, 
-        shippingDetails, 
-        items, 
-        adminEmail,
-        // CORRECTION: Assuming the client sends the data as 'receiptUrl' 
-        // which contains the B2 permanent URL (paymentReceiptUrl from DB).
-        receiptUrl: paymentReceiptUrl // <-- Renames the incoming 'receiptUrl' to 'paymentReceiptUrl' 
-    } = req.body;
-
-    // 1. Basic Validation
-    if (!orderId || !totalAmount || !adminEmail || !items || items.length === 0) {
-        return res.status(400).json({ message: 'Missing required notification data or order items.' });
-    }
-
-    try {
-        // --- NEW STEP: Generate Signed URL for Private Receipt ---
-        let displayReceiptUrl = null; 
+    // 1. Run the Multer middleware to process the form data and file
+    singleReceiptUpload(req, res, async (err) => {
         
-        // Only attempt to sign if it's a Bank Transfer AND we have a URL from the DB
-        if (paymentMethod === 'Bank Transfer' && paymentReceiptUrl) {
-            
-            // 🚨 CRITICAL: Call the B2 utility to get a time-limited, public-access URL
-            const signedUrl = await generateSignedUrl(paymentReceiptUrl); 
-            
-            // Use the signed URL for display. If signing fails, displayReceiptUrl remains null.
-            if (signedUrl) {
-                displayReceiptUrl = signedUrl;
+        // Handle Multer errors (e.g., file size limit)
+        if (err instanceof multer.MulterError) {
+            return res.status(400).json({ message: `File upload failed: ${err.message}` });
+        } else if (err) {
+            console.error('Unknown Multer Error:', err);
+            return res.status(500).json({ message: 'Error processing file upload.' });
+        }
+        
+        const userId = req.userId;
+        
+        // Form fields are now in req.body. Note: `totalAmount` will be a string.
+        const { shippingAddress: shippingAddressString, paymentMethod, totalAmount: totalAmountString } = req.body;
+        const receiptFile = req.file; // The uploaded file buffer is here
+        
+        // Convert string fields back to their proper type
+        const totalAmount = parseFloat(totalAmountString);
+        let shippingAddress;
+
+        // --- START: UPDATED ROBUST PARSING LOGIC ---
+        try {
+            // Check if the string is empty or null BEFORE attempting JSON.parse.
+            if (!shippingAddressString || shippingAddressString.trim() === '') {
+                // Set to null so the subsequent validation block can catch it.
+                shippingAddress = null; 
             } else {
-                console.warn(`[Admin Email] Could not generate signed URL for receipt: ${paymentReceiptUrl}. The receipt link will be missing or broken in the email.`);
+                shippingAddress = JSON.parse(shippingAddressString);
             }
+        } catch (e) {
+            // This now strictly catches malformed JSON strings (e.g., missing double quotes on keys).
+            return res.status(400).json({ message: 'Invalid shipping address format. Ensure the address object is stringified correctly.' });
         }
-        // --- END: NEW STEP ---
-
-        // 2. Format the Email Content (HTML)
-        const paymentStatus = (paymentMethod === 'Paystack/Card') ? 'Payment Confirmed (Paystack)' : 'Payment Awaiting Verification (Bank Transfer)';
+        // --- END: UPDATED ROBUST PARSING LOGIC ---
         
-        // --- Enhanced Item List with Thumbnails (No change) ---
-        const itemDetailsHtml = items.map(item => `
-            <tr>
-                <!-- Product Name & Image (Combined Cell) -->
-                <td style="padding: 12px 0 12px 0; border-bottom: 1px solid #eee; font-size: 14px; color: #333;">
-                    <table border="0" cellpadding="0" cellspacing="0">
-                        <tr>
-                            <td style="padding-right: 10px;">
-                                <img src="${item.imageUrl || 'https://placehold.co/40x40/f7f7f7/999?text=X'}" alt="Product" width="40" height="40" style="display: block; border: 1px solid #ddd; border-radius: 4px;">
-                            </td>
-                            <td>
-                                ${item.name || 'N/A'}
-                            </td>
-                        </tr>
-                    </table>
-                </td>
-                
-                <!-- Details (Size and Color) -->
-                <td style="padding: 12px 0 12px 0; border-bottom: 1px solid #eee; font-size: 12px; color: #555;">
-                    <span style="display: block;">Size: <strong>${item.size || 'N/A'}</strong></span>
-                    <span style="display: block; margin-top: 2px;">Color: ${item.color || 'N/A'}</span>
-                </td>
-                
-                <!-- Quantity -->
-                <td style="padding: 12px 0 12px 0; border-bottom: 1px solid #eee; font-size: 14px; color: #333; text-align: center;">
-                    ${item.quantity}
-                </td>
-                
-                <!-- Subtotal -->
-                <td style="padding: 12px 0 12px 0; border-bottom: 1px solid #eee; font-size: 14px; color: #333; text-align: right;">
-                    ₦${(item.price * item.quantity).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                </td>
-            </tr>
-        `).join('');
-
-        // --- Conditional Receipt Proof Block (Uses the now public 'displayReceiptUrl') ---
-        const receiptProofHtml = (paymentMethod === 'Bank Transfer' && displayReceiptUrl) ? `
-            <!-- Payment Receipt Proof -->
-            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 30px; border-collapse: collapse;">
-                <tr>
-                    <td style="font-size: 18px; font-weight: bold; color: #000000; padding-bottom: 10px; border-bottom: 2px solid #000000;">PAYMENT RECEIPT PROOF</td>
-                </tr>
-                <tr>
-                    <td align="center" style="padding: 15px 0;">
-                        <!-- Use the signed URL for the link and the image source -->
-                        <a href="${displayReceiptUrl}" target="_blank" style="color: #000000; text-decoration: none; font-weight: bold;">
-                            <img src="${displayReceiptUrl}" alt="Bank Transfer Receipt" width="300" style="display: block; max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px;">
-                        </a>
-                    </td>
-                </tr>
-                <tr>
-                    <td align="center" style="padding-top: 5px; font-size: 12px; color: #555;">
-                        Click image to view full receipt. (Link valid for 5 minutes)
-                    </td>
-                </tr>
-            </table>
-        ` : '';
-
-        const emailHtml = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>New Outfulickz Order</title>
-    <style>
-        @media only screen and (max-width: 600px) {
-            .container {
-                width: 100% !important;
-                padding: 0 10px !important;
-            }
-            .header-logo {
-                width: 150px !important;
-                height: auto !important;
-            }
-            .item-table td {
-                display: table-cell !important;
-            }
+        // 2. Critical Input Validation (This now correctly handles missing fields)
+        if (!shippingAddress || totalAmount <= 0 || isNaN(totalAmount)) {
+            // The `shippingAddress` will be null if the string was empty/missing, triggering this message.
+            return res.status(400).json({ message: 'Missing shipping address or invalid total amount.' });
         }
-    </style>
-</head>
-<body style="margin: 0; padding: 0; background-color: #f4f4f4; font-family: Arial, sans-serif;">
 
-    <!-- Wrapper Table -->
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed;">
-        <tr>
-            <td align="center" style="padding: 20px 0;">
-                <table border="0" cellpadding="0" cellspacing="0" width="600" class="container" style="background-color: #ffffff; border: 1px solid #dddddd; border-radius: 8px;">
-                    
-                    <!-- Header with Logo -->
-                    <tr>
-                        <td align="center" style="padding: 20px 0 10px 0;">
-                            <img src="https://i.imgur.com/1Rxhi9q.jpeg" alt="Outfulickz Logo" class="header-logo" width="180" style="display: block; border: 0; max-width: 180px;">
-                        </td>
-                    </tr>
-
-                    <!-- Main Content -->
-                    <tr>
-                        <td style="padding: 20px 40px 40px 40px;">
-
-                            <h1 style="color: #000000; font-size: 24px; text-align: center; margin-bottom: 20px;">
-                                🚨 NEW ORDER PLACED 🚨
-                            </h1>
-                            <p style="font-size: 16px; color: #333; line-height: 1.5;">
-                                A new order has been created and requires immediate attention for fulfillment. Details are below.
-                            </p>
-                            
-                            <!-- Order Summary -->
-                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 25px; border-collapse: collapse;">
-                                <tr>
-                                    <td colspan="2" style="font-size: 18px; font-weight: bold; color: #000000; padding-bottom: 10px; border-bottom: 2px solid #000000;">ORDER SUMMARY</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 10px 0; font-size: 14px; color: #555; width: 50%;">Order ID:</td>
-                                    <td style="padding: 10px 0; font-size: 14px; color: #000000; font-weight: bold; text-align: right;">${orderId}</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 10px 0; font-size: 14px; color: #555;">Payment Method:</td>
-                                    <td style="padding: 10px 0; font-size: 14px; color: #000000; text-align: right;">${paymentMethod}</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 10px 0 20px 0; font-size: 14px; color: #555; border-bottom: 1px dashed #ccc;">Payment Status:</td>
-                                    <td style="padding: 10px 0 20px 0; font-size: 14px; font-weight: bold; text-align: right; color: ${paymentStatus.includes('Confirmed') ? 'green' : '#FFA500'}; border-bottom: 1px dashed #ccc;">${paymentStatus}</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 20px 0 10px 0; font-size: 16px; font-weight: bold; color: #000000;">TOTAL AMOUNT:</td>
-                                    <td style="padding: 20px 0 10px 0; font-size: 18px; font-weight: bold; color: #000000; text-align: right;">₦${parseFloat(totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                                </tr>
-                            </table>
-
-                            <!-- Shipping Details -->
-                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 30px; border-collapse: collapse;">
-                                <tr>
-                                    <td colspan="2" style="font-size: 18px; font-weight: bold; color: #000000; padding-bottom: 10px; border-bottom: 2px solid #000000;">SHIPPING DETAILS</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 10px 0 5px 0; font-size: 14px; color: #000000; font-weight: bold;" colspan="2">
-                                        ${shippingDetails.firstName} ${shippingDetails.lastName}
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 5px 0; font-size: 14px; color: #555;" colspan="2">Email: ${shippingDetails.email}</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 5px 0 10px 0; font-size: 14px; color: #555; border-bottom: 1px dashed #ccc;" colspan="2">
-                                        Address: ${shippingDetails.street}, ${shippingDetails.city}, ${shippingDetails.state}, ${shippingDetails.country} ${shippingDetails.zipCode ? `(${shippingDetails.zipCode})` : ''}
-                                    </td>
-                                </tr>
-                            </table>
-                            
-                            <!-- Items Ordered -->
-                            <table border="0" cellpadding="0" cellspacing="0" width="100%" class="item-table" style="margin-top: 30px; border-collapse: collapse;">
-                                <tr>
-                                    <td colspan="4" style="font-size: 18px; font-weight: bold; color: #000000; padding-bottom: 10px; border-bottom: 2px solid #000000;">ITEMS ORDERED</td>
-                                </tr>
-                                
-                                <thead>
-                                    <tr style="text-align: left; background-color: #f7f7f7;">
-                                        <th style="padding: 10px 0; font-size: 12px; color: #555; font-weight: normal; width: 40%;">PRODUCT</th>
-                                        <th style="padding: 10px 0; font-size: 12px; color: #555; font-weight: normal; width: 30%;">DETAILS</th>
-                                        <th style="padding: 10px 0; font-size: 12px; color: #555; font-weight: normal; width: 10%; text-align: center;">QTY</th>
-                                        <th style="padding: 10px 0; font-size: 12px; color: #555; font-weight: normal; width: 20%; text-align: right;">SUBTOTAL</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${itemDetailsHtml}
-                                </tbody>
-                            </table>
-                            
-                            <!-- Receipt Proof (Conditional) -->
-                            ${receiptProofHtml}
-
-                            <p style="margin-top: 40px; font-size: 12px; color: #777; text-align: center;">
-                                This is an automated notification. Please check the order management system for full details and fulfillment.
-                            </p>
-
-                        </td>
-                    </tr>
-                    
-                    <!-- Footer -->
-                    <tr>
-                        <td align="center" style="background-color: #f7f7f7; padding: 15px 40px; border-radius: 0 0 8px 8px;">
-                            <p style="margin: 0; font-size: 11px; color: #999;">&copy; ${new Date().getFullYear()} OUTFULICKZ. All rights reserved.</p>
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-    </table>
-
-</body>
-</html>
-        `;
-
-        // 3. Send the Email using your existing utility
-        await sendMail(
-            adminEmail,
-            `[New Order] #${orderId} - ${paymentStatus}`,
-            emailHtml
-        );
-
-        console.log(`Admin notification sent successfully for Order ID: ${orderId} to ${adminEmail}`);
+        let paymentReceiptUrl = null;
         
-        // 4. Send a successful response back to the client
-        res.status(200).json({ message: 'Admin notification request received and processing.' });
+        try {
+            // NEW VALIDATION: Ensure the receipt file is provided for a Bank Transfer
+            if (paymentMethod === 'Bank Transfer') {
+                if (!receiptFile) {
+                    return res.status(400).json({ message: 'Bank payment receipt image is required for a Bank Transfer order.' });
+                }
+                
+                // 3. Upload the receipt file to Backblaze B2
+                paymentReceiptUrl = await uploadFileToPermanentStorage(receiptFile);
+                
+                if (!paymentReceiptUrl) {
+                    throw new Error("Failed to get permanent URL after B2 upload.");
+                }
+            }
 
-    } catch (error) {
-        console.error('Error in POST /api/notifications/admin-order-email:', error);
-        res.status(500).json({ message: 'Failed to dispatch admin email notification due to server error.' });
-    }
+            // 4. Retrieve the user's current cart items
+            const cart = await Cart.findOne({ userId }).lean();
+
+            if (!cart || cart.items.length === 0) {
+                return res.status(400).json({ message: 'Cannot place order: Shopping bag is empty.' });
+            }
+
+            // 5. Create a new Order document with status 'Pending'
+            const orderItems = cart.items.map(item => ({
+                productId: item.productId,
+                productType: item.productType,
+                quantity: item.quantity,
+                priceAtTimeOfPurchase: item.price, // Store the price explicitly
+                size: item.size,
+                color: item.color,
+            }));
+            
+            // **CRITICAL: Generate a reference for bank transfer orders**
+            const orderRef = `MANUAL-${Date.now()}-${userId.substring(0, 5)}`; 
+
+            const newOrder = await Order.create({
+                userId: userId,
+                items: orderItems,
+                shippingAddress: shippingAddress,
+                totalAmount: totalAmount, 
+                status: 'Pending', 
+                paymentMethod: paymentMethod,
+                orderReference: orderRef, 
+                amountPaidKobo: Math.round(totalAmount * 100),
+                paymentTxnId: orderRef, // Use the order reference as the txn ID for now
+                paymentReceiptUrl: paymentReceiptUrl, // Store the B2 permanent URL here
+            });
+
+            // 6. Clear the user's cart after successful order creation
+            await Cart.findOneAndUpdate(
+                { userId },
+                { items: [], updatedAt: Date.now() }
+            );
+            
+            console.log(`Pending Order created: ${newOrder._id}. Receipt URL: ${paymentReceiptUrl}`);
+            
+            // Success response for the client-side JavaScript
+            res.status(201).json({
+                message: 'Pending order placed successfully. Awaiting payment verification.',
+                orderId: newOrder._id,
+                status: newOrder.status,
+                receiptUrl: paymentReceiptUrl // Optional: return the URL
+            });
+
+        } catch (error) {
+            console.error('Error placing pending order:', error);
+            res.status(500).json({ message: 'Failed to create pending order due to a server error.' });
+        }
+    });
 });
 
 // =========================================================

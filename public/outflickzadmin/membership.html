@@ -1,690 +1,715 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Membership Management | Commerce Hub Admin</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="icon" type="image/png" href="https://i.imgur.com/ioWFyQB.png">
-    <style>
-        /* Custom scrollbar for a cleaner look */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-thumb {
-            background-color: #05744b; /* emerald-400 */
-            border-radius: 4px;
-        }
-        body {
-            font-family: 'Inter', sans-serif;
-            font-size: 0.95rem;
-        }
-        .active-link {
-            /* Styles for the active sidebar button */
-            background-color: #047857; /* A deeper emerald for active state */
-            color: white;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-        }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Membership Management | Commerce Hub Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="https://i.imgur.com/ioWFyQB.png">
+    <style>
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #05744b; /* emerald-400 */
+            border-radius: 4px;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+        }
+        .active-link {
+            /* Styles for the active sidebar button */
+            background-color: #047857; /* A deeper emerald for active state */
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+    </style>
 </head>
 <body class="bg-gray-50 min-h-screen flex">
 
-    <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-emerald-900 text-white transform transition-transform duration-300 z-30 lg:translate-x-0 -translate-x-full shadow-2xl flex flex-col">
-        <div class="p-6 flex-shrink-0">
-            <img src="https://i.imgur.com/Fz9w1BA.png" alt="E-commerce Logo" class="h-10 w-auto mb-6 rounded-lg shadow-md border border-emerald-700">
-            <h1 class="text-xl font-extrabold text-emerald-400 border-t border-emerald-800 pt-4">Commerce Hub</h1>
-        </div>
-        
-        <nav class="space-y-2 px-4 flex-grow overflow-y-auto">
-            <button id="btn-dashboard" onclick="navigateToDashboard()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l-7-7-7 7m10 0v10a1 1 0 01-1 1h-3m-3 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-9 0h10"></path></svg>
-                Dashboard
-            </button>
-            
-            <button id="btn-userorders" onclick="navigateToUserOrders()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
-                User Orders
-            </button>
-            
-            <button id="btn-wearscollection" onclick="navigateToWearsCollection()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
-                Wears Collection
-            </button>
+    <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-emerald-900 text-white transform transition-transform duration-300 z-30 lg:translate-x-0 -translate-x-full shadow-2xl flex flex-col">
+        <div class="p-6 flex-shrink-0">
+            <img src="https://i.imgur.com/Fz9w1BA.png" alt="E-commerce Logo" class="h-10 w-auto mb-6 rounded-lg shadow-md border border-emerald-700">
+            <h1 class="text-xl font-extrabold text-emerald-400 border-t border-emerald-800 pt-4">Commerce Hub</h1>
+        </div>
+        
+        <nav class="space-y-2 px-4 flex-grow overflow-y-auto">
+            <button id="btn-dashboard" onclick="navigateToDashboard()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l-7-7-7 7m10 0v10a1 1 0 01-1 1h-3m-3 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-9 0h10"></path></svg>
+                Dashboard
+            </button>
+            
+            <button id="btn-userorders" onclick="navigateToUserOrders()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                User Orders
+            </button>
+            
+            <button id="btn-wearscollection" onclick="navigateToWearsCollection()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                Wears Collection
+            </button>
 
-            <button id="btn-capscollection" onclick="navigateToCapsCollection()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 13h10M4 19v-6a3 3 0 013-3h10a3 3 0 013 3v6a3 3 0 01-3 3H7a3 3 0 01-3-3z"></path></svg>
-                Caps Collection
-            </button>
-            
-            <button id="btn-newarrivals" onclick="navigateToNewArrivals()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                New Arrivals
-            </button>
-            
-            <button id="btn-preorders" onclick="navigateToPreOrders()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
-                Pre-Order 
-            </button>
-            
-            <button id="btn-membership" onclick="navigateToMembership()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-emerald-600 hover:bg-emerald-700 active-link">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3v-5a2 2 0 00-2-2H5a2 2 0 00-2 2v5a3 3 0 003 3z"></path></svg>
-                Membership
-            </button>
-            <button id="btn-settings" onclick="navigateToSettings()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.526.34.813.486 1.066-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                Settings
-            </button>
-        </nav>
-        
-        <div class="p-4 flex-shrink-0 border-t border-emerald-800">
-            <button id="btn-logout" onclick="logoutAdmin()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-red-600 hover:bg-red-700 text-white shadow-lg">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                Log Out
-            </button>
-        </div>
-    </aside>
+            <button id="btn-capscollection" onclick="navigateToCapsCollection()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 13h10M4 19v-6a3 3 0 013-3h10a3 3 0 013 3v6a3 3 0 01-3 3H7a3 3 0 01-3-3z"></path></svg>
+                Caps Collection
+            </button>
+            
+            <button id="btn-newarrivals" onclick="navigateToNewArrivals()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                New Arrivals
+            </button>
+            
+            <button id="btn-preorders" onclick="navigateToPreOrders()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                Pre-Order 
+            </button>
+            
+            <button id="btn-membership" onclick="navigateToMembership()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-emerald-600 hover:bg-emerald-700 active-link">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3v-5a2 2 0 00-2-2H5a2 2 0 00-2 2v5a3 3 0 003 3z"></path></svg>
+                Membership
+            </button>
+            <button id="btn-settings" onclick="navigateToSettings()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.526.34.813.486 1.066-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                Settings
+            </button>
+        </nav>
+        
+        <div class="p-4 flex-shrink-0 border-t border-emerald-800">
+            <button id="btn-logout" onclick="logoutAdmin()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-red-600 hover:bg-red-700 text-white shadow-lg">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                Log Out
+            </button>
+        </div>
+    </aside>
 
-    <main class="flex-1 lg:ml-64 p-4 transition-all duration-300">
-        <button id="sidebar-toggle" class="lg:hidden fixed top-4 left-4 z-40 p-2 bg-emerald-600 text-white rounded-lg shadow-lg hover:bg-emerald-700 transition">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-        </button>
+    <main class="flex-1 lg:ml-64 p-4 transition-all duration-300">
+        <button id="sidebar-toggle" class="lg:hidden fixed top-4 left-4 z-40 p-2 bg-emerald-600 text-white rounded-lg shadow-lg hover:bg-emerald-700 transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        </button>
 
-        <section id="content-membership" class="content-section p-6 pt-16 lg:pt-6">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center space-x-2">
-                <span>Membership Management 💳</span>
-                <span id="user-count" class="text-sm font-normal bg-blue-100 text-blue-800 px-3 py-1 rounded-full">Total Users: 0</span>
-            </h2>
+        <section id="content-membership" class="content-section p-6 pt-16 lg:pt-6">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center space-x-2">
+                <span>Membership Management 💳</span>
+                <span id="user-count" class="text-sm font-normal bg-blue-100 text-blue-800 px-3 py-1 rounded-full">Total Users: 0</span>
+            </h2>
 
-            <div class="bg-white p-4 rounded-xl shadow-lg overflow-x-auto">
-                
-                <div id="loading-indicator" class="text-center p-10">
-                    <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600 inline-block"></div>
-                    <p class="mt-4 text-gray-600 text-sm">Fetching user data...</p>
-                </div>
+            <div class="bg-white p-4 rounded-xl shadow-lg overflow-x-auto">
+                
+                <div id="loading-indicator" class="text-center p-10">
+                    <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600 inline-block"></div>
+                    <p class="mt-4 text-gray-600 text-sm">Fetching user data...</p>
+                </div>
 
-                <div id="user-table-container" class="hidden">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    User ID
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Name
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Email
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Status
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Joined
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Actions
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody id="user-table-body" class="bg-white divide-y divide-gray-200">
-                            </tbody>
-                    </table>
-                </div>
+                <div id="user-table-container" class="hidden">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    User ID
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Name
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Email
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Status
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Joined
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Actions
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="user-table-body" class="bg-white divide-y divide-gray-200">
+                            </tbody>
+                    </table>
+                </div>
 
-                <div id="error-message" class="hidden text-center p-8 bg-red-100 text-red-700 rounded-xl shadow-lg">
-                    Failed to load user data. Please check the network connection and API status.
-                </div>
-            </div>
-        </section>
+                <div id="error-message" class="hidden text-center p-8 bg-red-100 text-red-700 rounded-xl shadow-lg">
+                    Failed to load user data. Please check the network connection and API status.
+                </div>
+            </div>
+        </section>
 
-        <section id="content-user-details" class="content-section p-6 pt-16 lg:pt-6 hidden">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center justify-between">
-                <span class="flex items-center space-x-2">
-                    <span>User Profile:</span>
-                    <span id="details-header-name" class="text-emerald-700 text-xl font-bold"></span>
-                </span>
-                <button onclick="showMembershipList()" class="bg-gray-200 text-gray-700 px-4 py-2 text-sm rounded-lg hover:bg-gray-300 transition flex items-center space-x-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-                    <span>Back to List</span>
-                </button>
-            </h2>
+        <section id="content-user-details" class="content-section p-6 pt-16 lg:pt-6 hidden">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center justify-between">
+                <span class="flex items-center space-x-2">
+                    <span>User Profile:</span>
+                    <span id="details-header-name" class="text-emerald-700 text-xl font-bold"></span>
+                </span>
+                <button onclick="showMembershipList()" class="bg-gray-200 text-gray-700 px-4 py-2 text-sm rounded-lg hover:bg-gray-300 transition flex items-center space-x-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                    <span>Back to List</span>
+                </button>
+            </h2>
 
-            <div id="details-loading-indicator" class="text-center p-10 bg-white rounded-xl shadow-lg">
-                <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600 inline-block"></div>
-                <p class="mt-4 text-gray-600 text-sm">Loading user profile...</p>
-            </div>
-            
-            <div id="user-profile-data" class="bg-white p-6 rounded-xl shadow-lg space-y-8 hidden">
-                
-                <h3 class="text-xl font-semibold text-gray-800 border-b pb-2">Basic Information</h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                        <p class="text-xs font-medium text-gray-500">Email Address</p>
-                        <p class="text-lg font-medium text-gray-900" id="detail-email"></p>
-                    </div>
-                    <div>
-                        <p class="text-xs font-medium text-gray-500">Joined On</p>
-                        <p class="text-lg text-gray-700" id="detail-joined"></p>
-                    </div>
-                    <div>
-                        <p class="text-xs font-medium text-gray-500">Membership Status</p>
-                        <p class="text-xl font-bold" id="detail-status"></p>
-                    </div>
-                </div>
+            <div id="details-loading-indicator" class="text-center p-10 bg-white rounded-xl shadow-lg">
+                <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600 inline-block"></div>
+                <p class="mt-4 text-gray-600 text-sm">Loading user profile...</p>
+            </div>
+            
+            <div id="user-profile-data" class="bg-white p-6 rounded-xl shadow-lg space-y-8 hidden">
+                
+                <h3 class="text-xl font-semibold text-gray-800 border-b pb-2">Basic Information</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <p class="text-xs font-medium text-gray-500">Email Address</p>
+                        <p class="text-lg font-medium text-gray-900" id="detail-email"></p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium text-gray-500">Joined On</p>
+                        <p class="text-lg text-gray-700" id="detail-joined"></p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium text-gray-500">Membership Status</p>
+                        <p class="text-xl font-bold" id="detail-status"></p>
+                    </div>
+                </div>
 
-                <h3 class="text-xl font-semibold text-gray-800 border-b pb-2">Contact & Shipping</h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                        <p class="text-xs font-medium text-gray-500">Contact Phone 📞</p>
-                        <p class="text-lg text-gray-700" id="detail-phone"></p>
-                    </div>
-                    <div>
-                        <p class="text-xs font-medium text-gray-500">WhatsApp Contact 💬</p>
-                        <p class="text-lg text-green-700 font-semibold" id="detail-whatsapp"></p>
-                    </div>
-                    <div class="md:col-span-1">
-                        <p class="text-xs font-medium text-gray-500">Shipping Address 🏠</p>
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <p class="text-base text-gray-700" id="detail-address">No Address Provided</p>
-                        </div>
-                    </div>
-                </div>
+                <h3 class="text-xl font-semibold text-gray-800 border-b pb-2">Contact & Shipping</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <p class="text-xs font-medium text-gray-500">Contact Phone 📞</p>
+                        <p class="text-lg text-gray-700" id="detail-phone"></p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium text-gray-500">WhatsApp Contact 💬</p>
+                        <p class="text-lg text-green-700 font-semibold" id="detail-whatsapp"></p>
+                    </div>
+                    <div class="md:col-span-1">
+                        <p class="text-xs font-medium text-gray-500">Shipping Address 🏠</p>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <p class="text-base text-gray-700" id="detail-address">No Address Provided</p>
+                        </div>
+                    </div>
+                </div>
 
-                <h3 class="text-xl font-semibold text-gray-800 border-b pb-2 flex items-center space-x-2">
-                    <span>Order History 📦</span>
-                    <span id="order-count" class="text-sm font-normal bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full">Total Orders: 0</span>
-                </h3>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Placed</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th> 
-                            </tr>
-                        </thead>
-                        <tbody id="order-history-body" class="bg-white divide-y divide-gray-200">
-                        <tr>
-                        <td colspan="5" class="px-4 py-4 text-center text-sm text-gray-500">Loading orders...</td>
-                        </tr>
-                    </tbody>
-                    </table>
-                </div>
-                </div>
-            
-            <div id="details-error-message" class="hidden text-center p-8 bg-red-100 text-red-700 rounded-xl shadow-lg mt-6">
-                Could not load user data. Check network connection or API status.
-            </div>
-        </section>
+                <h3 class="text-xl font-semibold text-gray-800 border-b pb-2 flex items-center space-x-2">
+                    <span>Order History 📦</span>
+                    <span id="order-count" class="text-sm font-normal bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full">Total Orders: 0</span>
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Placed</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th> 
+                            </tr>
+                        </thead>
+                        <tbody id="order-history-body" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                        <td colspan="5" class="px-4 py-4 text-center text-sm text-gray-500">Loading orders...</td>
+                        </tr>
+                    </tbody>
+                    </table>
+                </div>
+                </div>
+            
+            <div id="details-error-message" class="hidden text-center p-8 bg-red-100 text-red-700 rounded-xl shadow-lg mt-6">
+                Could not load user data. Check network connection or API status.
+            </div>
+        </section>
 
-        <section id="content-dashboard" class="content-section hidden"></section>
-        <section id="content-settings" class="content-section hidden"></section>
+        <section id="content-dashboard" class="content-section hidden"></section>
+        <section id="content-settings" class="content-section hidden"></section>
+    </main>
 
-    </main>
-
-    <script>
-        // --- JAVASCRIPT LOGIC ---
-        
-        const sidebar = document.getElementById('sidebar');
-        const sidebarToggle = document.getElementById('sidebar-toggle');
-        const navButtons = document.querySelectorAll('nav button');
-        const userTableBody = document.getElementById('user-table-body');
-        const loadingIndicator = document.getElementById('loading-indicator');
-        const userTableContainer = document.getElementById('user-table-container');
-        const errorMessage = document.getElementById('error-message');
-        const userCountDisplay = document.getElementById('user-count');
-
-        // --- DETAILS SECTION VARIABLES ---
-        const contentMembership = document.getElementById('content-membership');
-        const contentUserDetails = document.getElementById('content-user-details');
-        const detailsLoadingIndicator = document.getElementById('details-loading-indicator');
-        const userProfileData = document.getElementById('user-profile-data');
-        const detailsErrorMessage = document.getElementById('details-error-message');
-        
-        const detailsHeaderName = document.getElementById('details-header-name');
-        const detailEmail = document.getElementById('detail-email');
-        const detailStatus = document.getElementById('detail-status');
-        const detailJoined = document.getElementById('detail-joined');
-        const detailPhone = document.getElementById('detail-phone');
-        const detailAddress = document.getElementById('detail-address');
-        const detailWhatsapp = document.getElementById('detail-whatsapp'); 
-        
-        // Order History Elements
-        const orderHistoryBody = document.getElementById('order-history-body');
-        const orderCountDisplay = document.getElementById('order-count');
-        // --- END DETAILS SECTION VARIABLES ---
-
-        // --- Navigation Functions ---
-
-        function navigateToDashboard() { window.location.href = './admin-dashboard.html'; }
-        function navigateToSettings() { window.location.href = './admin-dashboard.html?view=settings'; }
-        function navigateToWearsCollection() { window.location.href = './wearscollection.html'; }
-        function navigateToCapsCollection() { window.location.href = './capscollection.html'; }
-        function navigateToNewArrivals() { window.location.href = './newarrivals.html'; }
-        function navigateToPreOrders() { window.location.href = './preorders.html'; }
-        function navigateToMembership() { window.location.href = './membership.html'; } // Self-link
-        function navigateToUserOrders() { console.log("Navigating to User Orders..."); } // Placeholder 
-
-        function logoutAdmin() {
-            console.log("Logging out... Clearing admin token.");
-            localStorage.removeItem('adminToken');
-            window.location.href = './admin-login.html'; 
-        }
-
-      // Helper function for date formatting
-        function formatDate(dateString) {
-            if (!dateString) return 'N/A';
-            try {
-                const options = { year: 'numeric', month: 'short', day: 'numeric' };
-                return new Date(dateString).toLocaleDateString(undefined, options);
-            } catch (e) {
-                return 'Invalid Date';
-            }
-        }
-        
-        // Helper function for currency formatting
-        function formatCurrency(amount) {
-            if (typeof amount !== 'number') return 'N/A';
-            return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount);
-        }
-
-        // Helper function to determine status badge classes for Orders
-        function getStatusBadge(status) {
-            let className = '';
-            let text = status || 'N/A';
-            
-            switch (status) {
-                case 'Delivered':
-                    className = 'bg-green-100 text-green-800';
-                    break;
-                case 'Shipped':
-                    className = 'bg-blue-100 text-blue-800';
-                    break;
-                case 'Processing':
-                    className = 'bg-yellow-100 text-yellow-800';
-                    break;
-                case 'Cancelled':
-                    className = 'bg-red-100 text-red-800';
-                    break;
-                default:
-                    className = 'bg-gray-100 text-gray-800';
-                    break;
-            }
-            
-            return `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${className}">${text}</span>`;
-        }
-        
-        // --- View Switching Functions ---
-        
-        /** Shows the main user list table and hides the details view. */
-        function showMembershipList() {
-            contentUserDetails.classList.add('hidden');
-            contentMembership.classList.remove('hidden');
-        }
-
-        /** Shows the single user details view and hides the main list. */
-        function showUserDetailsView() {
-            contentMembership.classList.add('hidden');
-            contentUserDetails.classList.remove('hidden');
-        }
-        
-        // --- API Fetch Functions ---
-
-        /**
-         * Fetches all registered user data from the API (used for the main table).
-         * @returns {Promise<Array<Object> | null>} Array of user objects or null on failure/auth error.
-         */
-        async function fetchUserData() {
-            const token = localStorage.getItem('adminToken');
-            if (!token) {
-                console.error("No adminToken found. Redirecting to login.");
-                logoutAdmin();
-                return null;
-            }
-
-            try {
-                // ASSUMPTION: Backend route for fetching ALL users
-                const response = await fetch('/api/admin/users/all', { 
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}` 
-                    }
-                });
-
-                if (!response.ok) {
-                    if (response.status === 401 || response.status === 403) {
-                        console.error(`Authentication error (${response.status}). Token expired or invalid.`);
-                        logoutAdmin();
-                        return null;
-                    }
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const data = await response.json();
-                return data.users || []; // ASSUMPTION: Backend returns { users: [...], count: 50 }
-
-            } catch (error) {
-                console.error('Error fetching user data:', error);
-                return null;
-            }
-        }
-
-        /**
-         * Fetches the full profile details for a specific user ID.
-         * Assumes a protected GET /api/admin/users/:id endpoint exists.
-         * @param {string} userId - The ID of the user to fetch.
-         * @returns {Promise<Object | null>} Single user object with full details or null on error.
-         */
-        async function fetchUserDetails(userId) {
-            const token = localStorage.getItem('adminToken');
-            if (!token) {
-                logoutAdmin();
-                return null;
-            }
-            
-            try {
-                const response = await fetch(`/api/admin/users/${userId}`, { 
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}` 
-                    }
-                });
-
-                if (!response.ok) {
-                    if (response.status === 401 || response.status === 403) {
-                        logoutAdmin();
-                    }
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const data = await response.json();
-                return data.user; // ASSUMPTION: Backend returns { user: {...} }
-
-            } catch (error) {
-                console.error(`Error fetching user details for ID ${userId}:`, error);
-                return null;
-            }
-        }
-        
-        /**
-         * Fetches the order history for a specific user ID.
-         * Assumes a protected GET /api/admin/users/:id/orders endpoint exists.
-         * @param {string} userId - The ID of the user to fetch orders for.
-         * @returns {Promise<Array<Object> | null>} Array of order objects or null on error.
-         */
-        async function fetchUserOrders(userId) {
-            const token = localStorage.getItem('adminToken');
-            if (!token) return null; // Auth handled by parent function
-
-            try {
-                // Backend route for orders for a user
-                const response = await fetch(`/api/admin/users/${userId}/orders`, { 
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}` 
-                    }
-                });
-
-                if (!response.ok) {
-                    // Log the error but don't force logout here
-                    console.error(`Order fetch failed for ${userId}: status ${response.status}`);
-                    return null;
-                }
-
-                const data = await response.json();
-                // ASSUMPTION: Backend returns { orders: [...] }
-                return data.orders || []; 
-
-            } catch (error) {
-                console.error(`Error fetching user orders for ID ${userId}:`, error);
-                return null;
-            }
-        }
-        
-        // --- Rendering Functions ---
-        
-        /**
-         * Renders the user data into the main membership table.
-         * @param {Array<Object>} users - Array of user objects.
-         */
-        function renderUserTable(users) {
-            userTableBody.innerHTML = ''; 
-            userCountDisplay.textContent = `Total Users: ${users.length.toLocaleString()}`;
-
-            if (users.length === 0) {
-                userTableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No registered users found.</td></tr>';
-                return;
-            }
-
-            users.forEach(user => {
-                const isMember = user.isMember; 
-                const statusText = isMember ? 'VIP Member' : 'Basic User';
-                const statusColor = isMember ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800';
-                
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-gray-50';
-                
-                row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 truncate max-w-xs" title="${user._id}">${user._id}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${user.name || 'N/A'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${user.email}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColor}">
-                            ${statusText}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        ${formatDate(user.createdAt)}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button onclick="viewUserDetails('${user._id}')" class="text-blue-600 hover:text-blue-900 transition duration-150">View Details</button>
-                    </td>
-                `;
-                userTableBody.appendChild(row);
-            });
-        }
-        
-        /**
-         * Renders the order history into the table, now excluding the item summary/preview columns.
-         * @param {Array<Object>} orders - Array of order objects.
-         */
-        function renderOrderHistory(orders) {
-            orderHistoryBody.innerHTML = ''; // Clear previous data
-            orderCountDisplay.textContent = `Total Orders: ${orders.length.toLocaleString()}`;
-
-            if (!orders || orders.length === 0) {
-                // Adjusted colspan from 7 to 5
-                orderHistoryBody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-sm text-gray-500">No orders found for this user.</td></tr>';
-                return;
-            }
-
-            orders.forEach(order => {
-                const statusBadge = getStatusBadge(order.status);
-                // Ensure order.items is a stringified array for safe passing to the inline function
-                const itemsJson = encodeURIComponent(JSON.stringify(order.items || []));
-
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-gray-50';
-
-                // --- UPDATED TABLE ROW HTML (Removed Item Summary and Visual Preview columns) ---
-                row.innerHTML = `
-                    <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 truncate max-w-xs" title="${order._id}">${order._id}</td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">${formatDate(order.createdAt)}</td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700 font-semibold">${formatCurrency(order.totalAmount)}</td>
-                    <td class="px-4 py-4 whitespace-nowrap">${statusBadge}</td>
-                    <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button onclick="openOrderDetailsModal('${order._id}', '${itemsJson}')" 
-                            class="text-indigo-600 hover:text-indigo-900 transition duration-150">View Items</button>
-                    </td>
-                `;
-                orderHistoryBody.appendChild(row);
-            });
-        }
-        
-        // --- Details and Modal Functions ---
-        
-        /**
-         * Handles the click of the 'View Details' button and loads the data into the details section.
-         * @param {string} userId - The ID of the user whose details to view.
-         */
-        async function viewUserDetails(userId) {
-            showUserDetailsView();
-            detailsLoadingIndicator.classList.remove('hidden');
-            userProfileData.classList.add('hidden');
-            detailsErrorMessage.classList.add('hidden');
-            
-            // Clear previous order history body
-            orderHistoryBody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-sm text-gray-500">Loading orders...</td></tr>';
-            orderCountDisplay.textContent = 'Total Orders: 0';
+        <div id="order-details-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden z-50 overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen">
+            <div class="bg-white w-full max-w-2xl mx-4 my-8 p-6 rounded-xl shadow-2xl transform transition-all">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h3 class="text-xl font-bold text-gray-800">Order Items: <span id="modal-order-id" class="text-emerald-600"></span></h3>
+                    <button onclick="closeOrderDetailsModal()" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div id="modal-items-container" class="space-y-4 max-h-96 overflow-y-auto pr-2">
+                                    </div>
+            </div>
+        </div>
+    </div>
 
 
-            const userPromise = fetchUserDetails(userId);
-            const ordersPromise = fetchUserOrders(userId); 
+    <script>
+        // --- JAVASCRIPT LOGIC ---
+        
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const navButtons = document.querySelectorAll('nav button');
+        const userTableBody = document.getElementById('user-table-body');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const userTableContainer = document.getElementById('user-table-container');
+        const errorMessage = document.getElementById('error-message');
+        const userCountDisplay = document.getElementById('user-count');
 
-            const [user, orders] = await Promise.all([userPromise, ordersPromise]);
-            
-            detailsLoadingIndicator.classList.add('hidden'); // Hide loading indicator for details view
+        // --- DETAILS SECTION VARIABLES ---
+        const contentMembership = document.getElementById('content-membership');
+        const contentUserDetails = document.getElementById('content-user-details');
+        const detailsLoadingIndicator = document.getElementById('details-loading-indicator');
+        const userProfileData = document.getElementById('user-profile-data');
+        const detailsErrorMessage = document.getElementById('details-error-message');
+        
+        const detailsHeaderName = document.getElementById('details-header-name');
+        const detailEmail = document.getElementById('detail-email');
+        const detailStatus = document.getElementById('detail-status');
+        const detailJoined = document.getElementById('detail-joined');
+        const detailPhone = document.getElementById('detail-phone');
+        const detailAddress = document.getElementById('detail-address');
+        const detailWhatsapp = document.getElementById('detail-whatsapp'); 
+        
+        // Order History Elements
+        const orderHistoryBody = document.getElementById('order-history-body');
+        const orderCountDisplay = document.getElementById('order-count');
+        
+        // Order Modal Elements
+        const orderDetailsModal = document.getElementById('order-details-modal');
+        const modalOrderId = document.getElementById('modal-order-id');
+        const modalItemsContainer = document.getElementById('modal-items-container');
+        
+        // --- End Details Section Variables ---
 
-            if (user) {
-                // Render basic info
-                detailsHeaderName.textContent = user.name || 'N/A';
-                detailEmail.textContent = user.email;
-                
-                const statusText = user.isMember ? 'VIP Member 🌟' : 'Basic User';
-                const statusColor = user.isMember ? 'text-emerald-700' : 'text-gray-700';
-                
-                detailStatus.className = `text-xl font-bold ${statusColor}`;
-                detailStatus.textContent = statusText;
-                
-                detailJoined.textContent = formatDate(user.createdAt);
-                
-                // Render contact info and address
-                detailPhone.textContent = user.phone || 'N/A';
-                detailWhatsapp.textContent = user.whatsappNumber || user.phone || 'N/A'; 
-                
-                if (user.shippingAddress && user.shippingAddress.street) {
-                    const address = user.shippingAddress;
-                    detailAddress.innerHTML = `
-                        ${address.street}<br>
-                        ${address.city}, ${address.state}<br>
-                        ${address.zipCode || ''} ${address.country || ''}
-                    `;
-                } else {
-                    detailAddress.textContent = user.contactAddress || 'No Address Provided';
-                }
+        // --- Navigation Functions ---
 
-                // Render Order History (even if orders is null, renderOrderHistory handles it)
-                if (orders !== null) {
-                    renderOrderHistory(orders);
-                } else {
-                    orderHistoryBody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-sm text-red-500">Failed to load order history. Check API.</td></tr>';
-                    orderCountDisplay.textContent = `Total Orders: N/A`;
-                }
+        function navigateToDashboard() { window.location.href = './admin-dashboard.html'; }
+        function navigateToSettings() { window.location.href = './admin-dashboard.html?view=settings'; }
+        function navigateToWearsCollection() { window.location.href = './wearscollection.html'; }
+        function navigateToCapsCollection() { window.location.href = './capscollection.html'; }
+        function navigateToNewArrivals() { window.location.href = './newarrivals.html'; }
+        function navigateToPreOrders() { window.location.href = './preorders.html'; }
+        function navigateToMembership() { window.location.href = './membership.html'; } // Self-link
+        function navigateToUserOrders() { console.log("Navigating to User Orders..."); } // Placeholder 
 
-                userProfileData.classList.remove('hidden');
-            } else {
-                detailsErrorMessage.classList.remove('hidden');
-            }
-        }
-        
-        /**
-         * Displays order item details in an alert/modal.
-         * @param {string} orderId - The ID of the order.
-         * @param {string} itemsJson - URL-encoded JSON string of items in the order.
-         */
-        function openOrderDetailsModal(orderId, itemsJson) {
-            let items;
-            try {
-                // Decode the JSON string passed from the inline onclick
-                items = JSON.parse(decodeURIComponent(itemsJson));
-            } catch (e) {
-                alert(`Error: Could not read item data for order ${orderId}.`);
-                console.error("Failed to parse items JSON:", e);
-                return;
-            }
-            
-            if (!items || items.length === 0) {
-                alert(`Order ${orderId} has no items.`);
-                return;
-            }
+        function logoutAdmin() {
+            console.log("Logging out... Clearing admin token.");
+            localStorage.removeItem('adminToken');
+            window.location.href = './admin-login.html'; 
+        }
 
-            let itemSummary = `Order ID: ${orderId}\n\n--- Items Ordered (${items.length} unique products) ---\n`;
-            
-            items.forEach((item, index) => {
-                const name = item.name || 'Unknown Product';
-                const quantity = item.quantity || 1;
-                const size = item.size || 'N/A';
-                const imageUrl = item.imageUrl ? `[Image URL: ${item.imageUrl.substring(0, 50)}...]` : '[No Image]';
+      // Helper function for date formatting
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            try {
+                const options = { year: 'numeric', month: 'short', day: 'numeric' };
+                return new Date(dateString).toLocaleDateString(undefined, options);
+            } catch (e) {
+                return 'Invalid Date';
+            }
+        }
+        
+        // Helper function for currency formatting
+        function formatCurrency(amount) {
+            if (typeof amount !== 'number') return 'N/A';
+            return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount);
+        }
 
-                itemSummary += `
-${index + 1}. ${name} 
-   - Quantity: x${quantity}
-   - Size/Variant: ${size}
-   - Preview: ${imageUrl}
-`;
-            });
-            
-            // Use a native alert for simplicity, as requested, to show the item summary and image URLs
-            alert(itemSummary);
-        }
+        // Helper function to determine status badge classes for Orders
+        function getStatusBadge(status) {
+            let className = '';
+            let text = status || 'N/A';
+            
+            switch (status) {
+                case 'Delivered':
+                    className = 'bg-green-100 text-green-800';
+                    break;
+                case 'Shipped':
+                    className = 'bg-blue-100 text-blue-800';
+                    break;
+                case 'Processing':
+                    className = 'bg-yellow-100 text-yellow-800';
+                    break;
+                case 'Cancelled':
+                    className = 'bg-red-100 text-red-800';
+                    break;
+                default:
+                    className = 'bg-gray-100 text-gray-800';
+                    break;
+            }
+            
+            return `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${className}">${text}</span>`;
+        }
+        
+        // --- View Switching Functions ---
+        
+        /** Shows the main user list table and hides the details view. */
+        function showMembershipList() {
+            contentUserDetails.classList.add('hidden');
+            contentMembership.classList.remove('hidden');
+        }
 
-        // --- Main Load Function ---
+        /** Shows the single user details view and hides the main list. */
+        function showUserDetailsView() {
+            contentMembership.classList.add('hidden');
+            contentUserDetails.classList.remove('hidden');
+        }
+        
+        // --- API Fetch Functions ---
 
-        /**
-         * Main function to load and display data, including auth check.
-         */
-        async function loadMembershipData() {
-            loadingIndicator.classList.remove('hidden');
-            userTableContainer.classList.add('hidden');
-            errorMessage.classList.add('hidden');
-            contentUserDetails.classList.add('hidden'); // Ensure details view is hidden initially
+        /**
+         * Fetches all registered user data from the API (used for the main table).
+         * @returns {Promise<Array<Object> | null>} Array of user objects or null on failure/auth error.
+         */
+        async function fetchUserData() {
+            const token = localStorage.getItem('adminToken');
+            if (!token) {
+                console.error("No adminToken found. Redirecting to login.");
+                logoutAdmin();
+                return null;
+            }
 
-            const users = await fetchUserData();
+            try {
+                // ASSUMPTION: Backend route for fetching ALL users
+                const response = await fetch('/api/admin/users/all', { 
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    }
+                });
 
-            loadingIndicator.classList.add('hidden');
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        console.error(`Authentication error (${response.status}). Token expired or invalid.`);
+                        logoutAdmin();
+                        return null;
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
 
-            if (users === null) {
-                // fetchUserData already called logoutAdmin() if the token was bad
-                errorMessage.classList.remove('hidden');
-                errorMessage.innerHTML = 'Authentication failed or token expired. Please log in again.';
-            } else if (Array.isArray(users)) {
-                renderUserTable(users);
-                userTableContainer.classList.remove('hidden');
-            } else {
-                errorMessage.classList.remove('hidden');
-                errorMessage.innerHTML = 'Failed to load user data. Please check the network connection and API status.';
-            }
-        }
+                const data = await response.json();
+                return data.users || []; // ASSUMPTION: Backend returns { users: [...], count: 50 }
+
+            } catch (error) {
+                console.error('Error fetching user data:', error);
+                return null;
+            }
+        }
+
+        /**
+         * Fetches the full profile details for a specific user ID.
+         * Assumes a protected GET /api/admin/users/:id endpoint exists.
+         * @param {string} userId - The ID of the user to fetch.
+         * @returns {Promise<Object | null>} Single user object with full details or null on error.
+         */
+        async function fetchUserDetails(userId) {
+            const token = localStorage.getItem('adminToken');
+            if (!token) {
+                logoutAdmin();
+                return null;
+            }
+            
+            try {
+                const response = await fetch(`/api/admin/users/${userId}`, { 
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        logoutAdmin();
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                return data.user; // ASSUMPTION: Backend returns { user: {...} }
+
+            } catch (error) {
+                console.error(`Error fetching user details for ID ${userId}:`, error);
+                return null;
+            }
+        }
+        
+        /**
+         * Fetches the order history for a specific user ID.
+         * Assumes a protected GET /api/admin/users/:id/orders endpoint exists.
+         * @param {string} userId - The ID of the user to fetch orders for.
+         * @returns {Promise<Array<Object> | null>} Array of order objects or null on error.
+         */
+        async function fetchUserOrders(userId) {
+            const token = localStorage.getItem('adminToken');
+            if (!token) return null; // Auth handled by parent function
+
+            try {
+                // Backend route for orders for a user
+                const response = await fetch(`/api/admin/users/${userId}/orders`, { 
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}` 
+                    }
+                });
+
+                if (!response.ok) {
+                    // Log the error but don't force logout here
+                    console.error(`Order fetch failed for ${userId}: status ${response.status}`);
+                    return null;
+                }
+
+                const data = await response.json();
+                // ASSUMPTION: Backend returns { orders: [...] }
+                return data.orders || []; 
+
+            } catch (error) {
+                console.error(`Error fetching user orders for ID ${userId}:`, error);
+                return null;
+            }
+        }
+        
+        // --- Rendering Functions ---
+        
+        /**
+         * Renders the user data into the main membership table.
+         * @param {Array<Object>} users - Array of user objects.
+         */
+        function renderUserTable(users) {
+            userTableBody.innerHTML = ''; 
+            userCountDisplay.textContent = `Total Users: ${users.length.toLocaleString()}`;
+
+            if (users.length === 0) {
+                userTableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No registered users found.</td></tr>';
+                return;
+            }
+
+            users.forEach(user => {
+                const isMember = user.isMember; 
+                const statusText = isMember ? 'VIP Member' : 'Basic User';
+                const statusColor = isMember ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800';
+                
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 truncate max-w-xs" title="${user._id}">${user._id}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${user.name || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${user.email}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColor}">
+                            ${statusText}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${formatDate(user.createdAt)}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button onclick="viewUserDetails('${user._id}')" class="text-blue-600 hover:text-blue-900 transition duration-150">View Details</button>
+                    </td>
+                `;
+                userTableBody.appendChild(row);
+            });
+        }
+        
+        /**
+         * Renders the order history into the table, now excluding the item summary/preview columns.
+         * @param {Array<Object>} orders - Array of order objects.
+         */
+        function renderOrderHistory(orders) {
+            orderHistoryBody.innerHTML = ''; // Clear previous data
+            orderCountDisplay.textContent = `Total Orders: ${orders.length.toLocaleString()}`;
+
+            if (!orders || orders.length === 0) {
+                // Adjusted colspan from 7 to 5
+                orderHistoryBody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-sm text-gray-500">No orders found for this user.</td></tr>';
+                return;
+            }
+
+            orders.forEach(order => {
+                const statusBadge = getStatusBadge(order.status);
+                // Encode JSON data for safe passing to the inline function
+                const itemsJson = encodeURIComponent(JSON.stringify(order.items || []));
+
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+
+                // --- UPDATED TABLE ROW HTML ---
+                row.innerHTML = `
+                    <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 truncate max-w-xs" title="${order._id}">${order._id}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">${formatDate(order.createdAt)}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700 font-semibold">${formatCurrency(order.totalAmount)}</td>
+                    <td class="px-4 py-4 whitespace-nowrap">${statusBadge}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button onclick="openOrderDetailsModal('${order._id}', '${itemsJson}')" 
+                            class="text-indigo-600 hover:text-indigo-900 transition duration-150">View Items</button>
+                    </td>
+                `;
+                orderHistoryBody.appendChild(row);
+            });
+        }
+        
+        // --- Details and Modal Functions ---
+        
+        /**
+         * Handles the click of the 'View Details' button and loads the data into the details section.
+         * @param {string} userId - The ID of the user whose details to view.
+         */
+        async function viewUserDetails(userId) {
+            showUserDetailsView();
+            detailsLoadingIndicator.classList.remove('hidden');
+            userProfileData.classList.add('hidden');
+            detailsErrorMessage.classList.add('hidden');
+            
+            // Clear previous order history body
+            orderHistoryBody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-sm text-gray-500">Loading orders...</td></tr>';
+            orderCountDisplay.textContent = 'Total Orders: 0';
 
 
-        // --- Initialization and Event Listeners ---
+            const userPromise = fetchUserDetails(userId);
+            const ordersPromise = fetchUserOrders(userId); 
 
-        document.addEventListener('DOMContentLoaded', () => {
-            // Expose global functions required by inline HTML handlers
-            window.viewUserDetails = viewUserDetails;
-            window.showMembershipList = showMembershipList;
-            window.openOrderDetailsModal = openOrderDetailsModal; // Expose new modal function
+            const [user, orders] = await Promise.all([userPromise, ordersPromise]);
+            
+            detailsLoadingIndicator.classList.add('hidden'); // Hide loading indicator for details view
 
-            loadMembershipData();
+            if (user) {
+                // Render basic info
+                detailsHeaderName.textContent = user.name || 'N/A';
+                detailEmail.textContent = user.email;
+                
+                const statusText = user.isMember ? 'VIP Member 🌟' : 'Basic User';
+                const statusColor = user.isMember ? 'text-emerald-700' : 'text-gray-700';
+                
+                detailStatus.className = `text-xl font-bold ${statusColor}`;
+                detailStatus.textContent = statusText;
+                
+                detailJoined.textContent = formatDate(user.createdAt);
+                
+                // Render contact info and address
+                detailPhone.textContent = user.phone || 'N/A';
+                detailWhatsapp.textContent = user.whatsappNumber || user.phone || 'N/A'; 
+                
+                // The backend returns contactAddress, which is already formatted.
+                detailAddress.textContent = user.contactAddress || 'No Address Provided';
 
-            // Toggle sidebar visibility on mobile
-            sidebarToggle.addEventListener('click', () => {
-                sidebar.classList.toggle('-translate-x-full');
-            });
-            
-            // Close sidebar on mobile after clicking a link
-            navButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    if (window.innerWidth < 1024 && !sidebar.classList.contains('-translate-x-full')) {
-                        sidebar.classList.add('-translate-x-full');
-                    }
-                });
-            });
-        });
-    </script>
+                // Render Order History (even if orders is null, renderOrderHistory handles it)
+                if (orders !== null) {
+                    renderOrderHistory(orders);
+                } else {
+                    orderHistoryBody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-sm text-red-500">Failed to load order history. Check API.</td></tr>';
+                    orderCountDisplay.textContent = `Total Orders: N/A`;
+                }
+
+                userProfileData.classList.remove('hidden');
+            } else {
+                detailsErrorMessage.classList.remove('hidden');
+            }
+        }
+        
+        /**
+         * Displays order item details in a modal structure.
+         * @param {string} orderId - The ID of the order.
+         * @param {string} itemsJson - URL-encoded JSON string of items in the order.
+         */
+        function openOrderDetailsModal(orderId, itemsJson) {
+            let items;
+            try {
+                items = JSON.parse(decodeURIComponent(itemsJson));
+            } catch (e) {
+                console.error("Failed to parse items JSON:", e);
+                alert(`Error: Could not read item data for order ${orderId}.`);
+                return;
+            }
+            
+            modalOrderId.textContent = orderId;
+            modalItemsContainer.innerHTML = ''; 
+            
+            if (!items || items.length === 0) {
+                modalItemsContainer.innerHTML = '<p class="text-center text-gray-500 p-4">This order contains no specific items listed.</p>';
+            } else {
+                items.forEach(item => {
+                    const name = item.name || 'Unknown Product';
+                    const quantity = item.quantity || 1;
+                    const size = item.size || 'N/A';
+                    const imageUrl = item.imageUrl || 'https://via.placeholder.com/150?text=No+Image'; // Placeholder for missing image
+
+                    const itemHtml = `
+                        <div class="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg shadow-sm">
+                            <img src="${imageUrl}" alt="${name}" class="w-16 h-16 object-cover rounded-md border border-gray-200">
+                            <div class="flex-1">
+                                <p class="font-semibold text-gray-800">${name}</p>
+                                <p class="text-sm text-gray-600">Size/Variant: <span class="font-medium">${size}</span></p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm text-gray-500">Qty</p>
+                                <p class="text-lg font-bold text-emerald-700">${quantity}</p>
+                            </div>
+                        </div>
+                    `;
+                    modalItemsContainer.insertAdjacentHTML('beforeend', itemHtml);
+                });
+            }
+            
+            orderDetailsModal.classList.remove('hidden'); // Show the modal
+        }
+        
+        /** Closes the order details modal. */
+        function closeOrderDetailsModal() {
+            orderDetailsModal.classList.add('hidden');
+        }
+
+        // --- Main Load Function ---
+
+        /**
+         * Main function to load and display data, including auth check.
+         */
+        async function loadMembershipData() {
+            loadingIndicator.classList.remove('hidden');
+            userTableContainer.classList.add('hidden');
+            errorMessage.classList.add('hidden');
+            contentUserDetails.classList.add('hidden'); // Ensure details view is hidden initially
+
+            const users = await fetchUserData();
+
+            loadingIndicator.classList.add('hidden');
+
+            if (users === null) {
+                // fetchUserData already called logoutAdmin() if the token was bad
+                errorMessage.classList.remove('hidden');
+                errorMessage.innerHTML = 'Authentication failed or token expired. Please log in again.';
+            } else if (Array.isArray(users)) {
+                renderUserTable(users);
+                userTableContainer.classList.remove('hidden');
+            } else {
+                errorMessage.classList.remove('hidden');
+                errorMessage.innerHTML = 'Failed to load user data. Please check the network connection and API status.';
+            }
+        }
+
+
+        // --- Initialization and Event Listeners ---
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Expose global functions required by inline HTML handlers
+            window.viewUserDetails = viewUserDetails;
+            window.showMembershipList = showMembershipList;
+            window.openOrderDetailsModal = openOrderDetailsModal; 
+            window.closeOrderDetailsModal = closeOrderDetailsModal; // Expose close function
+
+            loadMembershipData();
+
+            // Toggle sidebar visibility on mobile
+            sidebarToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('-translate-x-full');
+            });
+            
+            // Close sidebar on mobile after clicking a link
+            navButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    if (window.innerWidth < 1024 && !sidebar.classList.contains('-translate-x-full')) {
+                        sidebar.classList.add('-translate-x-full');
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html>

@@ -1483,10 +1483,8 @@ app.get('/api/admin/users/:userId/orders', verifyToken, async (req, res) => {
         return res.status(500).json({ message: 'Server error: Failed to retrieve user order history.' });
     }
 });
-
 // =========================================================
 // 8. GET /api/admin/orders/pending - Fetch All Pending Orders (Admin Protected)
-// NO CHANGE: This still provides the list view data efficiently.
 // =========================================================
 app.get('/api/admin/orders/pending', verifyToken, async (req, res) => {
     try {
@@ -1500,10 +1498,19 @@ app.get('/api/admin/orders/pending', verifyToken, async (req, res) => {
         const populatedOrders = await Promise.all(
             pendingOrders.map(async (order) => {
                 const user = await User.findById(order.userId)
-                    .select('firstName lastName email')
+                    // ✅ FIX 1: Select nested fields from the 'profile' subdocument
+                    .select('profile.firstName profile.lastName email') 
                     .lean();
 
-                const userName = user ? `${user.firstName} ${user.lastName}` : 'N/A';
+                // ✅ FIX 2: Access nested fields safely
+                const firstName = user?.profile?.firstName;
+                const lastName = user?.profile?.lastName;
+                
+                // Construct userName: Use full name if both exist, otherwise fall back to email
+                const userName = (firstName && lastName) 
+                    ? `${firstName} ${lastName}` 
+                    : user?.email || 'N/A'; // Final fallback to email or 'N/A'
+                
                 const email = user ? user.email : 'Unknown User';
                 
                 return {
@@ -1522,7 +1529,6 @@ app.get('/api/admin/orders/pending', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Failed to retrieve pending orders.' });
     }
 });
-
 
 // =========================================================
 // 8b. GET /api/admin/orders/:orderId - Fetch Single Detailed Order (Admin Protected)
@@ -1545,10 +1551,19 @@ app.get('/api/admin/orders/:orderId', verifyToken, async (req, res) => {
 
         // 3. Get User Details (Name and Email)
         const user = await User.findById(detailedOrder.userId)
-            .select('firstName lastName email')
+            // ✅ FIX 1: Select nested fields from the 'profile' subdocument
+            .select('profile.firstName profile.lastName email') 
             .lean();
 
-        const userName = user ? `${user.firstName} ${user.lastName}` : 'N/A';
+        // ✅ FIX 2: Access nested fields safely
+        const firstName = user?.profile?.firstName;
+        const lastName = user?.profile?.lastName;
+
+        // Construct userName: Use full name if both exist, otherwise fall back to email
+        const userName = (firstName && lastName) 
+            ? `${firstName} ${lastName}` 
+            : user?.email || 'N/A';
+            
         const email = user ? user.email : 'Unknown User';
         
         // 4. Combine all details

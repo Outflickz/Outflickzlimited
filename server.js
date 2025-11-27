@@ -1253,70 +1253,70 @@ const singleReceiptUpload = multer({
 }).single('receipt'); // 'receipt' must match the field name sent by the frontend
 
 // --- USER AUTHENTICATION API ROUTES ---
-
 const verifyUserToken = (req, res, next) => {
-    // 1. Read the token from the HTTP-only cookie
-    const token = req.cookies.outflickzToken; 
+    // CRITICAL FIX: The frontend sends the token in the 'Authorization: Bearer <token>' header.
+    const authHeader = req.headers.authorization;
 
-    // 2. Check if the cookie/token exists
-    if (!token) {
-        // Clear the cookie to ensure a clean slate if one was attempted but failed
-        res.clearCookie('outflickzToken');
-        return res.status(401).json({ message: 'Access denied. No session token found.' });
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        // Clear cookie as a security best practice, even if we expected a header
+        if (req.cookies.outflickzToken) {
+            res.clearCookie('outflickzToken');
+        }
+        return res.status(401).json({ message: 'Access denied. Authorization token missing or malformed.' });
     }
 
+    const token = authHeader.split(' ')[1]; // Extract the token from 'Bearer <token>'
+
     try {
+        // Assuming JWT_SECRET is available in scope
         const decoded = jwt.verify(token, JWT_SECRET);
         
-        // Ensure this is a regular user token (optional, but good practice)
+        // Ensure this is a regular user token 
         if (decoded.role !== 'user') {
-             return res.status(403).json({ message: 'Forbidden. Access limited to users.' });
+            return res.status(403).json({ message: 'Forbidden. Invalid user role.' });
         }
         
         // Attach the user ID to the request object for use in subsequent handlers
         req.userId = decoded.id; 
         next();
     } catch (err) {
-        // Token is invalid (expired, tampered, etc.) - Force logout by clearing cookie
-        res.clearCookie('outflickzToken');
+        // Token is invalid (expired, tampered, etc.) - Force re-login
+        if (req.cookies.outflickzToken) {
+            res.clearCookie('outflickzToken');
+        }
+        console.error("JWT Verification Error:", err.message);
         res.status(401).json({ message: 'Invalid or expired session. Please log in again.' });
     }
 };
 
 /**
  * Verifies the user token if present, but allows the request to proceed if absent.
- * Sets req.userId if the user is authenticated.
+ * (This middleware is generally not needed for a protected route like /api/orders/:orderId)
  */
 const verifyOptionalToken = (req, res, next) => {
-    // 1. Read the token from the HTTP-only cookie
+    // This function is unchanged as it seems designed specifically for cookies
+    // but should be reviewed if other frontend pages start using Authorization headers optionally.
     const token = req.cookies.outflickzToken; 
 
-    // 2. If no token, treat as unauthenticated and continue
     if (!token) {
-        req.userId = null; // Explicitly set to null/undefined
+        req.userId = null; 
         return next();
     }
 
-    // 3. If token exists, attempt verification
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
-        
-        // Ensure this is a regular user token
         if (decoded.role !== 'user') {
-            req.userId = null; // Invalid role, treat as unauthenticated
+            req.userId = null;
             return next();
         }
-        
-        // Attach the user ID and proceed
         req.userId = decoded.id; 
         next();
     } catch (err) {
-        // Token is invalid/expired. Clear cookie, but still proceed to the route handler
         res.clearCookie('outflickzToken');
-        req.userId = null; // Explicitly set to null
+        req.userId = null; 
         next();
     }
-};
+}; 
 
 // --- GENERAL ADMIN API ROUTES ---d
 app.post('/api/admin/register', async (req, res) => {

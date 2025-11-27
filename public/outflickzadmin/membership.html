@@ -173,12 +173,16 @@
                 </div>
 
                 <h3 class="text-xl font-semibold text-gray-800 border-b pb-2">Contact & Shipping</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
                         <p class="text-xs font-medium text-gray-500">Contact Phone 📞</p>
                         <p class="text-lg text-gray-700" id="detail-phone"></p>
                     </div>
                     <div>
+                        <p class="text-xs font-medium text-gray-500">WhatsApp Contact 💬</p>
+                        <p class="text-lg text-green-700 font-semibold" id="detail-whatsapp"></p>
+                    </div>
+                    <div class="md:col-span-1">
                         <p class="text-xs font-medium text-gray-500">Shipping Address 🏠</p>
                         <div class="bg-gray-50 p-4 rounded-lg">
                             <p class="text-base text-gray-700" id="detail-address">No Address Provided</p>
@@ -204,7 +208,7 @@
                         </thead>
                         <tbody id="order-history-body" class="bg-white divide-y divide-gray-200">
                     <tr>
-                 <td colspan="7" class="px-4 py-4 text-center text-sm text-gray-500">No orders found for this user.</td>
+                   <td colspan="7" class="px-4 py-4 text-center text-sm text-gray-500">No orders found for this user.</td>
                     </tr>
                 </tbody>
                     </table>
@@ -246,6 +250,7 @@
         const detailJoined = document.getElementById('detail-joined');
         const detailPhone = document.getElementById('detail-phone');
         const detailAddress = document.getElementById('detail-address');
+        const detailWhatsapp = document.getElementById('detail-whatsapp'); // NEW WhatsApp Element
         
         // NEW Order History Elements
         const orderHistoryBody = document.getElementById('order-history-body');
@@ -261,6 +266,7 @@
         function navigateToNewArrivals() { window.location.href = './newarrivals.html'; }
         function navigateToPreOrders() { window.location.href = './preorders.html'; }
         function navigateToMembership() { window.location.href = './membership.html'; } // Self-link
+        function navigateToUserOrders() { console.log("Navigating to User Orders..."); } // Placeholder for missing page
 
         function logoutAdmin() {
             console.log("Logging out... Clearing admin token.");
@@ -269,22 +275,22 @@
         }
 
       // Helper function for date formatting
-        function formatDate(dateString) {
-            if (!dateString) return 'N/A';
-            try {
-                const options = { year: 'numeric', month: 'short', day: 'numeric' };
-                return new Date(dateString).toLocaleDateString(undefined, options);
-            } catch (e) {
-                return 'Invalid Date';
-            }
-        }
-        
-        // Helper function for currency formatting
-        function formatCurrency(amount) {
-            if (typeof amount !== 'number') return 'N/A';
-            // UPDATED: Changed from 'en-US', 'USD' to 'en-NG', 'NGN' (Naira)
-            return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount);
-        }
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            try {
+                const options = { year: 'numeric', month: 'short', day: 'numeric' };
+                return new Date(dateString).toLocaleDateString(undefined, options);
+            } catch (e) {
+                return 'Invalid Date';
+            }
+        }
+        
+        // Helper function for currency formatting
+        function formatCurrency(amount) {
+            if (typeof amount !== 'number') return 'N/A';
+            // UPDATED: Changed from 'en-US', 'USD' to 'en-NG', 'NGN' (Naira)
+            return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount);
+        }
 
         // Helper function to determine status badge classes
         function getStatusBadge(status) {
@@ -350,7 +356,7 @@
                 if (!response.ok) {
                     if (response.status === 401 || response.status === 403) {
                          // Don't log out here, let viewUserDetails handle primary auth
-                        throw new Error("Order API Auth Failure");
+                         throw new Error("Order API Auth Failure");
                     }
                     throw new Error(`Order HTTP error! status: ${response.status}`);
                 }
@@ -367,74 +373,73 @@
         }
         
        /**
- * Renders the order history into the table, including product images.
- * @param {Array<Object>} orders - Array of order objects.
- */
-function renderOrderHistory(orders) {
-    orderHistoryBody.innerHTML = ''; // Clear previous data
-    orderCountDisplay.textContent = `Total Orders: ${orders.length.toLocaleString()}`;
+        * Renders the order history into the table, including product images.
+        * @param {Array<Object>} orders - Array of order objects.
+        */
+        function renderOrderHistory(orders) {
+            orderHistoryBody.innerHTML = ''; // Clear previous data
+            orderCountDisplay.textContent = `Total Orders: ${orders.length.toLocaleString()}`;
 
-    if (!orders || orders.length === 0) {
-        orderHistoryBody.innerHTML = '<tr><td colspan="7" class="px-4 py-4 text-center text-sm text-gray-500">No orders found for this user.</td></tr>';
-        return;
-    }
-
-    // Define a fallback image URL for failed loads
-const FALLBACK_IMAGE_URL = 'https://placehold.co/32x32/CBD5E1/475569/png?text=N/A';
-
-    orders.forEach(order => {
-        const statusBadge = getStatusBadge(order.status);
-        
-        let totalItemsCount = 0;
-        if (order.items && Array.isArray(order.items)) {
-            totalItemsCount = order.items.reduce((sum, item) => sum + (item.quantity || 1), 0);
-        }
-        
-        // --- IMPROVED Product Preview Construction ---
-        let productPreviewHtml = `<div class="flex -space-x-2 overflow-hidden items-center">`;
-        const maxImages = 3;
-        
-        if (order.items && Array.isArray(order.items) && order.items.length > 0) {
-            order.items.slice(0, maxImages).forEach(item => {
-                // Use item.imageUrl, but if it fails, the onerror handler will set the source to FALLBACK_IMAGE_URL
-                const imgUrl = item.imageUrl || FALLBACK_IMAGE_URL; 
-                const productName = item.name || 'Product';
-                
-                productPreviewHtml += `
-                    <img class="inline-block h-8 w-8 rounded-md ring-2 ring-white object-cover shadow-md" 
-                         src="${imgUrl}" 
-                         alt="${productName}" 
-                         title="${productName} (x${item.quantity || 1})"
-                         onerror="this.onerror=null; this.src='${FALLBACK_IMAGE_URL}'">
-                `;
-            });
-            
-            if (order.items.length > maxImages) {
-                productPreviewHtml += `<span class="inline-flex items-center justify-center h-8 w-8 rounded-full bg-gray-200 text-xs text-gray-600 ring-2 ring-white shadow-md">
-                    +${order.items.length - maxImages}
-                </span>`;
+            if (!orders || orders.length === 0) {
+                orderHistoryBody.innerHTML = '<tr><td colspan="7" class="px-4 py-4 text-center text-sm text-gray-500">No orders found for this user.</td></tr>';
+                return;
             }
-        } else {
-            productPreviewHtml = '<span class="text-xs text-gray-500">No products</span>';
+
+            // Define a fallback image URL for failed loads
+        const FALLBACK_IMAGE_URL = 'https://placehold.co/32x32/CBD5E1/475569/png?text=N/A';
+
+            orders.forEach(order => {
+                const statusBadge = getStatusBadge(order.status);
+                
+                let totalItemsCount = 0;
+                if (order.items && Array.isArray(order.items)) {
+                    totalItemsCount = order.items.reduce((sum, item) => sum + (item.quantity || 1), 0);
+                }
+                
+                // --- IMPROVED Product Preview Construction ---
+                let productPreviewHtml = `<div class="flex -space-x-2 overflow-hidden items-center">`;
+                const maxImages = 3;
+                
+                if (order.items && Array.isArray(order.items) && order.items.length > 0) {
+                    order.items.slice(0, maxImages).forEach(item => {
+                        // Use item.imageUrl, but if it fails, the onerror handler will set the source to FALLBACK_IMAGE_URL
+                        const imgUrl = item.imageUrl || FALLBACK_IMAGE_URL; 
+                        const productName = item.name || 'Product';
+                        
+                        productPreviewHtml += `
+                            <img class="inline-block h-8 w-8 rounded-md ring-2 ring-white object-cover shadow-md" 
+                                  src="${imgUrl}" 
+                                  alt="${productName}" 
+                                  title="${productName} (x${item.quantity || 1})"
+                                  onerror="this.onerror=null; this.src='${FALLBACK_IMAGE_URL}'">
+                        `;
+                    });
+                    
+                    if (order.items.length > maxImages) {
+                        productPreviewHtml += `<span class="inline-flex items-center justify-center h-8 w-8 rounded-full bg-gray-200 text-xs text-gray-600 ring-2 ring-white shadow-md">
+                            +${order.items.length - maxImages}
+                        </span>`;
+                    }
+                } else {
+                    productPreviewHtml = '<span class="text-xs text-gray-500">No products</span>';
+                }
+                productPreviewHtml += `</div>`;
+                
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                
+                row.innerHTML = `
+                    <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 truncate max-w-xs">${order._id}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">${formatDate(order.createdAt)}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700 font-semibold">${formatCurrency(order.totalAmount)}</td>
+                    <td class="px-4 py-4 whitespace-nowrap">${statusBadge}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm">${productPreviewHtml}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">${totalItemsCount} item(s)</td>
+                `;
+                orderHistoryBody.appendChild(row);
+            });
         }
-        productPreviewHtml += `</div>`;
         
-        const row = document.createElement('tr');
-        row.className = 'hover:bg-gray-50';
-        
-        row.innerHTML = `
-            <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 truncate max-w-xs">${order._id}</td>
-            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">${formatDate(order.createdAt)}</td>
-            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700 font-semibold">${formatCurrency(order.totalAmount)}</td>
-            <td class="px-4 py-4 whitespace-nowrap">${statusBadge}</td>
-            <td class="px-4 py-4 whitespace-nowrap text-sm">${productPreviewHtml}</td>
-            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">${totalItemsCount} item(s)</td>
-        `;
-        orderHistoryBody.appendChild(row);
-    });
-}
-
-
         /**
          * Fetches the full profile details for a specific user ID.
          * Assumes a protected GET /api/admin/users/:id endpoint exists.
@@ -485,7 +490,7 @@ const FALLBACK_IMAGE_URL = 'https://placehold.co/32x32/CBD5E1/475569/png?text=N/
 
         /**
          * Handles the click of the 'View Details' button and loads the data into the details section.
-         * Updated to include Order History.
+         * Updated to include Order History and WhatsApp Contact.
          * @param {string} userId - The ID of the user whose details to view.
          */
         async function viewUserDetails(userId) {
@@ -498,7 +503,7 @@ const FALLBACK_IMAGE_URL = 'https://placehold.co/32x32/CBD5E1/475569/png?text=N/
             const [user, orders] = await Promise.all([userPromise, ordersPromise]);
 
             if (user) {
-                // ASSUMPTION: The user object contains: name, email, isMember, createdAt, phone, contactAddress
+                // ASSUMPTION: The user object contains: name, email, isMember, createdAt, phone, whatsappNumber, contactAddress
                 
                 const isMember = user.isMember;
                 const statusText = isMember ? 'VIP Member 🌟' : 'Basic User';
@@ -514,8 +519,9 @@ const FALLBACK_IMAGE_URL = 'https://placehold.co/32x32/CBD5E1/475569/png?text=N/
                 
                 detailJoined.textContent = formatDate(user.createdAt);
                 
-                // Render contact info
+                // Render contact info (UPDATED)
                 detailPhone.textContent = user.phone || 'N/A';
+                detailWhatsapp.textContent = user.whatsappNumber || user.phone || 'N/A'; // Use phone as fallback
                 detailAddress.textContent = user.contactAddress || 'No Address Provided';
 
                 // Render Order History

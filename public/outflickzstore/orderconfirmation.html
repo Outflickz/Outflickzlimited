@@ -187,15 +187,18 @@
        <script>
 // **MISSING GLOBAL VARIABLE** added for the JavaScript logic to work
 const LOCAL_TAX_RATE = 0.00; 
-        
+        
 // --- UTILITY FUNCTIONS ---
 const LOCAL_CART_KEY = 'outflickzLocalCart'; 
 const CART_STORAGE_KEY = 'outflickzCartCount';
 const CURRENCY_SYMBOL = '₦'; 
-const API_BASE_URL = 'https://outflickz.netlify.app';
+const API_BASE_URL = ''; // Changed to empty string if running on the same domain, or use the correct base URL.
+// IMPORTANT: If running locally or via Netlify, adjust API_BASE_URL if the backend is hosted elsewhere. 
+// Assuming it runs on the same origin for relative path: '/api/orders/:orderId'
+
 
 // =================================================================
-// 🚀 FIX: getAuthToken() function is now defined here
+// 🚀 FIX 1 & 2: getAuthToken() function is now defined here
 // =================================================================
 /**
  * Retrieves the user's authentication token from local storage.
@@ -207,41 +210,41 @@ function getAuthToken() {
 
 
 // --- USER AUTHENTICATION & REDIRECTION FUNCTIONS (Reused) ---
-    function isUserLoggedIn() {
-        return localStorage.getItem('outflickzAuthStatus') === 'loggedIn';
-    }
+    function isUserLoggedIn() {
+        return localStorage.getItem('outflickzAuthStatus') === 'loggedIn';
+    }
 
 function updateCartBadge() {
-    // Ensure cart badge is correctly updated/hidden
-    const count = parseInt(localStorage.getItem(CART_STORAGE_KEY) || '0', 10);
-    const badgeEl = document.getElementById('cart-badge');
-    if (badgeEl) {
-        badgeEl.textContent = count;
-        if (count > 0) {
-            badgeEl.classList.remove('hidden');
-        } else {
-            badgeEl.classList.add('hidden');
-        }
-    }
+    // Ensure cart badge is correctly updated/hidden
+    const count = parseInt(localStorage.getItem(CART_STORAGE_KEY) || '0', 10);
+    const badgeEl = document.getElementById('cart-badge');
+    if (badgeEl) {
+        badgeEl.textContent = count;
+        if (count > 0) {
+            badgeEl.classList.remove('hidden');
+        } else {
+            badgeEl.classList.add('hidden');
+        }
+    }
 }
 
 function redirectToProfileOrLogin() {
-    // Simple logic for redirect
-    window.location.href = isUserLoggedIn() ? 'useraccount.html' : 'login.html';
+    // Simple logic for redirect
+    window.location.href = isUserLoggedIn() ? 'useraccount.html' : 'login.html';
 }
 
 function toggleMenu() {
-    const mobileMenu = document.getElementById('mobile-menu');
-    const isExpanded = mobileMenu.classList.contains('hidden');
-    if (isExpanded) {
-        mobileMenu.classList.remove('hidden');
-        document.querySelector('button[aria-controls="mobile-menu"]').setAttribute('aria-expanded', 'true');
-    } else {
-        mobileMenu.classList.add('hidden');
-        document.querySelector('button[aria-controls="mobile-menu"]').setAttribute('aria-expanded', 'false');
-    }
+    const mobileMenu = document.getElementById('mobile-menu');
+    const isExpanded = mobileMenu.classList.contains('hidden');
+    if (isExpanded) {
+        mobileMenu.classList.remove('hidden');
+        document.querySelector('button[aria-controls="mobile-menu"]').setAttribute('aria-expanded', 'true');
+    } else {
+        mobileMenu.classList.add('hidden');
+        document.querySelector('button[aria-controls="mobile-menu"]').setAttribute('aria-expanded', 'false');
+    }
 }
-    
+    
 /**
  * Fetches the full order details (items, final amount) from the server.
  * @param {string} orderId - The MongoDB _id of the order.
@@ -268,7 +271,7 @@ async function fetchOrderCollection(orderId) {
             headers: { 
                 'Content-Type': 'application/json',
                 // 🎯 FIX 4: Pass the token in the Authorization header
-                'Authorization': `Bearer ${token}`,
+                'Authorization': `Bearer ${token}`, 
             },
         });
 
@@ -377,6 +380,7 @@ function displayConfirmationDetails() {
     } 
     
     // **CRITICAL**: Call function to fetch collection details using the Order ID.
+    // This call uses the authentication token retrieved by getAuthToken()
     fetchOrderCollection(orderId);
 
     // Ensure the cart badge is updated (cleared after a successful order)

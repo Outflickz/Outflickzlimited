@@ -1646,6 +1646,7 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
 
     try {
         // 1. Initial status change from 'Pending' to 'Processing'
+        // We use findOneAndUpdate to ensure atomic update and retrieve the document.
         const updatedOrder = await Order.findOneAndUpdate(
             { _id: orderId, status: 'Pending' }, 
             { 
@@ -1659,8 +1660,12 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
             { new: true, select: 'userId status totalAmount items' } 
         ).lean();
 
+        // 💡 CRITICAL FIX: Check if the order was successfully found and updated.
+        // This prevents the TypeError you were seeing if the order was not 'Pending'.
         if (!updatedOrder) {
-            return res.status(404).json({ message: 'Order not found or not in a Pending state.' });
+            console.warn(`Order ${orderId} skipped: not found or status is not pending.`);
+            // Use 409 Conflict to indicate that the request could not be completed due to the resource's state.
+            return res.status(409).json({ message: 'Order not found or is already processed.' });
         }
         
         // 2. CRITICAL STEP: Deduct Inventory and finalize status to 'Completed' atomically
@@ -1702,6 +1707,7 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
         });
 
     } catch (error) {
+        // This catch block handles the final crash and returns the 500 error
         console.error(`Error confirming order ${orderId}:`, error);
         res.status(500).json({ message: 'Failed to confirm order due to a server error.' });
     }

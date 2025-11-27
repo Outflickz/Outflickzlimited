@@ -765,7 +765,7 @@
         }
     }
 
-    /**
+   /**
  * Handles account verification code submission.
  */
 async function handleVerification(event) {
@@ -781,12 +781,12 @@ async function handleVerification(event) {
         return;
     }
 
-    // ⭐ NEW CLIENT-SIDE VALIDATION: Check if code is present and has expected length
+    // ⭐ CLIENT-SIDE VALIDATION: Check if code is present and has expected length
     if (!code || code.length !== 6) { 
         displayMessage('Please enter a valid 6-digit verification code.', 'error');
         return; // Stop execution here if validation fails
     }
-    // ⭐ END NEW VALIDATION
+    // ⭐ END VALIDATION
 
     verifyBtn.textContent = 'Verifying...';
     verifyBtn.disabled = true;
@@ -811,6 +811,11 @@ async function handleVerification(event) {
 
         if (response.ok) {
             displayMessage('Account verified successfully! You can now sign in.', 'success');
+            
+            // ⭐ FIX: Immediately disable the button and input on success
+            // This prevents the user from clicking again and triggering the 400 'already verified' error.
+            document.getElementById('verify-code').disabled = true;
+            verifyBtn.textContent = 'Verified!';
 
             pendingVerificationEmail = '';
             document.getElementById('verify-code').value = '';
@@ -818,20 +823,31 @@ async function handleVerification(event) {
             setTimeout(() => {
                 showView('login');
                 document.getElementById('login-email').value = email; // Pre-fill email
+                
+                // Re-enable input for future use after the view switch
+                document.getElementById('verify-code').disabled = false;
             }, 2000);
+            
+            // Note: The finally block is now skipped on success
 
         } else {
             const errorMessage = data.message || `Verification API Error (${response.status}).`;
             displayMessage(`Verification Failed: ${errorMessage}`, 'error');
+            
+            // On failure, we re-enable the button so the user can try again
+            verifyBtn.textContent = 'Verify Account';
+            verifyBtn.disabled = false;
         }
 
     } catch (error) {
         console.error('Verification network failed:', error);
         displayMessage(`Connection Error: ${error.message || 'Could not connect to the verification service.'}`, 'error');
-    } finally {
+        
+        // Ensure reset on network/fatal error
         verifyBtn.textContent = 'Verify Account';
         verifyBtn.disabled = false;
     }
+    // Removed the 'finally' block as the logic is handled specifically in success/failure paths.
 }
 
     /**

@@ -3001,6 +3001,7 @@ app.get('/api/collections/preorder', async (req, res) => {
         });
     }
 });
+
 // 1. POST /api/users/register (Create Account and Send Verification Code)
 app.post('/api/users/register', async (req, res) => {
     // 🔔 CRITICAL UPDATE: Destructure all fields, including the structured 'address' object

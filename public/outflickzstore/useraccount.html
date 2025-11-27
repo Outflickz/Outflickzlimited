@@ -350,7 +350,6 @@
     const VERIFY_ENDPOINT = `${API_BASE_URL}/users/verify`;
     const RESEND_ENDPOINT = `${API_BASE_URL}/users/resend-verification`;
     const LOGIN_ENDPOINT = `${API_BASE_URL}/users/login`;
-    // Add a LOGOUT endpoint (assuming one exists or will be created)
     const LOGOUT_ENDPOINT = `${API_BASE_URL}/users/logout`; 
 
     let pendingVerificationEmail = '';
@@ -453,72 +452,9 @@
         }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-        // Initialize DOM elements after load
-        views = {
-            'login': document.getElementById('login-view'),
-            'create': document.getElementById('create-view'),
-            'verify': document.getElementById('verify-view'),
-            'forgot': document.getElementById('forgot-view'),
-            // 'profile' view removed
-        };
-        headerElement = document.getElementById('auth-header');
-        messageArea = document.getElementById('message-area');
-        container = document.getElementById('auth-views');
-
-        // Check if all essential elements were found
-        if (!headerElement || !messageArea || !container || !views.login) {
-            console.error("Essential DOM elements for authentication not found. Check HTML IDs.");
-            // Stop execution if main elements are missing to prevent runtime errors
-            return;
-        }
-
-        // ⭐ NEW: Add listener for country change to populate states
-        const countrySelect = document.getElementById('create-country');
-        if (countrySelect) {
-            countrySelect.addEventListener('change', populateStates);
-        }
-
-        // ⭐ NEW: Add listener for a generic logout button
-        // NOTE: A visible logout button must be added to the HTML if this is needed outside the auth flow.
-        const logoutBtn = document.getElementById('logout-btn'); 
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', handleLogout);
-        }
-        
-        // Add event listeners to newly added forms/buttons
-        const verifyForm = document.getElementById('verify-form');
-        if (verifyForm) {
-             verifyForm.addEventListener('submit', handleVerification);
-        }
-
-        const forgotForm = document.getElementById('forgot-form');
-        if (forgotForm) {
-             forgotForm.addEventListener('submit', handleForgotPassword);
-        }
-        
-        const createForm = document.getElementById('create-form');
-        if (createForm) {
-             createForm.addEventListener('submit', handleCreateAccount); // Ensure create form has listener
-        }
-        
-        const loginForm = document.getElementById('login-form');
-        if (loginForm) {
-             loginForm.addEventListener('submit', handleLogin); // Ensure login form has listener
-        }
-
-
-        const resendBtn = document.getElementById('resend-btn');
-        if (resendBtn) {
-             resendBtn.addEventListener('click', handleResendCode);
-        }
-
-
-        showView('login');
-    });
-
     /**
      * Toggles password input type between 'password' and 'text'.
+     * This function needs to be globally accessible if called from HTML.
      */
     function togglePasswordVisibility(fieldId) {
         const field = document.getElementById(fieldId);
@@ -611,7 +547,6 @@
             // 4. Handle API Responses
             if (response.ok) {
                 // SUCCESS (HTTP 200): Login successful
-                // Token is now set via HTTP-only cookie by the server response.
 
                 // --- 🔑 CART MERGE LOGIC - STEP 3: CLEAR LOCAL STORAGE ---
                 if (localCartItems.length > 0) {
@@ -965,15 +900,11 @@
                 headers: { 'Content-Type': 'application/json' }
             });
 
-            // No need to check response.ok strictly, as we assume the server clears the cookie
-            // (even on error, we proceed with client-side cleanup).
-
             // 1. Clear any local state that might indicate a logged-in user
-            // You might want to remove more items if they are user-specific.
             localStorage.removeItem('outflickzLocalCart'); 
             
             // 2. Display success message and redirect
-            displayMessage('You have been successfully signed out.', 'success');
+            displayMessage('You have been successfully signed out. Redirecting...', 'success');
             
             setTimeout(() => {
                 window.location.href = 'index.html'; // Redirect to the main landing page
@@ -989,6 +920,73 @@
         }
     }
     // ------------------------------------------------------------------
+
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Initialize DOM elements after load
+        views = {
+            'login': document.getElementById('login-view'),
+            'create': document.getElementById('create-view'),
+            'verify': document.getElementById('verify-view'),
+            'forgot': document.getElementById('forgot-view'),
+        };
+        headerElement = document.getElementById('auth-header');
+        messageArea = document.getElementById('message-area');
+        container = document.getElementById('auth-views');
+
+        // Check if all essential elements were found
+        if (!headerElement || !messageArea || !container || !views.login) {
+            console.error("Essential DOM elements for authentication not found. Check HTML IDs.");
+            // Stop execution if main elements are missing to prevent runtime errors
+            return;
+        }
+
+        // ⭐ Listener for country change to populate states
+        const countrySelect = document.getElementById('create-country');
+        if (countrySelect) {
+            countrySelect.addEventListener('change', populateStates);
+        }
+
+        // ⭐ Listener for a generic logout button
+        const logoutBtn = document.getElementById('logout-btn'); 
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', handleLogout);
+        }
+        
+        // --- 🚨 CRITICAL FIX: Ensure ONLY ONE listener for each form is attached here ---
+        
+        const loginForm = document.getElementById('login-form');
+        if (loginForm) {
+            // This is the listener that was likely duplicated elsewhere, causing the double-fetch
+            loginForm.addEventListener('submit', handleLogin); 
+        }
+        
+        const createForm = document.getElementById('create-form');
+        if (createForm) {
+            // This is the listener that was likely duplicated elsewhere, causing the double-fetch
+            createForm.addEventListener('submit', handleCreateAccount); 
+        }
+
+        const verifyForm = document.getElementById('verify-form');
+        if (verifyForm) {
+             // This is the listener that was likely duplicated elsewhere, causing the double-fetch
+             verifyForm.addEventListener('submit', handleVerification);
+        }
+
+        const forgotForm = document.getElementById('forgot-form');
+        if (forgotForm) {
+             forgotForm.addEventListener('submit', handleForgotPassword);
+        }
+        
+        const resendBtn = document.getElementById('resend-btn');
+        if (resendBtn) {
+             resendBtn.addEventListener('click', handleResendCode);
+        }
+        // -----------------------------------------------------------------------------
+
+        showView('login');
+    });
+
 </script>
 </body>
 </html>

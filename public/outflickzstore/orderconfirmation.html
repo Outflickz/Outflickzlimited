@@ -184,7 +184,7 @@
         </a>
         
 
-       <script>
+     <script>
 // **MISSING GLOBAL VARIABLE** added for the JavaScript logic to work
 const LOCAL_TAX_RATE = 0.00; 
         
@@ -192,24 +192,22 @@ const LOCAL_TAX_RATE = 0.00;
 const LOCAL_CART_KEY = 'outflickzLocalCart'; 
 const CART_STORAGE_KEY = 'outflickzCartCount';
 const CURRENCY_SYMBOL = '₦'; 
-const API_BASE_URL = ''; // Changed to empty string if running on the same domain, or use the correct base URL.
-// IMPORTANT: If running locally or via Netlify, adjust API_BASE_URL if the backend is hosted elsewhere. 
-// Assuming it runs on the same origin for relative path: '/api/orders/:orderId'
+const API_BASE_URL = 'https://outflickz.netlify.app';
 
 
 // =================================================================
-// 🚀 FIX 1 & 2: getAuthToken() function is now defined here
+// 🚀 getAuthToken() function
 // =================================================================
 /**
- * Retrieves the user's authentication token from local storage.
- * @returns {string | null} The JWT token or null if not found.
- */
+ * Retrieves the user's authentication token from local storage.
+ * @returns {string | null} The JWT token or null if not found.
+ */
 function getAuthToken() {
-    return localStorage.getItem('outflickzAuthToken'); // Assuming the token is stored under this key
+    return localStorage.getItem('outflickzAuthToken'); // Assuming the token is stored under this key
 }
 
 
-// --- USER AUTHENTICATION & REDIRECTION FUNCTIONS (Reused) ---
+// --- USER AUTHENTICATION & REDIRECTION FUNCTIONS (Updated) ---
     function isUserLoggedIn() {
         return localStorage.getItem('outflickzAuthStatus') === 'loggedIn';
     }
@@ -228,9 +226,12 @@ function updateCartBadge() {
     }
 }
 
+/**
+ * Redirects to the account page. If logged in, shows the profile; otherwise, shows the login/signup form.
+ */
 function redirectToProfileOrLogin() {
-    // Simple logic for redirect
-    window.location.href = isUserLoggedIn() ? 'useraccount.html' : 'login.html';
+    // 🚩 FIX 1: Redirects to useraccount.html for both logged-in and logged-out states
+    window.location.href = 'useraccount.html';
 }
 
 function toggleMenu() {
@@ -246,154 +247,153 @@ function toggleMenu() {
 }
     
 /**
- * Fetches the full order details (items, final amount) from the server.
- * @param {string} orderId - The MongoDB _id of the order.
- */
+ * Fetches the full order details (items, final amount) from the server.
+ * @param {string} orderId - The MongoDB _id of the order.
+ */
 async function fetchOrderCollection(orderId) {
-    const itemsListEl = document.getElementById('order-items-list');
-    // 🎯 FIX 2: getAuthToken() is now defined above.
-    const token = getAuthToken();
+    const itemsListEl = document.getElementById('order-items-list');
+    const token = getAuthToken();
 
-    if (!token) {
-        // 🎯 FIX 3: Display a more actionable error if the token is missing/expired
-        const redirectUrl = `login.html?redirect=orderconfirmation.html?id=${orderId}`;
-        itemsListEl.innerHTML = `<div class="text-center py-4 text-red-500">
-            <i class="fas fa-exclamation-triangle mr-2"></i> You must be logged in to view order details. 
-            <a href="${redirectUrl}" class="font-semibold underline">Click here to log in.</a>
-        </div>`;
-        return;
-    }
+    if (!token) {
+        // 🚩 FIX 2: Correct redirection URL to useraccount.html
+        const redirectUrl = `useraccount.html?redirect=orderconfirmation.html?id=${orderId}`;
+        itemsListEl.innerHTML = `<div class="text-center py-4 text-red-500">
+            <i class="fas fa-exclamation-triangle mr-2"></i> You must be logged in to view order details. 
+            <a href="${redirectUrl}" class="font-semibold underline">Click here to log in.</a>
+        </div>`;
+        return;
+    }
 
-    try {
-        // CALLING BACKEND ENDPOINT: GET /api/orders/:orderId
-        const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}`, {
-            method: 'GET',
-            headers: { 
-                'Content-Type': 'application/json',
-                // 🎯 FIX 4: Pass the token in the Authorization header
-                'Authorization': `Bearer ${token}`, 
-            },
-        });
+    try {
+        // CALLING BACKEND ENDPOINT: GET /api/orders/:orderId
+        const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}`, {
+            method: 'GET',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`, 
+            },
+        });
 
-        if (!response.ok) {
-            // If 404/401, display specific error.
-            const errorData = await response.json().catch(() => ({ message: 'Server error' }));
-            
-            if (response.status === 401 || response.status === 403) {
-                 // Handle specific unauthorized/forbidden errors (e.g., expired token)
-                 const redirectUrl = `login.html?redirect=orderconfirmation.html?id=${orderId}`;
-                 itemsListEl.innerHTML = `<div class="text-center py-4 text-red-500">
-                     <i class="fas fa-exclamation-triangle mr-2"></i> Your session has expired. Please <a href="${redirectUrl}" class="font-semibold underline">log in</a> again.
-                   </div>`;
-                 return;
-            }
+        if (!response.ok) {
+            // If 404/401, display specific error.
+            const errorData = await response.json().catch(() => ({ message: 'Server error' }));
+            
+            if (response.status === 401 || response.status === 403) {
+                 // Handle specific unauthorized/forbidden errors (e.g., expired token)
+                 // 🚩 FIX 3: Correct redirection URL to useraccount.html
+                 const redirectUrl = `useraccount.html?redirect=orderconfirmation.html?id=${orderId}`;
+                 itemsListEl.innerHTML = `<div class="text-center py-4 text-red-500">
+                     <i class="fas fa-exclamation-triangle mr-2"></i> Your session has expired. Please <a href="${redirectUrl}" class="font-semibold underline">log in</a> again.
+                   </div>`;
+                 return;
+            }
 
-            throw new Error(errorData.message || `Failed to retrieve order details (Status: ${response.status}).`);
-        }
+            throw new Error(errorData.message || `Failed to retrieve order details (Status: ${response.status}).`);
+        }
 
-        // The backend endpoint GET /api/orders/:orderId returns the populated order object
-        const orderDetails = await response.json(); 
-        
-        // 1. Render Collection Details
-        if (!orderDetails.items || orderDetails.items.length === 0) {
-            itemsListEl.innerHTML = `<div class="text-center py-4 text-gray-500">No items found for this order.</div>`;
-            return;
-        }
+        // The backend endpoint GET /api/orders/:orderId returns the populated order object
+        const orderDetails = await response.json(); 
+        
+        // 1. Render Collection Details
+        if (!orderDetails.items || orderDetails.items.length === 0) {
+            itemsListEl.innerHTML = `<div class="text-center py-4 text-gray-500">No items found for this order.</div>`;
+            return;
+        }
 
-        itemsListEl.innerHTML = `
-            ${orderDetails.items.map(item => `
-                <div class="flex justify-between items-start py-2 border-b border-gray-100 last:border-b-0">
-                    <div class="flex items-center">
-                        <img src="${item.imageUrl}" alt="${item.name}" class="w-10 h-10 rounded-md border mr-3 object-cover">
-                        <div class="text-sm">
-                            <p class="font-medium text-gray-900">${item.name}</p>
-                            <p class="text-xs text-gray-500">Size: ${item.size} / Color: ${item.color || 'N/A'} (Qty: ${item.quantity})</p>
-                        </div>
-                        </div>
-                        <span class="text-sm font-semibold text-gray-900">${CURRENCY_SYMBOL}${(item.priceAtTimeOfPurchase * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                    </div>
-                `).join('')}
+        itemsListEl.innerHTML = `
+            ${orderDetails.items.map(item => `
+                <div class="flex justify-between items-start py-2 border-b border-gray-100 last:border-b-0">
+                    <div class="flex items-center">
+                        <img src="${item.imageUrl}" alt="${item.name}" class="w-10 h-10 rounded-md border mr-3 object-cover">
+                        <div class="text-sm">
+                            <p class="font-medium text-gray-900">${item.name}</p>
+                            <p class="text-xs text-gray-500">Size: ${item.size} / Color: ${item.color || 'N/A'} (Qty: ${item.quantity})</p>
+                        </div>
+                        </div>
+                        <span class="text-sm font-semibold text-gray-900">${CURRENCY_SYMBOL}${(item.priceAtTimeOfPurchase * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    </div>
+                `).join('')}
 
-                <div class="text-right pt-4 space-y-1">
-                    <p class="text-sm text-gray-700">Subtotal: <span class="font-semibold">${CURRENCY_SYMBOL}${orderDetails.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></p>
-                    <p class="text-sm text-gray-700">Shipping: <span class="font-semibold">${CURRENCY_SYMBOL}${orderDetails.shippingFee.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></p>
-                    <p class="text-sm text-gray-700">Tax (${(LOCAL_TAX_RATE * 100).toFixed(0)}%): <span class="font-semibold">${CURRENCY_SYMBOL}${orderDetails.tax.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></p>
-                    <p class="text-lg font-bold text-indigo-600 border-t pt-2 mt-2">Total: ${CURRENCY_SYMBOL}${orderDetails.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                </div>
-            `;
+                <div class="text-right pt-4 space-y-1">
+                    <p class="text-sm text-gray-700">Subtotal: <span class="font-semibold">${CURRENCY_SYMBOL}${orderDetails.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></p>
+                    <p class="text-sm text-gray-700">Shipping: <span class="font-semibold">${CURRENCY_SYMBOL}${orderDetails.shippingFee.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></p>
+                    <p class="text-sm text-gray-700">Tax (${(LOCAL_TAX_RATE * 100).toFixed(0)}%): <span class="font-semibold">${CURRENCY_SYMBOL}${orderDetails.tax.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></p>
+                    <p class="text-lg font-bold text-indigo-600 border-t pt-2 mt-2">Total: ${CURRENCY_SYMBOL}${orderDetails.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                </div>
+            `;
 
-            // 2. Email Notification Check (Handled by the server during checkout)
-            console.log(`Order details loaded. Confirmation email should have been sent to ${orderDetails.shippingAddress.email}.`);
+            // 2. Email Notification Check (Handled by the server during checkout)
+            console.log(`Order details loaded. Confirmation email should have been sent to ${orderDetails.shippingAddress.email}.`);
 
 
-        } catch (error) {
-            console.error('Error fetching order collection:', error);
-            itemsListEl.innerHTML = `<div class="text-center py-4 text-red-500"><i class="fas fa-exclamation-triangle mr-2"></i> Failed to load order items. ${error.message}</div>`;
-        }
+        } catch (error) {
+            console.error('Error fetching order collection:', error);
+            itemsListEl.innerHTML = `<div class="text-center py-4 text-red-500"><i class="fas fa-exclamation-triangle mr-2"></i> Failed to load order items. ${error.message}</div>`;
+        }
 }
 
 
 /**
- * Parses the URL parameters and displays the appropriate confirmation message.
- */
+ * Parses the URL parameters and displays the appropriate confirmation message.
+ */
 function displayConfirmationDetails() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const orderId = urlParams.get('id') || urlParams.get('ref'); 
-    const method = urlParams.get('method');
+    const urlParams = new URLSearchParams(window.location.search);
+    const orderId = urlParams.get('id') || urlParams.get('ref'); 
+    const method = urlParams.get('method');
 
-    const orderRefEl = document.getElementById('order-ref-number');
-    const confTitleEl = document.getElementById('confirmation-title');
-    const confMsgEl = document.getElementById('confirmation-message');
-    const confIconEl = document.getElementById('confirmation-icon');
-    const payMethodMsgEl = document.getElementById('payment-method-message');
-    const bankDetailsEl = document.getElementById('bank-transfer-details');
+    const orderRefEl = document.getElementById('order-ref-number');
+    const confTitleEl = document.getElementById('confirmation-title');
+    const confMsgEl = document.getElementById('confirmation-message');
+    const confIconEl = document.getElementById('confirmation-icon');
+    const payMethodMsgEl = document.getElementById('payment-method-message');
+    const bankDetailsEl = document.getElementById('bank-transfer-details');
 
-    if (!orderId || !method) {
-        orderRefEl.textContent = 'N/A';
-        confIconEl.classList.remove('fa-check-circle', 'text-green-500');
-        confIconEl.classList.add('fa-exclamation-circle', 'text-red-500');
-        confTitleEl.textContent = 'Confirmation Error';
-        confMsgEl.textContent = 'Order details were not provided in the link. Please check your email or contact support.';
-        return;
-    }
+    if (!orderId || !method) {
+        orderRefEl.textContent = 'N/A';
+        confIconEl.classList.remove('fa-check-circle', 'text-green-500');
+        confIconEl.classList.add('fa-exclamation-circle', 'text-red-500');
+        confTitleEl.textContent = 'Confirmation Error';
+        confMsgEl.textContent = 'Order details were not provided in the link. Please check your email or contact support.';
+        return;
+    }
 
 
-    if (method === 'paystack') {
-        // Successful Paystack/Card Payment
-        orderRefEl.textContent = `#${orderId}`;
-        payMethodMsgEl.textContent = `Payment was completed successfully via Paystack (Card). Your order will be shipped soon!`;
-        
-        // Clear the local storage for the successful order
-        localStorage.removeItem('outflickzShippingData'); 
-        localStorage.removeItem('outflickzOrderTotal');
+    if (method === 'paystack') {
+        // Successful Paystack/Card Payment
+        orderRefEl.textContent = `#${orderId}`;
+        payMethodMsgEl.textContent = `Payment was completed successfully via Paystack (Card). Your order will be shipped soon!`;
+        
+        // Clear the local storage for the successful order
+        localStorage.removeItem('outflickzShippingData'); 
+        localStorage.removeItem('outflickzOrderTotal');
 
-    } else if (method === 'banktransfer') {
-        // Pending Bank Transfer Order
-        orderRefEl.textContent = `#${orderId}`;
-        confIconEl.classList.remove('fa-check-circle', 'text-green-500');
-        confIconEl.classList.add('fa-clock', 'text-yellow-500');
-        confTitleEl.textContent = 'Order Created (Payment Pending)';
-        confMsgEl.textContent = 'Thank you for your order! We are now waiting for your bank transfer confirmation. You will receive an email once payment is verified.';
-        payMethodMsgEl.textContent = `You selected **Bank Transfer**. Please transfer the total amount using the order number below as reference.`;
-        bankDetailsEl.classList.remove('hidden');
+    } else if (method === 'banktransfer') {
+        // Pending Bank Transfer Order
+        orderRefEl.textContent = `#${orderId}`;
+        confIconEl.classList.remove('fa-check-circle', 'text-green-500');
+        confIconEl.classList.add('fa-clock', 'text-yellow-500');
+        confTitleEl.textContent = 'Order Created (Payment Pending)';
+        confMsgEl.textContent = 'Thank you for your order! We are now waiting for your bank transfer confirmation. You will receive an email once payment is verified.';
+        payMethodMsgEl.textContent = `You selected **Bank Transfer**. Please transfer the total amount using the order number below as reference.`;
+        bankDetailsEl.classList.remove('hidden');
 
-    } 
-    
-    // **CRITICAL**: Call function to fetch collection details using the Order ID.
-    // This call uses the authentication token retrieved by getAuthToken()
-    fetchOrderCollection(orderId);
+    } 
+    
+    // **CRITICAL**: Call function to fetch collection details using the Order ID.
+    // This call uses the authentication token retrieved by getAuthToken()
+    fetchOrderCollection(orderId);
 
-    // Ensure the cart badge is updated (cleared after a successful order)
-    localStorage.setItem(CART_STORAGE_KEY, '0');
-    updateCartBadge();
+    // Ensure the cart badge is updated (cleared after a successful order)
+    localStorage.setItem(CART_STORAGE_KEY, '0');
+    updateCartBadge();
 }
 
 
 // --- Main Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
-    // fetchUserData(); // Removed: not strictly needed for this page's logic
-    updateCartBadge(); 
-    displayConfirmationDetails(); 
+    // fetchUserData(); // Removed: not strictly needed for this page's logic
+    updateCartBadge(); 
+    displayConfirmationDetails(); 
 });
 </script>
 

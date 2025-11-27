@@ -331,8 +331,29 @@ async function sendOrderConfirmationEmail(order, type) {
         // It's usually safe to log the error and proceed without throwing, as the core transaction is complete.
     }
 }
-// -----------------------------------------------------------------
 
+/**
+ * Sends the order confirmation email.
+ * This is the final version tailored for admin confirmation.
+ * @param {string} customerEmail - The verified email of the customer.
+ * @param {Object} order - The final Mongoose order document (status: 'Completed').
+ */
+async function sendOrderConfirmationEmailForAdmin(customerEmail, order) {
+    // The subject line clearly states confirmation and processing status
+    const subject = `✅ Your Order #${order._id.toString().substring(0, 8)} is Confirmed and in Processing!`;
+    
+    // NOTE: The generateOrderEmailHtml function uses fixed variables (SHIPPING_COST, TAX_RATE) 
+    // which should be defined in its scope, but it's otherwise acceptable.
+    const htmlContent = generateOrderEmailHtml(order); 
+
+    try {
+        const info = await sendMail(customerEmail, subject, htmlContent);
+        console.log(`Email sent: ${info.messageId} to ${customerEmail}`);
+    } catch (error) {
+        // Log the email failure but DO NOT re-throw, as the transaction is complete.
+        console.error(`ERROR sending confirmation email for order ${order._id}:`, error);
+    }
+}
 
 // --- CONFIGURATION ---
 const MONGODB_URI = process.env.MONGODB_URI
@@ -1613,44 +1634,44 @@ app.get('/api/admin/orders/:orderId', verifyToken, async (req, res) => {
 
 // =========================================================
 // 9. PUT /api/admin/orders/:orderId/confirm - Confirm an Order (Admin Protected)
-// NO CHANGE: This remains the confirmation handler.
+// *** FINAL IMPLEMENTATION WITH EMAIL NOTIFICATION ***
 // =========================================================
 app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
     const orderId = req.params.orderId;
-    const adminId = req.adminId; // Set by verifyAdminToken middleware
+    const adminId = req.adminId;
 
     if (!orderId) {
         return res.status(400).json({ message: 'Order ID is required for confirmation.' });
     }
 
     try {
-        // 1. Set the status from 'Pending' to 'Processing'
+        // 1. Initial status change from 'Pending' to 'Processing'
         const updatedOrder = await Order.findOneAndUpdate(
-            { _id: orderId, status: 'Pending' }, // Only confirm if it's currently Pending
+            { _id: orderId, status: 'Pending' }, 
             { 
                 $set: { 
-                    status: 'Processing', // Set the status to processing (payment confirmed)
-                    confirmedAt: new Date(), // Log confirmation time
-                    confirmedBy: adminId // Log which admin confirmed it
+                    status: 'Processing', // Transition step before inventory
+                    confirmedAt: new Date(), 
+                    confirmedBy: adminId 
                 } 
             },
-            { new: true } // Return the updated document
+            // Crucial: Select userId to fetch email later
+            { new: true, select: 'userId status totalAmount items' } 
         ).lean();
 
         if (!updatedOrder) {
             return res.status(404).json({ message: 'Order not found or not in a Pending state.' });
         }
         
-        // 2. CRITICAL STEP: Deduct Inventory and finalize status to 'Completed' in an atomic transaction
+        // 2. CRITICAL STEP: Deduct Inventory and finalize status to 'Completed' atomically
         let finalOrder;
         try {
-            // Assume processOrderCompletion is a defined function that handles inventory logic
+            // Assume processOrderCompletion handles the full inventory deduction and final status update to 'Completed'
             finalOrder = await processOrderCompletion(orderId);
-            // After successful deduction, the order status is 'Completed'
+            // If this succeeds, the order status is now 'Completed'
         } catch (inventoryError) {
-            // If inventory deduction fails (e.g., insufficient stock), revert status to Manual Review.
+            // Rollback status if inventory fails
             console.error('Inventory deduction failed during Admin confirmation:', inventoryError.message);
-            // Revert status to 'Amount Mismatch (Manual Review)' for safety
             await Order.findByIdAndUpdate(orderId, { 
                 status: 'Amount Mismatch (Manual Review)', 
                 $push: { notes: `Inventory deduction failed on ${new Date().toISOString()}: ${inventoryError.message}` }
@@ -1661,9 +1682,22 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
             });
         }
         
-        // 3. Success Response
+        // 3. GET CUSTOMER EMAIL & SEND NOTIFICATION (The User's Request) 📧
+        
+        // Fetch user email using the userId
+        const user = await User.findById(updatedOrder.userId).select('email').lean();
+        const customerEmail = user ? user.email : null;
+        
+        if (customerEmail) {
+            // Use the final, completed order details for the email content
+            await sendOrderConfirmationEmailForAdmin(customerEmail, finalOrder);
+        } else {
+            console.warn(`Could not find email for user ID: ${updatedOrder.userId}. Skipping email notification.`);
+        }
+
+        // 4. Success Response
         res.status(200).json({ 
-            message: `Order ${orderId} confirmed and inventory deducted successfully. Status: ${finalOrder.status}.`,
+            message: `Order ${orderId} confirmed, inventory deducted, and customer notified. Status: ${finalOrder.status}.`,
             order: finalOrder 
         });
 

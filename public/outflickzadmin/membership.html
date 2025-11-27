@@ -202,14 +202,12 @@
                                 <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Placed</th>
                                 <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
                                 <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Summary</th> 
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visual Preview</th> 
                                 <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th> 
                             </tr>
                         </thead>
                         <tbody id="order-history-body" class="bg-white divide-y divide-gray-200">
                         <tr>
-                        <td colspan="7" class="px-4 py-4 text-center text-sm text-gray-500">No orders found for this user.</td>
+                        <td colspan="5" class="px-4 py-4 text-center text-sm text-gray-500">Loading orders...</td>
                         </tr>
                     </tbody>
                     </table>
@@ -238,7 +236,7 @@
         const errorMessage = document.getElementById('error-message');
         const userCountDisplay = document.getElementById('user-count');
 
-        // --- NEW SECTION VARIABLES ---
+        // --- DETAILS SECTION VARIABLES ---
         const contentMembership = document.getElementById('content-membership');
         const contentUserDetails = document.getElementById('content-user-details');
         const detailsLoadingIndicator = document.getElementById('details-loading-indicator');
@@ -251,14 +249,14 @@
         const detailJoined = document.getElementById('detail-joined');
         const detailPhone = document.getElementById('detail-phone');
         const detailAddress = document.getElementById('detail-address');
-        const detailWhatsapp = document.getElementById('detail-whatsapp'); // NEW WhatsApp Element
+        const detailWhatsapp = document.getElementById('detail-whatsapp'); 
         
-        // NEW Order History Elements
+        // Order History Elements
         const orderHistoryBody = document.getElementById('order-history-body');
         const orderCountDisplay = document.getElementById('order-count');
-        // --- END NEW SECTION VARIABLES ---
+        // --- END DETAILS SECTION VARIABLES ---
 
-        // --- Navigation Functions (Matching admin-dashboard.html) ---
+        // --- Navigation Functions ---
 
         function navigateToDashboard() { window.location.href = './admin-dashboard.html'; }
         function navigateToSettings() { window.location.href = './admin-dashboard.html?view=settings'; }
@@ -267,7 +265,7 @@
         function navigateToNewArrivals() { window.location.href = './newarrivals.html'; }
         function navigateToPreOrders() { window.location.href = './preorders.html'; }
         function navigateToMembership() { window.location.href = './membership.html'; } // Self-link
-        function navigateToUserOrders() { console.log("Navigating to User Orders..."); } // Placeholder for missing page
+        function navigateToUserOrders() { console.log("Navigating to User Orders..."); } // Placeholder 
 
         function logoutAdmin() {
             console.log("Logging out... Clearing admin token.");
@@ -289,11 +287,10 @@
         // Helper function for currency formatting
         function formatCurrency(amount) {
             if (typeof amount !== 'number') return 'N/A';
-            // UPDATED: Changed from 'en-US', 'USD' to 'en-NG', 'NGN' (Naira)
             return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount);
         }
 
-        // Helper function to determine status badge classes
+        // Helper function to determine status badge classes for Orders
         function getStatusBadge(status) {
             let className = '';
             let text = status || 'N/A';
@@ -333,240 +330,14 @@
             contentUserDetails.classList.remove('hidden');
         }
         
-        // --- Order History Fetch Function ---
-        
-        /**
-         * Fetches the order history for a specific user ID.
-         * Assumes a protected GET /api/admin/users/:id/orders endpoint exists.
-         * @param {string} userId - The ID of the user to fetch orders for.
-         * @returns {Promise<Array<Object> | null>} Array of order objects or null on error.
-         */
-        async function fetchUserOrders(userId) {
-            const token = localStorage.getItem('adminToken');
-            if (!token) return null;
+        // --- API Fetch Functions ---
 
-            try {
-                // ASSUMPTION: Backend route for orders for a user
-                const response = await fetch(`/api/admin/users/${userId}/orders`, { 
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}` 
-                    }
-                });
-
-                if (!response.ok) {
-                    if (response.status === 401 || response.status === 403) {
-                         // Don't log out here, let viewUserDetails handle primary auth
-                         throw new Error("Order API Auth Failure");
-                    }
-                    throw new Error(`Order HTTP error! status: ${response.status}`);
-                }
-
-                const data = await response.json();
-                // ASSUMPTION: Backend returns { orders: [...] }
-                // Orders array is expected to have an 'items' array, where each item has 'name', 'quantity', and 'imageUrl'.
-                return data.orders || []; 
-
-            } catch (error) {
-                console.error(`Error fetching user orders for ID ${userId}:`, error);
-                return null;
-            }
-        }
-        
-      /**
-       * Renders the order history into the table, including product images.
-       * @param {Array<Object>} orders - Array of order objects.
-       */
-        function renderOrderHistory(orders) {
-            orderHistoryBody.innerHTML = ''; // Clear previous data
-            orderCountDisplay.textContent = `Total Orders: ${orders.length.toLocaleString()}`;
-
-            if (!orders || orders.length === 0) {
-                orderHistoryBody.innerHTML = '<tr><td colspan="7" class="px-4 py-4 text-center text-sm text-gray-500">No orders found for this user.</td></tr>';
-                return;
-            }
-
-            // Define a fallback image URL for failed loads
-            const FALLBACK_IMAGE_URL = 'https://placehold.co/32x32/CBD5E1/475569/png?text=N/A';
-
-            orders.forEach(order => {
-                const statusBadge = getStatusBadge(order.status);
-                
-                let totalItemsCount = 0;
-                
-                // Check if order.items is an array before reducing
-                if (order.items && Array.isArray(order.items)) {
-                    totalItemsCount = order.items.reduce((sum, item) => sum + (item.quantity || 1), 0);
-                }
-                
-                // --- Product Preview Construction ---
-                let productPreviewHtml = `<div class="flex -space-x-2 overflow-hidden items-center">`;
-                const maxImages = 3;
-                
-                // Get the name of the first item for the summary column
-                let primaryItemName = 'No Items';
-                
-                if (order.items && Array.isArray(order.items) && order.items.length > 0) {
-                    
-                    const firstItem = order.items[0];
-                    // Set the name of the first item for the summary column
-                    primaryItemName = `${firstItem.name || 'Product'} (x${firstItem.quantity || 1})`;
-                    
-                    order.items.slice(0, maxImages).forEach(item => {
-                        // Use item.imageUrl, but if it fails, the onerror handler will set the source to FALLBACK_IMAGE_URL
-                        const imgUrl = item.imageUrl || FALLBACK_IMAGE_URL; 
-                        const productName = item.name || 'Product';
-                        
-                        productPreviewHtml += `
-                            <img class="inline-block h-8 w-8 rounded-md ring-2 ring-white object-cover shadow-md" 
-                                  src="${imgUrl}" 
-                                  alt="${productName}" 
-                                  title="${productName} (x${item.quantity || 1} - ${item.size || 'N/A'})"
-                                  onerror="this.onerror=null; this.src='${FALLBACK_IMAGE_URL}'">
-                        `;
-                    });
-                    
-                    if (order.items.length > maxImages) {
-                        productPreviewHtml += `<span class="inline-flex items-center justify-center h-8 w-8 rounded-full bg-gray-200 text-xs text-gray-600 ring-2 ring-white shadow-md">
-                            +${order.items.length - maxImages}
-                        </span>`;
-                    }
-                } else {
-                    productPreviewHtml = '<span class="text-xs text-gray-500">No products</span>';
-                }
-                productPreviewHtml += `</div>`;
-                
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-gray-50';
-                
-                // --- UPDATED TABLE ROW HTML (now working correctly) ---
-                row.innerHTML = `
-                    <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 truncate max-w-xs">${order._id}</td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">${formatDate(order.createdAt)}</td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700 font-semibold">${formatCurrency(order.totalAmount)}</td>
-                    <td class="px-4 py-4 whitespace-nowrap">${statusBadge}</td>
-                    <td class="px-4 py-4 text-sm text-gray-900">
-                        <p class="font-medium">${primaryItemName}</p>
-                        <p class="text-xs text-gray-500">${totalItemsCount} item(s)</p>
-                    </td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm">${productPreviewHtml}</td>
-                    <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button onclick="/* openOrderDetailsModal('${order._id}') */" class="text-indigo-600 hover:text-indigo-900 transition duration-150">View</button>
-                    </td>
-                `;
-                orderHistoryBody.appendChild(row);
-            });
-        }
-        
-        
-        /**
-         * Fetches the full profile details for a specific user ID.
-         * Assumes a protected GET /api/admin/users/:id endpoint exists.
-         * @param {string} userId - The ID of the user to fetch.
-         * @returns {Promise<Object | null>} Single user object with full details or null on error.
-         */
-        async function fetchUserDetails(userId) {
-            const token = localStorage.getItem('adminToken');
-            if (!token) {
-                logoutAdmin();
-                return null;
-            }
-
-            // Show loading indicator inside the details section
-            detailsLoadingIndicator.classList.remove('hidden');
-            userProfileData.classList.add('hidden');
-            detailsErrorMessage.classList.add('hidden');
-            
-            try {
-                // Ensure the URL matches your backend route structure
-                const response = await fetch(`/api/admin/users/${userId}`, { 
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}` 
-                    }
-                });
-
-                if (!response.ok) {
-                    if (response.status === 401 || response.status === 403) {
-                        logoutAdmin();
-                    }
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const data = await response.json();
-                return data.user; // ASSUMPTION: Backend returns { user: {...} }
-
-            } catch (error) {
-                console.error(`Error fetching user details for ID ${userId}:`, error);
-                return null;
-            } finally {
-                // Hide loading indicator regardless of success/failure
-                detailsLoadingIndicator.classList.add('hidden');
-            }
-        }
-
-
-        /**
-         * Handles the click of the 'View Details' button and loads the data into the details section.
-         * Updated to include Order History and WhatsApp Contact.
-         * @param {string} userId - The ID of the user whose details to view.
-         */
-        async function viewUserDetails(userId) {
-            // 1. Switch the view
-            showUserDetailsView();
-
-            const userPromise = fetchUserDetails(userId);
-            const ordersPromise = fetchUserOrders(userId); // Fetch orders concurrently
-
-            const [user, orders] = await Promise.all([userPromise, ordersPromise]);
-
-            if (user) {
-                // ASSUMPTION: The user object contains: name, email, isMember, createdAt, phone, whatsappNumber, contactAddress
-                
-                const isMember = user.isMember;
-                const statusText = isMember ? 'VIP Member 🌟' : 'Basic User';
-                let statusColor = isMember ? 'text-emerald-700' : 'text-gray-700';
-
-                // Render basic info
-                detailsHeaderName.textContent = user.name || 'N/A';
-                detailEmail.textContent = user.email;
-                
-                // Set status text and color
-                detailStatus.className = `text-xl font-bold ${statusColor}`;
-                detailStatus.textContent = statusText;
-                
-                detailJoined.textContent = formatDate(user.createdAt);
-                
-                // Render contact info (UPDATED)
-                detailPhone.textContent = user.phone || 'N/A';
-                detailWhatsapp.textContent = user.whatsappNumber || user.phone || 'N/A'; // Use phone as fallback
-                detailAddress.textContent = user.contactAddress || 'No Address Provided';
-
-                // Render Order History
-                if (orders !== null) {
-                    renderOrderHistory(orders);
-                } else {
-                    // Handle orders fetch failure (if separate from user details failure)
-                    orderHistoryBody.innerHTML = '<tr><td colspan="7" class="px-4 py-4 text-center text-sm text-red-500">Failed to load order history.</td></tr>';
-                    orderCountDisplay.textContent = `Total Orders: N/A`;
-                }
-
-                userProfileData.classList.remove('hidden');
-            } else {
-                // Handle fetch failure by showing an error message in the details section
-                detailsErrorMessage.classList.remove('hidden');
-            }
-        }
-        
-        
         /**
          * Fetches all registered user data from the API (used for the main table).
          * @returns {Promise<Array<Object> | null>} Array of user objects or null on failure/auth error.
          */
         async function fetchUserData() {
             const token = localStorage.getItem('adminToken');
-            
             if (!token) {
                 console.error("No adminToken found. Redirecting to login.");
                 logoutAdmin();
@@ -574,6 +345,7 @@
             }
 
             try {
+                // ASSUMPTION: Backend route for fetching ALL users
                 const response = await fetch('/api/admin/users/all', { 
                     method: 'GET',
                     headers: {
@@ -601,11 +373,86 @@
         }
 
         /**
-         * Renders the user data into the table.
-         * @param {Array<Object>} users - Array of user objects matching the backend's transformed output.
+         * Fetches the full profile details for a specific user ID.
+         * Assumes a protected GET /api/admin/users/:id endpoint exists.
+         * @param {string} userId - The ID of the user to fetch.
+         * @returns {Promise<Object | null>} Single user object with full details or null on error.
+         */
+        async function fetchUserDetails(userId) {
+            const token = localStorage.getItem('adminToken');
+            if (!token) {
+                logoutAdmin();
+                return null;
+            }
+            
+            try {
+                const response = await fetch(`/api/admin/users/${userId}`, { 
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        logoutAdmin();
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                return data.user; // ASSUMPTION: Backend returns { user: {...} }
+
+            } catch (error) {
+                console.error(`Error fetching user details for ID ${userId}:`, error);
+                return null;
+            }
+        }
+        
+        /**
+         * Fetches the order history for a specific user ID.
+         * Assumes a protected GET /api/admin/users/:id/orders endpoint exists.
+         * @param {string} userId - The ID of the user to fetch orders for.
+         * @returns {Promise<Array<Object> | null>} Array of order objects or null on error.
+         */
+        async function fetchUserOrders(userId) {
+            const token = localStorage.getItem('adminToken');
+            if (!token) return null; // Auth handled by parent function
+
+            try {
+                // Backend route for orders for a user
+                const response = await fetch(`/api/admin/users/${userId}/orders`, { 
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}` 
+                    }
+                });
+
+                if (!response.ok) {
+                    // Log the error but don't force logout here
+                    console.error(`Order fetch failed for ${userId}: status ${response.status}`);
+                    return null;
+                }
+
+                const data = await response.json();
+                // ASSUMPTION: Backend returns { orders: [...] }
+                return data.orders || []; 
+
+            } catch (error) {
+                console.error(`Error fetching user orders for ID ${userId}:`, error);
+                return null;
+            }
+        }
+        
+        // --- Rendering Functions ---
+        
+        /**
+         * Renders the user data into the main membership table.
+         * @param {Array<Object>} users - Array of user objects.
          */
         function renderUserTable(users) {
-            userTableBody.innerHTML = ''; // Clear previous data
+            userTableBody.innerHTML = ''; 
             userCountDisplay.textContent = `Total Users: ${users.length.toLocaleString()}`;
 
             if (users.length === 0) {
@@ -621,9 +468,8 @@
                 const row = document.createElement('tr');
                 row.className = 'hover:bg-gray-50';
                 
-                // NOTE: The inline onclick calls the global viewUserDetails function
                 row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 truncate max-w-xs">${user._id}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 truncate max-w-xs" title="${user._id}">${user._id}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${user.name || 'N/A'}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${user.email}</td>
                     <td class="px-6 py-4 whitespace-nowrap">
@@ -641,6 +487,152 @@
                 userTableBody.appendChild(row);
             });
         }
+        
+        /**
+         * Renders the order history into the table, now excluding the item summary/preview columns.
+         * @param {Array<Object>} orders - Array of order objects.
+         */
+        function renderOrderHistory(orders) {
+            orderHistoryBody.innerHTML = ''; // Clear previous data
+            orderCountDisplay.textContent = `Total Orders: ${orders.length.toLocaleString()}`;
+
+            if (!orders || orders.length === 0) {
+                // Adjusted colspan from 7 to 5
+                orderHistoryBody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-sm text-gray-500">No orders found for this user.</td></tr>';
+                return;
+            }
+
+            orders.forEach(order => {
+                const statusBadge = getStatusBadge(order.status);
+                // Ensure order.items is a stringified array for safe passing to the inline function
+                const itemsJson = encodeURIComponent(JSON.stringify(order.items || []));
+
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+
+                // --- UPDATED TABLE ROW HTML (Removed Item Summary and Visual Preview columns) ---
+                row.innerHTML = `
+                    <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 truncate max-w-xs" title="${order._id}">${order._id}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">${formatDate(order.createdAt)}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700 font-semibold">${formatCurrency(order.totalAmount)}</td>
+                    <td class="px-4 py-4 whitespace-nowrap">${statusBadge}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button onclick="openOrderDetailsModal('${order._id}', '${itemsJson}')" 
+                            class="text-indigo-600 hover:text-indigo-900 transition duration-150">View Items</button>
+                    </td>
+                `;
+                orderHistoryBody.appendChild(row);
+            });
+        }
+        
+        // --- Details and Modal Functions ---
+        
+        /**
+         * Handles the click of the 'View Details' button and loads the data into the details section.
+         * @param {string} userId - The ID of the user whose details to view.
+         */
+        async function viewUserDetails(userId) {
+            showUserDetailsView();
+            detailsLoadingIndicator.classList.remove('hidden');
+            userProfileData.classList.add('hidden');
+            detailsErrorMessage.classList.add('hidden');
+            
+            // Clear previous order history body
+            orderHistoryBody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-sm text-gray-500">Loading orders...</td></tr>';
+            orderCountDisplay.textContent = 'Total Orders: 0';
+
+
+            const userPromise = fetchUserDetails(userId);
+            const ordersPromise = fetchUserOrders(userId); 
+
+            const [user, orders] = await Promise.all([userPromise, ordersPromise]);
+            
+            detailsLoadingIndicator.classList.add('hidden'); // Hide loading indicator for details view
+
+            if (user) {
+                // Render basic info
+                detailsHeaderName.textContent = user.name || 'N/A';
+                detailEmail.textContent = user.email;
+                
+                const statusText = user.isMember ? 'VIP Member 🌟' : 'Basic User';
+                const statusColor = user.isMember ? 'text-emerald-700' : 'text-gray-700';
+                
+                detailStatus.className = `text-xl font-bold ${statusColor}`;
+                detailStatus.textContent = statusText;
+                
+                detailJoined.textContent = formatDate(user.createdAt);
+                
+                // Render contact info and address
+                detailPhone.textContent = user.phone || 'N/A';
+                detailWhatsapp.textContent = user.whatsappNumber || user.phone || 'N/A'; 
+                
+                if (user.shippingAddress && user.shippingAddress.street) {
+                    const address = user.shippingAddress;
+                    detailAddress.innerHTML = `
+                        ${address.street}<br>
+                        ${address.city}, ${address.state}<br>
+                        ${address.zipCode || ''} ${address.country || ''}
+                    `;
+                } else {
+                    detailAddress.textContent = user.contactAddress || 'No Address Provided';
+                }
+
+                // Render Order History (even if orders is null, renderOrderHistory handles it)
+                if (orders !== null) {
+                    renderOrderHistory(orders);
+                } else {
+                    orderHistoryBody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-sm text-red-500">Failed to load order history. Check API.</td></tr>';
+                    orderCountDisplay.textContent = `Total Orders: N/A`;
+                }
+
+                userProfileData.classList.remove('hidden');
+            } else {
+                detailsErrorMessage.classList.remove('hidden');
+            }
+        }
+        
+        /**
+         * Displays order item details in an alert/modal.
+         * @param {string} orderId - The ID of the order.
+         * @param {string} itemsJson - URL-encoded JSON string of items in the order.
+         */
+        function openOrderDetailsModal(orderId, itemsJson) {
+            let items;
+            try {
+                // Decode the JSON string passed from the inline onclick
+                items = JSON.parse(decodeURIComponent(itemsJson));
+            } catch (e) {
+                alert(`Error: Could not read item data for order ${orderId}.`);
+                console.error("Failed to parse items JSON:", e);
+                return;
+            }
+            
+            if (!items || items.length === 0) {
+                alert(`Order ${orderId} has no items.`);
+                return;
+            }
+
+            let itemSummary = `Order ID: ${orderId}\n\n--- Items Ordered (${items.length} unique products) ---\n`;
+            
+            items.forEach((item, index) => {
+                const name = item.name || 'Unknown Product';
+                const quantity = item.quantity || 1;
+                const size = item.size || 'N/A';
+                const imageUrl = item.imageUrl ? `[Image URL: ${item.imageUrl.substring(0, 50)}...]` : '[No Image]';
+
+                itemSummary += `
+${index + 1}. ${name} 
+   - Quantity: x${quantity}
+   - Size/Variant: ${size}
+   - Preview: ${imageUrl}
+`;
+            });
+            
+            // Use a native alert for simplicity, as requested, to show the item summary and image URLs
+            alert(itemSummary);
+        }
+
+        // --- Main Load Function ---
 
         /**
          * Main function to load and display data, including auth check.
@@ -656,9 +648,9 @@
             loadingIndicator.classList.add('hidden');
 
             if (users === null) {
+                // fetchUserData already called logoutAdmin() if the token was bad
                 errorMessage.classList.remove('hidden');
-                // The fetchUserData already calls logoutAdmin() if the token is bad
-                errorMessage.innerHTML = 'Authentication failed or token expired. Please refresh.';
+                errorMessage.innerHTML = 'Authentication failed or token expired. Please log in again.';
             } else if (Array.isArray(users)) {
                 renderUserTable(users);
                 userTableContainer.classList.remove('hidden');
@@ -675,12 +667,22 @@
             // Expose global functions required by inline HTML handlers
             window.viewUserDetails = viewUserDetails;
             window.showMembershipList = showMembershipList;
+            window.openOrderDetailsModal = openOrderDetailsModal; // Expose new modal function
 
             loadMembershipData();
 
             // Toggle sidebar visibility on mobile
             sidebarToggle.addEventListener('click', () => {
                 sidebar.classList.toggle('-translate-x-full');
+            });
+            
+            // Close sidebar on mobile after clicking a link
+            navButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    if (window.innerWidth < 1024 && !sidebar.classList.contains('-translate-x-full')) {
+                        sidebar.classList.add('-translate-x-full');
+                    }
+                });
             });
         });
     </script>

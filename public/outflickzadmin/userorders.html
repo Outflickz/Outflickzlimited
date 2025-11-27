@@ -240,7 +240,6 @@
     }
 
     // Global variable to store the currently loaded orders
-    // NOTE: This global storage is less critical now that we have a dedicated detail API call.
     let globalOrdersData = [];
 
     // Show/Hide Content Sections
@@ -299,10 +298,29 @@
     const toastContainer = document.getElementById('toast-container');
     const detailItemsBody = document.getElementById('detail-items-body');
 
-    // --- CONFIRMATION HANDLERS (Called from Detail View) ---
-    
     // Use a global variable to hold the ID of the order currently displayed in details
     let currentDetailOrderId = null; 
+
+    /**
+     * Displays a temporary notification (toast).
+     * @param {string} message - The message to display.
+     * @param {string} bgColorClass - Tailwind class for background color (e.g., 'bg-emerald-500').
+     */
+    function showToast(message, bgColorClass) {
+        const toast = document.createElement('div');
+        toast.className = `p-4 rounded-lg shadow-xl text-white ${bgColorClass} transition-opacity duration-300`;
+        toast.textContent = message;
+        
+        toastContainer.appendChild(toast);
+        
+        // Auto-hide the toast after 3 seconds
+        setTimeout(() => {
+            toast.classList.add('opacity-0');
+            setTimeout(() => toast.remove(), 500); // Remove from DOM after fade out
+        }, 3000);
+    }
+    
+    // --- CONFIRMATION HANDLERS (Called from Detail View) ---
     
     async function confirmOrderFromDetails() {
         if (currentDetailOrderId) {
@@ -325,6 +343,72 @@
         }
     }
 
+    /**
+     * Sends a request to the API to confirm (complete) an order.
+     * @param {string} orderId - The ID of the order to confirm.
+     */
+    async function confirmOrder(orderId) {
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            logoutAdmin();
+            return;
+        }
+        
+        // Target the button in the details section for a better UX when confirming from detail view
+        const button = document.getElementById(`detail-confirm-btn`) || document.getElementById(`confirm-btn-${orderId}`);
+        if (button) {
+            button.disabled = true;
+            button.textContent = 'Confirming...';
+            button.classList.add('opacity-50');
+        }
+
+        try {
+            // Endpoint: PUT /api/admin/orders/:orderId/confirm
+            const response = await fetch(`/api/admin/orders/${orderId}/confirm`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            const responseData = await response.json();
+
+            if (!response.ok) {
+                // Check for specific backend errors, e.g., inventory failure
+                if (response.status === 500 && responseData.error && responseData.message.includes('inventory deduction failed')) {
+                    throw new Error(responseData.message || 'Payment confirmed, but inventory failed.');
+                }
+                throw new Error(responseData.message || `Failed to confirm order: ${response.statusText}`);
+            }
+            
+            showToast(`Order #${orderId.substring(0, 8)} confirmed and processed successfully!`, 'bg-emerald-500');
+            
+            // Reload the order list to reflect the change
+            await loadUserOrders();
+
+        } catch (error) {
+            console.error('Confirmation error:', error);
+            
+            // Check if we are still in the detail view
+            if (currentDetailOrderId === orderId) {
+                // Update detail action button for the error state
+                const actionCard = document.getElementById('detail-actions-card');
+                actionCard.classList.remove('border-yellow-300');
+                actionCard.classList.add('border-red-500');
+                showToast(error.message || `Failed to confirm order #${orderId.substring(0, 8)}.`, 'bg-red-500');
+            } else {
+                showToast(error.message || `Failed to confirm order #${orderId.substring(0, 8)}.`, 'bg-red-500');
+            }
+            
+            // Re-enable button on failure
+            if (button) {
+                button.disabled = false;
+                button.textContent = '✅ Confirm Payment & Process Order';
+                button.classList.remove('opacity-50');
+            }
+        }
+    }
 
     /**
      * Fetches a list of pending orders from the API.
@@ -403,7 +487,7 @@
               return null;
           }
     }
-    
+
     /**
      * Renders the full details of a single order into the dedicated section.
      * @param {Object} order - The single order object with full details.
@@ -471,11 +555,12 @@
         
         // Update Action Card state (Color) based on status
         const actionCard = document.getElementById('detail-actions-card');
-        actionCard.classList.remove('border-red-500', 'border-gray-300');
+        actionCard.classList.remove('border-red-500', 'border-gray-300', 'border-yellow-300');
         if (order.status === 'Pending') {
-             actionCard.classList.add('border-yellow-300');
+            actionCard.classList.add('border-yellow-300');
         } else {
-            actionCard.classList.add('border-gray-300');
+            // Assume processing/completed/cancelled orders get a neutral border
+            actionCard.classList.add('border-gray-300'); 
         }
         
         // Update action button visibility/text
@@ -491,73 +576,6 @@
         
     }
     
-    /**
-     * Sends a request to the API to confirm (complete) an order.
-     * @param {string} orderId - The ID of the order to confirm.
-     */
-    async function confirmOrder(orderId) {
-        const token = localStorage.getItem('adminToken');
-        if (!token) {
-            logoutAdmin();
-            return;
-        }
-        
-        // Target the button in the details section for a better UX when confirming from detail view
-        const button = document.getElementById(`detail-confirm-btn`) || document.getElementById(`confirm-btn-${orderId}`);
-        if (button) {
-            button.disabled = true;
-            button.textContent = 'Confirming...';
-            button.classList.add('opacity-50');
-        }
-
-        try {
-            // Endpoint: PUT /api/admin/orders/:orderId/confirm
-            const response = await fetch(`/api/admin/orders/${orderId}/confirm`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            
-            const responseData = await response.json();
-
-            if (!response.ok) {
-                // Check for specific backend errors, e.g., inventory failure
-                if (response.status === 500 && responseData.error && responseData.message.includes('inventory deduction failed')) {
-                    throw new Error(responseData.message || 'Payment confirmed, but inventory failed.');
-                }
-                throw new Error(responseData.message || `Failed to confirm order: ${response.statusText}`);
-            }
-            
-            showToast(`Order #${orderId.substring(0, 8)} confirmed and processed successfully!`, 'bg-emerald-500');
-            
-            // Reload the order list to reflect the change
-            await loadUserOrders();
-
-        } catch (error) {
-            console.error('Confirmation error:', error);
-            
-            // Check if we are still in the detail view
-            if (currentDetailOrderId === orderId) {
-                // Update detail action button for the error state
-                const actionCard = document.getElementById('detail-actions-card');
-                actionCard.classList.remove('border-yellow-300');
-                actionCard.classList.add('border-red-500');
-                showToast(error.message || `Failed to confirm order #${orderId.substring(0, 8)}.`, 'bg-red-500');
-            } else {
-                showToast(error.message || `Failed to confirm order #${orderId.substring(0, 8)}.`, 'bg-red-500');
-            }
-            
-            // Re-enable button on failure
-            if (button) {
-                button.disabled = false;
-                button.textContent = '✅ Confirm Payment & Process Order';
-                button.classList.remove('opacity-50');
-            }
-        }
-    }
-
     /**
      * Renders the fetched orders into the table.
      * @param {Array<Object>} orders - The list of orders to render.
@@ -584,7 +602,7 @@
             tr.className = 'hover:bg-gray-50';
             
             const date = formatDate(order.createdAt);
-            // 🚀 The /api/admin/orders/pending route now returns userName and email
+            // ✅ CUSTOMER DISPLAY LOGIC: Prioritizes full name (userName) returned by API
             const customerDisplay = order.userName && order.userName !== 'N/A' ? order.userName : order.email;
 
             tr.innerHTML = `
@@ -642,25 +660,6 @@
         loadingIndicator.classList.add('hidden');
         
         renderOrders(orders);
-    }
-    
-    /**
-     * Displays a temporary notification (toast).
-     * @param {string} message - The message to display.
-     * @param {string} bgColorClass - Tailwind class for background color (e.g., 'bg-emerald-500').
-     */
-    function showToast(message, bgColorClass) {
-        const toast = document.createElement('div');
-        toast.className = `p-4 rounded-lg shadow-xl text-white ${bgColorClass} transition-opacity duration-300`;
-        toast.textContent = message;
-        
-        toastContainer.appendChild(toast);
-        
-        // Auto-hide the toast after 3 seconds
-        setTimeout(() => {
-            toast.classList.add('opacity-0');
-            setTimeout(() => toast.remove(), 500); // Remove from DOM after fade out
-        }, 3000);
     }
 
 </script>

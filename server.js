@@ -644,15 +644,16 @@ const OrderItemSchema = new mongoose.Schema({
     productId: { 
         type: mongoose.Schema.Types.ObjectId, 
         required: true, 
-        // This ref should be dynamic if you have multiple product types, 
-        // but for now, we'll assume a generic Product model (or need to decide which collection it came from).
-        // For simplicity, we'll store the collection type and ID.
     },
     productType: { 
         type: String, 
         required: true, 
         enum: ['WearsCollection', 'CapCollection', 'NewArrivals', 'PreOrderCollection'] 
     },
+    // *** 🚨 ADDED fields for display consistency with cart 🚨 ***
+    name: { type: String, required: true },
+    imageUrl: { type: String },
+    // *************************************************************
     quantity: { type: Number, required: true, min: 1 },
     priceAtTimeOfPurchase: { type: Number, required: true, min: 0.01 },
     variationIndex: { type: Number },
@@ -1424,6 +1425,9 @@ app.get('/api/admin/users/:id', verifyToken, async (req, res) => {
             isMember: user.status.role === 'vip',
             createdAt: user.membership.memberSince,
             phone: user.profile.phone || 'N/A',
+            // --- 📢 NEW ADDITION FOR WHATSAPP CONTACT 📢 ---
+            whatsappNumber: user.profile.whatsapp || 'N/A', 
+            // ----------------------------------------------------
             contactAddress: contactAddress
         };
 
@@ -1433,14 +1437,14 @@ app.get('/api/admin/users/:id', verifyToken, async (req, res) => {
 
     } catch (error) {
         if (error.kind === 'ObjectId') {
-             return res.status(400).json({ message: 'Invalid User ID format.' });
+            return res.status(400).json({ message: 'Invalid User ID format.' });
         }
         console.error('Admin single user fetch error:', error);
         return res.status(500).json({ message: 'Server error: Failed to retrieve user details.' });
     }
 });
 
-// NEW: 2. GET /api/admin/users/:id/orders (Fetch User Order History - Protected Admin)
+// NEW: 2. GET /api/admin/users/:userId/orders (Fetch User Order History - Protected Admin)
 app.get('/api/admin/users/:userId/orders', verifyToken, async (req, res) => {
     try {
         const userId = req.params.userId;
@@ -1455,25 +1459,14 @@ app.get('/api/admin/users/:userId/orders', verifyToken, async (req, res) => {
         // Sort by creation date descending (newest first)
         const userOrders = await Order.find({ userId: userId }) 
             .sort({ createdAt: -1 })
-            .lean();
+            .lean(); // Returns plain JavaScript objects
 
-        // 3. Augment the orders with product details for display
-        // We need to ensure each item has the 'name' and 'imageUrl' for the frontend table preview.
-        // NOTE: The implementation of the Order model should ideally already store product name/image
-        // at the time of purchase (denormalization). If not, you'd need a population step here, 
-        // but let's assume the Order model has the necessary denormalized fields (name, imageUrl, quantity).
-
-        // If the orders are simple, we'll return them as is. If they need augmentation, 
-        // the logic would look like this (assuming 'items' is an array of objects):
+        // 3. Simple transformation: Since OrderItemSchema is now denormalized 
+        //    (includes name and imageUrl), we can return the data directly.
         const augmentedOrders = userOrders.map(order => ({
             ...order,
-            // Simple transformation to ensure item data exists for the frontend table
-            items: (order.items || []).map(item => ({
-                ...item,
-                // Ensure default values if backend data is incomplete
-                name: item.name || 'Unknown Product', 
-                imageUrl: item.imageUrl || 'https://default.image.url/placeholder.png' 
-            }))
+            // Items already contain name and imageUrl from the denormalized schema
+            items: order.items || [], 
         }));
 
         // Success Response
@@ -1484,7 +1477,7 @@ app.get('/api/admin/users/:userId/orders', verifyToken, async (req, res) => {
 
     } catch (error) {
         if (error.kind === 'ObjectId') {
-             return res.status(400).json({ message: 'Invalid User ID format.' });
+            return res.status(400).json({ message: 'Invalid User ID format.' });
         }
         console.error('Admin user orders fetch error:', error);
         return res.status(500).json({ message: 'Server error: Failed to retrieve user order history.' });

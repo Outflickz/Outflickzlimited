@@ -1097,8 +1097,10 @@ async function mergeLocalCart(userId, localItems) {
 /**
  * Takes a list of order documents and adds 'name' and 'imageUrl' to each item 
  * by fetching product details from all relevant collections.
+ * * 🚨 CRITICAL UPDATE: This now generates a temporary, pre-signed URL for the imageUrl
+ * if the image is stored privately (e.g., in Backblaze B2).
  * * @param {Array<Object>} orders - Array of order documents (must have an 'items' array).
- * @returns {Promise<Array<Object>>} - Orders with augmented item details.
+ * @returns {Promise<Array<Object>>} - Orders with augmented item details, including signed image URLs.
  */
 async function augmentOrdersWithProductDetails(orders) {
     if (!orders || orders.length === 0) {
@@ -1134,13 +1136,14 @@ async function augmentOrdersWithProductDetails(orders) {
         };
     });
 
-    // 4. Transform and merge product details into the orders array
-    const detailedOrders = orders.map(order => {
-        const detailedItems = order.items.map(item => {
+    // 4. Transform and merge product details into the orders array, signing URLs
+    const detailedOrdersPromises = orders.map(async (order) => {
+        
+        const detailedItemsPromises = order.items.map(async (item) => {
             const productIdStr = item.productId.toString();
             const productInfo = productMap[productIdStr];
             
-            let imageUrl = 'https://placehold.co/32x32/CBD5E1/475569/png?text=N/A';
+            let permanentImageUrl = null; // Store the B2 URL temporarily
             let productName = 'Unknown Product (Deleted)';
 
             if (productInfo) {
@@ -1152,24 +1155,38 @@ async function augmentOrdersWithProductDetails(orders) {
                     String(v.variationIndex) === String(item.variationIndex)
                 );
 
-                // Use the frontImageUrl of the matched variation, or the first one as a fallback
+                // Determine the permanent B2 URL
                 if (purchasedVariation && purchasedVariation.frontImageUrl) {
-                    imageUrl = purchasedVariation.frontImageUrl;
+                    permanentImageUrl = purchasedVariation.frontImageUrl;
                 } else if (productInfo.variations.length > 0) {
                     // Fallback to the first variation's front image if exact match fails
                     if (productInfo.variations[0].frontImageUrl) {
-                        imageUrl = productInfo.variations[0].frontImageUrl;
+                        permanentImageUrl = productInfo.variations[0].frontImageUrl;
                     }
                 }
             }
 
+            // --- 🚨 CRITICAL FIX: Generate Signed URL for private image access ---
+            let signedImageUrl = 'https://placehold.co/32x32/CBD5E1/475569/png?text=N/A';
+            if (permanentImageUrl) {
+                // Assuming generateSignedUrl is available in scope (passed in context)
+                const signedUrl = await generateSignedUrl(permanentImageUrl); 
+                if (signedUrl) {
+                    signedImageUrl = signedUrl;
+                }
+            }
+            // --------------------------------------------------------------------
+
             return {
                 ...item,
                 name: productName,
-                imageUrl: imageUrl, // Key field for the frontend
+                imageUrl: signedImageUrl, // Now holds the temporary, signed URL
                 price: item.priceAtTimeOfPurchase, 
             };
         });
+        
+        // Wait for all item promises to resolve (including signing the URLs)
+        const detailedItems = await Promise.all(detailedItemsPromises);
 
         return {
             ...order,
@@ -1177,7 +1194,8 @@ async function augmentOrdersWithProductDetails(orders) {
         };
     });
     
-    return detailedOrders;
+    // Wait for all order promises to resolve
+    return Promise.all(detailedOrdersPromises);
 }
 
 // --- EXPRESS CONFIGURATION AND MIDDLEWARE ---
@@ -1483,6 +1501,7 @@ app.get('/api/admin/users/:userId/orders', verifyToken, async (req, res) => {
         return res.status(500).json({ message: 'Server error: Failed to retrieve user order history.' });
     }
 });
+
 // =========================================================
 // 8. GET /api/admin/orders/pending - Fetch All Pending Orders (Admin Protected)
 // =========================================================
@@ -1534,6 +1553,9 @@ app.get('/api/admin/orders/pending', verifyToken, async (req, res) => {
 // 8b. GET /api/admin/orders/:orderId - Fetch Single Detailed Order (Admin Protected)
 // NEW ROUTE: Used for the 'View Details' section.
 // =========================================================
+// =========================================================
+// 8b. GET /api/admin/orders/:orderId - Fetch Single Detailed Order (Admin Protected)
+// =========================================================
 app.get('/api/admin/orders/:orderId', verifyToken, async (req, res) => {
     try {
         const orderId = req.params.orderId;
@@ -1546,16 +1568,21 @@ app.get('/api/admin/orders/:orderId', verifyToken, async (req, res) => {
         }
         
         // 2. Augment order items with product details (name, imageUrl)
+        // NOTE: augmentOrdersWithProductDetails MUST now internally call generateSignedUrl 
+        // for each item.imageUrl if the images are private.
         const detailedOrders = await augmentOrdersWithProductDetails([order]);
-        const detailedOrder = detailedOrders[0];
+        let detailedOrder = detailedOrders[0];
+
+        // 🚨 FIX: Generate Signed URL for the Payment Receipt (Necessary for private B2 bucket access)
+        if (detailedOrder.paymentReceiptUrl) {
+            detailedOrder.paymentReceiptUrl = await generateSignedUrl(detailedOrder.paymentReceiptUrl);
+        }
 
         // 3. Get User Details (Name and Email)
         const user = await User.findById(detailedOrder.userId)
-            // ✅ FIX 1: Select nested fields from the 'profile' subdocument
             .select('profile.firstName profile.lastName email') 
             .lean();
 
-        // ✅ FIX 2: Access nested fields safely
         const firstName = user?.profile?.firstName;
         const lastName = user?.profile?.lastName;
 
@@ -1583,7 +1610,6 @@ app.get('/api/admin/orders/:orderId', verifyToken, async (req, res) => {
         return res.status(500).json({ message: 'Server error: Failed to retrieve order details.' });
     }
 });
-
 
 // =========================================================
 // 9. PUT /api/admin/orders/:orderId/confirm - Confirm an Order (Admin Protected)

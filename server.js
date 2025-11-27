@@ -1290,37 +1290,44 @@ const uploadFields = Array.from({ length: 4 }, (_, i) => [
 const singleReceiptUpload = multer({ 
     storage: multer.memoryStorage(), // Use memory storage as defined
     limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+    
 }).single('receipt'); // 'receipt' must match the field name sent by the frontend
-
 // --- USER AUTHENTICATION API ROUTES ---
 const verifyUserToken = (req, res, next) => {
-    // CRITICAL FIX: The frontend sends the token in the 'Authorization: Bearer <token>' header.
+    // 1. Check for token in the HTTP-only cookie
+    let token = req.cookies.outflickzToken; 
+    
+    // 2. Fallback: Check for token in the 'Authorization: Bearer <token>' header if cookie is absent
     const authHeader = req.headers.authorization;
+    if (!token && authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.split(' ')[1];
+    }
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // 3. If no token is found in either location, deny access
+    if (!token) {
         // Clear cookie as a security best practice, even if we expected a header
         if (req.cookies.outflickzToken) {
             res.clearCookie('outflickzToken');
         }
-        return res.status(401).json({ message: 'Access denied. Authorization token missing or malformed.' });
+        return res.status(401).json({ message: 'Access denied. Please log in.' });
     }
 
-    const token = authHeader.split(' ')[1]; // Extract the token from 'Bearer <token>'
-
     try {
+        // 4. Verify the token
         // Assuming JWT_SECRET is available in scope
         const decoded = jwt.verify(token, JWT_SECRET);
         
-        // Ensure this is a regular user token 
+        // 5. Ensure this is a regular user token 
         if (decoded.role !== 'user') {
+            // Token is valid but role is wrong (e.g., admin token used for user route)
             return res.status(403).json({ message: 'Forbidden. Invalid user role.' });
         }
         
-        // Attach the user ID to the request object for use in subsequent handlers
+        // 6. Success: Attach the user ID and proceed
         req.userId = decoded.id; 
         next();
     } catch (err) {
-        // Token is invalid (expired, tampered, etc.) - Force re-login
+        // 7. Token is invalid (expired, tampered, etc.) - Force re-login
         if (req.cookies.outflickzToken) {
             res.clearCookie('outflickzToken');
         }
@@ -1328,7 +1335,6 @@ const verifyUserToken = (req, res, next) => {
         res.status(401).json({ message: 'Invalid or expired session. Please log in again.' });
     }
 };
-
 /**
  * Verifies the user token if present, but allows the request to proceed if absent.
  * (This middleware is generally not needed for a protected route like /api/orders/:orderId)

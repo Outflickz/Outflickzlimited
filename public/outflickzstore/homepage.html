@@ -465,15 +465,19 @@ async function simulateAddToCart(productDetails) {
     };
     
     // --- 3. Attempt Authenticated API Call ---
-    try {
-        const response = await fetch('/api/users/cart', {
-            method: 'POST',
-            headers: {
-                // 🚨 NO Authorization header: Browser sends the HTTP-only cookie automatically
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(itemDataForAPI)
-        });
+  try {
+    const response = await fetch('/api/users/cart', {
+        method: 'POST',
+        headers: {
+            // Content-Type is needed for the JSON body
+            'Content-Type': 'application/json'
+            // Authorization header is intentionally omitted, as the token
+            // is expected to be sent automatically via the cookie.
+        },
+        body: JSON.stringify(itemDataForAPI),
+        // ✅ CRITICAL ADDITION: This tells the browser to include the HTTP-only cookie.
+        credentials: 'include' 
+    });
 
         const data = await response.json();
 

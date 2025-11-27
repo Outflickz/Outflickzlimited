@@ -576,58 +576,67 @@
         
     }
     
-    /**
-     * Renders the fetched orders into the table.
-     * @param {Array<Object>} orders - The list of orders to render.
-     */
-    function renderOrders(orders) {
-        ordersTableBody.innerHTML = '';
-        globalOrdersData = orders; // Save data globally 
-        
-        const pendingOrders = orders.filter(order => order.status === 'Pending');
+   /**
+ * Renders the fetched orders into the table.
+ * @param {Array<Object>} orders - The list of orders to render.
+ */
+function renderOrders(orders) {
+    ordersTableBody.innerHTML = '';
+    globalOrdersData = orders; // Save data globally 
+    
+    const pendingOrders = orders.filter(order => order.status === 'Pending');
 
-        pendingCountElement.textContent = `${pendingOrders.length} Pending`;
+    pendingCountElement.textContent = `${pendingOrders.length} Pending`;
 
-        if (pendingOrders.length === 0) {
-            ordersTableContainer.classList.add('hidden');
-            emptyState.classList.remove('hidden');
-            return;
-        }
-
-        emptyState.classList.add('hidden');
-        ordersTableContainer.classList.remove('hidden');
-
-        pendingOrders.forEach(order => {
-            const tr = document.createElement('tr');
-            tr.className = 'hover:bg-gray-50';
-            
-            const date = formatDate(order.createdAt);
-            // ✅ CUSTOMER DISPLAY LOGIC: Prioritizes full name (userName) returned by API
-            const customerDisplay = order.userName && order.userName !== 'N/A' ? order.userName : order.email;
-
-            tr.innerHTML = `
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${order._id.substring(0, 8)}...</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${customerDisplay}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-emerald-600">${formatNaira(order.totalAmount)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${date}</td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                        ${order.status}
-                    </span>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                    <button 
-                        id="view-btn-${order._id}"
-                        onclick="handleViewDetails('${order._id}')" 
-                        class="text-white bg-blue-600 hover:bg-blue-700 py-1 px-3 rounded-lg text-xs transition duration-150 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                    >
-                        View Details
-                    </button>
-                </td>
-            `;
-            ordersTableBody.appendChild(tr);
-        });
+    if (pendingOrders.length === 0) {
+        ordersTableContainer.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+        return;
     }
+
+    emptyState.classList.add('hidden');
+    ordersTableContainer.classList.remove('hidden');
+
+    pendingOrders.forEach(order => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-gray-50';
+        
+        const date = formatDate(order.createdAt);
+        
+        // 🚀 UPDATED LOGIC TO HANDLE MISSING NAMES AND STRICTLY FALLBACK TO EMAIL
+        let customerDisplay = order.email || 'Unknown'; // Default fallback to Unknown if email is missing
+
+        if (order.userName && order.userName !== 'N/A' && 
+            !order.userName.toLowerCase().includes('undefined') && 
+            order.userName.trim().length > 1) {
+            
+            customerDisplay = order.userName; // Use the combined full name
+        }
+        // If userName is " " or "N/A undefined", it defaults to using the email from the start.
+
+        tr.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${order._id.substring(0, 8)}...</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${customerDisplay}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-emerald-600">${formatNaira(order.totalAmount)}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${date}</td>
+            <td class="px-6 py-4 whitespace-nowrap">
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                    ${order.status}
+                </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                <button 
+                    id="view-btn-${order._id}"
+                    onclick="handleViewDetails('${order._id}')" 
+                    class="text-white bg-blue-600 hover:bg-blue-700 py-1 px-3 rounded-lg text-xs transition duration-150 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                >
+                    View Details
+                </button>
+            </td>
+        `;
+        ordersTableBody.appendChild(tr);
+    });
+}
     
     /**
      * Handles the click on 'View Details' and loads the order details section.

@@ -219,381 +219,364 @@
 
    <script>
     // --- Shared JS Elements and Functions (Identical to Dashboard) ---
-const sidebar = document.getElementById('sidebar');
-const sidebarToggle = document.getElementById('sidebar-toggle');
-const navButtons = document.querySelectorAll('nav button');
-
-// Navigation Functions (Redirects to other pages)
-function navigateToDashboard() { window.location.href = './admin-dashboard.html'; }
-function navigateToWearsCollection() { window.location.href = './wearscollection.html'; }
-function navigateToCapsCollection() { window.location.href = './capscollection.html'; }
-function navigateToNewArrivals() { window.location.href = './newarrivals.html'; }
-function navigateToPreOrders() { window.location.href = './preorders.html'; }
-function navigateToMembership() { window.location.href = './membership.html'; }
-function navigateToSettings() { window.location.href = './settings.html'; } // Assuming a separate settings page
-
-// Log out function
-function logoutAdmin() {
-    console.log("Logging out... Clearing admin token.");
-    localStorage.removeItem('adminToken');
-    window.location.href = './admin-login.html'; 
-}
-
-// Global variable to store the currently loaded orders
-let globalOrdersData = [];
-
-// Show/Hide Content Sections
-function showContent(sectionId) {
-    document.querySelectorAll('.content-section').forEach(section => {
-        section.classList.add('hidden');
-    });
-    document.getElementById(`content-${sectionId}`).classList.remove('hidden');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const navButtons = document.querySelectorAll('nav button');
     
-    // Re-hide sidebar on mobile after navigation
-    if (window.innerWidth < 1024) {
-        sidebar.classList.add('-translate-x-full');
+    // Navigation Functions (Redirects to other pages)
+    function navigateToDashboard() { window.location.href = './admin-dashboard.html'; }
+    function navigateToWearsCollection() { window.location.href = './wearscollection.html'; }
+    function navigateToCapsCollection() { window.location.href = './capscollection.html'; }
+    function navigateToNewArrivals() { window.location.href = './newarrivals.html'; }
+    function navigateToPreOrders() { window.location.href = './preorders.html'; }
+    function navigateToMembership() { window.location.href = './membership.html'; }
+    function navigateToSettings() { window.location.href = './settings.html'; } // Assuming a separate settings page
+    
+    // Log out function
+    function logoutAdmin() {
+        console.log("Logging out... Clearing admin token.");
+        localStorage.removeItem('adminToken');
+        window.location.href = './admin-login.html'; 
     }
-}
 
-// Sidebar Toggle & Initial Load
-document.addEventListener('DOMContentLoaded', () => {
-    // Highlight the current page's button
-    document.getElementById('btn-userorders').classList.add('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
-    document.getElementById('btn-userorders').classList.remove('hover:bg-emerald-800', 'text-emerald-200');
-    
-    sidebarToggle.addEventListener('click', () => {
-        sidebar.classList.toggle('-translate-x-full');
-    });
-    
-    // Initial Data Load
-    loadUserOrders(); 
-});
+    // Global variable to store the currently loaded orders
+    let globalOrdersData = [];
 
-// Helper function for currency formatting (NGN)
-function formatNaira(amount) {
-    // Ensure amount is a number for formatting
-    const numAmount = Number(amount); 
-    if (isNaN(numAmount)) return 'N/A';
-    
-    return new Intl.NumberFormat('en-NG', {
-        style: 'currency',
-        currency: 'NGN',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2
-    }).format(numAmount);
-}
-
-// Helper function for date formatting
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-}
-
-// --- Order Specific JS Logic ---
-const loadingIndicator = document.getElementById('loading-indicator');
-const ordersTableContainer = document.getElementById('orders-table-container');
-const ordersTableBody = document.getElementById('orders-table-body');
-const pendingCountElement = document.getElementById('pending-count');
-const emptyState = document.getElementById('empty-state');
-const toastContainer = document.getElementById('toast-container');
-const detailItemsBody = document.getElementById('detail-items-body');
-
-// Use a global variable to hold the ID of the order currently displayed in details
-let currentDetailOrderId = null; 
-
-/**
- * Displays a temporary notification (toast).
- * @param {string} message - The message to display.
- * @param {string} bgColorClass - Tailwind class for background color (e.g., 'bg-emerald-500').
- */
-function showToast(message, bgColorClass) {
-    const toast = document.createElement('div');
-    toast.className = `p-4 rounded-lg shadow-xl text-white ${bgColorClass} transition-opacity duration-300`;
-    toast.textContent = message;
-    
-    toastContainer.appendChild(toast);
-    
-    // Auto-hide the toast after 3 seconds
-    setTimeout(() => {
-        toast.classList.add('opacity-0');
-        setTimeout(() => toast.remove(), 500); // Remove from DOM after fade out
-    }, 3000);
-}
-
-// --- CONFIRMATION HANDLERS (Called from Detail View) ---
-
-async function confirmOrderFromDetails() {
-    if (currentDetailOrderId) {
-        // Use a non-blocking custom confirmation dialog instead of window.confirm
-        showCustomConfirm({
-            title: "Confirm Order Processing",
-            message: `Are you sure you want to CONFIRM payment and process Order #${currentDetailOrderId.substring(0, 8)}? This will adjust inventory.`,
-            onConfirm: async () => {
-                await confirmOrder(currentDetailOrderId);
-                // After confirmation, navigate back to the list
-                showContent('userorders');
-            },
-            onCancel: () => console.log('Confirmation cancelled.')
+    // Show/Hide Content Sections
+    function showContent(sectionId) {
+        document.querySelectorAll('.content-section').forEach(section => {
+            section.classList.add('hidden');
         });
+        document.getElementById(`content-${sectionId}`).classList.remove('hidden');
+        
+        // Re-hide sidebar on mobile after navigation
+        if (window.innerWidth < 1024) {
+            sidebar.classList.add('-translate-x-full');
+        }
     }
-}
+    
+    // Sidebar Toggle & Initial Load
+    document.addEventListener('DOMContentLoaded', () => {
+        // Highlight the current page's button
+        document.getElementById('btn-userorders').classList.add('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
+        document.getElementById('btn-userorders').classList.remove('hover:bg-emerald-800', 'text-emerald-200');
+        
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('-translate-x-full');
+        });
+        
+        // Initial Data Load
+        loadUserOrders(); 
+    });
+    
+    // Helper function for currency formatting (NGN)
+    function formatNaira(amount) {
+        // Ensure amount is a number for formatting
+        const numAmount = Number(amount); 
+        if (isNaN(numAmount)) return 'N/A';
+        
+        return new Intl.NumberFormat('en-NG', {
+            style: 'currency',
+            currency: 'NGN',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2
+        }).format(numAmount);
+    }
+    
+    // Helper function for date formatting
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    }
 
-// Placeholder for the Cancel functionality (You'll need a backend route for this)
-function cancelOrderFromDetails() {
-    if (currentDetailOrderId) {
-        showCustomConfirm({
-            title: "Cancel Order",
-            message: `Are you sure you want to CANCEL Order #${currentDetailOrderId.substring(0, 8)}? This action is usually irreversible.`,
-            onConfirm: async () => {
+    // --- Order Specific JS Logic ---
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const ordersTableContainer = document.getElementById('orders-table-container');
+    const ordersTableBody = document.getElementById('orders-table-body');
+    const pendingCountElement = document.getElementById('pending-count');
+    const emptyState = document.getElementById('empty-state');
+    const toastContainer = document.getElementById('toast-container');
+    const detailItemsBody = document.getElementById('detail-items-body');
+
+    // Use a global variable to hold the ID of the order currently displayed in details
+    let currentDetailOrderId = null; 
+
+    /**
+     * Displays a temporary notification (toast).
+     * @param {string} message - The message to display.
+     * @param {string} bgColorClass - Tailwind class for background color (e.g., 'bg-emerald-500').
+     */
+    function showToast(message, bgColorClass) {
+        const toast = document.createElement('div');
+        toast.className = `p-4 rounded-lg shadow-xl text-white ${bgColorClass} transition-opacity duration-300`;
+        toast.textContent = message;
+        
+        toastContainer.appendChild(toast);
+        
+        // Auto-hide the toast after 3 seconds
+        setTimeout(() => {
+            toast.classList.add('opacity-0');
+            setTimeout(() => toast.remove(), 500); // Remove from DOM after fade out
+        }, 3000);
+    }
+    
+    // --- CONFIRMATION HANDLERS (Called from Detail View) ---
+    
+    async function confirmOrderFromDetails() {
+        if (currentDetailOrderId) {
+            await confirmOrder(currentDetailOrderId);
+            // After confirmation, navigate back to the list
+            showContent('userorders');
+        }
+    }
+    
+    // Placeholder for the Cancel functionality (You'll need a backend route for this)
+    function cancelOrderFromDetails() {
+        if (currentDetailOrderId) {
+            if (confirm(`Are you sure you want to CANCEL Order #${currentDetailOrderId.substring(0, 8)}? This action is usually irreversible.`)) {
                 // TODO: Implement API call to PUT /api/admin/orders/:orderId/cancel
                 showToast(`Order #${currentDetailOrderId.substring(0, 8)} cancelled (Backend not implemented yet).`, 'bg-amber-500');
                 // For now, just navigate back to the list and reload
                 showContent('userorders');
                 loadUserOrders();
-            },
-            onCancel: () => console.log('Cancellation postponed.')
-        });
-    }
-}
-
-/**
- * Sends a request to the API to confirm (complete) an order.
- * @param {string} orderId - The ID of the order to confirm.
- */
-async function confirmOrder(orderId) {
-    const token = localStorage.getItem('adminToken');
-    if (!token) {
-        logoutAdmin();
-        return;
-    }
-    
-    // Target the button in the details section for a better UX when confirming from detail view
-    const button = document.getElementById(`detail-confirm-btn`) || document.getElementById(`confirm-btn-${orderId}`);
-    if (button) {
-        button.disabled = true;
-        button.textContent = 'Confirming...';
-        button.classList.add('opacity-50');
-    }
-
-    try {
-        // Endpoint: PUT /api/admin/orders/:orderId/confirm
-        const response = await fetch(`/api/admin/orders/${orderId}/confirm`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
             }
-        });
-        
-        const responseData = await response.json();
+        }
+    }
 
-        if (!response.ok) {
-            // Check for specific backend errors, e.g., inventory failure
-            if (response.status === 500 && responseData.error && responseData.message.includes('inventory deduction failed')) {
-                throw new Error(responseData.message || 'Payment confirmed, but inventory failed.');
-            }
-            throw new Error(responseData.message || `Failed to confirm order: ${response.statusText}`);
+    /**
+     * Sends a request to the API to confirm (complete) an order.
+     * @param {string} orderId - The ID of the order to confirm.
+     */
+    async function confirmOrder(orderId) {
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            logoutAdmin();
+            return;
         }
         
-        showToast(`Order #${orderId.substring(0, 8)} confirmed and processed successfully!`, 'bg-emerald-500');
-        
-        // Reload the order list to reflect the change
-        await loadUserOrders();
-
-    } catch (error) {
-        console.error('Confirmation error:', error);
-        
-        // Check if we are still in the detail view
-        if (currentDetailOrderId === orderId) {
-            // Update detail action button for the error state
-            const actionCard = document.getElementById('detail-actions-card');
-            actionCard.classList.remove('border-yellow-300');
-            actionCard.classList.add('border-red-500');
-            showToast(error.message || `Failed to confirm order #${orderId.substring(0, 8)}.`, 'bg-red-500');
-        } else {
-            showToast(error.message || `Failed to confirm order #${orderId.substring(0, 8)}.`, 'bg-red-500');
-        }
-        
-        // Re-enable button on failure
+        // Target the button in the details section for a better UX when confirming from detail view
+        const button = document.getElementById(`detail-confirm-btn`) || document.getElementById(`confirm-btn-${orderId}`);
         if (button) {
-            button.disabled = false;
-            button.textContent = '✅ Confirm Payment & Process Order';
-            button.classList.remove('opacity-50');
+            button.disabled = true;
+            button.textContent = 'Confirming...';
+            button.classList.add('opacity-50');
+        }
+
+        try {
+            // Endpoint: PUT /api/admin/orders/:orderId/confirm
+            const response = await fetch(`/api/admin/orders/${orderId}/confirm`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            const responseData = await response.json();
+
+            if (!response.ok) {
+                // Check for specific backend errors, e.g., inventory failure
+                if (response.status === 500 && responseData.error && responseData.message.includes('inventory deduction failed')) {
+                    throw new Error(responseData.message || 'Payment confirmed, but inventory failed.');
+                }
+                throw new Error(responseData.message || `Failed to confirm order: ${response.statusText}`);
+            }
+            
+            showToast(`Order #${orderId.substring(0, 8)} confirmed and processed successfully!`, 'bg-emerald-500');
+            
+            // Reload the order list to reflect the change
+            await loadUserOrders();
+
+        } catch (error) {
+            console.error('Confirmation error:', error);
+            
+            // Check if we are still in the detail view
+            if (currentDetailOrderId === orderId) {
+                // Update detail action button for the error state
+                const actionCard = document.getElementById('detail-actions-card');
+                actionCard.classList.remove('border-yellow-300');
+                actionCard.classList.add('border-red-500');
+                showToast(error.message || `Failed to confirm order #${orderId.substring(0, 8)}.`, 'bg-red-500');
+            } else {
+                showToast(error.message || `Failed to confirm order #${orderId.substring(0, 8)}.`, 'bg-red-500');
+            }
+            
+            // Re-enable button on failure
+            if (button) {
+                button.disabled = false;
+                button.textContent = '✅ Confirm Payment & Process Order';
+                button.classList.remove('opacity-50');
+            }
         }
     }
-}
 
-/**
- * Fetches a list of pending orders from the API.
- */
-async function fetchOrders() {
-    const token = localStorage.getItem('adminToken');
-    if (!token) {
-        console.error("No adminToken found. Redirecting to login.");
-        logoutAdmin();
-        return [];
+    /**
+     * Fetches a list of pending orders from the API.
+     */
+    async function fetchOrders() {
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            console.error("No adminToken found. Redirecting to login.");
+            logoutAdmin();
+            return [];
+        }
+
+        try {
+            // Using the backend route: GET /api/admin/orders/pending
+            const response = await fetch('/api/admin/orders/pending', { 
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
+                }
+            });
+
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    logoutAdmin();
+                    return [];
+                }
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching orders:', error);
+            showToast('Failed to load orders. API error.', 'bg-red-500');
+            return [];
+        }
     }
 
-    try {
-        // Using the backend route: GET /api/admin/orders/pending
-        const response = await fetch('/api/admin/orders/pending', { 
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}` 
-            }
+    /**
+     * Fetches detailed order information (including augmented items) for a single order.
+     * This uses the dedicated new backend route: GET /api/admin/orders/:orderId
+     * @param {string} orderId - The ID of the order to confirm.
+     * @returns {Promise<Object|null>} - The full, augmented order object.
+     */
+    async function fetchDetailedOrder(orderId) {
+          const token = localStorage.getItem('adminToken');
+          if (!token) {
+              logoutAdmin();
+              return null;
+          }
+        
+          try {
+              // ✅ REAL API CALL: Use the new single order detail endpoint
+              const response = await fetch(`/api/admin/orders/${orderId}`, {
+                  method: 'GET',
+                  headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${token}`
+                  }
+              });
+              
+              if (!response.ok) {
+                  if (response.status === 404) {
+                      throw new Error("Order not found.");
+                  }
+                  throw new Error(`Failed to fetch order details. Status: ${response.status}`);
+              }
+
+              // The backend now returns the full order object with items augmented 
+              // with 'name', 'imageUrl', and 'userName'/'email'.
+              return await response.json();
+
+          } catch (error) {
+              console.error('Error fetching detailed order:', error);
+              showToast(error.message || `Failed to load details for order #${orderId.substring(0, 8)}.`, 'bg-red-500');
+              return null;
+          }
+    }
+
+    /**
+     * Renders the full details of a single order into the dedicated section.
+     * @param {Object} order - The single order object with full details.
+     */
+    function renderOrderDetail(order) {
+        currentDetailOrderId = order._id; // Set the current order ID
+        showContent('orderdetails'); // Switch view
+
+        // 1. HEADER
+        document.getElementById('detail-order-id').textContent = order._id.substring(0, 8);
+
+        // 2. SUMMARY CARD
+        // 🚀 Using real userName and email fetched from the dedicated endpoint
+        document.getElementById('detail-customer-name').textContent = order.userName || 'N/A';
+        document.getElementById('detail-customer-email').textContent = order.email || 'N/A';
+        document.getElementById('detail-date').textContent = formatDate(order.createdAt);
+        document.getElementById('detail-payment-method').textContent = order.paymentMethod || 'Bank Transfer'; // Default if missing
+        document.getElementById('detail-subtotal').textContent = formatNaira(order.subtotal);
+        document.getElementById('detail-shipping').textContent = formatNaira(order.shippingFee);
+        document.getElementById('detail-tax').textContent = formatNaira(order.tax);
+        document.getElementById('detail-total').textContent = formatNaira(order.totalAmount);
+        
+        // 3. ORDER ITEMS
+        detailItemsBody.innerHTML = '';
+        // 🚀 Using the augmented 'items' array which contains 'name' and 'imageUrl'
+        order.items.forEach(item => {
+            const itemRow = document.createElement('tr');
+            itemRow.className = 'border-b hover:bg-gray-50';
+            
+            // Determine the price to display (use the priceAtTimeOfPurchase from the order item)
+            const itemPrice = item.price || item.priceAtTimeOfPurchase;
+            const itemSubtotal = item.subtotal || (item.quantity * itemPrice);
+            
+            itemRow.innerHTML = `
+                <td class="px-4 py-3 text-sm font-medium text-gray-900 flex items-center">
+                    <img src="${item.imageUrl || 'https://placehold.co/32x32/CBD5E1/475569/png?text=P'}" 
+                         alt="${item.name} image" class="w-8 h-8 rounded mr-2 object-cover">
+                    ${item.name}
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-600">${item.variation || 'N/A'}</td>
+                <td class="px-4 py-3 text-sm text-gray-900 text-right">${formatNaira(itemPrice)}</td>
+                <td class="px-4 py-3 text-sm text-gray-600 text-center">${item.quantity}</td>
+                <td class="px-4 py-3 text-sm font-semibold text-gray-900 text-right">${formatNaira(itemSubtotal)}</td>
+            `;
+            detailItemsBody.appendChild(itemRow);
         });
+        
+        // 4. PAYMENT RECEIPT
+        const receiptContainer = document.getElementById('receipt-container');
+        receiptContainer.innerHTML = ''; // Clear previous content
 
-        if (!response.ok) {
-            if (response.status === 401 || response.status === 403) {
-                logoutAdmin();
-                return [];
-            }
-            throw new Error(`HTTP error! status: ${response.status}`);
+        if (order.paymentReceiptUrl) {
+            receiptContainer.innerHTML = `
+                <a href="${order.paymentReceiptUrl}" target="_blank" class="block w-full h-80 overflow-hidden bg-gray-100 rounded-lg group">
+                    <img src="${order.paymentReceiptUrl}" alt="Payment Receipt" class="object-contain w-full h-full transition duration-300 group-hover:opacity-80"/>
+                </a>
+                <a href="${order.paymentReceiptUrl}" target="_blank" class="mt-3 inline-flex items-center text-sm font-medium text-emerald-600 hover:text-emerald-800 transition">
+                    View Full Receipt in New Tab 
+                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                </a>
+            `;
+        } else {
+            receiptContainer.innerHTML = '<p class="text-gray-500 p-8">No receipt image uploaded for this order.</p>';
         }
-
-        return await response.json();
-    } catch (error) {
-        console.error('Error fetching orders:', error);
-        showToast('Failed to load orders. API error.', 'bg-red-500');
-        return [];
-    }
-}
-
-/**
- * Fetches detailed order information (including augmented items) for a single order.
- * This uses the dedicated new backend route: GET /api/admin/orders/:orderId
- * @param {string} orderId - The ID of the order to confirm.
- * @returns {Promise<Object|null>} - The full, augmented order object.
- */
-async function fetchDetailedOrder(orderId) {
-    const token = localStorage.getItem('adminToken');
-    if (!token) {
-        logoutAdmin();
-        return null;
-    }
-    
-    try {
-        // ✅ REAL API CALL: Use the new single order detail endpoint
-        const response = await fetch(`/api/admin/orders/${orderId}`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
-        });
         
-        if (!response.ok) {
-            if (response.status === 404) {
-                throw new Error("Order not found.");
-            }
-            throw new Error(`Failed to fetch order details. Status: ${response.status}`);
+        // Update Action Card state (Color) based on status
+        const actionCard = document.getElementById('detail-actions-card');
+        actionCard.classList.remove('border-red-500', 'border-gray-300', 'border-yellow-300');
+        if (order.status === 'Pending') {
+            actionCard.classList.add('border-yellow-300');
+        } else {
+            // Assume processing/completed/cancelled orders get a neutral border
+            actionCard.classList.add('border-gray-300'); 
         }
-
-        // The backend now returns the full order object with items augmented 
-        // with 'name', 'imageUrl' (signed URL), and 'userName'/'email', and signed 'paymentReceiptUrl'.
-        return await response.json();
-
-    } catch (error) {
-        console.error('Error fetching detailed order:', error);
-        showToast(error.message || `Failed to load details for order #${orderId.substring(0, 8)}.`, 'bg-red-500');
-        return null;
-    }
-}
-
-/**
- * Renders the full details of a single order into the dedicated section.
- * @param {Object} order - The single order object with full details.
- */
-function renderOrderDetail(order) {
-    currentDetailOrderId = order._id; // Set the current order ID
-    showContent('orderdetails'); // Switch view
-
-    // 1. HEADER
-    document.getElementById('detail-order-id').textContent = order._id.substring(0, 8);
-
-    // 2. SUMMARY CARD
-    // 🚀 Using real userName and email fetched from the dedicated endpoint
-    document.getElementById('detail-customer-name').textContent = order.userName || 'N/A';
-    document.getElementById('detail-customer-email').textContent = order.email || 'N/A';
-    document.getElementById('detail-date').textContent = formatDate(order.createdAt);
-    document.getElementById('detail-payment-method').textContent = order.paymentMethod || 'Bank Transfer'; // Default if missing
-    
-    // ✅ REQUIRED: Display financial summary fields
-    document.getElementById('detail-subtotal').textContent = formatNaira(order.subtotal);
-    document.getElementById('detail-shipping').textContent = formatNaira(order.shippingFee);
-    document.getElementById('detail-tax').textContent = formatNaira(order.tax);
-    document.getElementById('detail-total').textContent = formatNaira(order.totalAmount);
-    
-    // 3. ORDER ITEMS
-    detailItemsBody.innerHTML = '';
-    // 🚀 Using the augmented 'items' array which contains 'name' and 'imageUrl' (signed)
-    order.items.forEach(item => {
-        const itemRow = document.createElement('tr');
-        itemRow.className = 'border-b hover:bg-gray-50';
         
-        // Determine the price to display (use the priceAtTimeOfPurchase from the order item)
-        const itemPrice = item.price || item.priceAtTimeOfPurchase;
-        const itemSubtotal = item.subtotal || (item.quantity * itemPrice);
+        // Update action button visibility/text
+        const confirmBtn = document.getElementById('detail-confirm-btn');
+        if (order.status === 'Pending') {
+            confirmBtn.classList.remove('hidden');
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = '✅ Confirm Payment & Process Order';
+            confirmBtn.classList.remove('opacity-50');
+        } else {
+            confirmBtn.classList.add('hidden');
+        }
         
-        itemRow.innerHTML = `
-            <td class="px-4 py-3 text-sm font-medium text-gray-900 flex items-center">
-                <img src="${item.imageUrl || 'https://placehold.co/32x32/CBD5E1/475569/png?text=P'}" 
-                    alt="${item.name} image" class="w-8 h-8 rounded mr-2 object-cover">
-                ${item.name}
-            </td>
-            <!-- ✅ REQUIRED: Display Variation -->
-            <td class="px-4 py-3 text-sm text-gray-600">${item.variation || 'N/A'}</td>
-            <td class="px-4 py-3 text-sm text-gray-900 text-right">${formatNaira(itemPrice)}</td>
-            <td class="px-4 py-3 text-sm text-gray-600 text-center">${item.quantity}</td>
-            <td class="px-4 py-3 text-sm font-semibold text-gray-900 text-right">${formatNaira(itemSubtotal)}</td>
-        `;
-        detailItemsBody.appendChild(itemRow);
-    });
-    
-    // 4. PAYMENT RECEIPT
-    const receiptContainer = document.getElementById('receipt-container');
-    receiptContainer.innerHTML = ''; // Clear previous content
-
-    // 🚀 The URL here is now the temporary, signed URL from the backend
-    if (order.paymentReceiptUrl) {
-        receiptContainer.innerHTML = `
-            <a href="${order.paymentReceiptUrl}" target="_blank" class="block w-full h-80 overflow-hidden bg-gray-100 rounded-lg group">
-                <img src="${order.paymentReceiptUrl}" alt="Payment Receipt" class="object-contain w-full h-full transition duration-300 group-hover:opacity-80"/>
-            </a>
-            <a href="${order.paymentReceiptUrl}" target="_blank" class="mt-3 inline-flex items-center text-sm font-medium text-emerald-600 hover:text-emerald-800 transition">
-                View Full Receipt in New Tab 
-                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-            </a>
-        `;
-    } else {
-        receiptContainer.innerHTML = '<p class="text-gray-500 p-8">No receipt image uploaded for this order.</p>';
     }
     
-    // Update Action Card state (Color) based on status
-    const actionCard = document.getElementById('detail-actions-card');
-    actionCard.classList.remove('border-red-500', 'border-gray-300', 'border-yellow-300');
-    if (order.status === 'Pending') {
-        actionCard.classList.add('border-yellow-300');
-    } else {
-        // Assume processing/completed/cancelled orders get a neutral border
-        actionCard.classList.add('border-gray-300'); 
-    }
-    
-    // Update action button visibility/text
-    const confirmBtn = document.getElementById('detail-confirm-btn');
-    if (order.status === 'Pending') {
-        confirmBtn.classList.remove('hidden');
-        confirmBtn.disabled = false;
-        confirmBtn.textContent = '✅ Confirm Payment & Process Order';
-        confirmBtn.classList.remove('opacity-50');
-    } else {
-        confirmBtn.classList.add('hidden');
-    }
-    
-}
-
-/**
+   /**
  * Renders the fetched orders into the table.
  * @param {Array<Object>} orders - The list of orders to render.
  */
@@ -620,7 +603,7 @@ function renderOrders(orders) {
         
         const date = formatDate(order.createdAt);
         
-        // Use userName provided by the augmented order data
+        // 🚀 UPDATED LOGIC TO HANDLE MISSING NAMES AND STRICTLY FALLBACK TO EMAIL
         let customerDisplay = order.email || 'Unknown'; // Default fallback to Unknown if email is missing
 
         if (order.userName && order.userName !== 'N/A' && 
@@ -629,6 +612,7 @@ function renderOrders(orders) {
             
             customerDisplay = order.userName; // Use the combined full name
         }
+        // If userName is " " or "N/A undefined", it defaults to using the email from the start.
 
         tr.innerHTML = `
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${order._id.substring(0, 8)}...</td>
@@ -654,74 +638,39 @@ function renderOrders(orders) {
     });
 }
     
-/**
- * Handles the click on 'View Details' and loads the order details section.
- * @param {string} orderId - The ID of the order to view.
- */
-async function handleViewDetails(orderId) {
-    // Show loading state 
-    showToast(`Loading details for order #${orderId.substring(0, 8)}...`, 'bg-blue-500');
-    
-    // 🚀 Call the REAL API endpoint
-    const orderDetails = await fetchDetailedOrder(orderId); 
-    
-    if (orderDetails) {
-        renderOrderDetail(orderDetails);
-        // Dismiss the loading toast if successful (it will fade automatically, but clearing ensures no overlap)
-        toastContainer.innerHTML = '';
+    /**
+     * Handles the click on 'View Details' and loads the order details section.
+     * @param {string} orderId - The ID of the order to view.
+     */
+    async function handleViewDetails(orderId) {
+        // Show loading state 
+        showToast(`Loading details for order #${orderId.substring(0, 8)}...`, 'bg-blue-500');
+        
+        // 🚀 Call the REAL API endpoint
+        const orderDetails = await fetchDetailedOrder(orderId); 
+        
+        if (orderDetails) {
+            renderOrderDetail(orderDetails);
+            // Dismiss the loading toast if successful (it will fade automatically, but clearing ensures no overlap)
+            toastContainer.innerHTML = '';
+        }
     }
-}
-
-/**
- * Main function to fetch and display orders.
- */
-async function loadUserOrders() {
-    loadingIndicator.classList.remove('hidden');
-    ordersTableContainer.classList.add('hidden');
-    emptyState.classList.add('hidden');
-
-    const orders = await fetchOrders();
-
-    loadingIndicator.classList.add('hidden');
     
-    renderOrders(orders);
-}
+    /**
+     * Main function to fetch and display orders.
+     */
+    async function loadUserOrders() {
+        loadingIndicator.classList.remove('hidden');
+        ordersTableContainer.classList.add('hidden');
+        emptyState.classList.add('hidden');
 
-// --- Custom Modal/Confirm Dialog (Replaces window.confirm/alert) ---
-function showCustomConfirm({ title, message, onConfirm, onCancel }) {
-    const modal = document.createElement('div');
-    modal.id = 'custom-confirm-modal';
-    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-    
-    modal.innerHTML = `
-        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full transform transition-all duration-300 scale-100">
-            <h3 class="text-xl font-bold text-gray-900 mb-3">${title}</h3>
-            <p class="text-gray-600 mb-6">${message}</p>
-            <div class="flex justify-end space-x-3">
-                <button id="cancel-btn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition">
-                    Cancel
-                </button>
-                <button id="confirm-action-btn" class="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition">
-                    Confirm
-                </button>
-            </div>
-        </div>
-    `;
+        const orders = await fetchOrders();
 
-    document.body.appendChild(modal);
+        loadingIndicator.classList.add('hidden');
+        
+        renderOrders(orders);
+    }
 
-    const closeModal = () => modal.remove();
-
-    document.getElementById('cancel-btn').addEventListener('click', () => {
-        closeModal();
-        if (onCancel) onCancel();
-    });
-
-    document.getElementById('confirm-action-btn').addEventListener('click', () => {
-        closeModal();
-        if (onConfirm) onConfirm();
-    });
-}
 </script>
 
 </body>

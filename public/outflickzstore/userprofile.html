@@ -31,7 +31,7 @@
         address: {},
         status: {},
         membership: {},
-        orders: [] // New property for orders
+        orders: []
     };
 
     function redirectToProfileOrLogin() {
@@ -42,8 +42,19 @@
         mobileMenu.classList.toggle('hidden');
     }
 
-    function logoutUser() {
-        // NOTE: For a complete logout, a server-side call is necessary to clear the HTTP-only cookie.
+    // ⭐ CRITICAL SECURITY UPDATE: Needs server endpoint to clear HTTP-only cookie
+    async function logoutUser() {
+        // 1. Attempt to call server endpoint to clear the HTTP-only cookie
+        try {
+            await fetch(`${API_BASE_URL}/api/users/logout`, {
+                method: 'POST',
+                credentials: 'include' 
+            });
+        } catch (error) {
+            console.warn('Server logout call failed or was unreachable, proceeding with client-side redirect.', error);
+        }
+        
+        // 2. Client-side cleanup and redirect
         localStorage.removeItem('outflickzToken'); 
         window.location.replace('useraccount.html');
     }
@@ -61,13 +72,14 @@
         document.getElementById('edit-profile-firstName').value = currentProfileData.profile.firstName || '';
         document.getElementById('edit-profile-lastName').value = currentProfileData.profile.lastName || '';
         document.getElementById('edit-profile-phone').value = currentProfileData.profile.phone || '';
+        // 🎉 NEW: Pre-fill whatsapp
+        document.getElementById('edit-profile-whatsapp').value = currentProfileData.profile.whatsapp || '';
     }
 
     function openEditAddressModal() {
         const modal = document.getElementById('edit-address-modal');
         modal.classList.remove('hidden');
 
-        // If currentProfileData.address is undefined, 'address' will be an empty object {}.
         const address = currentProfileData.address || {}; 
         
         // Pre-fill form fields with current data
@@ -107,7 +119,9 @@
         const profileData = {
             firstName: document.getElementById('edit-profile-firstName').value.trim(),
             lastName: document.getElementById('edit-profile-lastName').value.trim(),
-            phone: document.getElementById('edit-profile-phone').value.trim()
+            phone: document.getElementById('edit-profile-phone').value.trim(),
+            // 🎉 NEW: Get WhatsApp value
+            whatsapp: document.getElementById('edit-profile-whatsapp').value.trim() 
         };
 
         try {
@@ -190,7 +204,7 @@
         }
     }
 
-    // --- Fetch and Render Order History ---
+    // --- Fetch and Render Order History (Mock Data Removed) ---
     async function fetchOrderHistory() {
         const orderList = document.getElementById('order-history-list');
         orderList.innerHTML = `
@@ -201,20 +215,13 @@
         `;
         
         try {
-            // ACTUAL API CALL to fetch real order data
             const response = await fetch(`${API_BASE_URL}/api/orders/history`, { credentials: 'include' });
             
             if (!response.ok) {
-                // If API fails, try the mock data as a fallback for demonstration purposes
-                console.warn('Failed to fetch real order history. Using mock data.');
-                const mockOrders = [
-                    { id: 'OFLK-2023-1001', date: '2023-11-20T10:00:00Z', total: 125.50, status: 'Delivered', items: 3 },
-                    { id: 'OFLK-2023-1002', date: '2023-12-01T12:30:00Z', total: 69.99, status: 'Shipped', items: 1 },
-                    { id: 'OFLK-2024-1003', date: '2024-01-15T15:00:00Z', total: 240.00, status: 'Processing', items: 4 },
-                    { id: 'OFLK-2024-1004', date: '2024-02-10T18:00:00Z', total: 49.99, status: 'Cancelled', items: 1 }
-                ];
-                currentProfileData.orders = mockOrders;
-                renderOrderHistory(currentProfileData.orders);
+                // If the user isn't authorized or the API fails, show an error and return
+                const errorText = await response.text();
+                console.error(`Failed to fetch order history (Status: ${response.status}):`, errorText);
+                document.getElementById('order-history-list').innerHTML = '<p class="text-red-500 italic">Failed to load order history. Please ensure you are logged in.</p>';
                 return;
             }
 
@@ -225,7 +232,7 @@
 
         } catch (error) {
             console.error('Error fetching order history:', error);
-            document.getElementById('order-history-list').innerHTML = '<p class="text-red-500 italic">Failed to load order history. Please check your connection or try logging in again.</p>';
+            document.getElementById('order-history-list').innerHTML = '<p class="text-red-500 italic">Network error fetching order history.</p>';
         }
     }
 
@@ -329,13 +336,15 @@
             : '<span class="text-red-600 font-bold"><i class="fas fa-times-circle mr-1"></i> Unverified</span>';
         document.getElementById('member-since').textContent = memberSince;
         document.getElementById('user-phone').textContent = profile.phone || 'Not Set';
+        // 🎉 NEW: Update WhatsApp display
+        document.getElementById('user-whatsapp').textContent = profile.whatsapp || 'Not Set';
 
 
         document.getElementById('street-address').textContent = address.street || 'Not Set';
         document.getElementById('city-state-zip').textContent = `${address.city || 'Not Set'}, ${address.state || 'Not Set'} ${address.zip || ''}`;
         document.getElementById('country').textContent = address.country || 'Not Set';
         
-        // --- NEW LOGIC: Dynamic Address Button Text ---
+        // --- Dynamic Address Button Text ---
         const isAddressSet = address.street && address.city && address.country;
         const editAddressButton = document.getElementById('edit-address-button');
 
@@ -352,6 +361,7 @@
     
     /**
      * Attempts to fetch user data and redirects to login on failure (401/403).
+     * MOCK DATA REMOVED.
      */
     async function fetchUserData() {
         const mainContent = document.getElementById('main-profile-content');
@@ -369,31 +379,27 @@
             console.log(`Fetch Status: ${response.status}`); 
 
             if (!response.ok) {
-                // For demonstration purposes, if the fetch fails, use hardcoded data to display the page
-                // This simulates a successful login/auth context for the demo, but is generally bad practice.
-                // In a real application, you would redirect here:
-                // window.location.replace('useraccount.html');
+                // Real failure path: Redirect to login/account page
+                console.error(`Authentication failed (Status: ${response.status}). Redirecting.`);
                 
-                // Fallback for demo display:
-                console.warn('Authentication failed or endpoint down. Using fallback demo data.');
-                const fallbackData = {
-                    email: "jane.doe@example.com",
-                    profile: { firstName: "Jane", lastName: "Doe", phone: "555-123-4567" },
-                    status: { role: "customer", isVerified: true },
-                    membership: { memberSince: "2023-08-10T00:00:00Z" },
-                    address: { street: "456 Fashion Blvd", city: "Los Angeles", state: "CA", zip: "90001", country: "USA" }
-                };
-                currentProfileData = fallbackData;
-                updateDOM(fallbackData);
-            } else {
-                // Real success path
-                const data = await response.json();
-                console.log('User Data fetched successfully:', data);
-                currentProfileData = data;
-                updateDOM(data); 
-            }
+                // Hide everything
+                if (loadingIndicator) loadingIndicator.classList.add('hidden');
+                if (mainContent) mainContent.classList.add('hidden');
 
-            // NEW: Fetch and render order history after profile data is loaded (whether real or fallback)
+                // Redirect after a brief delay
+                setTimeout(() => {
+                    window.location.replace('useraccount.html');
+                }, 100); 
+                return; // Stop execution here
+            } 
+            
+            // Real success path
+            const data = await response.json();
+            console.log('User Data fetched successfully:', data);
+            currentProfileData = data;
+            updateDOM(data); 
+
+            // Fetch and render order history after profile data is loaded
             await fetchOrderHistory(); 
 
             // Show content
@@ -402,7 +408,7 @@
 
         } catch (error) {
             console.error("Fetch user data error:", error);
-            // Hide everything and redirect on fatal failure
+            // Hide everything and redirect on fatal network failure
             if (loadingIndicator) loadingIndicator.classList.add('hidden');
             if (mainContent) mainContent.classList.add('hidden');
             
@@ -492,8 +498,8 @@
                             <i class="fas fa-sign-out-alt mr-3"></i> Log Out
                         </button>
                     </nav>
-                </aside>
-
+                </aside> 
+                
                 <section class="lg:col-span-3 space-y-10">
                     
                     <div id="profile-details" class="scroll-mt-24 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
@@ -529,7 +535,11 @@
                                 <p class="text-sm text-gray-500 font-medium uppercase">Phone</p>
                                 <p class="text-lg font-semibold" id="user-phone">Not Set</p>
                             </div>
-                        </div>
+                            <div>
+                                <p class="text-sm text-gray-500 font-medium uppercase">WhatsApp</p>
+                                <p class="text-lg font-semibold" id="user-whatsapp">Not Set</p>
+                            </div>
+                            </div>
                     </div>
                     
                     <div id="contact-address" class="scroll-mt-24 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
@@ -568,6 +578,7 @@
                             </div>
                         </div>
                     </div>
+                    
                     <div id="settings" class="scroll-mt-24 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                         <h3 class="font-extrabold text-2xl text-ash-red border-b-2 border-ash-red pb-3 mb-6 flex justify-between items-center">
                             Settings <i class="fas fa-cog"></i>
@@ -607,6 +618,10 @@
                     <input type="tel" id="edit-profile-phone" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-ash-red focus:border-ash-red">
                 </div>
                 
+                <div>
+                    <label for="edit-profile-whatsapp" class="block text-sm font-medium text-gray-700">WhatsApp Number (Optional)</label>
+                    <input type="tel" id="edit-profile-whatsapp" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-ash-red focus:border-ash-red" placeholder="e.g., +15551234567">
+                </div>
                 <div class="flex justify-end pt-4 space-x-3 border-t border-gray-100 mt-6">
                     <button type="button" onclick="closeModal('edit-profile-modal')" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium transition duration-150">Cancel</button>
                     <button type="submit" id="submit-profile-btn" class="px-4 py-2 bg-ash-red text-white rounded-lg hover:bg-ash-red-dark font-medium transition duration-150">Save Changes</button>

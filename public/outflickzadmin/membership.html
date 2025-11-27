@@ -41,7 +41,7 @@
                 Dashboard
             </button>
             
-              <button id="btn-userorders" onclick="navigateToUserOrders()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+            <button id="btn-userorders" onclick="navigateToUserOrders()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
                 User Orders
             </button>
@@ -225,7 +225,7 @@
         <section id="content-settings" class="content-section hidden"></section>
 
     </main>
-    
+
     <script>
         // --- JAVASCRIPT LOGIC ---
         
@@ -393,21 +393,24 @@
                 const statusBadge = getStatusBadge(order.status);
                 
                 let totalItemsCount = 0;
+                
+                // Check if order.items is an array before reducing
                 if (order.items && Array.isArray(order.items)) {
                     totalItemsCount = order.items.reduce((sum, item) => sum + (item.quantity || 1), 0);
                 }
                 
-                // --- IMPROVED Product Preview Construction ---
+                // --- Product Preview Construction ---
                 let productPreviewHtml = `<div class="flex -space-x-2 overflow-hidden items-center">`;
                 const maxImages = 3;
                 
                 // Get the name of the first item for the summary column
-                let primaryItemName = 'Multiple Items';
+                let primaryItemName = 'No Items';
                 
                 if (order.items && Array.isArray(order.items) && order.items.length > 0) {
                     
+                    const firstItem = order.items[0];
                     // Set the name of the first item for the summary column
-                    primaryItemName = `${order.items[0].name || 'Product'} (x${order.items[0].quantity})`;
+                    primaryItemName = `${firstItem.name || 'Product'} (x${firstItem.quantity || 1})`;
                     
                     order.items.slice(0, maxImages).forEach(item => {
                         // Use item.imageUrl, but if it fails, the onerror handler will set the source to FALLBACK_IMAGE_URL
@@ -418,7 +421,7 @@
                             <img class="inline-block h-8 w-8 rounded-md ring-2 ring-white object-cover shadow-md" 
                                   src="${imgUrl}" 
                                   alt="${productName}" 
-                                  title="${productName} (x${item.quantity || 1} - ${item.size})"
+                                  title="${productName} (x${item.quantity || 1} - ${item.size || 'N/A'})"
                                   onerror="this.onerror=null; this.src='${FALLBACK_IMAGE_URL}'">
                         `;
                     });
@@ -436,8 +439,7 @@
                 const row = document.createElement('tr');
                 row.className = 'hover:bg-gray-50';
                 
-                // --- 📢 UPDATED TABLE ROW HTML 📢 ---
-                // Added a new column for 'Item Summary' (Primary Item Name)
+                // --- UPDATED TABLE ROW HTML (now working correctly) ---
                 row.innerHTML = `
                     <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 truncate max-w-xs">${order._id}</td>
                     <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">${formatDate(order.createdAt)}</td>

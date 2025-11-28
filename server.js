@@ -898,13 +898,7 @@ function getProductModel(productType) {
     }
 }
 
-/**
- * Handles inventory deduction when an order is completed, deducting stock from the specific product variation.
- * This is the critical piece that ensures the 'Active Products' stat decreases after a sale.
- * * ASSUMPTION: The Product Models (WearsCollection, etc.) have a 'variations' array 
- * where each element looks like: { size: String, stock: Number }.
- * * @param {string} orderId The ID of the completed order.
- */
+
 /**
  * Handles inventory deduction when an order is completed, deducting stock from the specific product variation.
  * This function should only be called after payment confirmation.
@@ -961,7 +955,8 @@ async function processOrderCompletion(orderId) {
 
             // 4. Stock check failure (either product not found or insufficient stock in the specific variation)
             if (!updatedProduct) {
-                await session.abortTransaction();
+                // 🛑 FIX APPLIED: Removed 'await session.abortTransaction()' here.
+                // It is now handled centrally in the catch block.
                 const errorMsg = `Insufficient stock for variation: ${item.size} of product ${item.productId} in ${item.productType}. Transaction aborted.`;
                 throw new Error(errorMsg);
             }
@@ -977,7 +972,8 @@ async function processOrderCompletion(orderId) {
 
     } catch (error) {
         // Rollback on any failure
-        await session.abortTransaction();
+        // ✅ CENTRALIZED ABORT: This single call now handles all failures (including the inventory check above).
+        await session.abortTransaction(); 
         console.error('Inventory Deduction failed during order processing:', error.message);
         // Re-throw the error so the parent route can catch it and handle the manual review flag
         throw error;

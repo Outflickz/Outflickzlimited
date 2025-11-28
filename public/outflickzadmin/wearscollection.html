@@ -157,15 +157,6 @@
                     
                     <hr class="my-8 border-gray-200">
 
-                    <h4 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">Global Attributes</h4>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                        <div>
-                            <label for="available-sizes" class="block text-sm font-medium text-gray-700">Available Sizes (Comma Separated)</label>
-                            <input type="text" id="available-sizes" placeholder="S, M, L, XL, XXL" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
-                            <p class="mt-1 text-xs text-gray-500">E.g., S, M, L, XL or 32, 34, 36</p>
-                        </div>
-
                         <div>
                             <label for="available-stock" class="block text-sm font-medium text-gray-700">Total Available Stock Number</label>
                             <input type="number" id="available-stock" min="0" value="100" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
@@ -392,6 +383,8 @@ window.deleteCollection = deleteCollection;
 window.removeProductSection = removeProductSection;
 window.quickRestockAndActivate = quickRestockAndActivate;
 window.logoutAdmin = logoutAdmin;
+window.addSizeStockInput = addSizeStockInput; // NEW
+window.removeSizeStockInput = removeSizeStockInput; // NEW
 // ---------------------------------------------------------
 
 // --- UTILITY FUNCTIONS ---
@@ -430,12 +423,7 @@ function resetForm() {
     // Clear and re-initialize product sections
     productSectionsContainer.innerHTML = '';
     sectionCount = 0;
-    addProductSection();
-
-    // Reset image inputs to be 'required' for new creation
-    Array.from(productSectionsContainer.querySelectorAll('input[type="file"]')).forEach(input => {
-        input.required = true;
-    });
+    addProductSection(); // Start with one empty variation
 
     // Scroll to the form
     document.getElementById('content-wearscollection').scrollIntoView({ behavior: 'smooth' });
@@ -504,8 +492,8 @@ function renderCollectionsTable(collections) {
         const statusClass = isActiveAndStocked ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
         const statusText = isActiveAndStocked ? 'Active' : 'Out of Stock / Inactive';
 
-        // CRITICAL UPDATE: Extract the FIRST variation's imageUrl (which is now a Signed URL)
-        const firstImageUrl = collection.variations[0]?.imageUrl || 'https://via.placeholder.com/64?text=N/A';
+        // CRITICAL UPDATE: Extract the FIRST variation's imageUrl (which is now a direct URL)
+        const firstImageUrl = collection.variations[0]?.frontImageUrl || 'https://via.placeholder.com/64?text=N/A';
         const imagePreview = `<img src="${firstImageUrl}" alt="Preview" class="w-10 h-10 object-cover rounded-full inline mr-2 shadow-sm">`;
         
         // --- UPDATED PRICE FORMAT TO NAIRA (₦) ---
@@ -581,7 +569,7 @@ async function editCollection(collectionId) {
 
         const collection = await response.json();
 
-        // 1. Set form mode (remains the same)
+        // 1. Set form mode
         collectionIdToUpdate = collectionId;
         formTitle.textContent = `✏️ Edit Collection: ${collection.name}`;
         submitBtn.textContent = 'Update Collection';
@@ -589,42 +577,28 @@ async function editCollection(collectionId) {
         submitBtn.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
         resetFormBtn.classList.remove('hidden');
 
-        // 2. Populate basic details (remains the same)
+        // 2. Populate basic details
         document.getElementById('collection-name').value = collection.name;
         document.getElementById('collection-description').value = collection.tag;
         document.getElementById('collection-price').value = collection.price; 
-        document.getElementById('available-sizes').value = collection.sizes.join(', ');
-        document.getElementById('available-stock').value = collection.totalStock;
         document.getElementById('is-active').checked = collection.isActive;
 
-        // 3. Populate variations (MODIFIED FOR DUAL IMAGES)
+        // **CRITICAL REMOVAL:** document.getElementById('available-sizes').value = collection.sizes.join(', ');
+        // **CRITICAL REMOVAL:** document.getElementById('available-stock').value = collection.totalStock;
+        
+        // 3. Populate variations (MODIFIED FOR NEW NESTED STRUCTURE)
         productSectionsContainer.innerHTML = '';
         sectionCount = 0;
 
         collection.variations.forEach(variation => {
-            const sectionNumber = variation.variationIndex;
-            // Assumes backend provides frontImageUrl and backImageUrl fields
-            const frontUrl = variation.frontImageUrl || null;
-            const backUrl = variation.backImageUrl || null;
-
-            const newSection = document.createElement('div');
-            // Pass both signed image URLs
-            newSection.innerHTML = createProductSection(sectionNumber - 1, frontUrl, backUrl).trim();
-            productSectionsContainer.appendChild(newSection.firstChild);
-            sectionCount++;
-
-            // Populate color
-            const colorInput = document.getElementById(`color-input-${sectionNumber}`);
-            if (colorInput) {
-                colorInput.value = variation.colorHex;
-                updateColorPreview(variation.colorHex, `color-preview-${sectionNumber}`);
-            }
+            // addProductSection now takes the variation object directly
+            addProductSection(variation);
         });
 
-        // 4. Update the add button state (remains the same)
+        // 4. Update the add button state
         updateAddSectionButtonState();
 
-        // 5. Scroll to the form (remains the same)
+        // 5. Scroll to the form
         document.getElementById('content-wearscollection').scrollIntoView({ behavior: 'smooth' });
 
     } catch (error) {
@@ -671,6 +645,8 @@ async function deleteCollection(collectionId) {
 
 /**
  * Prompts admin for new stock and updates totalStock and isActive status.
+ * NOTE: This function's PUT request only updates the top-level totalStock/isActive status, 
+ * it does NOT update the nested variation sizes. This is acceptable for a quick restock action.
  * @param {string} collectionId - The ID of the collection.
  * @param {string} collectionName - The name of the collection.
  * @param {number} currentPrice - The current price of the collection.
@@ -679,7 +655,7 @@ async function quickRestockAndActivate(collectionId, collectionName, currentPric
     const token = getAuthToken();
     if (!token) return;
     
-    // --- Setup Restock Modal --- (Remains the same)
+    // --- Setup Restock Modal ---
     const formattedPrice = `₦${(currentPrice || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
     restockModalName.innerHTML = `**${collectionName}** (Price: <mark>${formattedPrice}</mark>)`;
     restockInput.value = 100; // Default to 100, assuming a decent restock volume
@@ -730,6 +706,7 @@ async function quickRestockAndActivate(collectionId, collectionName, currentPric
         const updatePayload = {
             totalStock: newStock,
             isActive: true, // Explicitly set to true on restock
+            // NOTE: Variations/sizes are NOT updated here. This updates the top-level collection status.
         };
 
         const response = await fetch(`${API_BASE_URL}/${collectionId}`, {
@@ -761,85 +738,119 @@ async function quickRestockAndActivate(collectionId, collectionName, currentPric
 }
 
 // --- FORM SECTION MANAGEMENT ---
+
 /**
- * Function to create a product section HTML structure.
- * @param {number} index - The zero-based index for the section (0 to 3).
- * @param {string} [frontImageUrl=null] - Optional existing front image URL (SIGNED URL).
- * @param {string} [backImageUrl=null] - Optional existing back image URL (SIGNED URL).
+ * Function to add a product section (variation).
+ * @param {object} [variationData=null] - Optional existing variation data for editing.
  */
-function createProductSection(index, frontImageUrl = null, backImageUrl = null) {
-    const sectionNumber = index + 1;
-    const uniqueId = `section-${sectionNumber}`;
-    const isEditing = frontImageUrl !== null || backImageUrl !== null;
+function addProductSection(variationData = null) {
+    if (sectionCount >= MAX_VARIATIONS) {
+        showErrorModal(`Maximum of ${MAX_VARIATIONS} product variations reached.`);
+        return;
+    }
+    sectionCount++;
+    const index = sectionCount; // Use the current count as the index
 
-    // File inputs are only required if creating a new collection
-    const fileRequiredAttribute = isEditing ? '' : 'required';
+    // Data for pre-populating inputs if editing
+    const variationId = variationData ? variationData._id : '';
+    const frontUrl = variationData ? variationData.frontImageUrl : '';
+    const backUrl = variationData ? variationData.backImageUrl : '';
+    const colorHex = variationData ? variationData.colorHex : '#10B981';
 
-    const renderImageInput = (viewType, imageUrl, requiredAttr, viewLabel) => {
-        const viewId = `${viewType}-upload-${sectionNumber}`;
-        const existingUrlId = `existing-${viewType}-url-${sectionNumber}`;
-        
-        // HTML for image info and hidden input to retain existing URL on update
-        const imageInfo = imageUrl ?
-            `<p class="mt-2 text-xs text-gray-500">Existing ${viewLabel}: <a href="${imageUrl}" target="_blank" class="text-blue-500 hover:underline">View Image</a>. Uploading a new file will replace it.</p>
-             <input type="hidden" id="${existingUrlId}" name="${existingUrlId}" value="${imageUrl}">` :
-            `<p class="mt-2 text-xs text-gray-500">Upload the ${viewLabel} image for this variation.</p>`;
-        
-        // HTML for the image preview
-        const imagePreviewHtml = imageUrl ?
-            `<div class="mt-3">
-                <p class="text-sm font-medium text-gray-700 mb-2">Current ${viewLabel} Preview:</p>
-                <img src="${imageUrl}" alt="Current ${viewLabel} preview" class="max-w-full h-auto rounded-lg shadow-md max-h-32 object-contain" />
-            </div>` : '';
-
-        return `
-            <div>
-                <label for="${viewId}" class="block text-sm font-medium text-gray-700">${viewLabel} Image</label>
-                <input type="file" name="${viewId}" id="${viewId}" accept="image/*" ${requiredAttr} class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
-                ${imageInfo}
-                ${imagePreviewHtml}
-            </div>
-        `;
-    };
-
-    return `
-        <div id="${uniqueId}" data-variation-index="${sectionNumber}" class="p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-inner relative">
+    const sectionHtml = `
+        <div id="variation-section-${index}" class="p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-inner relative" data-variation-index="${index}">
             <h4 class="text-md font-bold text-gray-600 mb-3 flex justify-between items-center">
-                Product Variation #${sectionNumber}
-                ${sectionNumber > 1 ? `<button type="button" onclick="removeProductSection('${uniqueId}')" class="text-red-500 hover:text-red-700 transition duration-150 text-sm">Remove</button>` : ''}
+                Product Variation #${index}
+                ${variationId ? `<input type="hidden" name="variationId" value="${variationId}">` : ''}
+
+                ${index > 1 ? `<button type="button" onclick="removeProductSection('variation-section-${index}')" class="text-red-500 hover:text-red-700 transition duration-150 text-sm">Remove</button>` : ''}
             </h4>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                ${renderImageInput('front-view', frontImageUrl, fileRequiredAttribute, 'Front View')}
-                ${renderImageInput('back-view', backImageUrl, fileRequiredAttribute, 'Back View')}
                 
                 <div>
-                    <label for="color-input-${sectionNumber}" class="block text-sm font-medium text-gray-700">Color/Hex Code</label>
+                    <label for="color-input-${index}" class="block text-sm font-medium text-gray-700">Color/Hex Code</label>
                     <div class="flex items-center mt-1">
-                        <input type="color" id="color-input-${sectionNumber}" value="#10B981" required
-                                class="p-0 h-10 w-10 block rounded-full border-2 border-gray-300 cursor-pointer"
-                                oninput="updateColorPreview(this.value, 'color-preview-${sectionNumber}')">
-                        <div id="color-preview-${sectionNumber}" class="color-preview ml-3 bg-emerald-600" style="background-color: #10B981;"></div>
-                        <span class="ml-3 text-sm text-gray-500">Pick a color</span>
+                        <input type="color" id="color-input-${index}" value="${colorHex}" required
+                            class="p-0 h-10 w-10 block rounded-full border-2 border-gray-300 cursor-pointer"
+                            oninput="updateColorPreview(this.value, 'color-preview-${index}')">
+                        <div id="color-preview-${index}" class="color-preview ml-3" style="background-color: ${colorHex};"></div>
+                        <input type="text" id="color-hex-text-${index}" name="colorHexText" value="${colorHex}" required 
+                            class="block w-full ml-3 border border-gray-300 rounded-md shadow-sm p-2 text-sm focus:ring-emerald-500 focus:border-emerald-500"
+                            pattern="^#[0-9A-F]{6}$" title="Must be a valid hex code like #RRGGBB">
                     </div>
                 </div>
+
+                <div>
+                    <label for="front-image-url-${index}" class="block text-sm font-medium text-gray-700">Front Image URL</label>
+                    <input type="url" id="front-image-url-${index}" name="frontImageUrl" value="${frontUrl}" required
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
+                    <p class="mt-1 text-xs text-gray-500">Paste the public URL for the front view image.</p>
+                    ${frontUrl ? `<img src="${frontUrl}" alt="Current Front Preview" class="mt-2 max-w-full h-auto rounded-lg shadow-md max-h-32 object-contain" />` : ''}
+                </div>
+                
+                <div>
+                    <label for="back-image-url-${index}" class="block text-sm font-medium text-gray-700">Back Image URL</label>
+                    <input type="url" id="back-image-url-${index}" name="backImageUrl" value="${backUrl}" required
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
+                    <p class="mt-1 text-xs text-gray-500">Paste the public URL for the back view image.</p>
+                    ${backUrl ? `<img src="${backUrl}" alt="Current Back Preview" class="mt-2 max-w-full h-auto rounded-lg shadow-md max-h-32 object-contain" />` : ''}
+                </div>
             </div>
+            
+            <h6 class="text-md font-semibold text-gray-700 mt-6 mb-3 border-t pt-3">Inventory per Size</h6>
+            <div id="size-stock-container-${index}" class="space-y-3">
+            </div>
+            <button type="button" onclick="addSizeStockInput(${index})" class="mt-3 px-3 py-1 text-xs font-medium rounded-lg text-blue-600 border border-blue-600 hover:bg-blue-50 transition duration-200">
+                + Add Size & Stock
+            </button>
         </div>
     `;
+    productSectionsContainer.insertAdjacentHTML('beforeend', sectionHtml);
+
+    // If editing, populate the sizes
+    if (variationData && variationData.sizes && variationData.sizes.length > 0) {
+        variationData.sizes.forEach(sizeData => {
+            addSizeStockInput(index, sizeData.size, sizeData.stock);
+        });
+    } else {
+        // For new creation, start with one size/stock input
+        addSizeStockInput(index);
+    }
+
+    updateAddSectionButtonState();
 }
 
-/**
- * Function to add a product section
- */
-function addProductSection() {
-    if (sectionCount < MAX_VARIATIONS) {
-        const newSection = document.createElement('div');
-        // We pass the current sectionCount as the index (0-based)
-        newSection.innerHTML = createProductSection(sectionCount).trim();
-        productSectionsContainer.appendChild(newSection.firstChild);
-        sectionCount++;
+// --- NEW FUNCTION: To add size/stock inputs ---
+function addSizeStockInput(variationIndex, size = '', stock = 0) {
+    const container = document.getElementById(`size-stock-container-${variationIndex}`);
+    const uniqueId = Date.now() + Math.random(); // Unique ID for inputs
 
-        updateAddSectionButtonState();
+    const inputHtml = `
+        <div id="size-stock-group-${uniqueId}" class="flex space-x-3 items-end">
+            <div class="flex-1">
+                <label for="size-${uniqueId}" class="block text-xs font-medium text-gray-700">Size</label>
+                <input type="text" id="size-${uniqueId}" name="variation-size-${variationIndex}" value="${size}" placeholder="S, M, L, 32, etc." required 
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 text-sm focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div class="flex-1">
+                <label for="stock-${uniqueId}" class="block text-xs font-medium text-gray-700">Stock</label>
+                <input type="number" id="stock-${uniqueId}" name="variation-stock-${variationIndex}" value="${stock}" min="0" required 
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 text-sm focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <button type="button" onclick="removeSizeStockInput(${uniqueId})" class="p-2 text-red-500 hover:text-red-700 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3m4 0h-4"></path></svg>
+            </button>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', inputHtml);
+}
+
+// --- NEW FUNCTION: To remove size/stock inputs ---
+function removeSizeStockInput(uniqueId) {
+    const element = document.getElementById(`size-stock-group-${uniqueId}`);
+    if (element) {
+        element.remove();
     }
 }
 
@@ -863,35 +874,65 @@ function removeProductSection(id) {
 
 /**
  * Re-indexes sections after one is removed to ensure keys are sequential (1, 2, 3, 4).
+ * NOTE: This is complex due to nested inputs. It's safer to rely on the index property of the loop.
  */
 function reindexProductSections() {
     Array.from(productSectionsContainer.children).forEach((section, index) => {
         const newSectionNumber = index + 1; 
+        const oldSectionNumber = parseInt(section.getAttribute('data-variation-index'), 10);
 
-        // Find the existing image URLs and color value to pass to the recreation function
-        const existingFrontUrl = section.querySelector('[id^="existing-front-view-url-"]')?.value || null;
-        const existingBackUrl = section.querySelector('[id^="existing-back-view-url-"]')?.value || null;
-        const existingColor = section.querySelector('[id^="color-input-"]')?.value || '#10B981';
+        // 1. Update the section ID and attribute
+        section.id = `variation-section-${newSectionNumber}`;
+        section.setAttribute('data-variation-index', newSectionNumber);
 
-        // Recreate the section's HTML with the correct new index and existing data
-        const tempDiv = document.createElement('div');
-        // Pass both image URLs
-        tempDiv.innerHTML = createProductSection(index, existingFrontUrl, existingBackUrl).trim();
-        const newSectionElement = tempDiv.firstChild;
+        // 2. Update the heading text
+        const h4 = section.querySelector('h4');
+        if (h4) h4.firstChild.textContent = `Product Variation #${newSectionNumber}`;
 
-        // Update the color value in the newly created element before replacing
-        const newColorInput = newSectionElement.querySelector(`#color-input-${newSectionNumber}`);
-        if (newColorInput) {
-            newColorInput.value = existingColor;
-            updateColorPreview(existingColor, `color-preview-${newSectionNumber}`);
+        // 3. Update the Remove button onclick handler (if it exists)
+        const removeBtn = section.querySelector('button[onclick*="removeProductSection"]');
+        if (removeBtn) {
+            removeBtn.setAttribute('onclick', `removeProductSection('variation-section-${newSectionNumber}')`);
         }
 
-        // Replace the old section element with the new, correctly indexed one
-        section.replaceWith(newSectionElement);
+        // 4. Update the "Add Size & Stock" button onclick handler
+        const addSizeBtn = section.querySelector('button[onclick*="addSizeStockInput"]');
+        if (addSizeBtn) {
+            addSizeBtn.setAttribute('onclick', `addSizeStockInput(${newSectionNumber})`);
+        }
+
+        // 5. Update all input IDs/names inside the section
+        section.querySelectorAll('input, select, textarea').forEach(input => {
+            // Re-index element IDs
+            input.id = input.id.replace(new RegExp(`-${oldSectionNumber}$`), `-${newSectionNumber}`);
+            
+            // Re-index element names for size/stock inputs
+            if (input.name && input.name.startsWith('variation-')) {
+                 input.name = input.name.replace(new RegExp(`-${oldSectionNumber}$`), `-${newSectionNumber}`);
+            }
+
+            // Re-index color preview input/div IDs
+            if (input.oninput && input.oninput.toString().includes('updateColorPreview')) {
+                input.oninput = new Function('updateColorPreview(this.value, \'color-preview-' + newSectionNumber + '\')');
+            }
+        });
+
+        // 6. Update color preview div ID
+        const colorPreview = section.querySelector('[id^="color-preview-"]');
+        if (colorPreview) {
+            colorPreview.id = `color-preview-${newSectionNumber}`;
+        }
+        
+        // 7. Update size stock container ID
+        const sizeStockContainer = section.querySelector('[id^="size-stock-container-"]');
+        if (sizeStockContainer) {
+            sizeStockContainer.id = `size-stock-container-${newSectionNumber}`;
+        }
     });
 
     sectionCount = productSectionsContainer.children.length;
 }
+
 
 /**
  * Updates the state of the "Add Product Variation" button.
@@ -913,33 +954,38 @@ function updateAddSectionButtonState() {
  * @param {string} previewId - The ID of the color preview element.
  */
 function updateColorPreview(colorValue, previewId) {
-    const previewElement = document.getElementById(previewId);
+    // Check if the input is the color picker's hex value or the text field
+    const effectivePreviewId = typeof previewId === 'string' ? previewId : `color-preview-${previewId}`;
+    const previewElement = document.getElementById(effectivePreviewId);
+    
     if (previewElement) {
         previewElement.style.backgroundColor = colorValue;
+        
+        // Also update the corresponding text input (if the change came from the color picker)
+        const index = effectivePreviewId.split('-').pop();
+        const colorInput = document.getElementById(`color-hex-text-${index}`);
+        if (colorInput && colorInput.value !== colorValue) {
+            colorInput.value = colorValue;
+        }
     }
 }
+
 /**
  * Handles the form submission (CREATE or UPDATE).
+ * CRITICAL UPDATE: Rewritten to use JSON payload and calculate totalStock from nested sizes.
  */
 async function handleCollectionSubmit(event) {
     event.preventDefault();
 
     // Determine if this is a POST (Create) or PUT (Update) operation
     const isUpdate = collectionIdToUpdate !== null;
-    const method = isUpdate ? 'PUT' : 'POST';
-    const url = isUpdate ? `${API_BASE_URL}/${collectionIdToUpdate}` : API_BASE_URL;
-
-    // Form validation: ensure at least one section exists
-    if (productSectionsContainer.children.length === 0) {
-        showErrorModal("Please add at least one product variation."); 
-        return;
-    }
-
+    
     // Disable button and show loading state
     submitBtn.disabled = true;
     submitBtn.textContent = isUpdate ? 'Updating...' : 'Submitting...';
     submitBtn.classList.remove('hover:bg-emerald-700', 'hover:bg-yellow-700', 'bg-emerald-600', 'bg-yellow-600');
     submitBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+
 
     const token = getAuthToken();
     if (!token) {
@@ -947,133 +993,134 @@ async function handleCollectionSubmit(event) {
         return;
     }
 
-    // --- 1. Collect Variations and Files (MODIFIED FOR DUAL IMAGES) ---
-    const formData = new FormData();
-    let productVariationsMetadata = [];
-    let isValid = true;
+    let totalStock = 0;
+    const variations = [];
 
-    Array.from(productSectionsContainer.children).forEach((section, index) => {
-        const sectionNumber = index + 1; 
-        
-        // --- Get Dual Image Inputs ---
-        const frontImageInput = section.querySelector(`#front-view-upload-${sectionNumber}`);
-        const backImageInput = section.querySelector(`#back-view-upload-${sectionNumber}`);
-        const colorInput = section.querySelector(`#color-input-${sectionNumber}`);
-        
-        // --- Get Existing Image URLs (for updates) ---
-        const existingFrontUrlInput = section.querySelector(`#existing-front-view-url-${sectionNumber}`);
-        const existingBackUrlInput = section.querySelector(`#existing-back-view-url-${sectionNumber}`);
+    // 1. Collect form data and build the variations array
+    const variationSections = Array.from(productSectionsContainer.children).filter(el => el.id.startsWith('variation-section-'));
 
-        if (frontImageInput && backImageInput && colorInput) {
-            const frontImageFile = frontImageInput.files[0];
-            const backImageFile = backImageInput.files[0];
-            const color = colorInput.value;
-            
-            const existingFrontUrl = existingFrontUrlInput ? existingFrontUrlInput.value : null;
-            const existingBackUrl = existingBackUrlInput ? existingBackUrlInput.value : null;
-
-            let frontUrlForMetadata = existingFrontUrl;
-            let backUrlForMetadata = existingBackUrl;
-
-            // Handle Front View Image
-            if (frontImageFile) {
-                // Key MUST match backend config: front-view-upload-1
-                formData.append(`front-view-upload-${sectionNumber}`, frontImageFile); 
-                frontUrlForMetadata = null; 
-            } else if (!isUpdate && !existingFrontUrl) { 
-                showErrorModal(`Front View Image for Variation <mark>#${sectionNumber}</mark> is missing.`); 
-                isValid = false;
-                return;
-            }
-
-            // Handle Back View Image
-            if (backImageFile) {
-                // Key MUST match backend config: back-view-upload-1
-                formData.append(`back-view-upload-${sectionNumber}`, backImageFile); 
-                backUrlForMetadata = null; 
-            } else if (!isUpdate && !existingBackUrl) {
-                showErrorModal(`Back View Image for Variation <mark>#${sectionNumber}</mark> is missing.`); 
-                isValid = false;
-                return;
-            }
-
-            // Store metadata for this variation
-            productVariationsMetadata.push({
-                variationIndex: sectionNumber,
-                colorHex: color,
-                // Send null (new file uploaded) or the existing Signed URL
-                frontImageUrl: frontUrlForMetadata,
-                backImageUrl: backUrlForMetadata,
-            });
-        }
-    });
-
-    if (!isValid) {
+    if (variationSections.length === 0) {
+        showErrorModal("Please add at least one product variation.");
         resetFormSubmitButtonState(isUpdate);
         return;
     }
 
-    // --- 2. Collect General Form Data (MODIFIED LOGIC) ---
-    const isActive = document.getElementById('is-active').checked;
-    let totalStock = parseInt(document.getElementById('available-stock').value);
+    for (const [index, section] of variationSections.entries()) {
+        const variationIndex = index + 1; // 1-based index
+        
+        // Safely get input values
+        const colorHexInput = section.querySelector(`[name="colorHexText"]`);
+        const frontImageUrlInput = section.querySelector(`[name="frontImageUrl"]`);
+        const backImageUrlInput = section.querySelector(`[name="backImageUrl"]`);
+        const variationIdInput = section.querySelector(`[name="variationId"]`);
 
-    // --- CRITICAL LOGIC: If collection is unchecked, label it Out of Stock ---
-    if (!isActive) {
-        totalStock = 0;
-        // Optionally set input value to 0 to reflect the change visually
-        document.getElementById('available-stock').value = 0;
+        if (!colorHexInput || !frontImageUrlInput || !backImageUrlInput) {
+             showErrorModal(`Missing input fields in Variation #${variationIndex}. Please ensure all required fields are present.`);
+             resetFormSubmitButtonState(isUpdate);
+             return;
+        }
+
+        const colorHex = colorHexInput.value;
+        const frontImageUrl = frontImageUrlInput.value;
+        const backImageUrl = backImageUrlInput.value;
+        const variationId = variationIdInput ? variationIdInput.value : null;
+        
+        const sizes = [];
+        let variationStock = 0;
+
+        // Collect all Size/Stock pairs for this variation
+        const sizeInputs = Array.from(section.querySelectorAll(`[name="variation-size-${variationIndex}"]`));
+        const stockInputs = Array.from(section.querySelectorAll(`[name="variation-stock-${variationIndex}"]`));
+
+        if (sizeInputs.length === 0) {
+            showErrorModal(`Variation #${variationIndex} must have at least one size and stock specified.`);
+            resetFormSubmitButtonState(isUpdate);
+            return;
+        }
+
+        for (let i = 0; i < sizeInputs.length; i++) {
+            const size = sizeInputs[i].value.trim().toUpperCase(); // Normalize size
+            const stock = parseInt(stockInputs[i].value, 10);
+
+            if (!size) {
+                showErrorModal(`Size field cannot be empty in Variation #${variationIndex}.`);
+                resetFormSubmitButtonState(isUpdate);
+                return;
+            }
+            if (isNaN(stock) || stock < 0) {
+                showErrorModal(`Stock must be a valid non-negative number in Variation #${variationIndex}.`);
+                resetFormSubmitButtonState(isUpdate);
+                return;
+            }
+            
+            sizes.push({ size, stock });
+            variationStock += stock;
+        }
+        
+        totalStock += variationStock; // Calculate cumulative total stock
+
+        variations.push({
+            variationIndex,
+            colorHex,
+            frontImageUrl,
+            backImageUrl,
+            sizes, // The new critical nested data
+            // Include _id if updating existing variation
+            ...(variationId && { _id: variationId })
+        });
     }
-    // ----------------------------------------------------
 
-    const collectionData = {
+    // 2. Prepare final payload
+    const payload = {
         name: document.getElementById('collection-name').value,
         tag: document.getElementById('collection-description').value,
-        price: parseFloat(document.getElementById('collection-price').value), 
-        sizes: document.getElementById('available-sizes').value.split(',').map(s => s.trim().toUpperCase()).filter(s => s),
-        totalStock: totalStock, // Use the updated stock value
-        isActive: isActive,
-        variations: productVariationsMetadata
+        price: parseFloat(document.getElementById('collection-price').value),
+        // If the collection is marked inactive, totalStock should be 0 regardless of nested stock sum
+        isActive: document.getElementById('is-active').checked, 
+        variations: variations,
+        // totalStock is CALCULATED from the sum of all nested size stocks
+        totalStock: document.getElementById('is-active').checked ? totalStock : 0
     };
 
-    // --- 3. Append JSON Data to FormData (remains the same) ---
-    formData.append('collectionData', JSON.stringify(collectionData));
-
-    // --- 4. Send the Data to the Backend (remains the same) ---
+    // 3. Send API Request
+    const method = collectionIdToUpdate ? 'PUT' : 'POST';
+    const url = collectionIdToUpdate ? `${API_BASE_URL}/${collectionIdToUpdate}` : API_BASE_URL;
+    
     try {
         const response = await fetch(url, {
             method: method,
-            headers: {
-                'Authorization': `Bearer ${token}`
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` 
             },
-            body: formData 
+            body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
-            // ... (error handling remains the same) ...
-            const errorText = await response.text();
+            let errorData;
             try {
-                const errorData = JSON.parse(errorText);
-                throw new Error(errorData.message || `Server error during ${method}.`);
+                errorData = await response.json();
             } catch (e) {
-                throw new Error(errorText || `HTTP error! Status: ${response.status}`);
+                // If response text is not valid JSON
+                const errorText = await response.text();
+                throw new Error(`Server returned status ${response.status}. Raw response: ${errorText.substring(0, 100)}...`);
             }
+            throw new Error(errorData.message || 'Operation failed due to a server error.');
         }
 
-        const result = await response.json();
-
+        const data = await response.json();
         const successMessage = isUpdate 
-            ? `Collection <mark>${collectionData.name}</mark> updated successfully!` 
-            : `Collection <mark>${collectionData.name}</mark> created successfully! ID: <mark>${result.collectionId ? result.collectionId.slice(-6) : 'N/A'}</mark>`;
-        
-        showSuccessModal(successMessage); 
+            ? `Collection <mark>**${data.name}**</mark> updated successfully!` 
+            : `Collection <mark>**${data.name}**</mark> created successfully! ID: <mark>${data.collectionId ? data.collectionId.slice(-6) : 'N/A'}</mark>`;
 
-        // Refresh table and reset form
-        fetchCollections();
+        showSuccessModal(successMessage);
+        
         resetForm();
+        fetchCollections();
 
     } catch (error) {
         console.error('Submission failed:', error);
-        showErrorModal(`Error submitting collection: <mark>${error.message}</mark>`); 
+        showErrorModal(`Error submitting collection: <mark>${error.message}</mark>`);
     } finally {
         // Re-enable button
         resetFormSubmitButtonState(isUpdate);
@@ -1113,7 +1160,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add new section button listener
     addSectionBtn.addEventListener('click', () => {
         if (sectionCount < MAX_VARIATIONS) {
-            addProductSection();
+            // Call without data for a new empty section
+            addProductSection(); 
         } else {
             showErrorModal(`You can only add a maximum of <mark>${MAX_VARIATIONS}</mark> product variations per collection.`);
         }

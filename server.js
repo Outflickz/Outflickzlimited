@@ -484,21 +484,16 @@ const WearsCollectionSchema = new mongoose.Schema({
         min: [0.01, 'Price (in NGN) must be greater than zero']
     },
     variations: {
-        type: [ProductVariationSchema],
+        type: [ProductVariationSchema], // This field correctly holds the nested size/stock data
         required: [true, 'At least one product variation is required'],
         validate: {
             validator: function(v) { return v.length >= 1 && v.length <= 4; },
             message: 'A collection must have between 1 and 4 variations.'
         }
     },
-    sizes: {
-        type: [String],
-        required: [true, 'Available sizes are required'],
-        validate: {
-            validator: function(v) { return Array.isArray(v) && v.length > 0; },
-            message: 'Sizes array cannot be empty.'
-        }
-    },
+    // 🛑 REMOVED: The redundant 'sizes' field is removed. 
+    // All size data is now in variations[...].sizes[...]
+    
     totalStock: {
         type: Number,
         required: [true, 'Total stock number is required'],
@@ -2323,7 +2318,10 @@ app.delete('/api/admin/newarrivals/:id', verifyToken, async (req, res) => {
 // GET /api/admin/wearscollections/:id (Fetch Single Collection)
 app.get('/api/admin/wearscollections/:id', verifyToken, async (req, res) => {
     try {
-        const collection = await WearsCollection.findById(req.params.id).lean(); 
+        // --- UPDATE: The model schema should now include 'sizesAndStock' ---
+        const collection = await WearsCollection.findById(req.params.id)
+            .select('_id name tag price variations sizesAndStock isActive') 
+            .lean(); 
         
         if (!collection) {
             return res.status(404).json({ message: 'Collection not found.' });
@@ -2399,8 +2397,8 @@ app.post(
                 name: collectionData.name,
                 tag: collectionData.tag,
                 price: collectionData.price, 
-                sizes: collectionData.sizes,
-                totalStock: collectionData.totalStock,
+                // --- UPDATE: Remove 'sizes' (now included in sizesAndStock) and 'totalStock' ---
+                sizesAndStock: collectionData.sizesAndStock, // NEW FIELD
                 isActive: collectionData.isActive, 
                 variations: finalVariations, 
             });
@@ -2444,19 +2442,20 @@ app.put(
             
             // A. HANDLE QUICK RESTOCK
             if (isQuickRestock && !req.body.collectionData) {
-                const { totalStock, isActive } = req.body;
+                // --- UPDATE: Now expects sizesAndStock array and isActive ---
+                const { sizesAndStock, isActive } = req.body;
 
-                if (totalStock === undefined || isActive === undefined) {
-                    return res.status(400).json({ message: "Missing 'totalStock' or 'isActive' in simple update payload." });
+                if (!sizesAndStock || isActive === undefined) {
+                    return res.status(400).json({ message: "Missing 'sizesAndStock' or 'isActive' in simple update payload." });
                 }
                 
                 // Perform simple update
-                existingCollection.totalStock = totalStock;
+                existingCollection.sizesAndStock = sizesAndStock; // NEW FIELD
                 existingCollection.isActive = isActive; 
 
                 const updatedCollection = await existingCollection.save();
                 return res.status(200).json({ 
-                    message: `Collection quick-updated. Stock: ${updatedCollection.totalStock}, Active: ${updatedCollection.isActive}.`,
+                    message: `Collection quick-updated. Active: ${updatedCollection.isActive}.`,
                     collectionId: updatedCollection._id
                 });
             }
@@ -2525,8 +2524,8 @@ app.put(
             existingCollection.name = collectionData.name;
             existingCollection.tag = collectionData.tag;
             existingCollection.price = collectionData.price;
-            existingCollection.sizes = collectionData.sizes;
-            existingCollection.totalStock = collectionData.totalStock;
+            // --- UPDATE: Remove 'sizes' and 'totalStock' ---
+            existingCollection.sizesAndStock = collectionData.sizesAndStock; // NEW FIELD
             existingCollection.isActive = collectionData.isActive;
             
             existingCollection.variations = updatedVariations.map(v => ({
@@ -2581,7 +2580,6 @@ app.delete('/api/admin/wearscollections/:id', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Server error during collection deletion.' });
     }
 });
-
 // GET /api/admin/wearscollections (Fetch All Collections) 
 app.get(
     '/api/admin/wearscollections',
@@ -2589,8 +2587,9 @@ app.get(
     async (req, res) => {
         try {
             // Fetch all collections
+            // --- UPDATE: Removed 'sizes' and 'totalStock', added 'sizesAndStock' ---
             const collections = await WearsCollection.find({})
-                .select('_id name tag price variations totalStock isActive')
+                .select('_id name tag price variations sizesAndStock isActive') 
                 .sort({ createdAt: -1 })
                 .lean(); 
 

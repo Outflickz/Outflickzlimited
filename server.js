@@ -267,9 +267,10 @@ function generateOrderEmailHtml(order) {
         </tr>
     `).join('');
 
-    const subtotal = order.totalAmount / 1.01; // Assuming order.totalAmount includes tax/shipping
-    const tax = subtotal * TAX_RATE;
-    const shipping = order.items.length > 0 ? SHIPPING_COST : 0;
+    // ✅ UPDATED CALCULATION LOGIC: Use specific order fields if available, otherwise use safe fallbacks.
+    const subtotal = order.subtotal || (order.totalAmount / 1.01); // Safe fallback (as previously)
+    const shipping = order.shippingFee || (order.items.length > 0 ? SHIPPING_COST : 0); // Safe fallback
+    const tax = order.tax || (order.totalAmount - subtotal - shipping); // Safe fallback (based on other fallbacks)
     const finalTotal = order.totalAmount; // Assuming this is the final total from the database
 
     return `
@@ -339,8 +340,12 @@ async function sendOrderConfirmationEmail(order, type) {
  * @param {Object} order - The final Mongoose order document (status: 'Completed').
  */
 async function sendOrderConfirmationEmailForAdmin(customerEmail, order) {
-    // The subject line clearly states confirmation and processing status
-    const subject = `✅ Your Order #${order._id.toString().substring(0, 8)} is Confirmed and in Processing!`;
+    
+    // ✅ FIX: Use the actual final status for the subject.
+    // If order.status is falsy (shouldn't happen here), default to 'Completed'.
+    const finalStatus = order.status || 'Completed';
+
+    const subject = `✅ Your Order #${order._id.toString().substring(0, 8)} is Confirmed and ${finalStatus}!`; 
     
     // NOTE: The generateOrderEmailHtml function uses fixed variables (SHIPPING_COST, TAX_RATE) 
     // which should be defined in its scope, but it's otherwise acceptable.
@@ -350,7 +355,7 @@ async function sendOrderConfirmationEmailForAdmin(customerEmail, order) {
         const info = await sendMail(customerEmail, subject, htmlContent);
         console.log(`Email sent: ${info.messageId} to ${customerEmail}`);
     } catch (error) {
-        // Log the email failure but DO NOT re-throw, as the transaction is complete.
+        // Log the email failure but DO NOT re-throw, as the core transaction is complete.
         console.error(`ERROR sending confirmation email for order ${order._id}:`, error);
     }
 }
@@ -684,30 +689,44 @@ const OrderItemSchema = new mongoose.Schema({
 const OrderSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     items: { type: [OrderItemSchema], required: true },
-    totalAmount: { type: Number, required: true, min: 0.01 },
+    
+    // --- Financial Breakdown ---
+    subtotal: { type: Number, required: true, min: 0 },
+    shippingFee: { type: Number, required: true, min: 0 },
+    tax: { type: Number, required: true, min: 0 },
+    totalAmount: { type: Number, required: true, min: 0.01 }, // Grand total
+    
     status: { 
         type: String, 
         required: true,
-        // *** This expanded ENUM list is necessary for all your current routes ***
         enum: [
-            'Pending',                         // Used by POST /api/orders/place/pending (Bank Transfer)
-            'Paid',                            // Used by POST /api/paystack/webhook (Success)
-            'Completed',                       // Your original successful status name (Can be merged with 'Paid')
+            'Pending',              // Bank Transfer awaiting admin/Paystack verification
+            'Processing',           // ✅ CRITICAL ADDITION: Intermediate status set by PUT /confirm
+            'Shipped',              // Fulfillment statuses
+            'Delivered',
+            'Completed',            // Final success status
             'Cancelled',
             'Refunded',
-            'Shipped', 'Delivered',            // Standard fulfillment statuses
-            'Verification Failed',             // Used by POST /api/paystack/webhook (Security check fail)
-            'Amount Mismatch (Manual Review)'  // Used by POST /api/paystack/webhook (Security check fail)
+            'Verification Failed', 
+            'Amount Mismatch (Manual Review)',
+            'Inventory Failure (Manual Review)', // Better name for inventory rollback
         ], 
-        default: 'Pending' // Setting the default to 'Pending' is safer than 'Completed'
+        default: 'Pending'
     },
+    
+    // --- Fulfillment & Payment Details ---
     shippingAddress: { type: Object, required: true },
     paymentMethod: { type: String, required: true },
     orderReference: { type: String, unique: true, sparse: true },
     amountPaidKobo: { type: Number, min: 0 },
     paymentTxnId: { type: String, sparse: true },
     paidAt: { type: Date },
-    paymentReceiptUrl: { type: String, sparse: true }, 
+    paymentReceiptUrl: { type: String, sparse: true }, // Bank transfer receipt
+    
+    // --- Admin Confirmation Details ---
+    confirmedAt: { type: Date, sparse: true },
+    confirmedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin', sparse: true },
+    notes: [String] // For logging manual review notes, inventory failures, etc.
 }, { timestamps: true });
 
 const Order = mongoose.models.Order || mongoose.model('Order', OrderSchema);
@@ -886,6 +905,12 @@ function getProductModel(productType) {
  * where each element looks like: { size: String, stock: Number }.
  * * @param {string} orderId The ID of the completed order.
  */
+/**
+ * Handles inventory deduction when an order is completed, deducting stock from the specific product variation.
+ * This function should only be called after payment confirmation.
+ * * @param {string} orderId The ID of the completed order.
+ * @returns {Promise<Object>} The updated Mongoose Order document.
+ */
 async function processOrderCompletion(orderId) {
     // 1. Start a Mongoose session for atomicity (crucial for inventory)
     const session = await mongoose.startSession();
@@ -895,11 +920,15 @@ async function processOrderCompletion(orderId) {
         const order = await Order.findById(orderId).session(session);
         
         // 1.1 Initial check
-        if (!order || order.status !== 'pending') {
+        // We now allow 'Processing' (set by the admin confirm route) or 'Pending' (if admin skips the first step)
+        const isReadyForInventory = order && (order.status === 'Processing' || order.status === 'Pending');
+
+        if (!isReadyForInventory) {
             await session.abortTransaction();
-            // Optional: throw error if already completed
-            console.warn(`Order ${orderId} skipped: not found or status is not pending.`);
-            return; 
+            console.warn(`Order ${orderId} skipped: not found or status is ${order?.status}. Inventory deduction aborted.`);
+            
+            // ✅ CRITICAL FIX: Return the existing order object to prevent TypeError (undefined) in the calling function.
+            return order; 
         }
         
         // 2. Loop through each item to deduct stock from the specific collection/variation
@@ -914,7 +943,7 @@ async function processOrderCompletion(orderId) {
                     // CRITICAL: Find the product AND ensure the specific variation has enough stock
                     'variations': {
                         $elemMatch: {
-                            // Using size for simplicity, or variationIndex if size isn't unique enough
+                            // Using size for simplicity
                             size: item.size, 
                             stock: { $gte: quantityOrdered } 
                         }
@@ -924,7 +953,6 @@ async function processOrderCompletion(orderId) {
                     // CRITICAL: Decrement the stock within the matching array element
                     $inc: { 
                         'variations.$.stock': -quantityOrdered,
-                        // Optionally, still decrement totalStock if you keep both fields
                         'totalStock': -quantityOrdered 
                     } 
                 },
@@ -940,7 +968,7 @@ async function processOrderCompletion(orderId) {
         }
         
         // 5. Update order status to completed
-        order.status = 'completed';
+        order.status = 'Completed'; // Using capitalized 'Completed' for consistency with schema
         await order.save({ session });
 
         // 6. Finalize transaction
@@ -951,6 +979,7 @@ async function processOrderCompletion(orderId) {
         // Rollback on any failure
         await session.abortTransaction();
         console.error('Inventory Deduction failed during order processing:', error.message);
+        // Re-throw the error so the parent route can catch it and handle the manual review flag
         throw error;
     } finally {
         session.endSession();

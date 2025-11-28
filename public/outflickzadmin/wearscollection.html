@@ -757,56 +757,76 @@ function addProductSection(variationData = null) {
     const backUrl = variationData ? variationData.backImageUrl : '';
     const colorHex = variationData ? variationData.colorHex : '#10B981';
 
-    const sectionHtml = `
-        <div id="variation-section-${index}" class="p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-inner relative" data-variation-index="${index}">
-            <h4 class="text-md font-bold text-gray-600 mb-3 flex justify-between items-center">
-                Product Variation #${index}
-                ${variationId ? `<input type="hidden" name="variationId" value="${variationId}">` : ''}
+   const sectionHtml = `
+    <div id="variation-section-${index}" class="p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-inner relative" data-variation-index="${index}">
+        <h4 class="text-md font-bold text-gray-600 mb-3 flex justify-between items-center">
+            Product Variation #${index}
+            ${variationId ? `<input type="hidden" name="variationId" value="${variationId}">` : ''}
 
-                ${index > 1 ? `<button type="button" onclick="removeProductSection('variation-section-${index}')" class="text-red-500 hover:text-red-700 transition duration-150 text-sm">Remove</button>` : ''}
-            </h4>
+            ${index > 1 ? `<button type="button" onclick="removeProductSection('variation-section-${index}')" class="text-red-500 hover:text-red-700 transition duration-150 text-sm">Remove</button>` : ''}
+        </h4>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            <div>
+                <label for="color-input-${index}" class="block text-sm font-medium text-gray-700">Color/Hex Code</label>
+                <div class="flex items-center mt-1">
+                    <input type="color" id="color-input-${index}" value="${colorHex}" required
+                        class="p-0 h-10 w-10 block rounded-full border-2 border-gray-300 cursor-pointer"
+                        oninput="updateColorPreview(this.value, 'color-preview-${index}')">
+                    <div id="color-preview-${index}" class="color-preview ml-3" style="background-color: ${colorHex};"></div>
+                    <input type="text" id="color-hex-text-${index}" name="colorHexText" value="${colorHex}" required 
+                        class="block w-full ml-3 border border-gray-300 rounded-md shadow-sm p-2 text-sm focus:ring-emerald-500 focus:border-emerald-500"
+                        pattern="^#[0-9A-F]{6}$" title="Must be a valid hex code like #RRGGBB">
+                </div>
+            </div>
+
+            <!-- --- MODIFICATION: Replaced URL input with File input for Front Image --- -->
+            <div>
+                <label for="front-view-upload-${index}" class="block text-sm font-medium text-gray-700">Front Image Upload</label>
+                <input type="file" id="front-view-upload-${index}" 
+                    name="front-view-upload-${index}" 
+                    accept="image/*" 
+                    class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+                    ${!frontUrl ? 'required' : ''}>
                 
-                <div>
-                    <label for="color-input-${index}" class="block text-sm font-medium text-gray-700">Color/Hex Code</label>
-                    <div class="flex items-center mt-1">
-                        <input type="color" id="color-input-${index}" value="${colorHex}" required
-                            class="p-0 h-10 w-10 block rounded-full border-2 border-gray-300 cursor-pointer"
-                            oninput="updateColorPreview(this.value, 'color-preview-${index}')">
-                        <div id="color-preview-${index}" class="color-preview ml-3" style="background-color: ${colorHex};"></div>
-                        <input type="text" id="color-hex-text-${index}" name="colorHexText" value="${colorHex}" required 
-                            class="block w-full ml-3 border border-gray-300 rounded-md shadow-sm p-2 text-sm focus:ring-emerald-500 focus:border-emerald-500"
-                            pattern="^#[0-9A-F]{6}$" title="Must be a valid hex code like #RRGGBB">
-                    </div>
-                </div>
-
-                <div>
-                    <label for="front-image-url-${index}" class="block text-sm font-medium text-gray-700">Front Image URL</label>
-                    <input type="url" id="front-image-url-${index}" name="frontImageUrl" value="${frontUrl}" required
-                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
-                    <p class="mt-1 text-xs text-gray-500">Paste the public URL for the front view image.</p>
-                    ${frontUrl ? `<img src="${frontUrl}" alt="Current Front Preview" class="mt-2 max-w-full h-auto rounded-lg shadow-md max-h-32 object-contain" />` : ''}
-                </div>
-                
-                <div>
-                    <label for="back-image-url-${index}" class="block text-sm font-medium text-gray-700">Back Image URL</label>
-                    <input type="url" id="back-image-url-${index}" name="backImageUrl" value="${backUrl}" required
-                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
-                    <p class="mt-1 text-xs text-gray-500">Paste the public URL for the back view image.</p>
-                    ${backUrl ? `<img src="${backUrl}" alt="Current Back Preview" class="mt-2 max-w-full h-auto rounded-lg shadow-md max-h-32 object-contain" />` : ''}
-                </div>
+                ${frontUrl 
+                    ? `
+                    <p class="mt-1 text-xs text-gray-500">Current image exists. Upload a new file to replace it.</p>
+                    <img src="${frontUrl}" alt="Current Front Preview" class="mt-2 max-w-full h-auto rounded-lg shadow-md max-h-32 object-contain" />
+                    ` 
+                    : '<p class="mt-1 text-xs text-red-500">Required for new variations.</p>'
+                }
             </div>
             
-            <h6 class="text-md font-semibold text-gray-700 mt-6 mb-3 border-t pt-3">Inventory per Size</h6>
-            <div id="size-stock-container-${index}" class="space-y-3">
+            <!-- --- MODIFICATION: Replaced URL input with File input for Back Image --- -->
+            <div>
+                <label for="back-view-upload-${index}" class="block text-sm font-medium text-gray-700">Back Image Upload</label>
+                <input type="file" id="back-view-upload-${index}" 
+                    name="back-view-upload-${index}" 
+                    accept="image/*" 
+                    class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+                    ${!backUrl ? 'required' : ''}>
+                
+                ${backUrl 
+                    ? `
+                    <p class="mt-1 text-xs text-gray-500">Current image exists. Upload a new file to replace it.</p>
+                    <img src="${backUrl}" alt="Current Back Preview" class="mt-2 max-w-full h-auto rounded-lg shadow-md max-h-32 object-contain" />
+                    ` 
+                    : '<p class="mt-1 text-xs text-red-500">Required for new variations.</p>'
+                }
             </div>
-            <button type="button" onclick="addSizeStockInput(${index})" class="mt-3 px-3 py-1 text-xs font-medium rounded-lg text-blue-600 border border-blue-600 hover:bg-blue-50 transition duration-200">
-                + Add Size & Stock
-            </button>
         </div>
-    `;
-    productSectionsContainer.insertAdjacentHTML('beforeend', sectionHtml);
+        
+        <h6 class="text-md font-semibold text-gray-700 mt-6 mb-3 border-t pt-3">Inventory per Size</h6>
+        <div id="size-stock-container-${index}" class="space-y-3">
+        </div>
+        <button type="button" onclick="addSizeStockInput(${index})" class="mt-3 px-3 py-1 text-xs font-medium rounded-lg text-blue-600 border border-blue-600 hover:bg-blue-50 transition duration-200">
+            + Add Size & Stock
+        </button>
+    </div>
+`;
+productSectionsContainer.insertAdjacentHTML('beforeend', sectionHtml);
 
     // If editing, populate the sizes
     if (variationData && variationData.sizes && variationData.sizes.length > 0) {

@@ -1290,7 +1290,7 @@ const uploadFields = Array.from({ length: 4 }, (_, i) => [
 const singleReceiptUpload = multer({ 
     storage: multer.memoryStorage(), // Use memory storage as defined
     limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
-    
+
 }).single('receipt'); // 'receipt' must match the field name sent by the frontend
 // --- USER AUTHENTICATION API ROUTES ---
 const verifyUserToken = (req, res, next) => {
@@ -4307,14 +4307,16 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
             }
 
             // 5. Create a new Order document with status 'Pending'
-            const orderItems = cart.items.map(item => ({
-                productId: item.productId,
-                productType: item.productType,
-                quantity: item.quantity,
-                priceAtTimeOfPurchase: item.price, // Store the price explicitly
-                size: item.size,
-                color: item.color,
-            }));
+          const orderItems = cart.items.map(item => ({
+    productId: item.productId,
+    // ✅ FIX: Include the required name field from the cart item
+    name: item.name, 
+    productType: item.productType,
+    quantity: item.quantity,
+    priceAtTimeOfPurchase: item.price, // Store the price explicitly
+    size: item.size,
+    color: item.color,
+}));
             
             // **CRITICAL: Generate a reference for bank transfer orders**
             const orderRef = `MANUAL-${Date.now()}-${userId.substring(0, 5)}`; 

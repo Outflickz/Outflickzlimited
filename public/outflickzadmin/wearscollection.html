@@ -286,29 +286,28 @@
 
 
     <script>
-// Global variables should be defined at the top of your script block
-const API_BASE_URL = '/api/admin/wearscollections'; // Consistent API endpoint
-const MAX_VARIATIONS = 4;
-let collectionIdToUpdate = null;
-let sectionCount = 0; // Tracks the number of variation sections
+// --- JAVASCRIPT LOGIC ---
 
-// Get DOM elements (assuming they exist in the HTML context)
-const collectionsTableBody = document.getElementById('collections-table-body');
-const formTitle = document.getElementById('wears-form-title');
-const submitBtn = document.getElementById('submit-collection-btn');
-const resetFormBtn = document.getElementById('reset-form-btn');
-const productSectionsContainer = document.getElementById('product-sections-container');
+const sidebar = document.getElementById('sidebar');
+const sidebarToggle = document.getElementById('sidebar-toggle');
+const productSectionsContainer = document.getElementById('product-sections');
 const addSectionBtn = document.getElementById('add-section-btn');
+const submitBtn = document.getElementById('submit-btn');
+const formTitle = document.getElementById('form-title');
+const resetFormBtn = document.getElementById('reset-form-btn');
+const collectionsTableBody = document.getElementById('collections-table-body');
+const loadingIndicator = document.getElementById('loading-indicator');
+const collectionsError = document.getElementById('collections-error');
 
-// Modal Elements (assuming these are defined in your main HTML)
+// --- Modal Elements ---
 const successModal = document.getElementById('success-modal');
 const successModalMessage = document.getElementById('success-modal-message');
 const errorModal = document.getElementById('error-modal');
 const errorModalMessage = document.getElementById('error-modal-message');
-const confirmModal = document.getElementById('confirmation-modal');
-const confirmModalMessage = document.getElementById('confirmation-modal-message');
-const confirmConfirmBtn = document.getElementById('confirm-confirm-btn');
-const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
+const confirmationModal = document.getElementById('confirmation-modal');
+const confirmationModalMessage = document.getElementById('confirmation-modal-message');
+const confirmYesBtn = document.getElementById('confirm-yes-btn');
+const confirmNoBtn = document.getElementById('confirm-no-btn');
 const restockModal = document.getElementById('restock-modal');
 const restockModalName = document.getElementById('restock-modal-name');
 const restockInput = document.getElementById('restock-input');
@@ -316,106 +315,130 @@ const restockConfirmBtn = document.getElementById('restock-confirm-btn');
 const restockCancelBtn = document.getElementById('restock-cancel-btn');
 
 
-// --- MODAL UTILITIES ---
+let sectionCount = 0; // Tracks the number of variations currently in the form
+let collectionIdToUpdate = null; // Stores the ID of the collection being edited (null for creation)
+let confirmationResolver = null; // Used to resolve the confirmation modal promise.
+
+const API_BASE_URL = '/api/admin/wearscollections'; // Consistent API endpoint
+const MAX_VARIATIONS = 4;
+
+// --- MODAL FUNCTIONS (Updated to use custom HTML Modals) ---
+function showModal(modalElement, messageElement, message) {
+    messageElement.innerHTML = message;
+    modalElement.classList.remove('hidden');
+    modalElement.classList.add('flex');
+}
 
 function showSuccessModal(message) {
-    successModalMessage.innerHTML = message;
-    successModal.classList.remove('hidden');
-    successModal.classList.add('flex');
-    setTimeout(() => {
-        successModal.classList.remove('flex');
-        successModal.classList.add('hidden');
-    }, 3000);
+    showModal(successModal, successModalMessage, message);
 }
 
 function showErrorModal(message) {
-    errorModalMessage.innerHTML = message;
-    errorModal.classList.remove('hidden');
-    errorModal.classList.add('flex');
-    // Allow manual closing
-    document.getElementById('error-close-btn').onclick = () => {
-        errorModal.classList.remove('flex');
-        errorModal.classList.add('hidden');
-    };
+    showModal(errorModal, errorModalMessage, message);
 }
 
 /**
- * Shows a confirmation modal and returns a Promise that resolves on confirmation.
+ * Custom Confirmation Modal using Promises.
+ * @param {string} message - The message to display.
+ * @returns {Promise<boolean>} - Resolves to true if confirmed, false otherwise.
  */
 function showConfirmationModal(message) {
-    confirmModalMessage.innerHTML = message;
-    confirmModal.classList.remove('hidden');
-    confirmModal.classList.add('flex');
+    confirmationModalMessage.textContent = message;
+    confirmationModal.classList.remove('hidden');
+    confirmationModal.classList.add('flex');
 
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
+        confirmationResolver = resolve;
+
         const handleConfirm = () => {
-            confirmModal.classList.remove('flex');
-            confirmModal.classList.add('hidden');
-            // Remove listeners before resolving
-            confirmConfirmBtn.removeEventListener('click', handleConfirm);
-            confirmCancelBtn.removeEventListener('click', handleCancel);
+            confirmationModal.classList.remove('flex');
+            confirmationModal.classList.add('hidden');
             resolve(true);
+            removeListeners();
         };
 
         const handleCancel = () => {
-            confirmModal.classList.remove('flex');
-            confirmModal.classList.add('hidden');
-            // Remove listeners before resolving
-            confirmConfirmBtn.removeEventListener('click', handleConfirm);
-            confirmCancelBtn.removeEventListener('click', handleCancel);
+            confirmationModal.classList.remove('flex');
+            confirmationModal.classList.add('hidden');
             resolve(false);
+            removeListeners();
         };
-        
-        // Ensure old listeners are removed before adding new ones
-        confirmConfirmBtn.onclick = null;
-        confirmCancelBtn.onclick = null;
 
-        confirmConfirmBtn.addEventListener('click', handleConfirm, { once: true });
-        confirmCancelBtn.addEventListener('click', handleCancel, { once: true });
+        const removeListeners = () => {
+            confirmYesBtn.removeEventListener('click', handleConfirm);
+            confirmNoBtn.removeEventListener('click', handleCancel);
+        };
+
+        confirmYesBtn.addEventListener('click', handleConfirm);
+        confirmNoBtn.addEventListener('click', handleCancel);
     });
 }
+// ------------------------------------------------------------------------------------------
 
-// --- AUTH & DATA UTILITIES ---
+// --- GLOBAL FUNCTIONS REQUIRED FOR INLINE HTML HANDLERS ---
+// Making these functions globally accessible for the onclick handlers in the HTML table.
+window.updateColorPreview = updateColorPreview;
+window.editCollection = editCollection;
+window.deleteCollection = deleteCollection;
+window.removeProductSection = removeProductSection;
+window.quickRestockAndActivate = quickRestockAndActivate;
+window.logoutAdmin = logoutAdmin;
+window.addSizeStockInput = addSizeStockInput; // NEW
+window.removeSizeStockInput = removeSizeStockInput; // NEW
+// ---------------------------------------------------------
 
-/**
- * Placeholder for fetching the authorization token.
- * Replace with your actual authentication logic (e.g., Firebase auth).
- */
+// --- UTILITY FUNCTIONS ---
 function getAuthToken() {
-    // In a real application, this would fetch a JWT or session token.
-    // For this demonstration, we'll use a placeholder.
-    const token = 'MOCK_ADMIN_TOKEN_12345'; 
+    const token = localStorage.getItem('adminToken');
     if (!token) {
-        showErrorModal('Authentication token is missing. Please log in as an administrator.');
+        showErrorModal("Authentication required. Please log in.");
+        window.location.href = './admin-login.html';
         return null;
     }
     return token;
 }
 
+// --- LOGOUT FUNCTIONALITY ---
+function logoutAdmin() {
+    console.log('Logging out admin...');
+    localStorage.removeItem('adminToken');
+    window.location.href = './admin-login.html';
+}
+// ----------------------------
+
+// --- COLLECTION MANAGEMENT (FRONTEND) ---
+
+/**
+ * Resets the form to "Create New Collection" mode.
+ */
 function resetForm() {
     document.getElementById('wears-collection-form').reset();
     collectionIdToUpdate = null;
-    formTitle.textContent = '✨ Create New Collection';
+    formTitle.textContent = '➕ Create New Collection';
     submitBtn.textContent = 'Submit Collection';
     submitBtn.classList.remove('bg-yellow-600', 'hover:bg-yellow-700');
     submitBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
     resetFormBtn.classList.add('hidden');
-    
-    // Clear and reset product variations
+
+    // Clear and re-initialize product sections
     productSectionsContainer.innerHTML = '';
     sectionCount = 0;
-    addProductSection(); // Add the initial section back
-    updateAddSectionButtonState();
+    addProductSection(); // Start with one empty variation
+
+    // Scroll to the form
+    document.getElementById('content-wearscollection').scrollIntoView({ behavior: 'smooth' });
 }
 
 /**
- * Fetches all collections and renders them in the table.
+ * Fetches all collections and renders them to the table.
  */
 async function fetchCollections() {
     const token = getAuthToken();
     if (!token) return;
 
-    collectionsTableBody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-500">Loading collections...</td></tr>`;
+    collectionsTableBody.innerHTML = ''; // Clear existing
+    loadingIndicator.classList.remove('hidden');
+    collectionsError.classList.add('hidden');
 
     try {
         const response = await fetch(API_BASE_URL, {
@@ -424,8 +447,21 @@ async function fetchCollections() {
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
+            // Robust error handling to catch non-JSON responses (like HTML 404/500 pages)
+            const errorText = await response.text();
+            let errorMessage = `HTTP error! Status: ${response.status}.`;
+
+            try {
+                const errorData = JSON.parse(errorText);
+                errorMessage = errorData.message || errorMessage;
+            } catch (e) {
+                // Non-JSON response (e.g., HTML page from Netlify 404 or backend server)
+                console.error('Raw non-JSON error response (likely 404 or 500 HTML page):', errorText);
+                // Use a more helpful message for the user
+                errorMessage = `${errorMessage} The server returned an invalid response. (See console for raw data).`;
+            }
+
+            throw new Error(errorMessage);
         }
 
         const collections = await response.json();
@@ -433,50 +469,43 @@ async function fetchCollections() {
 
     } catch (error) {
         console.error('Error fetching collections:', error);
-        collectionsTableBody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-red-500">Failed to load collections: ${error.message}</td></tr>`;
-        showErrorModal(`Failed to load collections: <mark>${error.message}</mark>`);
+        collectionsError.textContent = `Error fetching collections: ${error.message}`;
+        collectionsError.classList.remove('hidden');
+    } finally {
+        loadingIndicator.classList.add('hidden');
     }
 }
 
 /**
- * Renders the collection data into the table body.
+ * Renders the fetched collections data into the HTML table.
  */
 function renderCollectionsTable(collections) {
     collectionsTableBody.innerHTML = '';
     if (collections.length === 0) {
-        collectionsTableBody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-500">No collections found. Start by creating one!</td></tr>`;
+        collectionsTableBody.innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">No collections found.</td></tr>';
         return;
     }
 
     collections.forEach(collection => {
-        // Determine status text and class
-        let statusText;
-        let statusClass;
-        let restockButton = '';
-
-        if (collection.isActive && collection.totalStock > 0) {
-            statusText = 'Active';
-            statusClass = 'bg-green-100 text-green-800';
-        } else if (collection.isActive && collection.totalStock <= 0) {
-            statusText = 'Sold Out';
-            statusClass = 'bg-red-100 text-red-800';
-            restockButton = `<button onclick="quickRestockAndActivate('${collection._id}', '${collection.name}', ${collection.price})" class="text-blue-600 hover:text-blue-900 transition duration-150 mr-3">Restock</button>`;
-        } else {
-            statusText = 'Inactive';
-            statusClass = 'bg-gray-100 text-gray-800';
-            restockButton = `<button onclick="quickRestockAndActivate('${collection._id}', '${collection.name}', ${collection.price})" class="text-blue-600 hover:text-blue-900 transition duration-150 mr-3">Activate & Restock</button>`;
-        }
-
-        // Price formatting
-        const formattedPrice = `₦${(collection.price || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
-        
-        // Tag class
         const tagClass = getTagClass(collection.tag);
+        const isActiveAndStocked = collection.isActive && collection.totalStock > 0;
+        const statusClass = isActiveAndStocked ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+        const statusText = isActiveAndStocked ? 'Active' : 'Out of Stock / Inactive';
 
-        // Image Preview (use the first variation's front image, or a placeholder)
-        const firstVariation = collection.variations && collection.variations.length > 0 ? collection.variations[0] : null;
-        const imagePreviewUrl = firstVariation ? firstVariation.frontImageUrl : `https://placehold.co/30x30/f3f4f6/1f2937?text=NoImg`;
-        const imagePreview = `<img src="${imagePreviewUrl}" alt="Preview" class="h-8 w-8 rounded-md object-cover inline-block mr-3" onerror="this.onerror=null;this.src='https://placehold.co/30x30/f3f4f6/1f2937?text=NoImg';" />`;
+        // CRITICAL UPDATE: Extract the FIRST variation's imageUrl (which is now a direct URL)
+        const firstImageUrl = collection.variations[0]?.frontImageUrl || 'https://via.placeholder.com/64?text=N/A';
+        const imagePreview = `<img src="${firstImageUrl}" alt="Preview" class="w-10 h-10 object-cover rounded-full inline mr-2 shadow-sm">`;
+        
+        // --- UPDATED PRICE FORMAT TO NAIRA (₦) ---
+        const formattedPrice = `₦${(collection.price || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+
+        // --- NEW LOGIC FOR RESTOCK/ACTIVATE BUTTON ---
+        // Show restock button only if stock is zero or inactive
+        const needsRestock = !isActiveAndStocked;
+        const restockButton = needsRestock
+            ? `<button onclick="quickRestockAndActivate('${collection._id}', '${collection.name.replace(/'/g, "\\'")}', ${collection.price})" class="text-emerald-600 hover:text-emerald-900 transition duration-150 mr-3 text-xs font-semibold">Restock/Activate</button>`
+            : '';
+        // ---------------------------------------------
 
         const row = `
             <tr>
@@ -554,7 +583,10 @@ async function editCollection(collectionId) {
         document.getElementById('collection-price').value = collection.price; 
         document.getElementById('is-active').checked = collection.isActive;
 
-        // 3. Populate variations
+        // **CRITICAL REMOVAL:** document.getElementById('available-sizes').value = collection.sizes.join(', ');
+        // **CRITICAL REMOVAL:** document.getElementById('available-stock').value = collection.totalStock;
+        
+        // 3. Populate variations (MODIFIED FOR NEW NESTED STRUCTURE)
         productSectionsContainer.innerHTML = '';
         sectionCount = 0;
 
@@ -636,9 +668,6 @@ async function quickRestockAndActivate(collectionId, collectionName, currentPric
         const handleConfirm = () => {
             const newStock = parseInt(restockInput.value);
             if (!isNaN(newStock) && newStock > 0) {
-                // Remove listeners
-                restockConfirmBtn.onclick = null;
-                restockCancelBtn.onclick = null;
                 resolve(newStock);
                 restockModal.classList.remove('flex');
                 restockModal.classList.add('hidden');
@@ -648,9 +677,6 @@ async function quickRestockAndActivate(collectionId, collectionName, currentPric
         };
 
         const handleCancel = () => {
-            // Remove listeners
-            restockConfirmBtn.onclick = null;
-            restockCancelBtn.onclick = null;
             reject(new Error("Restock cancelled by user."));
             restockModal.classList.remove('flex');
             restockModal.classList.add('hidden');
@@ -660,7 +686,6 @@ async function quickRestockAndActivate(collectionId, collectionName, currentPric
         restockConfirmBtn.onclick = null;
         restockCancelBtn.onclick = null;
 
-        // Use standard click handlers now that the modal handles the promise flow
         restockConfirmBtn.addEventListener('click', handleConfirm, { once: true });
         restockCancelBtn.addEventListener('click', handleCancel, { once: true });
     });
@@ -750,21 +775,17 @@ function addProductSection(variationData = null) {
                         class="p-0 h-10 w-10 block rounded-full border-2 border-gray-300 cursor-pointer"
                         oninput="updateColorPreview(this.value, 'color-preview-${index}')">
                     <div id="color-preview-${index}" class="color-preview ml-3" style="background-color: ${colorHex};"></div>
-                    <!-- NAME IS NOW "colorHexText" for easy access by querySelector -->
                     <input type="text" id="color-hex-text-${index}" name="colorHexText" value="${colorHex}" required 
                         class="block w-full ml-3 border border-gray-300 rounded-md shadow-sm p-2 text-sm focus:ring-emerald-500 focus:border-emerald-500"
                         pattern="^#[0-9A-F]{6}$" title="Must be a valid hex code like #RRGGBB">
                 </div>
             </div>
 
-            <!-- --- MODIFICATION: File input for Front Image, using new names --- -->
+            <!-- --- MODIFICATION: Replaced URL input with File input for Front Image --- -->
             <div>
                 <label for="front-view-upload-${index}" class="block text-sm font-medium text-gray-700">Front Image Upload</label>
-                <!-- HIDDEN INPUT: Stores existing URL if editing. This value is used if no file is uploaded. -->
-                ${frontUrl ? `<input type="hidden" name="frontImageUrl" value="${frontUrl}">` : ''}
-                
                 <input type="file" id="front-view-upload-${index}" 
-                    name="frontFile-${index}"  <!-- NEW NAME: Unique key for FormData upload -->
+                    name="front-view-upload-${index}" 
                     accept="image/*" 
                     class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
                     ${!frontUrl ? 'required' : ''}>
@@ -778,14 +799,11 @@ function addProductSection(variationData = null) {
                 }
             </div>
             
-            <!-- --- MODIFICATION: File input for Back Image, using new names --- -->
+            <!-- --- MODIFICATION: Replaced URL input with File input for Back Image --- -->
             <div>
                 <label for="back-view-upload-${index}" class="block text-sm font-medium text-gray-700">Back Image Upload</label>
-                <!-- HIDDEN INPUT: Stores existing URL if editing. This value is used if no file is uploaded. -->
-                ${backUrl ? `<input type="hidden" name="backImageUrl" value="${backUrl}">` : ''}
-
                 <input type="file" id="back-view-upload-${index}" 
-                    name="backFile-${index}"  <!-- NEW NAME: Unique key for FormData upload -->
+                    name="back-view-upload-${index}" 
                     accept="image/*" 
                     class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
                     ${!backUrl ? 'required' : ''}>
@@ -876,6 +894,7 @@ function removeProductSection(id) {
 
 /**
  * Re-indexes sections after one is removed to ensure keys are sequential (1, 2, 3, 4).
+ * NOTE: This is complex due to nested inputs. It's safer to rely on the index property of the loop.
  */
 function reindexProductSections() {
     Array.from(productSectionsContainer.children).forEach((section, index) => {
@@ -903,35 +922,25 @@ function reindexProductSections() {
         }
 
         // 5. Update all input IDs/names inside the section
-        section.querySelectorAll('input, select, textarea, [id^="color-preview-"], [id^="size-stock-container-"]').forEach(input => {
+        section.querySelectorAll('input, select, textarea').forEach(input => {
+            // Re-index element IDs
+            input.id = input.id.replace(new RegExp(`-${oldSectionNumber}$`), `-${newSectionNumber}`);
             
-            // Handle element IDs and name attributes for size/stock inputs
-            // The unique IDs for size/stock inputs should NOT be re-indexed as they contain timestamps, 
-            // only the names which include the variation index need updating.
-            
-            // Re-index element names for size/stock and file inputs
-            if (input.name && input.name.startsWith('variation-') || input.name.startsWith('frontFile-') || input.name.startsWith('backFile-')) {
-                 const nameParts = input.name.split('-');
-                 nameParts[nameParts.length - 1] = newSectionNumber; // Assume index is the last part
-                 input.name = nameParts.join('-');
-            }
-
-            // Re-index element IDs for color related fields and container fields
-             if (input.id.includes(`-${oldSectionNumber}`)) {
-                input.id = input.id.replace(new RegExp(`-${oldSectionNumber}$`), `-${newSectionNumber}`);
+            // Re-index element names for size/stock inputs
+            if (input.name && input.name.startsWith('variation-')) {
+                 input.name = input.name.replace(new RegExp(`-${oldSectionNumber}$`), `-${newSectionNumber}`);
             }
 
             // Re-index color preview input/div IDs
-            if (input.tagName === 'INPUT' && input.oninput && input.oninput.toString().includes('updateColorPreview')) {
-                // Must recreate the function reference due to string replacement limitations
-                input.oninput = function(e) { updateColorPreview(this.value, 'color-preview-' + newSectionNumber); };
+            if (input.oninput && input.oninput.toString().includes('updateColorPreview')) {
+                input.oninput = new Function('updateColorPreview(this.value, \'color-preview-' + newSectionNumber + '\')');
             }
         });
 
         // 6. Update color preview div ID
-        const colorPreview = section.querySelector('.color-preview');
+        const colorPreview = section.querySelector('[id^="color-preview-"]');
         if (colorPreview) {
-             colorPreview.id = `color-preview-${newSectionNumber}`;
+            colorPreview.id = `color-preview-${newSectionNumber}`;
         }
         
         // 7. Update size stock container ID
@@ -983,7 +992,7 @@ function updateColorPreview(colorValue, previewId) {
 
 /**
  * Handles the form submission (CREATE or UPDATE).
- * CRITICAL UPDATE: Rewritten to use FormData for file uploads.
+ * CRITICAL UPDATE: Rewritten to use JSON payload and calculate totalStock from nested sizes.
  */
 async function handleCollectionSubmit(event) {
     event.preventDefault();
@@ -1004,11 +1013,10 @@ async function handleCollectionSubmit(event) {
         return;
     }
 
-    // 1. Prepare data structure and FormData
-    const formData = new FormData();
     let totalStock = 0;
-    const variationsPayload = [];
+    const variations = [];
 
+    // 1. Collect form data and build the variations array
     const variationSections = Array.from(productSectionsContainer.children).filter(el => el.id.startsWith('variation-section-'));
 
     if (variationSections.length === 0) {
@@ -1017,69 +1025,27 @@ async function handleCollectionSubmit(event) {
         return;
     }
 
-    // 2. Iterate through sections, collect data, and append files
     for (const [index, section] of variationSections.entries()) {
         const variationIndex = index + 1; // 1-based index
         
-        // Get non-file inputs
+        // Safely get input values
         const colorHexInput = section.querySelector(`[name="colorHexText"]`);
+        const frontImageUrlInput = section.querySelector(`[name="frontImageUrl"]`);
+        const backImageUrlInput = section.querySelector(`[name="backImageUrl"]`);
         const variationIdInput = section.querySelector(`[name="variationId"]`);
-        
-        // Get existing URL hidden inputs
-        const existingFrontUrlInput = section.querySelector(`input[name="frontImageUrl"]`); 
-        const existingBackUrlInput = section.querySelector(`input[name="backImageUrl"]`);
-        
-        // Get file inputs (new naming convention)
-        const frontFileInput = section.querySelector(`input[name="frontFile-${variationIndex}"]`);
-        const backFileInput = section.querySelector(`input[name="backFile-${variationIndex}"]`);
 
-        if (!colorHexInput) {
-            showErrorModal(`Missing color field in Variation #${variationIndex}.`);
-            resetFormSubmitButtonState(isUpdate);
-            return;
+        if (!colorHexInput || !frontImageUrlInput || !backImageUrlInput) {
+             showErrorModal(`Missing input fields in Variation #${variationIndex}. Please ensure all required fields are present.`);
+             resetFormSubmitButtonState(isUpdate);
+             return;
         }
 
-        const variation = {
-            variationIndex,
-            colorHex: colorHexInput.value,
-            sizes: []
-        };
+        const colorHex = colorHexInput.value;
+        const frontImageUrl = frontImageUrlInput.value;
+        const backImageUrl = backImageUrlInput.value;
+        const variationId = variationIdInput ? variationIdInput.value : null;
         
-        if (variationIdInput) {
-            variation._id = variationIdInput.value;
-        }
-
-        let frontImageUrl, backImageUrl;
-        
-        // --- Handle Front Image Upload/Existing URL ---
-        if (frontFileInput && frontFileInput.files && frontFileInput.files.length > 0) {
-            const fileKey = `frontFile-${variationIndex}`;
-            formData.append(fileKey, frontFileInput.files[0]);
-            frontImageUrl = `UPLOAD_KEY:${fileKey}`; // Placeholder for the backend to recognize file upload
-        } else if (existingFrontUrlInput) {
-            frontImageUrl = existingFrontUrlInput.value; // Use existing URL
-        } else {
-            showErrorModal(`Missing Front Image in Variation #${variationIndex}. Please upload a file.`);
-            resetFormSubmitButtonState(isUpdate);
-            return;
-        }
-        variation.frontImageUrl = frontImageUrl;
-        
-        // --- Handle Back Image Upload/Existing URL ---
-        if (backFileInput && backFileInput.files && backFileInput.files.length > 0) {
-            const fileKey = `backFile-${variationIndex}`;
-            formData.append(fileKey, backFileInput.files[0]);
-            backImageUrl = `UPLOAD_KEY:${fileKey}`; // Placeholder for the backend to recognize file upload
-        } else if (existingBackUrlInput) {
-            backImageUrl = existingBackUrlInput.value; // Use existing URL
-        } else {
-            showErrorModal(`Missing Back Image in Variation #${variationIndex}. Please upload a file.`);
-            resetFormSubmitButtonState(isUpdate);
-            return;
-        }
-        variation.backImageUrl = backImageUrl;
-
-
+        const sizes = [];
         let variationStock = 0;
 
         // Collect all Size/Stock pairs for this variation
@@ -1107,52 +1073,59 @@ async function handleCollectionSubmit(event) {
                 return;
             }
             
-            variation.sizes.push({ size, stock });
+            sizes.push({ size, stock });
             variationStock += stock;
         }
         
         totalStock += variationStock; // Calculate cumulative total stock
 
-        variationsPayload.push(variation);
+        variations.push({
+            variationIndex,
+            colorHex,
+            frontImageUrl,
+            backImageUrl,
+            sizes, // The new critical nested data
+            // Include _id if updating existing variation
+            ...(variationId && { _id: variationId })
+        });
     }
 
-    // 3. Prepare and append final JSON payload (as a string for FormData)
-    const collectionPayload = {
+    // 2. Prepare final payload
+    const payload = {
         name: document.getElementById('collection-name').value,
         tag: document.getElementById('collection-description').value,
         price: parseFloat(document.getElementById('collection-price').value),
+        // If the collection is marked inactive, totalStock should be 0 regardless of nested stock sum
         isActive: document.getElementById('is-active').checked, 
-        variations: variationsPayload, 
+        variations: variations,
+        // totalStock is CALCULATED from the sum of all nested size stocks
         totalStock: document.getElementById('is-active').checked ? totalStock : 0
     };
 
-    // Append the entire JSON payload as a string under a dedicated key
-    formData.append('collectionData', JSON.stringify(collectionPayload));
-
-    // 4. Send API Request
+    // 3. Send API Request
     const method = collectionIdToUpdate ? 'PUT' : 'POST';
     const url = collectionIdToUpdate ? `${API_BASE_URL}/${collectionIdToUpdate}` : API_BASE_URL;
     
     try {
         const response = await fetch(url, {
             method: method,
-            // CRITICAL: DO NOT set Content-Type header when sending FormData; the browser handles it.
             headers: { 
+                'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}` 
             },
-            body: formData // Send the FormData object
+            body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
             let errorData;
-            const errorText = await response.text();
             try {
-                errorData = JSON.parse(errorText);
-                throw new Error(errorData.message || `Server returned status ${response.status}.`);
+                errorData = await response.json();
             } catch (e) {
                 // If response text is not valid JSON
-                 throw new Error(`Server returned status ${response.status}. Raw response: ${errorText.substring(0, 100)}...`);
+                const errorText = await response.text();
+                throw new Error(`Server returned status ${response.status}. Raw response: ${errorText.substring(0, 100)}...`);
             }
+            throw new Error(errorData.message || 'Operation failed due to a server error.');
         }
 
         const data = await response.json();
@@ -1192,41 +1165,30 @@ function resetFormSubmitButtonState(isUpdate) {
 // Initialize the page on load
 document.addEventListener('DOMContentLoaded', () => {
     // Add the initial product section for the creation form
-    if (productSectionsContainer && productSectionsContainer.children.length === 0) {
+    if (productSectionsContainer.children.length === 0) {
         addProductSection();
     }
 
     // Attach the form submit handler
-    const form = document.getElementById('wears-collection-form');
-    if (form) {
-        form.addEventListener('submit', handleCollectionSubmit);
-    }
+    document.getElementById('wears-collection-form').addEventListener('submit', handleCollectionSubmit);
 
-    // Toggle sidebar visibility on mobile (assuming sidebar/toggle elements exist)
-    const sidebarToggle = document.getElementById('sidebar-toggle');
-    const sidebar = document.getElementById('sidebar');
-    if (sidebarToggle && sidebar) {
-        sidebarToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('-translate-x-full');
-        });
-    }
+    // Toggle sidebar visibility on mobile
+    sidebarToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('-translate-x-full');
+    });
 
     // Add new section button listener
-    if (addSectionBtn) {
-        addSectionBtn.addEventListener('click', () => {
-            if (sectionCount < MAX_VARIATIONS) {
-                // Call without data for a new empty section
-                addProductSection(); 
-            } else {
-                showErrorModal(`You can only add a maximum of <mark>${MAX_VARIATIONS}</mark> product variations per collection.`);
-            }
-        });
-    }
+    addSectionBtn.addEventListener('click', () => {
+        if (sectionCount < MAX_VARIATIONS) {
+            // Call without data for a new empty section
+            addProductSection(); 
+        } else {
+            showErrorModal(`You can only add a maximum of <mark>${MAX_VARIATIONS}</mark> product variations per collection.`);
+        }
+    });
 
-    // Load existing collections on page load (assuming collectionsTableBody exists)
-    if (collectionsTableBody) {
-        fetchCollections();
-    }
+    // Load existing collections on page load
+    fetchCollections();
 });
 </script>
 </body>

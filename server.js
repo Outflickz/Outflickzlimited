@@ -1696,16 +1696,21 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
         // 3. GET CUSTOMER EMAIL & SEND NOTIFICATION (The User's Request) 📧
         
         // Fetch user email using the userId
-        const user = await User.findById(updatedOrder.userId).select('email').lean();
-        const customerEmail = user ? user.email : null;
-        
-        if (customerEmail) {
-            // Use the final, completed order details for the email content
-            await sendOrderConfirmationEmailForAdmin(customerEmail, finalOrder);
-        } else {
-            console.warn(`Could not find email for user ID: ${updatedOrder.userId}. Skipping email notification.`);
-        }
+      const user = await User.findById(updatedOrder.userId).select('email').lean();
+const customerEmail = user ? user.email : null;
 
+if (customerEmail) {
+    try {
+        // ✅ FIX: Isolate the email sending which is prone to external errors
+        await sendOrderConfirmationEmailForAdmin(customerEmail, finalOrder);
+    } catch (emailError) {
+        // Log the email error but allow the order confirmation to succeed
+        console.error(`CRITICAL WARNING: Failed to send confirmation email to ${customerEmail}:`, emailError.message);
+        // Continue execution to send the success response to the client
+    }
+} else {
+    console.warn(`Could not find email for user ID: ${updatedOrder.userId}. Skipping email notification.`);
+}
         // 4. Success Response
         res.status(200).json({ 
             message: `Order ${orderId} confirmed, inventory deducted, and customer notified. Status: ${finalOrder.status}.`,

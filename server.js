@@ -931,32 +931,42 @@ async function processOrderCompletion(orderId) {
             const quantityOrdered = item.quantity;
             
             // 3. ATOMIC DEDUCTION LOGIC FOR VARIATION STOCK
+            // 🛑 FIX APPLIED: Use positional operator $[] with arrayFilters for nested arrays.
+            // This is the most robust way to handle nested array updates in Mongoose/MongoDB.
             const updatedProduct = await ProductModel.findOneAndUpdate(
                 { 
                     _id: item.productId, 
-                    // CRITICAL: Find the product AND ensure the specific variation has enough stock
-                    'variations': {
+                    // CRITICAL: Find the specific variation object
+                    'variations.variationIndex': item.variationIndex, 
+                    // CRITICAL: Find the specific size/stock object within that variation
+                    'variations.sizes': {
                         $elemMatch: {
-                            // Using size for simplicity
-                            size: item.size, 
-                            stock: { $gte: quantityOrdered } 
+                            size: item.size, // Must match the ordered size ('S', 'M', 'L')
+                            stock: { $gte: quantityOrdered } // Must have sufficient stock
                         }
                     }
                 },
                 { 
-                    // CRITICAL: Decrement the stock within the matching array element
+                    // CRITICAL FIX: Decrement the stock in the nested 'sizes' array and totalStock
                     $inc: { 
-                        'variations.$.stock': -quantityOrdered,
-                        'totalStock': -quantityOrdered 
+                        'variations.$[var].sizes.$[size].stock': -quantityOrdered, // Decrement stock in the nested sizes array
+                        'totalStock': -quantityOrdered // Decrement the top-level totalStock
                     } 
                 },
-                { new: true, session: session }
+                { 
+                    new: true, 
+                    session: session,
+                    // Define which array elements the positional operators should target
+                    arrayFilters: [
+                        { 'var.variationIndex': item.variationIndex }, // Match the correct variation object
+                        { 'size.size': item.size } // Match the correct size object within the variation
+                    ]
+                }
             );
 
             // 4. Stock check failure (either product not found or insufficient stock in the specific variation)
             if (!updatedProduct) {
-                // 🛑 FIX APPLIED: Removed 'await session.abortTransaction()' here.
-                // It is now handled centrally in the catch block.
+                // The transaction will be aborted centrally below.
                 const errorMsg = `Insufficient stock for variation: ${item.size} of product ${item.productId} in ${item.productType}. Transaction aborted.`;
                 throw new Error(errorMsg);
             }

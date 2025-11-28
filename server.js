@@ -2310,9 +2310,6 @@ app.delete('/api/admin/newarrivals/:id', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Server error during product deletion.' });
     }
 });
-// -----------------------------------------------------------------
-
-
 // --- WEARS COLLECTION API ROUTES (Existing) ---
 
 // GET /api/admin/wearscollections/:id (Fetch Single Collection)
@@ -2370,9 +2367,11 @@ app.post(
                     throw new Error(`Missing BOTH front and back image files for Variation #${index}.`);
                 }
 
+                // Upload files concurrently
                 const uploadFrontPromise = uploadFileToPermanentStorage(frontFile);
                 const uploadBackPromise = uploadFileToPermanentStorage(backFile);
                 
+                // Store the promise that resolves and pushes the final variation object
                 const combinedUploadPromise = Promise.all([uploadFrontPromise, uploadBackPromise])
                     .then(([frontImageUrl, backImageUrl]) => {
                         finalVariations.push({
@@ -2386,7 +2385,7 @@ app.post(
                 uploadPromises.push(combinedUploadPromise);
             }
             
-            await Promise.all(uploadPromises);
+            await Promise.all(uploadPromises); // Wait for all uploads to complete
 
             if (finalVariations.length === 0) {
                 return res.status(400).json({ message: "No valid product images and metadata were received after upload processing." });
@@ -2397,8 +2396,8 @@ app.post(
                 name: collectionData.name,
                 tag: collectionData.tag,
                 price: collectionData.price, 
-                // --- UPDATE: Remove 'sizes' (now included in sizesAndStock) and 'totalStock' ---
-                sizesAndStock: collectionData.sizesAndStock, // NEW FIELD
+                // --- Using the new top-level field for stock ---
+                sizesAndStock: collectionData.sizesAndStock, 
                 isActive: collectionData.isActive, 
                 variations: finalVariations, 
             });
@@ -2440,7 +2439,7 @@ app.put(
 
             const isQuickRestock = req.get('Content-Type')?.includes('application/json');
             
-            // A. HANDLE QUICK RESTOCK
+            // A. HANDLE QUICK RESTOCK (Only updates stock/active status)
             if (isQuickRestock && !req.body.collectionData) {
                 // --- UPDATE: Now expects sizesAndStock array and isActive ---
                 const { sizesAndStock, isActive } = req.body;
@@ -2460,7 +2459,7 @@ app.put(
                 });
             }
 
-            // B. HANDLE FULL FORM SUBMISSION
+            // B. HANDLE FULL FORM SUBMISSION (Updates everything, including images/variations)
             if (!req.body.collectionData) {
                 return res.status(400).json({ message: "Missing collection data payload for full update." });
             }
@@ -2475,20 +2474,32 @@ app.put(
                 const index = incomingVariation.variationIndex;
                 const existingPermanentVariation = existingCollection.variations.find(v => v.variationIndex === index);
 
+                // Start with the existing URLs, or null if a new variation
                 let finalFrontUrl = existingPermanentVariation?.frontImageUrl || null;
                 let finalBackUrl = existingPermanentVariation?.backImageUrl || null;
+
+                // Temporary object to hold all data for this variation
+                let variationUpdates = { 
+                    variationIndex: index,
+                    colorHex: incomingVariation.colorHex,
+                    frontImageUrl: finalFrontUrl,
+                    backImageUrl: finalBackUrl,
+                };
 
                 // Process FRONT Image
                 const frontFileKey = `front-view-upload-${index}`;
                 const newFrontFile = files[frontFileKey]?.[0];
 
                 if (newFrontFile) {
+                    // New file uploaded: Schedule old image for deletion and new file for upload
                     if (existingPermanentVariation?.frontImageUrl) {
                         oldImagesToDelete.push(existingPermanentVariation.frontImageUrl);
                     }
-                    const frontUploadPromise = uploadFileToPermanentStorage(newFrontFile).then(url => { finalFrontUrl = url; });
+                    const frontUploadPromise = uploadFileToPermanentStorage(newFrontFile).then(url => { 
+                        variationUpdates.frontImageUrl = url; 
+                    });
                     uploadPromises.push(frontUploadPromise);
-                } else if (!finalFrontUrl) {
+                } else if (!variationUpdates.frontImageUrl) {
                     throw new Error(`Front image missing for Variation #${index} and no existing image found.`);
                 }
                 
@@ -2497,23 +2508,23 @@ app.put(
                 const newBackFile = files[backFileKey]?.[0];
 
                 if (newBackFile) {
+                    // New file uploaded: Schedule old image for deletion and new file for upload
                     if (existingPermanentVariation?.backImageUrl) {
                         oldImagesToDelete.push(existingPermanentVariation.backImageUrl);
                     }
-                    const backUploadPromise = uploadFileToPermanentStorage(newBackFile).then(url => { finalBackUrl = url; });
+                    const backUploadPromise = uploadFileToPermanentStorage(newBackFile).then(url => { 
+                        variationUpdates.backImageUrl = url; 
+                    });
                     uploadPromises.push(backUploadPromise);
-                } else if (!finalBackUrl) {
+                } else if (!variationUpdates.backImageUrl) {
                     throw new Error(`Back image missing for Variation #${index} and no existing image found.`);
                 }
                 
-                updatedVariations.push({
-                    variationIndex: index,
-                    colorHex: incomingVariation.colorHex,
-                    get frontImageUrl() { return finalFrontUrl; }, 
-                    get backImageUrl() { return finalBackUrl; }, 
-                });
+                // Collect the temporary variation object
+                updatedVariations.push(variationUpdates);
             }
             
+            // Wait for all image uploads to finish and update the URLs in updatedVariations objects
             await Promise.all(uploadPromises);
 
             if (updatedVariations.length === 0) {
@@ -2524,16 +2535,13 @@ app.put(
             existingCollection.name = collectionData.name;
             existingCollection.tag = collectionData.tag;
             existingCollection.price = collectionData.price;
-            // --- UPDATE: Remove 'sizes' and 'totalStock' ---
-            existingCollection.sizesAndStock = collectionData.sizesAndStock; // NEW FIELD
+            
+            // --- Using the new top-level field for stock ---
+            existingCollection.sizesAndStock = collectionData.sizesAndStock; 
             existingCollection.isActive = collectionData.isActive;
             
-            existingCollection.variations = updatedVariations.map(v => ({
-                variationIndex: v.variationIndex,
-                colorHex: v.colorHex,
-                frontImageUrl: v.frontImageUrl, 
-                backImageUrl: v.backImageUrl, 
-            }));
+            // Assign the finalized variations array directly
+            existingCollection.variations = updatedVariations; 
             
             // Save to Database
             const updatedCollection = await existingCollection.save();
@@ -2613,7 +2621,6 @@ app.get(
         }
     }
 );
-
 
 // POST /api/admin/preordercollections (Create New Pre-Order Collection) 
 app.post('/api/admin/preordercollections', verifyToken, upload.fields(uploadFields), async (req, res) => {

@@ -883,8 +883,12 @@ async function getRealTimeDashboardStats() {
  * @param {string} productType The string name of the collection (e.g., 'WearsCollection').
  */
 function getProductModel(productType) {
-    // ✅ FIX 1: Use the Mongoose registry to safely retrieve the model by name.
-    const Model = mongoose.models[productType]; 
+    // ⚠️ CRITICAL: Ensure 'mongoose' is defined or imported in the environment scope
+    if (typeof mongoose === 'undefined' || !mongoose.models) {
+        throw new Error("Mongoose is not available or models are not registered.");
+    }
+
+    const Model = mongoose.models[productType];
     
     if (!Model) {
         throw new Error(`Model not registered for product type: ${productType}`);
@@ -893,20 +897,57 @@ function getProductModel(productType) {
 }
 
 /**
+ * Utility function to handle rollback logic by updating the Order status.
+ * In a true atomic transaction (which processOrderCompletion uses), this function
+ * mainly handles the Order document state and logging, as stock changes are
+ * automatically undone by session.abortTransaction().
+ * @param {string} orderId The ID of the order.
+ * @param {string} reason The reason for the rollback.
+ */
+async function inventoryRollback(orderId, reason) {
+    // ⚠️ CRITICAL: Ensure 'mongoose' is defined
+    if (typeof mongoose === 'undefined' || !mongoose.models) {
+        console.error('Mongoose is unavailable during rollback attempt.');
+        return;
+    }
+
+    // Attempt to get the Order model
+    const OrderModel = mongoose.models.Order || mongoose.model('Order');
+
+    // We only need to update the Order status here, outside the main transaction,
+    // in case the main transaction has already aborted or failed to start.
+    const newStatus = 'Inventory Failure (Manual Review)';
+    
+    try {
+        await OrderModel.findByIdAndUpdate(orderId, {
+            status: newStatus,
+            $push: { notes: `Rollback triggered due to failed deduction (${reason}): ${new Date().toISOString()}` }
+        });
+        console.error('CRITICAL: Inventory Deduction failed during order processing. Inventory Rollback complete.', reason);
+    } catch (e) {
+        console.error(`Failed to update order ${orderId} status during rollback:`, e.message);
+    }
+}
+
+
+/**
  * ====================================================================================
  * INVENTORY PROCESSING FUNCTION (ATOMIC & TRANSACTIONAL)
  * ====================================================================================
- * ...
+ * Handles inventory deduction and finalizes order status using Mongoose transactions.
+ * @param {string} orderId The ID of the order to process.
+ * @returns {Promise<Order | null>} The finalized order document, or null if aborted early.
  */
 async function processOrderCompletion(orderId) {
     // 1. Start a Mongoose session for atomicity (crucial for inventory)
     const session = await mongoose.startSession();
     session.startTransaction();
     let order = null; 
+    let OrderModel;
 
     try {
         // Fetch the order within the transaction
-        const OrderModel = mongoose.models.Order || mongoose.model('Order'); 
+        OrderModel = mongoose.models.Order || mongoose.model('Order'); 
         order = await OrderModel.findById(orderId).session(session);
 
         // 1.1 Initial check
@@ -915,30 +956,28 @@ async function processOrderCompletion(orderId) {
         if (!isReadyForInventory) {
             await session.abortTransaction();
             console.warn(`Order ${orderId} skipped: not found or status is ${order?.status}. Inventory deduction aborted.`);
-            return order;
+            return order; // Return the current state of the order
         }
 
         // 2. Loop through each item to deduct stock from the specific collection/variation
         for (const item of order.items) {
             // Assume item includes productId, productType, variationIndex, size, and quantity
-            
-            // 🌟 CRITICAL FIX: Replace Placeholder with actual utility function 🌟
             const ProductModel = getProductModel(item.productType); 
-            // -----------------------------------------------------------------
-            
             const quantityOrdered = item.quantity;
 
             // 3. ATOMIC DEDUCTION LOGIC FOR VARIATION STOCK
+            // Note: findOneAndUpdate with arrayFilters returns null if the query or arrayFilters fail to match.
             const updatedProduct = await ProductModel.findOneAndUpdate(
                 {
                     _id: item.productId,
                     
-                    // Query Step 1: Target the product by ID
-                    // Query Step 2: Target the correct variation by its index
-                    'variations.variationIndex': item.variationIndex, 
+                    // The query uses $elemMatch below, but including variationIndex in the main query
+                    // provides a good primary filter, though it's technically redundant if arrayFilters is perfect.
+                    // 'variations.variationIndex': item.variationIndex, 
 
                     // Query Step 3: Use $elemMatch to find the specific size object *AND*
                     // ensure its current stock is sufficient ($gte: quantityOrdered).
+                    // We rely on arrayFilters for the update, but the query part validates the condition.
                     'variations.sizes': {
                         $elemMatch: {
                             size: item.size, // Must match the ordered size ('S', 'M', 'L')
@@ -964,7 +1003,7 @@ async function processOrderCompletion(orderId) {
                 }
             );
 
-            // 4. Stock check failure (findOneAndUpdate returns null if the $elemMatch condition failed)
+            // 4. Stock check failure (findOneAndUpdate returns null if the query conditions failed)
             if (!updatedProduct) {
                 const errorMsg = `Insufficient stock or product data mismatch for item: ${item.size} of product ${item.productId} in ${item.productType}. Transaction aborted.`;
                 throw new Error(errorMsg);
@@ -979,28 +1018,36 @@ async function processOrderCompletion(orderId) {
         // 6. Finalize transaction
         await session.commitTransaction();
         console.log(`Order ${orderId} successfully completed and inventory fully deducted.`);
-        return order;
+        return order.toObject({ getters: true }); // Return a clean object
 
     } catch (error) {
-        // ... (Error handling logic remains correct)
-        
         // Rollback on any failure
         if (session.inTransaction()) {
             await session.abortTransaction();
         }
         
-        console.error('CRITICAL: Inventory Deduction failed during order processing. Inventory Rollback complete.', error.message);
-        
+        // After the transaction is aborted, update the Order status outside the session
+        // so the change is persisted immediately.
+        if (order) {
+            // We use the original function name and pass the ID and reason
+            await inventoryRollback(orderId, error.message);
+        }
+
         // Re-throw the error so the parent route can catch it
         throw error;
     } finally {
         session.endSession();
     }
 }
+
+// Module export for external usage
+// NOTE: WearsCollection, CapCollection, etc., must be imported or available in the global scope 
+// before this module is used, or replace the mongoose.models[] approach.
 module.exports = {
     processOrderCompletion,
+    inventoryRollback,
+    getProductModel
 };
-
 
 /**
  * ====================================================================================

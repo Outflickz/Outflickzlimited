@@ -252,9 +252,7 @@ async function generateHashAndSaveVerificationCode(user) {
             }
         }
     );
-    
-    // Return the PLAIN TEXT code for sending via email
-    return verificationCode;
+        return verificationCode;
 }
 
 // Function to format the HTML content for the order confirmation email
@@ -267,7 +265,6 @@ function generateOrderEmailHtml(order) {
         </tr>
     `).join('');
 
-    // ✅ UPDATED CALCULATION LOGIC: Use specific order fields if available, otherwise use safe fallbacks.
     const subtotal = order.subtotal || (order.totalAmount / 1.01); // Safe fallback (as previously)
     const shipping = order.shippingFee || (order.items.length > 0 ? SHIPPING_COST : 0); // Safe fallback
     const tax = order.tax || (order.totalAmount - subtotal - shipping); // Safe fallback (based on other fallbacks)
@@ -431,8 +428,6 @@ userSchema.pre('save', async function(next) {
 const User = mongoose.models.User || mongoose.model('User', userSchema);
 
 
-// --- CORRECTED Product Variation Sub-Schema ---
-
 const ProductVariationSchema = new mongoose.Schema({
     variationIndex: { 
         type: Number, 
@@ -463,8 +458,6 @@ const ProductVariationSchema = new mongoose.Schema({
     }]
 }, { _id: false });
 
-
-// --- Main Wears Collection Schema ---
 
 const WearsCollectionSchema = new mongoose.Schema({
     name: {

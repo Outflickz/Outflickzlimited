@@ -2311,13 +2311,16 @@ app.delete('/api/admin/newarrivals/:id', verifyToken, async (req, res) => {
     }
 });
 // --- WEARS COLLECTION API ROUTES (Existing) ---
+// NOTE: This code assumes the existence of: WearsCollection (Mongoose Model), 
+// verifyToken, upload (multer middleware), uploadFields, 
+// uploadFileToPermanentStorage, deleteFileFromPermanentStorage, and generateSignedUrl.
 
 // GET /api/admin/wearscollections/:id (Fetch Single Collection)
 app.get('/api/admin/wearscollections/:id', verifyToken, async (req, res) => {
     try {
-        // --- UPDATE: The model schema should now include 'sizesAndStock' ---
+        // --- FIX 1: Ensure totalStock is selected for fetching ---
         const collection = await WearsCollection.findById(req.params.id)
-            .select('_id name tag price variations sizesAndStock isActive') 
+            .select('_id name tag price variations sizesAndStock isActive totalStock') 
             .lean(); 
         
         if (!collection) {
@@ -2364,6 +2367,7 @@ app.post(
                 const backFile = files[`back-view-upload-${index}`]?.[0];
 
                 if (!frontFile || !backFile) {
+                    // Check if file is missing AND no existing URL is provided (only relevant for POST if variation metadata implies a pre-existing image, which is unlikely in POST)
                     throw new Error(`Missing BOTH front and back image files for Variation #${index}.`);
                 }
 
@@ -2396,7 +2400,8 @@ app.post(
                 name: collectionData.name,
                 tag: collectionData.tag,
                 price: collectionData.price, 
-                // --- Using the new top-level field for stock ---
+                // --- FIX 2: Assign totalStock from client payload ---
+                totalStock: collectionData.totalStock, 
                 sizesAndStock: collectionData.sizesAndStock, 
                 isActive: collectionData.isActive, 
                 variations: finalVariations, 
@@ -2441,21 +2446,24 @@ app.put(
             
             // A. HANDLE QUICK RESTOCK (Only updates stock/active status)
             if (isQuickRestock && !req.body.collectionData) {
-                // --- UPDATE: Now expects sizesAndStock array and isActive ---
-                const { sizesAndStock, isActive } = req.body;
+                // --- FIX 3: Destructure totalStock from JSON body ---
+                const { sizesAndStock, isActive, totalStock } = req.body;
 
-                if (!sizesAndStock || isActive === undefined) {
-                    return res.status(400).json({ message: "Missing 'sizesAndStock' or 'isActive' in simple update payload." });
+                if (!sizesAndStock || isActive === undefined || totalStock === undefined) {
+                    return res.status(400).json({ message: "Missing 'sizesAndStock', 'isActive', or 'totalStock' in simple update payload." });
                 }
                 
                 // Perform simple update
-                existingCollection.sizesAndStock = sizesAndStock; // NEW FIELD
-                existingCollection.isActive = isActive; 
+                existingCollection.sizesAndStock = sizesAndStock;
+                existingCollection.isActive = isActive;
+                // --- FIX 4: Assign totalStock from payload ---
+                existingCollection.totalStock = totalStock; 
 
                 const updatedCollection = await existingCollection.save();
                 return res.status(200).json({ 
-                    message: `Collection quick-updated. Active: ${updatedCollection.isActive}.`,
-                    collectionId: updatedCollection._id
+                    message: `Collection quick-updated. Active: ${updatedCollection.isActive}. Stock: ${updatedCollection.totalStock}`,
+                    collectionId: updatedCollection._id,
+                    name: updatedCollection.name
                 });
             }
 
@@ -2475,8 +2483,9 @@ app.put(
                 const existingPermanentVariation = existingCollection.variations.find(v => v.variationIndex === index);
 
                 // Start with the existing URLs, or null if a new variation
-                let finalFrontUrl = existingPermanentVariation?.frontImageUrl || null;
-                let finalBackUrl = existingPermanentVariation?.backImageUrl || null;
+                let finalFrontUrl = incomingVariation.existingFrontImageUrl || existingPermanentVariation?.frontImageUrl || null;
+                let finalBackUrl = incomingVariation.existingBackImageUrl || existingPermanentVariation?.backImageUrl || null;
+
 
                 // Temporary object to hold all data for this variation
                 let variationUpdates = { 
@@ -2484,6 +2493,7 @@ app.put(
                     colorHex: incomingVariation.colorHex,
                     frontImageUrl: finalFrontUrl,
                     backImageUrl: finalBackUrl,
+                    ...(incomingVariation._id && { _id: incomingVariation._id }) // Preserve _id if updating an existing variation
                 };
 
                 // Process FRONT Image
@@ -2536,7 +2546,8 @@ app.put(
             existingCollection.tag = collectionData.tag;
             existingCollection.price = collectionData.price;
             
-            // --- Using the new top-level field for stock ---
+            // --- FIX 5: Assign totalStock from client payload ---
+            existingCollection.totalStock = collectionData.totalStock; 
             existingCollection.sizesAndStock = collectionData.sizesAndStock; 
             existingCollection.isActive = collectionData.isActive;
             
@@ -2588,6 +2599,7 @@ app.delete('/api/admin/wearscollections/:id', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Server error during collection deletion.' });
     }
 });
+
 // GET /api/admin/wearscollections (Fetch All Collections) 
 app.get(
     '/api/admin/wearscollections',
@@ -2595,9 +2607,9 @@ app.get(
     async (req, res) => {
         try {
             // Fetch all collections
-            // --- UPDATE: Removed 'sizes' and 'totalStock', added 'sizesAndStock' ---
+            // --- FIX 6: Ensure totalStock is selected for fetching ---
             const collections = await WearsCollection.find({})
-                .select('_id name tag price variations sizesAndStock isActive') 
+                .select('_id name tag price variations sizesAndStock isActive totalStock') 
                 .sort({ createdAt: -1 })
                 .lean(); 
 

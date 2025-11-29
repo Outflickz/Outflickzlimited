@@ -895,46 +895,60 @@ function getProductModel(productType) {
 
 
 /**
- * Handles inventory deduction when an order is completed, deducting stock from the specific product variation.
- * This function should only be called after payment confirmation.
+ * ====================================================================================
+ * INVENTORY PROCESSING FUNCTION (ATOMIC & TRANSACTIONAL)
+ * ====================================================================================
+ * * Handles inventory deduction when an order is completed, deducting stock from the 
+ * specific product variation. This function MUST ONLY be called after payment confirmation.
+ * It uses a MongoDB Transaction for atomicity across multiple product updates.
+ * * NOTE: Assumes the existence of global functions/variables:
+ * - mongoose, Order (Mongoose Model)
+ * - getProductModel(type): Function to fetch the correct Product Model (e.g., 'ShirtModel')
  * * @param {string} orderId The ID of the completed order.
  * @returns {Promise<Object>} The updated Mongoose Order document.
  */
 async function processOrderCompletion(orderId) {
     // 1. Start a Mongoose session for atomicity (crucial for inventory)
+    // Transactions ensure that all inventory updates either succeed or fail together.
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
         // Fetch the order within the transaction
+        // Use select('-__v') to keep the returned object cleaner, though not strictly required.
         const order = await Order.findById(orderId).session(session);
-        
+
         // 1.1 Initial check
-        // We now allow 'Processing' (set by the admin confirm route) or 'Pending' (if admin skips the first step)
+        // Check if the order is valid and in a status ready for inventory deduction.
         const isReadyForInventory = order && (order.status === 'Processing' || order.status === 'Pending');
 
         if (!isReadyForInventory) {
             await session.abortTransaction();
             console.warn(`Order ${orderId} skipped: not found or status is ${order?.status}. Inventory deduction aborted.`);
-            
-            // Return the existing order object to prevent TypeError (undefined) in the calling function.
-            return order; 
+
+            // Return the existing order object (or null if not found) to prevent TypeError (undefined)
+            return order;
         }
-        
+
         // 2. Loop through each item to deduct stock from the specific collection/variation
         for (const item of order.items) {
             // Assume item includes productId, productType, variationIndex, size, and quantity
             const ProductModel = getProductModel(item.productType);
             const quantityOrdered = item.quantity;
-            
+
             // 3. ATOMIC DEDUCTION LOGIC FOR VARIATION STOCK
-            // Use positional operator $[] with arrayFilters for nested arrays for atomicity.
+            // This is the CRITICAL part: it ensures the stock check and decrement happen 
+            // in a single atomic database operation, preventing race conditions.
             const updatedProduct = await ProductModel.findOneAndUpdate(
-                { 
-                    _id: item.productId, 
-                    // CRITICAL: Find the specific variation object
-                    'variations.variationIndex': item.variationIndex, 
-                    // CRITICAL: Find the specific size/stock object within that variation
+                {
+                    _id: item.productId,
+                    // Query Step 1: Find the product document by ID.
+                    
+                    // Query Step 2: Ensure the specific variation index exists.
+                    'variations.variationIndex': item.variationIndex,
+
+                    // Query Step 3: Use $elemMatch to find the specific size object *AND*
+                    // ensure its current stock is sufficient ($gte: quantityOrdered).
                     'variations.sizes': {
                         $elemMatch: {
                             size: item.size, // Must match the ordered size ('S', 'M', 'L')
@@ -942,53 +956,82 @@ async function processOrderCompletion(orderId) {
                         }
                     }
                 },
-                { 
-                    // Decrement the stock in the nested 'sizes' array and totalStock
-                    $inc: { 
-                        'variations.$[var].sizes.$[size].stock': -quantityOrdered, // Decrement stock in the nested sizes array
-                        'totalStock': -quantityOrdered // Decrement the top-level totalStock
-                    } 
+                {
+                    // Update Step 1: Decrement the stock in the nested 'sizes' array.
+                    // $[] operator 'var' targets the matching variation.
+                    // $[] operator 'size' targets the matching size object within that variation.
+                    $inc: {
+                        'variations.$[var].sizes.$[size].stock': -quantityOrdered, 
+                        // Update Step 2: Decrement the top-level totalStock for quick checking/display.
+                        'totalStock': -quantityOrdered 
+                    }
                 },
-                { 
-                    new: true, 
-                    session: session,
-                    // Define which array elements the positional operators should target
+                {
+                    new: true,
+                    session: session, // MUST execute within the transaction
+                    // Define which array elements the positional operators should target (arrayFilters)
                     arrayFilters: [
-                        { 'var.variationIndex': item.variationIndex }, // Match the correct variation object
-                        { 'size.size': item.size } // Match the correct size object within the variation
+                        { 'var.variationIndex': item.variationIndex }, // Match the correct variation object (using 'var')
+                        { 'size.size': item.size } // Match the correct size object within the variation (using 'size')
                     ]
                 }
             );
 
-            // 4. Stock check failure (either product not found or insufficient stock in the specific variation)
+            // 4. Stock check failure (If findOneAndUpdate returns null, one of the query conditions failed:
+            // either product not found, variation not found, or insufficient stock.)
             if (!updatedProduct) {
-                // The transaction will be aborted centrally below.
-                const errorMsg = `Insufficient stock for variation: ${item.size} of product ${item.productId} in ${item.productType}. Transaction aborted.`;
+                // Throw an error to trigger the centralized catch/abort block.
+                const errorMsg = `Insufficient stock or product data mismatch for item: ${item.size} of product ${item.productId} in ${item.productType}. Transaction aborted.`;
                 throw new Error(errorMsg);
             }
+            // Optional: Log success for this specific item deduction.
+            console.log(`Inventory deducted for Product ID: ${item.productId}, Size: ${item.size}, Qty: ${quantityOrdered}`);
         }
-        
+
         // 5. Update order status to completed
         order.status = 'Completed'; // Using capitalized 'Completed' for consistency with schema
-        await order.save({ session });
+        await order.save({ session }); // Use { session } to commit the save within the transaction.
 
         // 6. Finalize transaction
         await session.commitTransaction();
+        console.log(`Order ${orderId} successfully completed and inventory fully deducted.`);
         return order;
 
     } catch (error) {
-        // Rollback on any failure
-        // CENTRALIZED ABORT: This single call now handles all failures.
+        // --- NEW LOGIC: Update order status to failure state BEFORE rollback ---
+        if (order) {
+            order.status = 'Inventory Failure (Manual Review)';
+            order.notes.push(`Inventory deduction failed for: ${error.message}`);
+            // Save the failure state OUTSIDE the main transaction so it persists after rollback.
+            // We use save() without { session } here to commit the failure state immediately
+            // regardless of the outcome of the inventory transaction.
+            try {
+                await order.save();
+                console.warn(`Order ${orderId} status updated to 'Inventory Failure (Manual Review)' due to: ${error.message}`);
+            } catch (saveError) {
+                console.error('Failed to save failure status to Order:', saveError.message);
+            }
+        }
+        
+        // Rollback on any failure (e.g., stock check failure, DB error)
         if (session.inTransaction()) {
             await session.abortTransaction();
         }
-        console.error('Inventory Deduction failed during order processing:', error.message);
+        
+        console.error('CRITICAL: Inventory Deduction failed during order processing. Inventory Rollback complete.', error.message);
+        
         // Re-throw the error so the parent route can catch it and handle the manual review flag
         throw error;
     } finally {
         session.endSession();
     }
 }
+
+/**
+ * ====================================================================================
+ * HELPER FUNCTIONS (Preserved as provided)
+ * ====================================================================================
+ */
 
 async function populateInitialData() {
     if (!DEFAULT_ADMIN_EMAIL || !DEFAULT_ADMIN_PASSWORD) {
@@ -997,11 +1040,12 @@ async function populateInitialData() {
     }
 
     try {
+        // NOTE: Assumes Admin and bcrypt are defined globally or imported.
         const adminCount = await Admin.countDocuments({ email: DEFAULT_ADMIN_EMAIL });
-        
+
         if (adminCount === 0) {
             console.log(`Default admin user (${DEFAULT_ADMIN_EMAIL}) not found. Creating...`);
-            
+
             const salt = await bcrypt.genSalt(BCRYPT_SALT_ROUNDS);
             const hashedPassword = await bcrypt.hash(DEFAULT_ADMIN_PASSWORD, salt);
 
@@ -1025,12 +1069,12 @@ const TAX_RATE = 0.00;
  */
 function calculateCartTotals(cartItems) {
     // 1. Calculate Subtotal
-    const subtotal = cartItems.reduce((acc, item) => 
+    const subtotal = cartItems.reduce((acc, item) =>
         acc + (item.price * item.quantity), 0);
     // 2. Calculate Tax
     const tax = subtotal * TAX_RATE;
     const shipping = cartItems.length > 0 ? SHIPPING_COST : 0;
-    
+
     // 4. Calculate Final Total
     const estimatedTotal = subtotal + tax + shipping;
 
@@ -1043,9 +1087,6 @@ function calculateCartTotals(cartItems) {
     };
 }
 
-const LOCAL_SHIPPING_COST = 3000;
-const LOCAL_TAX_RATE = 0.01; // 1% tax rate
-
 /**
  * Calculates cart totals locally for unauthenticated sessions.
  * Matches the server-side logic (calculateCartTotals).
@@ -1053,9 +1094,9 @@ const LOCAL_TAX_RATE = 0.01; // 1% tax rate
  * @returns {Object} Calculated totals structure.
  */
 function calculateLocalTotals(items) {
-    const subtotal = items.reduce((sum, item) => 
+    const subtotal = items.reduce((sum, item) =>
         sum + (item.price * item.quantity), 0);
-    
+
     const tax = subtotal * LOCAL_TAX_RATE;
     const shipping = items.length > 0 ? LOCAL_SHIPPING_COST : 0;
     const estimatedTotal = subtotal + tax + shipping;
@@ -1065,10 +1106,9 @@ function calculateLocalTotals(items) {
         subtotal: subtotal,
         shipping: shipping,
         tax: tax,
-        estimatedTotal: estimatedTotal 
+        estimatedTotal: estimatedTotal
     };
 }
-
 /**
  * Merges unauthenticated local cart items into the user's permanent database cart.
  * The product details are verified against the Mongoose schema before saving.

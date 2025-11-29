@@ -886,30 +886,17 @@ function getProductModel(productType) {
     }
 }
 
-
-/**
- * ====================================================================================
- * INVENTORY PROCESSING FUNCTION (ATOMIC & TRANSACTIONAL)
- * ====================================================================================
- * * Handles inventory deduction when an order is completed, deducting stock from the 
- * specific product variation. This function MUST ONLY be called after payment confirmation.
- * It uses a MongoDB Transaction for atomicity across multiple product updates.
- * * NOTE: Assumes the existence of global functions/variables:
- * - mongoose, Order (Mongoose Model)
- * - getProductModel(type): Function to fetch the correct Product Model (e.g., 'ShirtModel')
- * * @param {string} orderId The ID of the completed order.
- * @returns {Promise<Object>} The updated Mongoose Order document.
- */
 async function processOrderCompletion(orderId) {
     // 1. Start a Mongoose session for atomicity (crucial for inventory)
     // Transactions ensure that all inventory updates either succeed or fail together.
     const session = await mongoose.startSession();
     session.startTransaction();
+    let order = null; // ✅ CRITICAL FIX: Declare 'order' outside the try block to avoid ReferenceError in catch
 
     try {
         // Fetch the order within the transaction
         // Use select('-__v') to keep the returned object cleaner, though not strictly required.
-        const order = await Order.findById(orderId).session(session);
+        order = await Order.findById(orderId).session(session); // Assign 'order' here
 
         // 1.1 Initial check
         // Check if the order is valid and in a status ready for inventory deduction.
@@ -992,7 +979,8 @@ async function processOrderCompletion(orderId) {
 
     } catch (error) {
         // --- NEW LOGIC: Update order status to failure state BEFORE rollback ---
-        if (order) {
+        // This is safe now because 'order' is declared outside the try block
+        if (order) { 
             order.status = 'Inventory Failure (Manual Review)';
             order.notes.push(`Inventory deduction failed for: ${error.message}`);
             // Save the failure state OUTSIDE the main transaction so it persists after rollback.
@@ -1642,10 +1630,7 @@ app.get('/api/admin/orders/pending', verifyToken, async (req, res) => {
     }
 });
 
-// =========================================================
-// 8b. GET /api/admin/orders/:orderId - Fetch Single Detailed Order (Admin Protected)
-// NEW ROUTE: Used for the 'View Details' section.
-// =========================================================
+
 // =========================================================
 // 8b. GET /api/admin/orders/:orderId - Fetch Single Detailed Order (Admin Protected)
 // =========================================================
@@ -1703,7 +1688,6 @@ app.get('/api/admin/orders/:orderId', verifyToken, async (req, res) => {
         return res.status(500).json({ message: 'Server error: Failed to retrieve order details.' });
     }
 });
-
 // =========================================================
 // 9. PUT /api/admin/orders/:orderId/confirm - Confirm an Order (Admin Protected)
 // *** FINAL IMPLEMENTATION WITH EMAIL NOTIFICATION ***
@@ -1791,7 +1775,7 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
         console.error(`Error confirming order ${orderId}:`, error);
         res.status(500).json({ message: 'Failed to confirm order due to a server error.' });
     }
-});
+}); 
 
 // GET /api/admin/capscollections/:id - Fetch Single Cap Collection
 app.get('/api/admin/capscollections/:id', verifyToken, async (req, res) => {

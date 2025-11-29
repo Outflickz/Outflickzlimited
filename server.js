@@ -888,26 +888,47 @@ function getProductModel(productType) {
  * ====================================================================================
  * INVENTORY PROCESSING FUNCTION (ATOMIC & TRANSACTIONAL)
  * ====================================================================================
- * Handles inventory deduction when an order is completed, deducting stock from the 
- * specific product variation/size. Uses a MongoDB Transaction for atomicity.
- * * NOTE: Assumes the existence of:
- * - mongoose, Order (Mongoose Model)
- * - getProductModel(type): Function to fetch the correct Product Model (e.g., WearsCollectionModel)
- * * @param {string} orderId The ID of the completed order.
+ * Handles inventory deduction when an order is confirmed, deducting stock from the 
+ * specific product variation/size atomically. Uses a MongoDB Transaction.
+ * * * NOTE: This function retrieves Mongoose Models from the registry.
+ * * * @param {string} orderId The ID of the completed order.
  * @returns {Promise<Object>} The updated Mongoose Order document.
  */
 async function processOrderCompletion(orderId) {
-    // 1. Start a Mongoose session for atomicity (crucial for inventory)
+    
+    /**
+     * Helper function to safely retrieve a Mongoose model from the registry.
+     * This fixes the "Model is not defined" errors by retrieving the model 
+     * from the global Mongoose instance when needed.
+     * @param {string} name The name of the Mongoose Model (e.g., 'Order', 'WearsCollection').
+     */
+    const getModel = (name) => {
+        try {
+            // Prefer mongoose.models[name] but use mongoose.model(name) as a robust fallback
+            return mongoose.models[name] || mongoose.model(name);
+        } catch (e) {
+            // Throw a clear error if the model hasn't been registered yet
+            throw new Error(`Mongoose Model (${name}) is not registered. Ensure your main file defines and exports it.`);
+        }
+    };
+    
+    // 1. Retrieve Models from the Mongoose registry (CRITICAL FIX: Models are now defined locally and robustly fetched)
+    const OrderModel = getModel('Order');
+    
+    // NOTE: This assumes all items in the order belong to the WearsCollection model.
+    // If you have multiple product collections, you must implement a productType-to-Model mapping here.
+    const WearsCollectionModel = getModel('WearsCollection'); 
+    
+    // 2. Start a Mongoose session for atomicity (crucial for inventory)
     const session = await mongoose.startSession();
     session.startTransaction();
-    let order = null; // Declared outside the try block for access in catch/finally
+    let order = null; 
 
     try {
         // Fetch the order within the transaction
-        const OrderModel = mongoose.models.Order || mongoose.model('Order'); // Assumes Order model exists
         order = await OrderModel.findById(orderId).session(session);
 
-        // 1.1 Initial check
+        // 2.1 Initial check
         const isReadyForInventory = order && (order.status === 'Processing' || order.status === 'Pending');
 
         if (!isReadyForInventory) {
@@ -916,30 +937,28 @@ async function processOrderCompletion(orderId) {
             return order;
         }
 
-        // 2. Loop through each item to deduct stock from the specific collection/variation
+        // 3. Loop through each item to deduct stock
         for (const item of order.items) {
-            // Assume item includes productId, productType, variationIndex, size, and quantity
-            // NOTE: In a real app, you must implement getProductModel()
-            const ProductModel = WearsCollectionModel; // Placeholder/Mock for getProductModel(item.productType)
+            // Use the fetched WearsCollectionModel as the ProductModel
+            const ProductModel = WearsCollectionModel; 
             const quantityOrdered = item.quantity;
 
-            // 3. ATOMIC DEDUCTION LOGIC FOR VARIATION STOCK
+            // 4. ATOMIC DEDUCTION LOGIC FOR VARIATION STOCK
             const updatedProduct = await ProductModel.findOneAndUpdate(
                 {
                     _id: item.productId,
                     'variations.variationIndex': item.variationIndex,
 
-                    // Query Step 3: Use $elemMatch to find the specific size object *AND*
-                    // ensure its current stock is sufficient ($gte: quantityOrdered).
+                    // Atomic Check: Find the specific size object AND ensure stock is sufficient
                     'variations.sizes': {
                         $elemMatch: {
-                            size: item.size, // Must match the ordered size ('S', 'M', 'L')
-                            stock: { $gte: quantityOrdered } // Must have sufficient stock
+                            size: item.size, 
+                            stock: { $gte: quantityOrdered } 
                         }
                     }
                 },
                 {
-                    // Update Step 1 & 2: Decrement the stock in the nested array and totalStock.
+                    // Atomic Update: Decrement nested stock and top-level totalStock
                     $inc: {
                         'variations.$[var].sizes.$[size].stock': -quantityOrdered, 
                         'totalStock': -quantityOrdered 
@@ -947,28 +966,27 @@ async function processOrderCompletion(orderId) {
                 },
                 {
                     new: true,
-                    session: session, // MUST execute within the transaction
-                    // Define which array elements the positional operators should target (arrayFilters)
+                    session: session, // Executes within the transaction
+                    // Define which array elements the positional operators should target
                     arrayFilters: [
-                        { 'var.variationIndex': item.variationIndex }, // Match the correct variation object (using 'var')
-                        { 'size.size': item.size } // Match the correct size object within the variation (using 'size')
+                        { 'var.variationIndex': item.variationIndex }, 
+                        { 'size.size': item.size } 
                     ]
                 }
             );
 
-            // 4. Stock check failure (findOneAndUpdate returns null if the $elemMatch condition failed)
+            // 5. Stock check failure (findOneAndUpdate returns null if the $elemMatch condition failed)
             if (!updatedProduct) {
-                const errorMsg = `Insufficient stock or product data mismatch for item: ${item.size} of product ${item.productId} in ${item.productType}. Transaction aborted.`;
+                const errorMsg = `Insufficient stock or product data mismatch for item: ${item.size} of product ${item.productId}. Transaction aborted.`;
                 throw new Error(errorMsg);
             }
             console.log(`Inventory deducted for Product ID: ${item.productId}, Size: ${item.size}, Qty: ${quantityOrdered}`);
         }
 
-        // 5. Update order status to completed
+        // 6. Update order status to completed and commit
         order.status = 'Completed'; 
-        await order.save({ session }); // Commit the save within the transaction.
+        await order.save({ session }); 
 
-        // 6. Finalize transaction
         await session.commitTransaction();
         console.log(`Order ${orderId} successfully completed and inventory fully deducted.`);
         return order;
@@ -976,14 +994,12 @@ async function processOrderCompletion(orderId) {
     } catch (error) {
         // --- Logic to save failure state before rollback ---
         if (order) { 
-            order.status = 'Inventory Failure (Manual Review)';
-            // Ensure notes is an array before pushing
-            if (!order.notes) order.notes = []; 
-            order.notes.push(`Inventory deduction failed for: ${error.message}`);
             // Save the failure state OUTSIDE the main transaction so it persists after rollback.
             try {
-                // If Order model is available, use findByIdAndUpdate for a quick, non-transactional update
-                await OrderModel.findByIdAndUpdate(orderId, { 
+                // Use the helper to retrieve the OrderModel again here in case of early failure
+                const OrderModelForUpdate = getModel('Order');
+                // Use findByIdAndUpdate for a quick, non-transactional update of the failure status
+                await OrderModelForUpdate.findByIdAndUpdate(orderId, { 
                     status: 'Inventory Failure (Manual Review)', 
                     $push: { notes: `Inventory deduction failed on ${new Date().toISOString()}: ${error.message}` } 
                 });
@@ -1000,16 +1016,15 @@ async function processOrderCompletion(orderId) {
         
         console.error('CRITICAL: Inventory Deduction failed during order processing. Inventory Rollback complete.', error.message);
         
-        // Re-throw the error so the parent route can catch it
         throw error;
     } finally {
         session.endSession();
     }
 }
+
 module.exports = {
     processOrderCompletion,
 };
-
 
 
 /**

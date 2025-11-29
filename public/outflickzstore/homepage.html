@@ -367,7 +367,6 @@ function addToCart(collectionId, quantity) {
 
     console.log(`Added ${quantity} of item ${collectionId}. New cart total: ${newCount}`);
 }
-
 /**
  * Handles adding an item to the cart. 
  * Tries API (permanent cart via secure cookie) first.
@@ -385,6 +384,9 @@ async function simulateAddToCart(productDetails) {
     const size = selectedSizeInput ? selectedSizeInput.value : 'N/A';
     const color = selectedColorInput ? selectedColorInput.value : 'N/A';
     
+    // 🚀 CRITICAL FIX 1: Initialize variationIndex. Default to 0 if no explicit selection logic is available.
+    let variationIndex = 0; 
+    
     // ⭐️ CRITICAL FIX: Determine the selected image URL based on the chosen color
     let selectedImageUrl = productDetails.imageUrl; // Default to the initial URL passed
 
@@ -399,6 +401,16 @@ async function simulateAddToCart(productDetails) {
             if (newImageUrls && newImageUrls.frontImageUrl) {
                 // Use the front view of the selected color variant
                 selectedImageUrl = newImageUrls.frontImageUrl; 
+                
+                // 🚀 CRITICAL FIX 2: Attempt to determine the index based on color selection.
+                // Since the color map is an object, we must find the index of the key in the ordered list of keys.
+                const colorMapKeys = Object.keys(colorMap);
+                const inferredIndex = colorMapKeys.indexOf(colorHex);
+                
+                // If found, update the index. If not found, it remains 0 (default).
+                if (inferredIndex !== -1) {
+                    variationIndex = inferredIndex;
+                }
             }
         }
     }
@@ -413,30 +425,36 @@ async function simulateAddToCart(productDetails) {
         productType: productDetails.productType || 'WearsCollection',
         // ⭐️ NOW using the dynamically selected image URL
         imageUrl: selectedImageUrl, 
-        quantity: productDetails.quantity || 1
+        quantity: productDetails.quantity || 1,
+        // 🚀 CRITICAL FIX 3: Add variationIndex to requiredDetails (used for local fallback lookup)
+        variationIndex: variationIndex 
     };
     
    // Construct minimal data for API call 
    const itemDataForAPI = {
-       productId: requiredDetails.productId,
-       name: requiredDetails.name, 
-       productType: requiredDetails.productType, 
-       price: requiredDetails.price, 
-       quantity: requiredDetails.quantity,
-       size: requiredDetails.size,
-       color: requiredDetails.color,
-       // ⭐️ NOW passing the correct image URL to the API
-       imageUrl: requiredDetails.imageUrl 
+        productId: requiredDetails.productId,
+        name: requiredDetails.name, 
+        productType: requiredDetails.productType, 
+        price: requiredDetails.price, 
+        quantity: requiredDetails.quantity,
+        size: requiredDetails.size,
+        color: requiredDetails.color,
+        // ⭐️ NOW passing the correct image URL to the API
+        imageUrl: requiredDetails.imageUrl,
+        // 🚀 CRITICAL FIX 4: Add variationIndex to the API payload! (This solves the 400 error)
+        variationIndex: requiredDetails.variationIndex
    };
     
-    // --- 2. Local Cart Fallback Helper Function (No change needed here) ---
+    // --- 2. Local Cart Fallback Helper Function (Updated for variationIndex) ---
     const handleLocalCartFallback = (details) => {
         let localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
         
+        // 🚀 CRITICAL FIX 5: Include variationIndex in the findIndex check for local cart
         const existingItemIndex = localCart.findIndex(item => 
             item.productId === details.productId && 
             item.size === details.size &&
-            item.color === details.color
+            item.color === details.color &&
+            item.variationIndex === details.variationIndex // Check the new required field
         );
 
         if (existingItemIndex > -1) {
@@ -465,77 +483,76 @@ async function simulateAddToCart(productDetails) {
     };
     
     // --- 3. Attempt Authenticated API Call ---
-  try {
-    const response = await fetch('/api/users/cart', {
-        method: 'POST',
-        headers: {
-            // Content-Type is needed for the JSON body
-            'Content-Type': 'application/json'
-            // Authorization header is intentionally omitted, as the token
-            // is expected to be sent automatically via the cookie.
-        },
-        body: JSON.stringify(itemDataForAPI),
-        // ✅ CRITICAL ADDITION: This tells the browser to include the HTTP-only cookie.
-        credentials: 'include' 
-    });
+  try {
+    const response = await fetch('/api/users/cart', {
+        method: 'POST',
+        headers: {
+            // Content-Type is needed for the JSON body
+            'Content-Type': 'application/json'
+            // Authorization header is intentionally omitted, as the token
+            // is expected to be sent automatically via the cookie.
+        },
+        body: JSON.stringify(itemDataForAPI),
+        // ✅ CRITICAL ADDITION: This tells the browser to include the HTTP-only cookie.
+        credentials: 'include' 
+    });
 
-        const data = await response.json();
+        const data = await response.json();
 
-        if (response.ok) {
-            // 3a. Success: Item added to permanent cart
-            localStorage.setItem(CART_STORAGE_KEY, data.items.length.toString());
-            updateCartBadge();
-            
-            // Display success alert (Green background)
-            const alertMessage = document.getElementById('cart-alert');
-            if (alertMessage) {
-                alertMessage.textContent = 'Item added to your permanent shopping bag!';
-                alertMessage.className = 'absolute top-0 right-0 p-3 m-3 rounded shadow-lg transition-all duration-300 ease-in-out bg-green-500 text-white opacity-100 translate-y-0';
-                setTimeout(() => {
-                    alertMessage.classList.add('opacity-0', '-translate-y-10');
-                    setTimeout(() => alertMessage.classList.remove('bg-green-500'), 300);
-                }, 3000);
-            }
+        if (response.ok) {
+            // 3a. Success: Item added to permanent cart
+            localStorage.setItem(CART_STORAGE_KEY, data.items.length.toString());
+            updateCartBadge();
+            
+            // Display success alert (Green background)
+            const alertMessage = document.getElementById('cart-alert');
+            if (alertMessage) {
+                alertMessage.textContent = 'Item added to your permanent shopping bag!';
+                alertMessage.className = 'absolute top-0 right-0 p-3 m-3 rounded shadow-lg transition-all duration-300 ease-in-out bg-green-500 text-white opacity-100 translate-y-0';
+                setTimeout(() => {
+                    alertMessage.classList.add('opacity-0', '-translate-y-10');
+                    setTimeout(() => alertMessage.classList.remove('bg-green-500'), 300);
+                }, 3000);
+            }
 
-        } else if (response.status === 401 || response.status === 403) {
-            // 3b. Unauthorized (Cookie failed/expired) -> FALLBACK TO LOCAL CART
-            console.log("401/403 received (Unauthenticated). Falling back to local cart.");
-            handleLocalCartFallback(requiredDetails);
+        } else if (response.status === 401 || response.status === 403) {
+            // 3b. Unauthorized (Cookie failed/expired) -> FALLBACK TO LOCAL CART
+            console.log("401/403 received (Unauthenticated). Falling back to local cart.");
+            handleLocalCartFallback(requiredDetails);
 
-        } else {
-            // 3c. Other API Errors
-            // Use the flashing alert for generic error (Red background)
-            const alertMessage = document.getElementById('cart-alert');
-            if (alertMessage) {
-                 alertMessage.textContent = data.message || 'Failed to add item.';
-                 alertMessage.className = 'absolute top-0 right-0 p-3 m-3 rounded shadow-lg transition-all duration-300 ease-in-out bg-red-500 text-white opacity-100 translate-y-0';
-                 setTimeout(() => {
-                     alertMessage.classList.add('opacity-0', '-translate-y-10');
-                     setTimeout(() => alertMessage.classList.remove('bg-red-500'), 300); 
-                 }, 3000);
-             }
-        }
-        
-    } catch (error) {
-        // --- 4. Network or Fetch Error -> FALLBACK TO LOCAL CART ---
-        console.error('Error in addToCart API (Network or Fetch Error):', error);
-        
-        // Use the fallback function
-        handleLocalCartFallback(requiredDetails);
+        } else {
+            // 3c. Other API Errors
+            // Use the flashing alert for generic error (Red background)
+            const alertMessage = document.getElementById('cart-alert');
+            if (alertMessage) {
+                 alertMessage.textContent = data.message || 'Failed to add item.';
+                 alertMessage.className = 'absolute top-0 right-0 p-3 m-3 rounded shadow-lg transition-all duration-300 ease-in-out bg-red-500 text-white opacity-100 translate-y-0';
+                 setTimeout(() => {
+                     alertMessage.classList.add('opacity-0', '-translate-y-10');
+                     setTimeout(() => alertMessage.classList.remove('bg-red-500'), 300); 
+                 }, 3000);
+             }
+        }
+        
+    } catch (error) {
+        // --- 4. Network or Fetch Error -> FALLBACK TO LOCAL CART ---
+        console.error('Error in addToCart API (Network or Fetch Error):', error);
+        
+        // Use the fallback function
+        handleLocalCartFallback(requiredDetails);
 
-        // Display error alert (Red background)
-        const alertMessage = document.getElementById('cart-alert');
-        if (alertMessage) {
-            alertMessage.textContent = 'Could not reach server. Item added to local cart.';
-            alertMessage.className = 'absolute top-0 right-0 p-3 m-3 rounded shadow-lg transition-all duration-300 ease-in-out bg-red-500 text-white opacity-100 translate-y-0';
-            setTimeout(() => {
-                alertMessage.classList.add('opacity-0', '-translate-y-10');
-                setTimeout(() => alertMessage.classList.remove('bg-red-500'), 300);
-            }, 3000);
-        }
-    }
+        // Display error alert (Red background)
+        const alertMessage = document.getElementById('cart-alert');
+        if (alertMessage) {
+            alertMessage.textContent = 'Could not reach server. Item added to local cart.';
+            alertMessage.className = 'absolute top-0 right-0 p-3 m-3 rounded shadow-lg transition-all duration-300 ease-in-out bg-red-500 text-white opacity-100 translate-y-0';
+            setTimeout(() => {
+                alertMessage.classList.add('opacity-0', '-translate-y-10');
+                setTimeout(() => alertMessage.classList.remove('bg-red-500'), 300);
+            }, 3000);
+        }
+    }
 }
-
 
 // Initialize the cart badge on page load
 document.addEventListener('DOMContentLoaded', updateCartBadge);

@@ -3728,6 +3728,7 @@ app.get('/api/auth/status', verifyUserToken, (req, res) => {
     // We just return a success status.
     res.status(200).json({ message: 'Authenticated', isAuthenticated: true });
 });
+
 // =========================================================
 // 5. POST /api/users/cart - Add Item to Cart (Protected)
 // =========================================================

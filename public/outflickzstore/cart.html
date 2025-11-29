@@ -224,7 +224,6 @@ async function simulateAddToCart(productDetails) {
         productType: productDetails.productType || 'WearsCollection',
         imageUrl: productDetails.imageUrl,
         quantity: productDetails.quantity || 1,
-        // ✅ CORRECT: Add variation data to requiredDetails for local fallback
         variationIndex: variationIndex,
         variation: variation 
     };
@@ -239,7 +238,6 @@ async function simulateAddToCart(productDetails) {
         size: requiredDetails.size,
         color: requiredDetails.color,
         imageUrl: requiredDetails.imageUrl,
-        // ✅ CORRECT: Add variation data to API payload
         variationIndex: requiredDetails.variationIndex,
         variation: requiredDetails.variation 
     };

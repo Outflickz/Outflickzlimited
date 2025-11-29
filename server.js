@@ -4428,7 +4428,7 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
             priceAtTimeOfPurchase: item.price, // Store the price explicitly
             variationIndex: item.variationIndex, // Mapped new field
             size: item.size,
-            variation: variationName,
+            variation: item.variation,
             color: item.color,
           }));
             

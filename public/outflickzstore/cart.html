@@ -191,99 +191,100 @@ function handleLocalCartFallback(details) {
 }
 
 /**
- * Adds an item to the cart. Tries API first, falls back to local storage on 401.
- */
+ * Adds an item to the cart. Tries API first, falls back to local storage on 401.
+ */
 async function simulateAddToCart(productDetails) {
-    // 1. Gather all item details needed for local cart fallback and API
-    const card = document.querySelector(`.collection-card[data-collection-id="${productDetails.productId}"]`) || document;
-    const selectedSizeInput = card.querySelector(`input[name="size-${productDetails.productId}"]:checked`);
-    const selectedColorInput = card.querySelector(`input[name="color-${productDetails.productId}"]:checked`);
+    // 1. Gather all item details needed for local cart fallback and API
+    const card = document.querySelector(`.collection-card[data-collection-id="${productDetails.productId}"]`) || document;
+    const selectedSizeInput = card.querySelector(`input[name="size-${productDetails.productId}"]:checked`);
+    const selectedColorInput = card.querySelector(`input[name="color-${productDetails.productId}"]:checked`);
     
-    // 🛑 UPDATE: Extract the new variation data from the card/details
-    const variationIndexInput = card.querySelector(`input[name="variationIndex-${productDetails.productId}"]`) || 
-                                card.querySelector(`[data-variation-index]`);
-    const variationNameInput = card.querySelector(`[data-variation-name]`);
-    // -------------------------------------------------------------
-
-    const size = selectedSizeInput ? selectedSizeInput.value : productDetails.size || 'N/A';
-    const color = selectedColorInput ? selectedColorInput.value : productDetails.color || 'N/A';
+    // 🛑 CRITICAL FIX: Base variation data extraction on the selected color/size input
+    const variantInput = selectedColorInput || selectedSizeInput;
     
-    // 🛑 UPDATE: Defaulting the index to 0 if not explicitly found
-    const variationIndex = parseInt(variationIndexInput?.value || variationIndexInput?.dataset?.variationIndex || productDetails.variationIndex || 0);
-    const variation = variationNameInput?.dataset?.variationName || productDetails.variation || (color !== 'N/A' ? `Color: ${color}` : `Var: ${variationIndex}`);
+    const size = selectedSizeInput ? selectedSizeInput.value : productDetails.size || 'N/A';
+    const color = selectedColorInput ? selectedColorInput.value : productDetails.color || 'N/A';
+    
+    // 🚀 FIXED LOGIC for variationIndex and variation Name
+    const rawIndex = variantInput?.dataset?.variationIndex || productDetails.variationIndex;
+    const variationIndex = parseInt(rawIndex) || 0; // Safely convert to number, default 0
+    
+    const variation = variantInput?.dataset?.variationName || 
+                      productDetails.variation || 
+                      (color !== 'N/A' ? `${color} / ${size}` : `Default Variant`);
     // -------------------------------------------------------------
-    
-    // Unified item data structure for both API (minimal fields) and Local Cart (all fields)
-    const requiredDetails = {
-        productId: productDetails.productId,
-        name: productDetails.name, 
-        size: size,
-        color: color,
-        price: productDetails.price,
-        productType: productDetails.productType || 'WearsCollection',
-        imageUrl: productDetails.imageUrl,
-        quantity: productDetails.quantity || 1,
-        // 🛑 UPDATE: Add variation data to requiredDetails for local fallback
+    
+    // Unified item data structure for both API (minimal fields) and Local Cart (all fields)
+    const requiredDetails = {
+        productId: productDetails.productId,
+        name: productDetails.name, 
+        size: size,
+        color: color,
+        price: productDetails.price,
+        productType: productDetails.productType || 'WearsCollection',
+        imageUrl: productDetails.imageUrl,
+        quantity: productDetails.quantity || 1,
+        // ✅ CORRECT: Add variation data to requiredDetails for local fallback
         variationIndex: variationIndex,
         variation: variation 
-    };
-    
-    // Construct data for API call 
-    const itemDataForAPI = {
-        productId: requiredDetails.productId,
-        name: requiredDetails.name,
-        productType: requiredDetails.productType,
-        price: requiredDetails.price,
-        quantity: requiredDetails.quantity,
-        size: requiredDetails.size,
-        color: requiredDetails.color,
-        imageUrl: requiredDetails.imageUrl,
-        // 🛑 UPDATE: Add variation data to API payload
+    };
+    
+    // Construct data for API call 
+    const itemDataForAPI = {
+        productId: requiredDetails.productId,
+        name: requiredDetails.name,
+        productType: requiredDetails.productType,
+        price: requiredDetails.price,
+        quantity: requiredDetails.quantity,
+        size: requiredDetails.size,
+        color: requiredDetails.color,
+        imageUrl: requiredDetails.imageUrl,
+        // ✅ CORRECT: Add variation data to API payload
         variationIndex: requiredDetails.variationIndex,
         variation: requiredDetails.variation 
-    };
+    };
 
-    // --- 2. Attempt Authenticated API Call ---
-    try {
-        const response = await fetch('/api/users/cart', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(itemDataForAPI)
-        });
+    // --- 2. Attempt Authenticated API Call ---
+    try {
+        const response = await fetch('/api/users/cart', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(itemDataForAPI)
+        });
 
-        const data = await response.json();
+        const data = await response.json();
 
-        if (response.ok) {
-            // Success: Item added to permanent cart
-            const totalItemCount = data.items.reduce((acc, item) => acc + item.quantity, 0);
-            localStorage.setItem(CART_STORAGE_KEY, totalItemCount.toString());
-            localStorage.setItem('outflickzAuthStatus', 'loggedIn'); // Set status flag
-            updateCartBadge();
-            displayMessage('Item added to your permanent shopping bag!');
+        if (response.ok) {
+            // Success: Item added to permanent cart
+            const totalItemCount = data.items.reduce((acc, item) => acc + item.quantity, 0);
+            localStorage.setItem(CART_STORAGE_KEY, totalItemCount.toString());
+            localStorage.setItem('outflickzAuthStatus', 'loggedIn'); // Set status flag
+            updateCartBadge();
+            displayMessage('Item added to your permanent shopping bag!');
 
-            if (document.getElementById('cart-items-list')) {
-                fetchAndRenderCart(); 
-            }
+            if (document.getElementById('cart-items-list')) {
+                fetchAndRenderCart(); 
+            }
 
-        } else if (response.status === 401 || response.status === 403) {
-            // Unauthorized (Cookie failed/expired) -> FALLBACK TO LOCAL CART
-            console.log("401/403 received (Unauthenticated). Falling back to local cart.");
-            localStorage.setItem('outflickzAuthStatus', 'loggedOut'); // Clear status flag
-            handleLocalCartFallback(requiredDetails);
+        } else if (response.status === 401 || response.status === 403) {
+            // Unauthorized (Cookie failed/expired) -> FALLBACK TO LOCAL CART
+            console.log("401/403 received (Unauthenticated). Falling back to local cart.");
+            localStorage.setItem('outflickzAuthStatus', 'loggedOut'); // Clear status flag
+            handleLocalCartFallback(requiredDetails);
 
-        } else {
-            // Other API Errors
-            displayMessage(data.message || 'Failed to add item. Please try again.');
-        }
-        
-    } catch (error) {
-        // Network or Fetch Error -> FALLBACK TO LOCAL CART
-        console.error('Error in addToCart API (Network or Fetch Error):', error);
-        localStorage.setItem('outflickzAuthStatus', 'loggedOut'); // Clear status flag
-        handleLocalCartFallback(requiredDetails);
-    }
+        } else {
+            // Other API Errors
+            displayMessage(data.message || 'Failed to add item. Please try again.');
+        }
+        
+    } catch (error) {
+        // Network or Fetch Error -> FALLBACK TO LOCAL CART
+        console.error('Error in addToCart API (Network or Fetch Error):', error);
+        localStorage.setItem('outflickzAuthStatus', 'loggedOut'); // Clear status flag
+        handleLocalCartFallback(requiredDetails);
+    }
 }
 
 /**

@@ -4403,15 +4403,17 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
 
             // 5. Create a new Order document with status 'Pending'
           const orderItems = cart.items.map(item => ({
-    productId: item.productId,
-    // ✅ FIX: Include the required name field from the cart item
-    name: item.name, 
-    productType: item.productType,
-    quantity: item.quantity,
-    priceAtTimeOfPurchase: item.price, // Store the price explicitly
-    size: item.size,
-    color: item.color,
-}));
+            productId: item.productId,
+            // ✅ FIX/UPDATE: Include all fields required by the robust OrderItemSchema
+            name: item.name, 
+            imageUrl: item.imageUrl, // Mapped new field
+            productType: item.productType,
+            quantity: item.quantity,
+            priceAtTimeOfPurchase: item.price, // Store the price explicitly
+            variationIndex: item.variationIndex, // Mapped new field
+            size: item.size,
+            color: item.color,
+          }));
             
             // **CRITICAL: Generate a reference for bank transfer orders**
             const orderRef = `MANUAL-${Date.now()}-${userId.substring(0, 5)}`; 
@@ -4425,7 +4427,7 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
                 subtotal: subtotal,
                 shippingFee: shippingFee,
                 tax: tax,
-                status: 'Pending', 
+                status: 'Pending', // Use capitalized status from schema enum
                 paymentMethod: paymentMethod,
                 orderReference: orderRef, 
                 amountPaidKobo: Math.round(totalAmount * 100),
@@ -4459,8 +4461,7 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
             res.status(500).json({ message: 'Failed to create pending order due to a server error.' });
         }
     });
-});
-
+}); 
 // 6. GET /api/orders/:orderId (Fetch Single Order Details - Protected)
 app.get('/api/orders/:orderId', verifyUserToken, async function (req, res) {
     const orderId = req.params.orderId;
@@ -4479,9 +4480,9 @@ app.get('/api/orders/:orderId', verifyUserToken, async function (req, res) {
             _id: orderId, // Find by ID
             userId: userId // AND ensure it belongs to the authenticated user
         })
-        // ⭐ FIX: Ensure we select the new financial breakdown fields
-        .select('+subtotal +shippingFee +tax')
-        .lean();
+        // ⭐ FIX: Ensure we select the new financial breakdown fields
+        .select('+subtotal +shippingFee +tax')
+        .lean();
 
         if (!order) {
             return res.status(404).json({ message: 'Order not found or access denied.' });
@@ -4492,12 +4493,21 @@ app.get('/api/orders/:orderId', verifyUserToken, async function (req, res) {
             // Use a copy of the item object for mutation
             let displayItem = { ...item };
             
+            // Prioritize saved data for name/image consistency at time of purchase
+            if (item.name && item.imageUrl) {
+                // If the order item already contains the name and image (which it should now)
+                displayItem.sku = `SKU-${item.productType.substring(0,3).toUpperCase()}-${item.size || 'UNK'}`;
+                delete displayItem._id; 
+                return displayItem;
+            }
+            
+            // Fallback to fetching product details if necessary (e.g., for old orders)
             const Model = productModels[item.productType];
             
             if (!Model) {
                 console.warn(`[OrderDetails] Unknown product type: ${item.productType}`);
-                displayItem.name = 'Product Not Found';
-                displayItem.imageUrl = 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=Error';
+                displayItem.name = item.name || 'Product Not Found';
+                displayItem.imageUrl = item.imageUrl || 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=Error';
                 displayItem.sku = 'N/A';
             } else {
                 // Find the original product to get the display details
@@ -4505,9 +4515,9 @@ app.get('/api/orders/:orderId', verifyUserToken, async function (req, res) {
                     .select('name imageUrls') // Only need display data
                     .lean();
 
-                // Structure the item for the frontend
-                displayItem.name = product ? product.name : 'Product Deleted';
-                displayItem.imageUrl = product && product.imageUrls && product.imageUrls.length > 0 ? product.imageUrls[0] : 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=No+Image';
+                displayItem.name = item.name || (product ? product.name : 'Product Deleted');
+                // Use the saved imageUrl if available, otherwise fallback to the first product image
+                displayItem.imageUrl = item.imageUrl || (product && product.imageUrls && product.imageUrls.length > 0 ? product.imageUrls[0] : 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=No+Image');
                 displayItem.sku = `SKU-${item.productType.substring(0,3).toUpperCase()}-${item.size || 'UNK'}`;
             }
             
@@ -4525,7 +4535,7 @@ app.get('/api/orders/:orderId', verifyUserToken, async function (req, res) {
             ...order,
             items: populatedItems,
             // ⭐ FIX: Read the actual stored financial breakdown, falling back to stored data/zero if undefined
-            subtotal: order.subtotal !== undefined ? order.subtotal : order.totalAmount, // Use subtotal if present, otherwise fall back to total
+            subtotal: order.subtotal !== undefined ? order.subtotal : order.totalAmount, 
             shippingFee: order.shippingFee || 0.00, 
             tax: order.tax || 0.00 
         };
@@ -4596,7 +4606,8 @@ app.put('/api/orders/:orderId/cancel', verifyUserToken, async (req, res) => {
 
     try {
         // Define which statuses are eligible for cancellation
-        const cancellableStatuses = ['pending', 'processing']; 
+        // ⭐ FIX: Must use capitalized statuses to match the Mongoose Enum definition
+        const cancellableStatuses = ['Pending', 'Processing']; 
 
         // 1. Find the order and ensure ownership and cancellable status
         const order = await Order.findOne({ 
@@ -4606,11 +4617,7 @@ app.put('/api/orders/:orderId/cancel', verifyUserToken, async (req, res) => {
         });
 
         if (!order) {
-            // This handles four scenarios: 
-            // 1. Order ID is invalid
-            // 2. Order belongs to another user (security)
-            // 3. Order is already cancelled
-            // 4. Order is in a non-cancellable state (e.g., 'shipped')
+            // Check if the order exists but is in a non-cancellable state
             const existingOrder = await Order.findOne({ _id: orderId, userId: userId });
             
             if (existingOrder && !cancellableStatuses.includes(existingOrder.status)) {
@@ -4622,25 +4629,19 @@ app.put('/api/orders/:orderId/cancel', verifyUserToken, async (req, res) => {
             return res.status(404).json({ message: 'Order not found or not eligible for cancellation.' });
         }
         
-        // 2. Update the order status to 'cancelled'
+        // 2. Update the order status to 'Cancelled'
         // Using findByIdAndUpdate ensures the update is Atomic
         const updatedOrder = await Order.findByIdAndUpdate(
             order._id,
             { 
                 $set: { 
-                    status: 'cancelled',
+                    status: 'Cancelled', // ⭐ FIX: Use capitalized status from schema enum
                     cancellationDate: new Date(), // Log the cancellation time
                     // You might also log who cancelled it if needed (order.cancelledBy = userId)
                 } 
             },
             { new: true } // Return the updated document
         );
-
-        // 3. IMPORTANT: Trigger Refund/Inventory Rollback Logic
-        // In a real e-commerce system, this is where you would call other services:
-        // * a payment service to process a full refund.
-        // * an inventory service to return the reserved stock quantity back to available inventory.
-        // For now, we log a message as a placeholder:
         console.log(`[Cancellation Success] Order ${orderId} cancelled. Refund/Inventory rollback needed.`);
 
 

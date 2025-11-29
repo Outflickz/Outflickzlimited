@@ -388,7 +388,7 @@
         <i class="fab fa-whatsapp text-2xl sm:text-3xl"></i>
     </a>
 
-  <script>
+ <script>
     // Customizing Tailwind colors to match the theme
     tailwind.config = {
         theme: {
@@ -703,13 +703,13 @@ async function fetchUserData() {
 
             const cartData = await response.json();
             /* cartData structure is expected to be:
-            { 
-                items: [{name, size, color, quantity, price, imageUrl}], 
-                subtotal: 32000.00, 
-                shipping: 2500.00, 
-                tax: 1725.00, 
-                estimatedTotal: 36225.00 
-            } */
+             * { 
+             * items: [{name, size, color, quantity, price, imageUrl}], 
+             * subtotal: 32000.00, 
+             * shipping: 2500.00, 
+             * tax: 1725.00, 
+             * estimatedTotal: 36225.00 
+             * } */
             // === REAL API CALL END ===
 
 
@@ -748,6 +748,12 @@ async function fetchUserData() {
             // Store cart items and total for server-side processing later
             localStorage.setItem('outflickzOrderItems', JSON.stringify(cartData.items));
             localStorage.setItem('outflickzOrderTotal', total.toFixed(2));
+
+            // <<< START: NEW LINES to store the components >>>
+            localStorage.setItem('outflickzOrderSubtotal', subtotal.toFixed(2));
+            localStorage.setItem('outflickzOrderShipping', shipping.toFixed(2));
+            localStorage.setItem('outflickzOrderTax', tax.toFixed(2));
+            // <<< END: NEW LINES >>>
 
             // Enable button
             paymentBtn.disabled = false;
@@ -885,11 +891,25 @@ async function fetchUserData() {
             // --- BANK TRANSFER (PENDING ORDER) INITIATION ---
             
             const formData = new FormData();
+            
+            // <<< START: Retrieve and append component values from localStorage >>>
+            const subtotal = localStorage.getItem('outflickzOrderSubtotal');
+            const shipping = localStorage.getItem('outflickzOrderShipping');
+            const tax = localStorage.getItem('outflickzOrderTax');
+
+            // Append data required by the server (including the missing components)
             formData.append('shippingAddress', JSON.stringify(shippingAddress));
             formData.append('orderItems', localStorage.getItem('outflickzOrderItems')); // Include items for server to process
             formData.append('paymentMethod', paymentMethod.value);
+            
+            if (subtotal) formData.append('subtotal', subtotal);
+            if (shipping) formData.append('shippingFee', shipping); // Use backend's expected field name
+            if (tax) formData.append('tax', tax);
+            
             formData.append('totalAmount', totalAmount.toFixed(2)); 
             formData.append('receipt', receiptInput.files[0]); 
+            // <<< END: Append component values >>>
+
 
             try {
                 // REAL FETCH: Create a pending order on the server
@@ -920,6 +940,11 @@ if (isSuccess && data.orderId) {
     localStorage.setItem(CART_STORAGE_KEY, '0');
     localStorage.removeItem('outflickzOrderTotal');
     localStorage.removeItem('outflickzOrderItems'); // Clear items
+    // Clear the new component items
+    localStorage.removeItem('outflickzOrderSubtotal');
+    localStorage.removeItem('outflickzOrderShipping');
+    localStorage.removeItem('outflickzOrderTax');
+    
     updateCartBadge();
 
     setTimeout(() => {

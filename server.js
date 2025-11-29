@@ -2346,6 +2346,7 @@ app.delete('/api/admin/newarrivals/:id', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Server error during product deletion.' });
     }
 });
+
 // --- WEARS COLLECTION API ROUTES (Existing) ---
 // NOTE: This code assumes the existence of: WearsCollection (Mongoose Model), 
 // verifyToken, upload (multer middleware), uploadFields, 
@@ -4054,7 +4055,10 @@ app.post('/api/paystack/webhook', async (req, res) => {
         res.status(500).send('Internal Server Error.'); 
     }
 });
-
+// =========================================================
+// 8. POST /api/notifications/admin-order-email - Send Notification to Admin
+// This is typically called by the client AFTER a successful payment/order creation.
+// =========================================================
 app.post('/api/notifications/admin-order-email', async (req, res) => {
     
     // The payload is sent as JSON from the client-side 'sendAdminOrderNotification' function
@@ -4065,7 +4069,11 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
         shippingDetails, 
         items, 
         adminEmail,
-        paymentReceiptUrl // The URL from B2/DB
+        paymentReceiptUrl, // The URL from B2/DB
+        // ⭐ ADDED: Include financial breakdown in payload for completeness
+        subtotal,
+        shippingFee,
+        tax
     } = req.body;
 
     // 1. Basic Validation
@@ -4176,6 +4184,28 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
             </p>
         ` : '');
 
+        // --- Financial Breakdown Summary (Using the newly included fields) ---
+        const totalAmountNum = parseFloat(totalAmount);
+        const subtotalNum = parseFloat(subtotal || (totalAmountNum - (shippingFee || 0) - (tax || 0)));
+        const shippingFeeNum = parseFloat(shippingFee || 0);
+        const taxNum = parseFloat(tax || 0);
+
+        const financialSummaryHtml = `
+            <tr>
+                <td style="padding: 10px 0; font-size: 14px; color: #555; width: 50%;">Subtotal:</td>
+                <td style="padding: 10px 0; font-size: 14px; color: #000000; text-align: right;">₦${subtotalNum.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+            </tr>
+            <tr>
+                <td style="padding: 5px 0; font-size: 14px; color: #555;">Shipping Fee:</td>
+                <td style="padding: 5px 0; font-size: 14px; color: #000000; text-align: right;">₦${shippingFeeNum.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+            </tr>
+            <tr>
+                <td style="padding: 5px 0 20px 0; font-size: 14px; color: #555; border-bottom: 1px dashed #ccc;">Tax:</td>
+                <td style="padding: 5px 0 20px 0; font-size: 14px; color: #000000; text-align: right; border-bottom: 1px dashed #ccc;">₦${taxNum.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+            </tr>
+        `;
+        
+        // The main HTML structure remains mostly the same, inserting the new breakdown.
         const emailHtml = `
 <!DOCTYPE html>
 <html lang="en">
@@ -4210,7 +4240,6 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
                                 A new order has been created and requires immediate attention for fulfillment.
                             </p>
                             
-                            <!-- Order Summary -->
                             <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 25px; border-collapse: collapse;">
                                 <tr>
                                     <td colspan="2" style="font-size: 18px; font-weight: bold; color: #000000; padding-bottom: 10px; border-bottom: 2px solid #000000;">ORDER SUMMARY</td>
@@ -4224,16 +4253,18 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
                                     <td style="padding: 10px 0; font-size: 14px; color: #000000; text-align: right;">${paymentMethod}</td>
                                 </tr>
                                 <tr>
-                                    <td style="padding: 10px 0 20px 0; font-size: 14px; color: #555; border-bottom: 1px dashed #ccc;">Payment Status:</td>
-                                    <td style="padding: 10px 0 20px 0; font-size: 14px; font-weight: bold; text-align: right; color: ${paymentStatus.includes('Confirmed') ? 'green' : '#FFA500'}; border-bottom: 1px dashed #ccc;">${paymentStatus}</td>
+                                    <td style="padding: 10px 0; font-size: 14px; color: #555;">Payment Status:</td>
+                                    <td style="padding: 10px 0; font-size: 14px; font-weight: bold; text-align: right; color: ${paymentStatus.includes('Confirmed') ? 'green' : '#FFA500'};">${paymentStatus}</td>
                                 </tr>
+                                
+                                ${financialSummaryHtml}
+
                                 <tr>
                                     <td style="padding: 20px 0 10px 0; font-size: 16px; font-weight: bold; color: #000000;">TOTAL AMOUNT:</td>
-                                    <td style="padding: 20px 0 10px 0; font-size: 18px; font-weight: bold; color: #000000; text-align: right;">₦${parseFloat(totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                    <td style="padding: 20px 0 10px 0; font-size: 18px; font-weight: bold; color: #000000; text-align: right;">₦${totalAmountNum.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                                 </tr>
                             </table>
 
-                            <!-- Shipping Details -->
                             <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 30px; border-collapse: collapse;">
                                 <tr>
                                     <td colspan="2" style="font-size: 18px; font-weight: bold; color: #000000; padding-bottom: 10px; border-bottom: 2px solid #000000;">SHIPPING DETAILS</td>
@@ -4253,7 +4284,6 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
                                 </tr>
                             </table>
                             
-                            <!-- Items Ordered -->
                             <table border="0" cellpadding="0" cellspacing="0" width="100%" class="item-table" style="margin-top: 30px; border-collapse: collapse;">
                                 <tr>
                                     <td colspan="4" style="font-size: 18px; font-weight: bold; color: #000000; padding-bottom: 10px; border-bottom: 2px solid #000000;">ITEMS ORDERED</td>
@@ -4272,7 +4302,6 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
                                 </tbody>
                             </table>
                             
-                            <!-- Attachment Confirmation (Conditional) -->
                             ${attachmentConfirmationHtml}
 
                             <p style="margin-top: 40px; font-size: 12px; color: #777; text-align: center;">
@@ -4282,7 +4311,6 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
                         </td>
                     </tr>
                     
-                    <!-- Footer -->
                     <tr>
                         <td align="center" style="background-color: #f7f7f7; padding: 15px 40px; border-radius: 0 0 8px 8px;">
                             <p style="margin: 0; font-size: 11px; color: #999;">&copy; ${new Date().getFullYear()} OUTFULICKZ. All rights reserved.</p>
@@ -4320,233 +4348,237 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
 // This route is used for manual Bank Transfer payments.
 // =========================================================
 app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
-    
-    // 1. Run the Multer middleware to process the form data and file
-    singleReceiptUpload(req, res, async (err) => {
-        
-        // Handle Multer errors (e.g., file size limit)
-        if (err instanceof multer.MulterError) {
-            return res.status(400).json({ message: `File upload failed: ${err.message}` });
-        } else if (err) {
-            console.error('Unknown Multer Error:', err);
-            return res.status(500).json({ message: 'Error processing file upload.' });
-        }
-        
-        const userId = req.userId;
-        
-        // Form fields are now in req.body. Note: all amounts will be strings.
-        const { 
-            shippingAddress: shippingAddressString, 
-            paymentMethod, 
-            totalAmount: totalAmountString, 
-            // ⭐ ADDED: Subtotal, Shipping Fee, and Tax fields must be extracted
-            subtotal: subtotalString,
-            shippingFee: shippingFeeString,
-            tax: taxString 
-        } = req.body;
-        
-        const receiptFile = req.file; // The uploaded file buffer is here
-        
-        // Convert string fields back to their proper type
-        const totalAmount = parseFloat(totalAmountString);
-        // ⭐ ADDED: Financial breakdown conversion
-        const subtotal = parseFloat(subtotalString || '0');
-        const shippingFee = parseFloat(shippingFeeString || '0');
-        const tax = parseFloat(taxString || '0');
+    
+    // 1. Run the Multer middleware to process the form data and file
+    singleReceiptUpload(req, res, async (err) => {
+        
+        // Handle Multer errors (e.g., file size limit)
+        if (err instanceof multer.MulterError) {
+            return res.status(400).json({ message: `File upload failed: ${err.message}` });
+        } else if (err) {
+            console.error('Unknown Multer Error:', err);
+            return res.status(500).json({ message: 'Error processing file upload.' });
+        }
+        
+        const userId = req.userId;
+        
+        // Form fields are now in req.body. Note: all amounts will be strings.
+        const { 
+            shippingAddress: shippingAddressString, 
+            paymentMethod, 
+            totalAmount: totalAmountString, 
+            // ⭐ ADDED: Subtotal, Shipping Fee, and Tax fields must be extracted
+            subtotal: subtotalString,
+            shippingFee: shippingFeeString,
+            tax: taxString 
+        } = req.body;
+        
+        const receiptFile = req.file; // The uploaded file buffer is here
+        
+        // Convert string fields back to their proper type
+        const totalAmount = parseFloat(totalAmountString);
+        // ⭐ UPDATED: Financial breakdown conversion
+        const subtotal = parseFloat(subtotalString || '0');
+        const shippingFee = parseFloat(shippingFeeString || '0');
+        const tax = parseFloat(taxString || '0');
 
-        let shippingAddress;
+        let shippingAddress;
 
-        // --- START: UPDATED ROBUST PARSING LOGIC ---
-        try {
-            // Check if the string is empty or null BEFORE attempting JSON.parse.
-            if (!shippingAddressString || shippingAddressString.trim() === '') {
-                // Set to null so the subsequent validation block can catch it.
-                shippingAddress = null; 
-            } else {
-                shippingAddress = JSON.parse(shippingAddressString);
-            }
-        } catch (e) {
-            // This now strictly catches malformed JSON strings (e.g., missing double quotes on keys).
-            return res.status(400).json({ message: 'Invalid shipping address format. Ensure the address object is stringified correctly.' });
-        }
-        // --- END: UPDATED ROBUST PARSING LOGIC ---
-        
-        // 2. Critical Input Validation
-        if (!shippingAddress || totalAmount <= 0 || isNaN(totalAmount)) {
-            // The `shippingAddress` will be null if the string was empty/missing, triggering this message.
-            return res.status(400).json({ message: 'Missing shipping address or invalid total amount.' });
-        }
+        // --- START: UPDATED ROBUST PARSING LOGIC ---
+        try {
+            // Check if the string is empty or null BEFORE attempting JSON.parse.
+            if (!shippingAddressString || shippingAddressString.trim() === '') {
+                // Set to null so the subsequent validation block can catch it.
+                shippingAddress = null; 
+            } else {
+                shippingAddress = JSON.parse(shippingAddressString);
+            }
+        } catch (e) {
+            // This now strictly catches malformed JSON strings (e.g., missing double quotes on keys).
+            return res.status(400).json({ message: 'Invalid shipping address format. Ensure the address object is stringified correctly.' });
+        }
+        // --- END: UPDATED ROBUST PARSING LOGIC ---
+        
+        // 2. Critical Input Validation
+        if (!shippingAddress || totalAmount <= 0 || isNaN(totalAmount)) {
+            // The `shippingAddress` will be null if the string was empty/missing, triggering this message.
+            return res.status(400).json({ message: 'Missing shipping address or invalid total amount.' });
+        }
 
-        let paymentReceiptUrl = null;
-        
-        try {
-            // NEW VALIDATION: Ensure the receipt file is provided for a Bank Transfer
-            if (paymentMethod === 'Bank Transfer') {
-                if (!receiptFile) {
-                    return res.status(400).json({ message: 'Bank payment receipt image is required for a Bank Transfer order.' });
-                }
-                
-                // 3. Upload the receipt file to Backblaze B2
-                paymentReceiptUrl = await uploadFileToPermanentStorage(receiptFile);
-                
-                if (!paymentReceiptUrl) {
-                    throw new Error("Failed to get permanent URL after B2 upload.");
-                }
-            }
+        let paymentReceiptUrl = null;
+        
+        try {
+            // NEW VALIDATION: Ensure the receipt file is provided for a Bank Transfer
+            if (paymentMethod === 'Bank Transfer') {
+                if (!receiptFile) {
+                    return res.status(400).json({ message: 'Bank payment receipt image is required for a Bank Transfer order.' });
+                }
+                
+                // 3. Upload the receipt file to Backblaze B2
+                paymentReceiptUrl = await uploadFileToPermanentStorage(receiptFile);
+                
+                if (!paymentReceiptUrl) {
+                    throw new Error("Failed to get permanent URL after B2 upload.");
+                }
+            }
 
-            // 4. Retrieve the user's current cart items
-            const cart = await Cart.findOne({ userId }).lean();
+            // 4. Retrieve the user's current cart items
+            const cart = await Cart.findOne({ userId }).lean();
 
-            if (!cart || cart.items.length === 0) {
-                return res.status(400).json({ message: 'Cannot place order: Shopping bag is empty.' });
-            }
+            if (!cart || cart.items.length === 0) {
+                return res.status(400).json({ message: 'Cannot place order: Shopping bag is empty.' });
+            }
 
-            // 5. Create a new Order document with status 'Pending'
-          const orderItems = cart.items.map(item => ({
-            productId: item.productId,
-            // ✅ FIX/UPDATE: Include all fields required by the robust OrderItemSchema
-            name: item.name, 
-            imageUrl: item.imageUrl, // Mapped new field
-            productType: item.productType,
-            quantity: item.quantity,
-            priceAtTimeOfPurchase: item.price, // Store the price explicitly
-            variationIndex: item.variationIndex, // Mapped new field
-            size: item.size,
-            color: item.color,
-          }));
-            
-            // **CRITICAL: Generate a reference for bank transfer orders**
-            const orderRef = `MANUAL-${Date.now()}-${userId.substring(0, 5)}`; 
+            // 5. Create a new Order document with status 'Pending'
+          const orderItems = cart.items.map(item => ({
+            productId: item.productId,
+            // ✅ FIX/UPDATE: Include all fields required by the robust OrderItemSchema
+            name: item.name, 
+            imageUrl: item.imageUrl, // Mapped new field
+            productType: item.productType,
+            quantity: item.quantity,
+            priceAtTimeOfPurchase: item.price, // Store the price explicitly
+            variationIndex: item.variationIndex, // Mapped new field
+            size: item.size,
+            color: item.color,
+          }));
+            
+            // **CRITICAL: Generate a reference for bank transfer orders**
+            const orderRef = `MANUAL-${Date.now()}-${userId.substring(0, 5)}`; 
 
-            const newOrder = await Order.create({
-                userId: userId,
-                items: orderItems,
-                shippingAddress: shippingAddress,
-                totalAmount: totalAmount,
-                // ⭐ ADDED: Store the financial breakdown for record accuracy
-                subtotal: subtotal,
-                shippingFee: shippingFee,
-                tax: tax,
-                status: 'Pending', // Use capitalized status from schema enum
-                paymentMethod: paymentMethod,
-                orderReference: orderRef, 
-                amountPaidKobo: Math.round(totalAmount * 100),
-                paymentTxnId: orderRef, // Use the order reference as the txn ID for now
-                paymentReceiptUrl: paymentReceiptUrl, // Store the B2 permanent URL here
-            });
+            const newOrder = await Order.create({
+                userId: userId,
+                items: orderItems,
+                shippingAddress: shippingAddress,
+                totalAmount: totalAmount,
+                // ⭐ ADDED: Store the financial breakdown for record accuracy
+                subtotal: subtotal,
+                shippingFee: shippingFee,
+                tax: tax,
+                status: 'Pending', // Use capitalized status from schema enum
+                paymentMethod: paymentMethod,
+                orderReference: orderRef, 
+                amountPaidKobo: Math.round(totalAmount * 100),
+                paymentTxnId: orderRef, // Use the order reference as the txn ID for now
+                paymentReceiptUrl: paymentReceiptUrl, // Store the B2 permanent URL here
+            });
 
-            // 6. Clear the user's cart after successful order creation
-            await Cart.findOneAndUpdate(
-                { userId },
-                { items: [], updatedAt: Date.now() }
-            );
-            
-            console.log(`Pending Order created: ${newOrder._id}. Receipt URL: ${paymentReceiptUrl}`);
-            
-            // Extract first and last name from the parsed shipping address
-            const { firstName, lastName } = shippingAddress;
+            // 6. Clear the user's cart after successful order creation
+            await Cart.findOneAndUpdate(
+                { userId },
+                { items: [], updatedAt: Date.now() }
+            );
+            
+            console.log(`Pending Order created: ${newOrder._id}. Receipt URL: ${paymentReceiptUrl}`);
+            
+            // Extract first and last name from the parsed shipping address
+            const { firstName, lastName } = shippingAddress;
 
-            // Success response for the client-side JavaScript
-            res.status(201).json({
-                message: 'Pending order placed successfully. Awaiting payment verification.',
-                orderId: newOrder._id,
-                status: newOrder.status,
-                firstName: firstName,
-                lastName: lastName,
-                ReceiptUrl: paymentReceiptUrl
-            });
+            // Success response for the client-side JavaScript
+            res.status(201).json({
+                message: 'Pending order placed successfully. Awaiting payment verification.',
+                orderId: newOrder._id,
+                status: newOrder.status,
+                firstName: firstName,
+                lastName: lastName,
+                ReceiptUrl: paymentReceiptUrl
+            });
 
-        } catch (error) {
-            console.error('Error placing pending order:', error);
-            res.status(500).json({ message: 'Failed to create pending order due to a server error.' });
-        }
-    });
+        } catch (error) {
+            console.error('Error placing pending order:', error);
+            res.status(500).json({ message: 'Failed to create pending order due to a server error.' });
+        }
+    });
 }); 
+
 // 6. GET /api/orders/:orderId (Fetch Single Order Details - Protected)
 app.get('/api/orders/:orderId', verifyUserToken, async function (req, res) {
-    const orderId = req.params.orderId;
-    const userId = req.userId; // Set by verifyUserToken middleware
+    const orderId = req.params.orderId;
+    const userId = req.userId; // Set by verifyUserToken middleware
 
-    if (!orderId) {
-        return res.status(400).json({ message: 'Order ID is required.' });
-    }
-    if (!userId) {
-        return res.status(401).json({ message: 'Authentication required.' });
-    }
+    if (!orderId) {
+        return res.status(400).json({ message: 'Order ID is required.' });
+    }
+    if (!userId) {
+        return res.status(401).json({ message: 'Authentication required.' });
+    }
 
-    try {
-        // 1. Fetch the specific order document
-        const order = await Order.findOne({ 
-            _id: orderId, // Find by ID
-            userId: userId // AND ensure it belongs to the authenticated user
-        })
-        // ⭐ FIX: Ensure we select the new financial breakdown fields
-        .select('+subtotal +shippingFee +tax')
-        .lean();
+    try {
+        // 1. Fetch the specific order document
+        const order = await Order.findOne({ 
+            _id: orderId, // Find by ID
+            userId: userId // AND ensure it belongs to the authenticated user
+        })
+        // ⭐ FIX: Ensure we select the new financial breakdown fields
+        .select('+subtotal +shippingFee +tax')
+        .lean();
 
-        if (!order) {
-            return res.status(404).json({ message: 'Order not found or access denied.' });
-        }
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found or access denied.' });
+        }
 
-        // 2. Fetch Display Details for each item (Product Name, Image, etc.)
-        const productDetailsPromises = order.items.map(async (item) => {
-            // Use a copy of the item object for mutation
-            let displayItem = { ...item };
-            
-            // Prioritize saved data for name/image consistency at time of purchase
-            if (item.name && item.imageUrl) {
-                // If the order item already contains the name and image (which it should now)
-                displayItem.sku = `SKU-${item.productType.substring(0,3).toUpperCase()}-${item.size || 'UNK'}`;
-                delete displayItem._id; 
-                return displayItem;
-            }
-            
-            // Fallback to fetching product details if necessary (e.g., for old orders)
-            const Model = productModels[item.productType];
-            
-            if (!Model) {
-                console.warn(`[OrderDetails] Unknown product type: ${item.productType}`);
-                displayItem.name = item.name || 'Product Not Found';
-                displayItem.imageUrl = item.imageUrl || 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=Error';
-                displayItem.sku = 'N/A';
-            } else {
-                // Find the original product to get the display details
-                const product = await Model.findById(item.productId)
-                    .select('name imageUrls') // Only need display data
-                    .lean();
+        // 2. Fetch Display Details for each item (Product Name, Image, etc.)
+        const productDetailsPromises = order.items.map(async (item) => {
+            // Use a copy of the item object for mutation
+            let displayItem = { ...item };
+            
+            // Prioritize saved data for name/image consistency at time of purchase
+            if (item.name && item.imageUrl) {
+                // If the order item already contains the name and image (which it should now)
+                displayItem.sku = `SKU-${item.productType.substring(0,3).toUpperCase()}-${item.size || 'UNK'}`;
+                delete displayItem._id; 
+                return displayItem;
+            }
+            
+            // Fallback to fetching product details if necessary (e.g., for old orders)
+            const Model = productModels[item.productType];
+            
+            if (!Model) {
+                console.warn(`[OrderDetails] Unknown product type: ${item.productType}`);
+                displayItem.name = item.name || 'Product Not Found';
+                displayItem.imageUrl = item.imageUrl || 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=Error';
+                displayItem.sku = 'N/A';
+            } else {
+                // Find the original product to get the display details
+                const product = await Model.findById(item.productId)
+                    .select('name imageUrls') // Only need display data
+                    .lean();
 
-                displayItem.name = item.name || (product ? product.name : 'Product Deleted');
+                displayItem.name = item.name || (product ? product.name : 'Product Deleted');
                 // Use the saved imageUrl if available, otherwise fallback to the first product image
-                displayItem.imageUrl = item.imageUrl || (product && product.imageUrls && product.imageUrls.length > 0 ? product.imageUrls[0] : 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=No+Image');
-                displayItem.sku = `SKU-${item.productType.substring(0,3).toUpperCase()}-${item.size || 'UNK'}`;
-            }
-            
-            // Clean up the Mongoose virtual _id field before sending
-            delete displayItem._id; 
-            
-            return displayItem;
-        });
+                displayItem.imageUrl = item.imageUrl || (product && product.imageUrls && product.imageUrls.length > 0 ? product.imageUrls[0] : 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=No+Image');
+                displayItem.sku = `SKU-${item.productType.substring(0,3).toUpperCase()}-${item.size || 'UNK'}`;
+            }
+            
+            // Clean up the Mongoose virtual _id field before sending
+            delete displayItem._id; 
+            
+            return displayItem;
+        });
 
-        // Resolve all concurrent product detail fetches
-        const populatedItems = await Promise.all(productDetailsPromises);
-        
-        // 3. Construct the final response object, now correctly reading the financial breakdown
-        const finalOrderDetails = {
-            ...order,
-            items: populatedItems,
-            // ⭐ FIX: Read the actual stored financial breakdown, falling back to stored data/zero if undefined
-            subtotal: order.subtotal !== undefined ? order.subtotal : order.totalAmount, 
-            shippingFee: order.shippingFee || 0.00, 
-            tax: order.tax || 0.00 
-        };
+        // Resolve all concurrent product detail fetches
+        const populatedItems = await Promise.all(productDetailsPromises);
+        
+        // 3. Construct the final response object, now correctly reading the financial breakdown
+        const finalOrderDetails = {
+            ...order,
+            items: populatedItems,
+            // ⭐ FIX/UPDATE: Read the actual stored financial breakdown, falling back to stored data/zero if undefined
+            // If subtotal is undefined, approximate it by subtracting fees from the total amount.
+            subtotal: order.subtotal !== undefined 
+                ? order.subtotal 
+                : (order.totalAmount - (order.shippingFee || 0.00) - (order.tax || 0.00)), 
+            shippingFee: order.shippingFee || 0.00, 
+            tax: order.tax || 0.00 
+        };
 
-        // 4. Send the populated details to the frontend
-        res.status(200).json(finalOrderDetails);
+        // 4. Send the populated details to the frontend
+        res.status(200).json(finalOrderDetails);
 
-    } catch (error) {
-        console.error('Error fetching order details:', error);
-        res.status(500).json({ message: 'Failed to retrieve order details due to a server error.' });
-    }
+    } catch (error) {
+        console.error('Error fetching order details:', error);
+        res.status(500).json({ message: 'Failed to retrieve order details due to a server error.' });
+    }
 });
 
 // =========================================================

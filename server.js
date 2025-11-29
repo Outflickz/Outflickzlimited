@@ -891,6 +891,9 @@ function getProductModel(productType) {
  * ====================================================================================
  * Handles inventory deduction when an order is completed, deducting stock from the 
  * specific product variation/size. Uses a MongoDB Transaction for atomicity.
+ * * NOTE: Assumes the existence of:
+ * - mongoose, Order (Mongoose Model)
+ * - getProductModel(type): Function to fetch the correct Product Model (e.g., WearsCollectionModel)
  * * @param {string} orderId The ID of the completed order.
  * @returns {Promise<Object>} The updated Mongoose Order document.
  */
@@ -898,14 +901,11 @@ async function processOrderCompletion(orderId) {
     // 1. Start a Mongoose session for atomicity (crucial for inventory)
     const session = await mongoose.startSession();
     session.startTransaction();
-    let order = null; 
-
-    // ✅ FIX 2: Define OrderModel here so it is accessible in the catch block 
-    // for the non-transactional failure update.
-    const OrderModel = mongoose.models.Order || mongoose.model('Order');
+    let order = null; // Declared outside the try block for access in catch/finally
 
     try {
         // Fetch the order within the transaction
+        const OrderModel = mongoose.models.Order || mongoose.model('Order'); // Assumes Order model exists
         order = await OrderModel.findById(orderId).session(session);
 
         // 1.1 Initial check
@@ -919,10 +919,9 @@ async function processOrderCompletion(orderId) {
 
         // 2. Loop through each item to deduct stock from the specific collection/variation
         for (const item of order.items) {
-            
-            // ✅ FIX 3: Replace the placeholder with the correct utility function call.
-            const ProductModel = getProductModel(item.productType); 
-            
+            // Assume item includes productId, productType, variationIndex, size, and quantity
+            // NOTE: In a real app, you must implement getProductModel()
+            const ProductModel = WearsCollectionModel; // Placeholder/Mock for getProductModel(item.productType)
             const quantityOrdered = item.quantity;
 
             // 3. ATOMIC DEDUCTION LOGIC FOR VARIATION STOCK
@@ -982,10 +981,9 @@ async function processOrderCompletion(orderId) {
             // Ensure notes is an array before pushing
             if (!order.notes) order.notes = []; 
             order.notes.push(`Inventory deduction failed for: ${error.message}`);
-            
             // Save the failure state OUTSIDE the main transaction so it persists after rollback.
             try {
-                // OrderModel is correctly scoped here now.
+                // If Order model is available, use findByIdAndUpdate for a quick, non-transactional update
                 await OrderModel.findByIdAndUpdate(orderId, { 
                     status: 'Inventory Failure (Manual Review)', 
                     $push: { notes: `Inventory deduction failed on ${new Date().toISOString()}: ${error.message}` } 
@@ -1010,7 +1008,6 @@ async function processOrderCompletion(orderId) {
     }
 }
 module.exports = {
-    getProductModel, // Exporting the utility function too
     processOrderCompletion,
 };
 

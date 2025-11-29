@@ -906,6 +906,7 @@ async function processOrderCompletion(orderId) {
     session.startTransaction();
 
     try {
+        // Fetch the order within the transaction
         const order = await Order.findById(orderId).session(session);
         
         // 1.1 Initial check
@@ -916,18 +917,18 @@ async function processOrderCompletion(orderId) {
             await session.abortTransaction();
             console.warn(`Order ${orderId} skipped: not found or status is ${order?.status}. Inventory deduction aborted.`);
             
-            // ✅ CRITICAL FIX: Return the existing order object to prevent TypeError (undefined) in the calling function.
+            // Return the existing order object to prevent TypeError (undefined) in the calling function.
             return order; 
         }
         
         // 2. Loop through each item to deduct stock from the specific collection/variation
         for (const item of order.items) {
+            // Assume item includes productId, productType, variationIndex, size, and quantity
             const ProductModel = getProductModel(item.productType);
             const quantityOrdered = item.quantity;
             
             // 3. ATOMIC DEDUCTION LOGIC FOR VARIATION STOCK
-            // 🛑 FIX APPLIED: Use positional operator $[] with arrayFilters for nested arrays.
-            // This is the most robust way to handle nested array updates in Mongoose/MongoDB.
+            // Use positional operator $[] with arrayFilters for nested arrays for atomicity.
             const updatedProduct = await ProductModel.findOneAndUpdate(
                 { 
                     _id: item.productId, 
@@ -942,7 +943,7 @@ async function processOrderCompletion(orderId) {
                     }
                 },
                 { 
-                    // CRITICAL FIX: Decrement the stock in the nested 'sizes' array and totalStock
+                    // Decrement the stock in the nested 'sizes' array and totalStock
                     $inc: { 
                         'variations.$[var].sizes.$[size].stock': -quantityOrdered, // Decrement stock in the nested sizes array
                         'totalStock': -quantityOrdered // Decrement the top-level totalStock
@@ -977,8 +978,10 @@ async function processOrderCompletion(orderId) {
 
     } catch (error) {
         // Rollback on any failure
-        // ✅ CENTRALIZED ABORT: This single call now handles all failures (including the inventory check above).
-        await session.abortTransaction(); 
+        // CENTRALIZED ABORT: This single call now handles all failures.
+        if (session.inTransaction()) {
+            await session.abortTransaction();
+        }
         console.error('Inventory Deduction failed during order processing:', error.message);
         // Re-throw the error so the parent route can catch it and handle the manual review flag
         throw error;

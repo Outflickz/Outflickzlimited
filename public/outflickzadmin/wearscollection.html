@@ -737,7 +737,6 @@ async function quickRestockAndActivate(collectionId, collectionName, currentPric
     }
 }
 
-// --- FORM SECTION MANAGEMENT ---
 
 /**
  * Function to add a product section (variation).
@@ -990,10 +989,48 @@ function updateColorPreview(colorValue, previewId) {
         }
     }
 }
+/**
+ * CRITICAL NOTE: This file assumes the existence of several helper functions 
+ * and variables in the global scope (e.g., API_BASE_URL, collectionIdToUpdate, 
+ * productSectionsContainer, submitBtn, showErrorModal, showSuccessModal, 
+ * getAuthToken, resetFormSubmitButtonState, resetForm, fetchCollections).
+ * * This update focuses ONLY on correcting the data collection and payload structure 
+ * in handleCollectionSubmit to match the backend's expectation of a top-level 
+ * 'sizesAndStock' array, while preserving the corrected file upload naming.
+ */
+
+// Helper to safely get size/stock inputs from a variation section
+function getVariationSizes(section, variationIndex) {
+    const sizeInputs = Array.from(section.querySelectorAll(`[name="variation-size-${variationIndex}"]`));
+    const stockInputs = Array.from(section.querySelectorAll(`[name="variation-stock-${variationIndex}"]`));
+    
+    const sizes = [];
+    let variationStock = 0;
+    
+    for (let i = 0; i < sizeInputs.length; i++) {
+        const size = sizeInputs[i].value.trim().toUpperCase(); // Normalize size
+        const stock = parseInt(stockInputs[i].value, 10);
+        
+        if (!size || isNaN(stock) || stock < 0) {
+            return { error: `Invalid size or stock value: Size: ${size}, Stock: ${stock}` };
+        }
+        
+        sizes.push({ size, stock });
+        variationStock += stock;
+    }
+    
+    if (sizes.length === 0) {
+        return { error: `Must have at least one size and stock specified.` };
+    }
+
+    return { sizes, variationStock };
+}
 
 /**
  * Handles the form submission (CREATE or UPDATE).
- * CRITICAL UPDATE: Rewritten to use FormData for file uploads.
+ * CRITICAL UPDATE: Restructured payload to separate 'variations' (images/colors) 
+ * from the top-level 'sizesAndStock' (all sizes/stock across all variations)
+ * to match the updated Mongoose schema structure.
  */
 async function handleCollectionSubmit(event) {
     event.preventDefault();
@@ -1009,6 +1046,7 @@ async function handleCollectionSubmit(event) {
 
     const token = getAuthToken();
     if (!token) {
+        showErrorModal("Authentication token missing.");
         resetFormSubmitButtonState(isUpdate);
         return;
     }
@@ -1017,7 +1055,10 @@ async function handleCollectionSubmit(event) {
     let totalStock = 0;
     const variations = [];
     
-    // 1. Collect form data and build the variations array
+    // CRITICAL: New Map to hold ALL unique size/stock combinations for the top-level schema field
+    // We use a Map keyed by size + variationIndex to ensure no duplicate entries are mistakenly processed.
+    const sizesAndStockMap = new Map();
+
     const variationSections = Array.from(productSectionsContainer.children).filter(el => el.id.startsWith('variation-section-'));
 
     if (variationSections.length === 0) {
@@ -1029,20 +1070,20 @@ async function handleCollectionSubmit(event) {
     for (const [index, section] of variationSections.entries()) {
         const variationIndex = index + 1; // 1-based index
         
-        // --- 1a. Collect image files and existing URLs ---
+        // --- 1a. Collect image files and existing URLs (Image handling logic is correct) ---
         const frontFileInput = section.querySelector(`[name="front-view-upload-${variationIndex}"]`);
         const backFileInput = section.querySelector(`[name="back-view-upload-${variationIndex}"]`);
         const existingFrontUrlInput = section.querySelector(`[name="existingFrontImageUrl"]`);
         const existingBackUrlInput = section.querySelector(`[name="existingBackImageUrl"]`);
 
         // Check for required files/existing URLs
-        if ((!frontFileInput || frontFileInput.files.length === 0) && !existingFrontUrlInput) {
-            showErrorModal(`Missing Front Image in Variation #${variationIndex}. Please upload a file or ensure existing data is present.`);
+        if ((!frontFileInput || frontFileInput.files.length === 0) && !existingFrontUrlInput?.value) {
+            showErrorModal(`Missing Front Image in Variation #${variationIndex}.`);
             resetFormSubmitButtonState(isUpdate);
             return;
         }
-        if ((!backFileInput || backFileInput.files.length === 0) && !existingBackUrlInput) {
-            showErrorModal(`Missing Back Image in Variation #${variationIndex}. Please upload a file or ensure existing data is present.`);
+        if ((!backFileInput || backFileInput.files.length === 0) && !existingBackUrlInput?.value) {
+            showErrorModal(`Missing Back Image in Variation #${variationIndex}.`);
             resetFormSubmitButtonState(isUpdate);
             return;
         }
@@ -1050,71 +1091,82 @@ async function handleCollectionSubmit(event) {
         // --- 1b. Collect variation data fields (color, sizes) ---
         const colorHex = section.querySelector(`[name="colorHexText"]`).value;
         const variationId = section.querySelector(`[name="variationId"]`)?.value || null;
+
+        const sizeResult = getVariationSizes(section, variationIndex);
         
-        const sizes = [];
-        let variationStock = 0;
-
-        // Collect all Size/Stock pairs for this variation
-        const sizeInputs = Array.from(section.querySelectorAll(`[name="variation-size-${variationIndex}"]`));
-        const stockInputs = Array.from(section.querySelectorAll(`[name="variation-stock-${variationIndex}"]`));
-
-        if (sizeInputs.length === 0) {
-            showErrorModal(`Variation #${variationIndex} must have at least one size and stock specified.`);
+        if (sizeResult.error) {
+            showErrorModal(`Variation #${variationIndex} error: ${sizeResult.error}`);
             resetFormSubmitButtonState(isUpdate);
             return;
         }
-
-        for (let i = 0; i < sizeInputs.length; i++) {
-            const size = sizeInputs[i].value.trim().toUpperCase(); // Normalize size
-            const stock = parseInt(stockInputs[i].value, 10);
-
-            if (!size || isNaN(stock) || stock < 0) {
-                showErrorModal(`Invalid size or stock in Variation #${variationIndex}.`);
-                resetFormSubmitButtonState(isUpdate);
-                return;
-            }
-            
-            sizes.push({ size, stock });
-            variationStock += stock;
-        }
+        
+        const { sizes, variationStock } = sizeResult;
         
         totalStock += variationStock; // Calculate cumulative total stock
 
+        // CRITICAL: Aggregate stock data for the top-level 'sizesAndStock' array
+        for (const item of sizes) {
+            // Use a unique key combining size and index to prevent accidental overwrites 
+            // if we later decide to merge data (though for now, we just list every size/stock pair).
+            const sizesAndStockKey = `${item.size}-${variationIndex}`; 
+
+            if (!sizesAndStockMap.has(sizesAndStockKey)) {
+                sizesAndStockMap.set(sizesAndStockKey, {
+                    size: item.size,
+                    stock: item.stock,
+                    variationIndex: variationIndex, // Useful reference for the backend
+                });
+            } else {
+                 // Safety check: a size/index combination should always be unique
+                 showErrorModal(`Internal error: Duplicate size '${item.size}' detected within variation processing.`);
+                 resetFormSubmitButtonState(isUpdate);
+                 return;
+            }
+        }
+
+
+        // Push the variation data WITHOUT the 'sizes' array (as it's now top-level)
         variations.push({
             variationIndex,
             colorHex,
-            sizes,
-            // Pass the existing URLs so the backend knows not to delete them if no new file is uploaded
+            // frontImageUrl and backImageUrl are placeholders for existing URLs
             existingFrontImageUrl: existingFrontUrlInput?.value || null,
             existingBackImageUrl: existingBackUrlInput?.value || null,
+            // Include Mongoose ID for updating existing variations
             ...(variationId && { _id: variationId })
         });
 
-        // --- 1c. Append files to FormData with unique keys for the backend to process ---
+        // --- 1c. Append files to FormData with the CORRECT keys ---
         if (frontFileInput.files.length > 0) {
-             // The backend will look for a file named like 'variation-1-front'
-             formData.append(`variation-${variationIndex}-front`, frontFileInput.files[0]);
+            formData.append(`front-view-upload-${variationIndex}`, frontFileInput.files[0]);
         }
         if (backFileInput.files.length > 0) {
-             formData.append(`variation-${variationIndex}-back`, backFileInput.files[0]);
+            formData.append(`back-view-upload-${variationIndex}`, backFileInput.files[0]);
         }
     }
 
+    // Convert the map values into the final array structure
+    const sizesAndStock = Array.from(sizesAndStockMap.values());
+    
     // 2. Add main payload data to FormData (JSON stringified)
     const mainPayload = {
         name: document.getElementById('collection-name').value,
         tag: document.getElementById('collection-description').value,
         price: parseFloat(document.getElementById('collection-price').value),
         isActive: document.getElementById('is-active').checked, 
-        totalStock: document.getElementById('is-active').checked ? totalStock : 0,
-        // CRITICAL: Send the structured variations array as a JSON string
+        totalStock: totalStock, // Calculated total stock for the entire collection
+        
+        // CRITICAL: Send the required top-level size and stock array
+        sizesAndStock: sizesAndStock,
+        
+        // Send the structured variations array (now only containing color/image/ID info)
         variations: variations, 
     };
-
+    
     // Append the JSON payload as a single string field
-formData.append('collectionData', JSON.stringify(mainPayload));
+    formData.append('collectionData', JSON.stringify(mainPayload));
 
-    // 3. Send API Request using FormData
+    // 3. Send API Request using FormData (Same logic as before)
     const method = collectionIdToUpdate ? 'PUT' : 'POST';
     const url = collectionIdToUpdate ? `${API_BASE_URL}/${collectionIdToUpdate}` : API_BASE_URL;
     
@@ -1122,25 +1174,20 @@ formData.append('collectionData', JSON.stringify(mainPayload));
         const response = await fetch(url, {
             method: method,
             headers: { 
-                // IMPORTANT: DO NOT set Content-Type header when using FormData. The browser handles it.
                 'Authorization': `Bearer ${token}` 
+                // DO NOT set Content-Type header when using FormData.
             },
-            // CRITICAL: Send the FormData object directly
             body: formData 
         });
 
         if (!response.ok) {
-            // Read the response text once, regardless of content type
             const errorText = await response.text(); 
-            
             let errorMessage = `Server returned status ${response.status}.`;
 
             try {
-                // Attempt to parse the body as JSON
                 const errorData = JSON.parse(errorText);
                 errorMessage = errorData.message || errorData.details || 'Operation failed due to a server error.';
             } catch (e) {
-                // If JSON parsing fails, use the raw text
                 errorMessage += ` Raw response: ${errorText.substring(0, 100)}...`;
             }
 

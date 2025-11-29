@@ -1112,8 +1112,8 @@ async function handleCollectionSubmit(event) {
     };
 
     // Append the JSON payload as a single string field
-    formData.append('data', JSON.stringify(mainPayload));
-    
+formData.append('collectionData', JSON.stringify(mainPayload));
+
     // 3. Send API Request using FormData
     const method = collectionIdToUpdate ? 'PUT' : 'POST';
     const url = collectionIdToUpdate ? `${API_BASE_URL}/${collectionIdToUpdate}` : API_BASE_URL;
@@ -1130,15 +1130,21 @@ async function handleCollectionSubmit(event) {
         });
 
         if (!response.ok) {
-            // ... Error handling remains the same ...
-            let errorData;
+            // Read the response text once, regardless of content type
+            const errorText = await response.text(); 
+            
+            let errorMessage = `Server returned status ${response.status}.`;
+
             try {
-                errorData = await response.json();
+                // Attempt to parse the body as JSON
+                const errorData = JSON.parse(errorText);
+                errorMessage = errorData.message || errorData.details || 'Operation failed due to a server error.';
             } catch (e) {
-                const errorText = await response.text();
-                throw new Error(`Server returned status ${response.status}. Raw response: ${errorText.substring(0, 100)}...`);
+                // If JSON parsing fails, use the raw text
+                errorMessage += ` Raw response: ${errorText.substring(0, 100)}...`;
             }
-            throw new Error(errorData.message || 'Operation failed due to a server error.');
+
+            throw new Error(errorMessage);
         }
 
         const data = await response.json();

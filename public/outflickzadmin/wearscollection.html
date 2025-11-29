@@ -990,15 +990,6 @@ function updateColorPreview(colorValue, previewId) {
     }
 }
 
-/**
- * CRITICAL NOTE: This file assumes the existence of several helper functions 
- * and variables in the global scope (e.g., API_BASE_URL, collectionIdToUpdate, 
- * productSectionsContainer, submitBtn, showErrorModal, showSuccessModal, 
- * getAuthToken, resetFormSubmitButtonState, resetForm, fetchCollections).
- * * * FIX: Added a template function, quickRestockAndActivate, to address the 
- * server error for simple PUT requests by ensuring the payload contains 
- * 'sizesAndStock' and 'isActive'.
- */
 
 // Helper to safely get size/stock inputs from a variation section
 function getVariationSizes(section, variationIndex) {
@@ -1026,6 +1017,7 @@ function getVariationSizes(section, variationIndex) {
 
     return { sizes, variationStock };
 }
+
 
 /**
  * Handles the form submission (CREATE or UPDATE) for the full form (including file uploads).

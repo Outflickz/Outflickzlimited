@@ -753,6 +753,7 @@ function addProductSection(variationData = null) {
 
     // Data for pre-populating inputs if editing
     const variationId = variationData ? variationData._id : '';
+    // REVERTED to use standard URL strings for JSON submission
     const frontUrl = variationData ? variationData.frontImageUrl : '';
     const backUrl = variationData ? variationData.backImageUrl : '';
     const colorHex = variationData ? variationData.colorHex : '#10B981';
@@ -781,39 +782,33 @@ function addProductSection(variationData = null) {
                 </div>
             </div>
 
-            <!-- --- MODIFICATION: Replaced URL input with File input for Front Image --- -->
             <div>
-                <label for="front-view-upload-${index}" class="block text-sm font-medium text-gray-700">Front Image Upload</label>
-                <input type="file" id="front-view-upload-${index}" 
-                    name="front-view-upload-${index}" 
-                    accept="image/*" 
-                    class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
-                    ${!frontUrl ? 'required' : ''}>
+                <label for="front-image-url-${index}" class="block text-sm font-medium text-gray-700">Front Image URL</label>
+                <input type="url" id="front-image-url-${index}" 
+                    name="frontImageUrl" 
+                    value="${frontUrl}"
+                    required 
+                    placeholder="e.g., https://i.imgur.com/image.png"
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
                 
                 ${frontUrl 
-                    ? `
-                    <p class="mt-1 text-xs text-gray-500">Current image exists. Upload a new file to replace it.</p>
-                    <img src="${frontUrl}" alt="Current Front Preview" class="mt-2 max-w-full h-auto rounded-lg shadow-md max-h-32 object-contain" />
-                    ` 
-                    : '<p class="mt-1 text-xs text-red-500">Required for new variations.</p>'
+                    ? `<img src="${frontUrl}" alt="Current Front Preview" class="mt-2 max-w-full h-auto rounded-lg shadow-md max-h-32 object-contain" />` 
+                    : '<p class="mt-1 text-xs text-red-500">Required: External image link.</p>'
                 }
             </div>
             
-            <!-- --- MODIFICATION: Replaced URL input with File input for Back Image --- -->
             <div>
-                <label for="back-view-upload-${index}" class="block text-sm font-medium text-gray-700">Back Image Upload</label>
-                <input type="file" id="back-view-upload-${index}" 
-                    name="back-view-upload-${index}" 
-                    accept="image/*" 
-                    class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
-                    ${!backUrl ? 'required' : ''}>
+                <label for="back-image-url-${index}" class="block text-sm font-medium text-gray-700">Back Image URL</label>
+                <input type="url" id="back-image-url-${index}" 
+                    name="backImageUrl" 
+                    value="${backUrl}"
+                    required 
+                    placeholder="e.g., https://i.imgur.com/image_back.png"
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
                 
                 ${backUrl 
-                    ? `
-                    <p class="mt-1 text-xs text-gray-500">Current image exists. Upload a new file to replace it.</p>
-                    <img src="${backUrl}" alt="Current Back Preview" class="mt-2 max-w-full h-auto rounded-lg shadow-md max-h-32 object-contain" />
-                    ` 
-                    : '<p class="mt-1 text-xs text-red-500">Required for new variations.</p>'
+                    ? `<img src="${backUrl}" alt="Current Back Preview" class="mt-2 max-w-full h-auto rounded-lg shadow-md max-h-32 object-contain" />` 
+                    : '<p class="mt-1 text-xs text-red-500">Required: External image link.</p>'
                 }
             </div>
         </div>

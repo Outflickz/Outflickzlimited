@@ -1731,7 +1731,6 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
         ).lean();
 
         // 💡 CRITICAL FIX: Check if the order was successfully found and updated.
-        // This prevents the TypeError you were seeing if the order was not 'Pending'.
         if (!updatedOrder) {
             console.warn(`Order ${orderId} skipped: not found or status is not pending.`);
             // Use 409 Conflict to indicate that the request could not be completed due to the resource's state.
@@ -1747,8 +1746,11 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
         } catch (inventoryError) {
             // Rollback status if inventory fails
             console.error('Inventory deduction failed during Admin confirmation:', inventoryError.message);
+            
+            // ⭐ FIX APPLIED HERE: The status must be 'Inventory Failure (Manual Review)' 
+            // to align with the processOrderCompletion function and schema enum.
             await Order.findByIdAndUpdate(orderId, { 
-                status: 'Amount Mismatch (Manual Review)', 
+                status: 'Inventory Failure (Manual Review)', 
                 $push: { notes: `Inventory deduction failed on ${new Date().toISOString()}: ${inventoryError.message}` }
             });
             
@@ -4312,8 +4314,6 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
         res.status(500).json({ message: 'Failed to dispatch admin email notification due to server error.' });
     }
 });
-// --- END: ADMIN ORDER EMAIL NOTIFICATION ROUTE -
-
 
 // =========================================================
 // 7. POST /api/orders/place/pending - Create a Pending Order (Protected)
@@ -4403,14 +4403,14 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
 
             // 5. Create a new Order document with status 'Pending'
           const orderItems = cart.items.map(item => ({
-    productId: item.productId,
-    // ✅ FIX: Include the required name field from the cart item
-    name: item.name, 
-    productType: item.productType,
-    quantity: item.quantity,
-    priceAtTimeOfPurchase: item.price, // Store the price explicitly
-    size: item.size,
-    color: item.color,
+    productId: item.productId,
+    // ✅ FIX: Include the required name field from the cart item
+    name: item.name, 
+    productType: item.productType,
+    quantity: item.quantity,
+    priceAtTimeOfPurchase: item.price, // Store the price explicitly
+    size: item.size,
+    color: item.color,
 }));
             
             // **CRITICAL: Generate a reference for bank transfer orders**
@@ -4463,195 +4463,198 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
 
 // 6. GET /api/orders/:orderId (Fetch Single Order Details - Protected)
 app.get('/api/orders/:orderId', verifyUserToken, async function (req, res) {
-    const orderId = req.params.orderId;
-    const userId = req.userId; // Set by verifyUserToken middleware
+    const orderId = req.params.orderId;
+    const userId = req.userId; // Set by verifyUserToken middleware
 
-    if (!orderId) {
-        return res.status(400).json({ message: 'Order ID is required.' });
-    }
-    if (!userId) {
-        return res.status(401).json({ message: 'Authentication required.' });
-    }
+    if (!orderId) {
+        return res.status(400).json({ message: 'Order ID is required.' });
+    }
+    if (!userId) {
+        return res.status(401).json({ message: 'Authentication required.' });
+    }
 
-    try {
-        // 1. Fetch the specific order document
-        const order = await Order.findOne({ 
-            _id: orderId, // Find by ID
-            userId: userId // AND ensure it belongs to the authenticated user
-        }).lean();
+    try {
+        // 1. Fetch the specific order document
+        const order = await Order.findOne({ 
+            _id: orderId, // Find by ID
+            userId: userId // AND ensure it belongs to the authenticated user
+        })
+        // ⭐ FIX: Ensure we select the new financial breakdown fields
+        .select('+subtotal +shippingFee +tax')
+        .lean();
 
-        if (!order) {
-            return res.status(404).json({ message: 'Order not found or access denied.' });
-        }
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found or access denied.' });
+        }
 
-        // 2. Fetch Display Details for each item (Product Name, Image, etc.)
-        const productDetailsPromises = order.items.map(async (item) => {
-            // Use a copy of the item object for mutation
-            let displayItem = { ...item };
-            
-            const Model = productModels[item.productType];
-            
-            if (!Model) {
-                console.warn(`[OrderDetails] Unknown product type: ${item.productType}`);
-                displayItem.name = 'Product Not Found';
-                displayItem.imageUrl = 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=Error';
-                displayItem.sku = 'N/A';
-            } else {
-                // Find the original product to get the display details
-                const product = await Model.findById(item.productId)
-                    .select('name imageUrls') // Only need display data
-                    .lean();
+        // 2. Fetch Display Details for each item (Product Name, Image, etc.)
+        const productDetailsPromises = order.items.map(async (item) => {
+            // Use a copy of the item object for mutation
+            let displayItem = { ...item };
+            
+            const Model = productModels[item.productType];
+            
+            if (!Model) {
+                console.warn(`[OrderDetails] Unknown product type: ${item.productType}`);
+                displayItem.name = 'Product Not Found';
+                displayItem.imageUrl = 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=Error';
+                displayItem.sku = 'N/A';
+            } else {
+                // Find the original product to get the display details
+                const product = await Model.findById(item.productId)
+                    .select('name imageUrls') // Only need display data
+                    .lean();
 
-                // Structure the item for the frontend
-                displayItem.name = product ? product.name : 'Product Deleted';
-                displayItem.imageUrl = product && product.imageUrls && product.imageUrls.length > 0 ? product.imageUrls[0] : 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=No+Image';
-                displayItem.sku = `SKU-${item.productType.substring(0,3).toUpperCase()}-${item.size || 'UNK'}`;
-            }
-            
-            // Clean up the Mongoose virtual _id field before sending
-            delete displayItem._id; 
-            
-            return displayItem;
-        });
+                // Structure the item for the frontend
+                displayItem.name = product ? product.name : 'Product Deleted';
+                displayItem.imageUrl = product && product.imageUrls && product.imageUrls.length > 0 ? product.imageUrls[0] : 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=No+Image';
+                displayItem.sku = `SKU-${item.productType.substring(0,3).toUpperCase()}-${item.size || 'UNK'}`;
+            }
+            
+            // Clean up the Mongoose virtual _id field before sending
+            delete displayItem._id; 
+            
+            return displayItem;
+        });
 
-        // Resolve all concurrent product detail fetches
-        const populatedItems = await Promise.all(productDetailsPromises);
-        
-        // 3. Construct the final response object, including placeholders
-        const finalOrderDetails = {
-            ...order,
-            items: populatedItems,
-            // Add placeholders needed by the frontend for accurate financial breakdown
-            subtotal: order.totalAmount, 
-            shippingFee: 0.00, // Assuming 0 if not tracked on the order schema
-            tax: 0.00 // Assuming 0 if not tracked on the order schema
-        };
+        // Resolve all concurrent product detail fetches
+        const populatedItems = await Promise.all(productDetailsPromises);
+        
+        // 3. Construct the final response object, now correctly reading the financial breakdown
+        const finalOrderDetails = {
+            ...order,
+            items: populatedItems,
+            // ⭐ FIX: Read the actual stored financial breakdown, falling back to stored data/zero if undefined
+            subtotal: order.subtotal !== undefined ? order.subtotal : order.totalAmount, // Use subtotal if present, otherwise fall back to total
+            shippingFee: order.shippingFee || 0.00, 
+            tax: order.tax || 0.00 
+        };
 
-        // 4. Send the populated details to the frontend
-        res.status(200).json(finalOrderDetails);
+        // 4. Send the populated details to the frontend
+        res.status(200).json(finalOrderDetails);
 
-    } catch (error) {
-        console.error('Error fetching order details:', error);
-        res.status(500).json({ message: 'Failed to retrieve order details due to a server error.' });
-    }
+    } catch (error) {
+        console.error('Error fetching order details:', error);
+        res.status(500).json({ message: 'Failed to retrieve order details due to a server error.' });
+    }
 });
 
 // =========================================================
 // 2. GET /api/orders/history - Retrieve Order History (Protected)
 // =========================================================
 app.get('/api/orders/history', verifyUserToken, async (req, res) => {
-    try {
-        // req.userId is set by verifyUserToken middleware
-        const userId = req.userId;
+    try {
+        // req.userId is set by verifyUserToken middleware
+        const userId = req.userId;
 
-        if (!userId) {
-             // Should theoretically be caught by verifyUserToken, but serves as a safety check
-            return res.status(401).json({ message: 'Authentication required to view order history.' });
-        }
+        if (!userId) {
+             // Should theoretically be caught by verifyUserToken, but serves as a safety check
+            return res.status(401).json({ message: 'Authentication required to view order history.' });
+        }
 
-        // 1. Fetch orders from the database
-        const orders = await Order.find({ userId: userId })
-            // Select only the fields needed for the Order History table on the frontend:
-            .select('_id createdAt totalAmount status items')
-            // Sort by newest order first (descending by createdAt)
-            .sort({ createdAt: -1 })
-            .lean(); // Use .lean() for faster read operations
+        // 1. Fetch orders from the database
+        const orders = await Order.find({ userId: userId })
+            // Select only the fields needed for the Order History table on the frontend:
+            .select('_id createdAt totalAmount status items')
+            // Sort by newest order first (descending by createdAt)
+            .sort({ createdAt: -1 })
+            .lean(); // Use .lean() for faster read operations
 
-        // 2. Format the output data for the frontend
-        const formattedOrders = orders.map(order => ({
-            // Use MongoDB's _id as the unique identifier (Order ID)
-            id: order._id, 
-            date: order.createdAt, // The date the order was created/placed
-            total: order.totalAmount,
-            status: order.status.charAt(0).toUpperCase() + order.status.slice(1), // Capitalize status for display
-            // Count the number of distinct products/lines in the order
-            items: order.items.length 
-        }));
+        // 2. Format the output data for the frontend
+        const formattedOrders = orders.map(order => ({
+            // Use MongoDB's _id as the unique identifier (Order ID)
+            id: order._id, 
+            date: order.createdAt, // The date the order was created/placed
+            total: order.totalAmount,
+            status: order.status.charAt(0).toUpperCase() + order.status.slice(1), // Capitalize status for display
+            // Count the number of distinct products/lines in the order
+            items: order.items.length 
+        }));
 
-        // 3. Respond with the formatted order history list
-        res.status(200).json({
-            orders: formattedOrders,
-            message: 'Order history retrieved successfully.'
-        });
+        // 3. Respond with the formatted order history list
+        res.status(200).json({
+            orders: formattedOrders,
+            message: 'Order history retrieved successfully.'
+        });
 
-    } catch (error) {
-        console.error('Error fetching order history:', error);
-        res.status(500).json({ message: 'Failed to retrieve order history due to a server error.' });
-    }
+    } catch (error) {
+        console.error('Error fetching order history:', error);
+        res.status(500).json({ message: 'Failed to retrieve order history due to a server error.' });
+    }
 });
 
 // =========================================================
 // 3. PUT /api/orders/:orderId/cancel - Order Cancellation (Protected)
 // =========================================================
 app.put('/api/orders/:orderId/cancel', verifyUserToken, async (req, res) => {
-    const orderId = req.params.orderId;
-    const userId = req.userId;
+    const orderId = req.params.orderId;
+    const userId = req.userId;
 
-    if (!orderId) {
-        return res.status(400).json({ message: 'Order ID is required.' });
-    }
+    if (!orderId) {
+        return res.status(400).json({ message: 'Order ID is required.' });
+    }
 
-    try {
-        // Define which statuses are eligible for cancellation
-        const cancellableStatuses = ['pending', 'processing']; 
+    try {
+        // Define which statuses are eligible for cancellation
+        const cancellableStatuses = ['pending', 'processing']; 
 
-        // 1. Find the order and ensure ownership and cancellable status
-        const order = await Order.findOne({ 
-            _id: orderId, 
-            userId: userId,
-            status: { $in: cancellableStatuses } // Order must be in a cancellable state
-        });
+        // 1. Find the order and ensure ownership and cancellable status
+        const order = await Order.findOne({ 
+            _id: orderId, 
+            userId: userId,
+            status: { $in: cancellableStatuses } // Order must be in a cancellable state
+        });
 
-        if (!order) {
-            // This handles four scenarios: 
-            // 1. Order ID is invalid
-            // 2. Order belongs to another user (security)
-            // 3. Order is already cancelled
-            // 4. Order is in a non-cancellable state (e.g., 'shipped')
-            const existingOrder = await Order.findOne({ _id: orderId, userId: userId });
-            
-            if (existingOrder && !cancellableStatuses.includes(existingOrder.status)) {
-                 return res.status(400).json({ 
-                    message: `Cannot cancel order. Current status is '${existingOrder.status}'.` 
-                });
-            }
+        if (!order) {
+            // This handles four scenarios: 
+            // 1. Order ID is invalid
+            // 2. Order belongs to another user (security)
+            // 3. Order is already cancelled
+            // 4. Order is in a non-cancellable state (e.g., 'shipped')
+            const existingOrder = await Order.findOne({ _id: orderId, userId: userId });
+            
+            if (existingOrder && !cancellableStatuses.includes(existingOrder.status)) {
+                 return res.status(400).json({ 
+                    message: `Cannot cancel order. Current status is '${existingOrder.status}'.` 
+                });
+            }
 
-            return res.status(404).json({ message: 'Order not found or not eligible for cancellation.' });
-        }
-        
-        // 2. Update the order status to 'cancelled'
-        // Using findByIdAndUpdate ensures the update is Atomic
-        const updatedOrder = await Order.findByIdAndUpdate(
-            order._id,
-            { 
-                $set: { 
-                    status: 'cancelled',
-                    cancellationDate: new Date(), // Log the cancellation time
-                    // You might also log who cancelled it if needed (order.cancelledBy = userId)
-                } 
-            },
-            { new: true } // Return the updated document
-        );
+            return res.status(404).json({ message: 'Order not found or not eligible for cancellation.' });
+        }
+        
+        // 2. Update the order status to 'cancelled'
+        // Using findByIdAndUpdate ensures the update is Atomic
+        const updatedOrder = await Order.findByIdAndUpdate(
+            order._id,
+            { 
+                $set: { 
+                    status: 'cancelled',
+                    cancellationDate: new Date(), // Log the cancellation time
+                    // You might also log who cancelled it if needed (order.cancelledBy = userId)
+                } 
+            },
+            { new: true } // Return the updated document
+        );
 
-        // 3. IMPORTANT: Trigger Refund/Inventory Rollback Logic
-        // In a real e-commerce system, this is where you would call other services:
-        // * a payment service to process a full refund.
-        // * an inventory service to return the reserved stock quantity back to available inventory.
-        // For now, we log a message as a placeholder:
-        console.log(`[Cancellation Success] Order ${orderId} cancelled. Refund/Inventory rollback needed.`);
+        // 3. IMPORTANT: Trigger Refund/Inventory Rollback Logic
+        // In a real e-commerce system, this is where you would call other services:
+        // * a payment service to process a full refund.
+        // * an inventory service to return the reserved stock quantity back to available inventory.
+        // For now, we log a message as a placeholder:
+        console.log(`[Cancellation Success] Order ${orderId} cancelled. Refund/Inventory rollback needed.`);
 
 
-        // 4. Send success response
-        res.status(200).json({ 
-            message: 'Order successfully cancelled. A refund has been initiated.', 
-            order: updatedOrder 
-        });
+        // 4. Send success response
+        res.status(200).json({ 
+            message: 'Order successfully cancelled. A refund has been initiated.', 
+            order: updatedOrder 
+        });
 
-    } catch (error) {
-        console.error('Error during order cancellation:', error);
-        // Log the specific ID for debugging
-        res.status(500).json({ message: `Failed to cancel order ${orderId} due to a server error.` });
-    }
+    } catch (error) {
+        console.error('Error during order cancellation:', error);
+        // Log the specific ID for debugging
+        res.status(500).json({ message: `Failed to cancel order ${orderId} due to a server error.` });
+    }
 });
 
 module.exports = {

@@ -2346,12 +2346,6 @@ app.delete('/api/admin/newarrivals/:id', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Server error during product deletion.' });
     }
 });
-
-// --- WEARS COLLECTION API ROUTES (Existing) ---
-// NOTE: This code assumes the existence of: WearsCollection (Mongoose Model), 
-// verifyToken, upload (multer middleware), uploadFields, 
-// uploadFileToPermanentStorage, deleteFileFromPermanentStorage, and generateSignedUrl.
-
 // GET /api/admin/wearscollections/:id (Fetch Single Collection)
 app.get('/api/admin/wearscollections/:id', verifyToken, async (req, res) => {
     try {
@@ -2404,7 +2398,7 @@ app.post(
                 const backFile = files[`back-view-upload-${index}`]?.[0];
 
                 if (!frontFile || !backFile) {
-                    // Check if file is missing AND no existing URL is provided (only relevant for POST if variation metadata implies a pre-existing image, which is unlikely in POST)
+                    // Check if file is missing AND no existing URL is provided 
                     throw new Error(`Missing BOTH front and back image files for Variation #${index}.`);
                 }
 
@@ -2418,6 +2412,8 @@ app.post(
                         finalVariations.push({
                             variationIndex: variation.variationIndex,
                             colorHex: variation.colorHex,
+                            // 🔥 FIX: Include the nested sizes array for stock management
+                            sizes: variation.sizes, 
                             frontImageUrl: frontImageUrl, 
                             backImageUrl: backImageUrl, 
                         });
@@ -2528,6 +2524,8 @@ app.put(
                 let variationUpdates = { 
                     variationIndex: index,
                     colorHex: incomingVariation.colorHex,
+                    // 🔥 FIX: Include the nested sizes array for stock management
+                    sizes: incomingVariation.sizes, 
                     frontImageUrl: finalFrontUrl,
                     backImageUrl: finalBackUrl,
                     ...(incomingVariation._id && { _id: incomingVariation._id }) // Preserve _id if updating an existing variation
@@ -2588,7 +2586,7 @@ app.put(
             existingCollection.sizesAndStock = collectionData.sizesAndStock; 
             existingCollection.isActive = collectionData.isActive;
             
-            // Assign the finalized variations array directly
+            // Assign the finalized variations array directly (now includes nested sizes)
             existingCollection.variations = updatedVariations; 
             
             // Save to Database

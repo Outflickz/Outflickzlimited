@@ -284,7 +284,6 @@
         </div>
     </div>
 
-
     <script>
 // --- JAVASCRIPT LOGIC ---
 
@@ -1017,8 +1016,6 @@ function getVariationSizes(section, variationIndex) {
 
     return { sizes, variationStock };
 }
-
-
 /**
  * Handles the form submission (CREATE or UPDATE) for the full form (including file uploads).
  */
@@ -1087,11 +1084,14 @@ async function handleCollectionSubmit(event) {
             return;
         }
         
-        const { sizes, variationStock } = sizeResult;
+        // Destructure the results including the 'sizes' array
+        const { sizes, variationStock } = sizeResult; 
         
         calculatedTotalStock += variationStock; // Calculate cumulative total stock
 
         // Aggregate stock data for the top-level 'sizesAndStock' array
+        // NOTE: We rely on the unique combination of size and variationIndex for the key 
+        // to handle the flattened top-level array required by your existing backend.
         for (const item of sizes) {
             const sizesAndStockKey = `${item.size}-${variationIndex}`; 
 
@@ -1108,12 +1108,16 @@ async function handleCollectionSubmit(event) {
             }
         }
 
-        // Push the variation data (metadata)
+        // 🟢 CRITICAL FIX: Include the 'sizes' array in the 'variations' object
         variations.push({
             variationIndex,
             colorHex,
             existingFrontImageUrl: existingFrontUrlInput?.value || null,
             existingBackImageUrl: existingBackUrlInput?.value || null,
+            
+            // 🔥 This is the change: Nest the full size/stock array here
+            sizes: sizes, 
+            
             ...(variationId && { _id: variationId })
         });
 
@@ -1132,6 +1136,7 @@ async function handleCollectionSubmit(event) {
     // --- Validation for main fields ---
     const collectionName = document.getElementById('collection-name').value.trim();
     const priceValue = parseFloat(document.getElementById('collection-price').value);
+    const collectionTag = document.getElementById('collection-description').value; // Using 'tag' from the description input
     const isActive = document.getElementById('is-active').checked;
 
     if (!collectionName) {
@@ -1149,13 +1154,17 @@ async function handleCollectionSubmit(event) {
     // 2. Add main payload data to FormData (JSON stringified)
     const mainPayload = {
         name: collectionName,
-        tag: document.getElementById('collection-description').value,
+        tag: collectionTag,
         price: priceValue,
         isActive: isActive, 
         
+        // totalStock is required by the backend and calculated correctly
         totalStock: isActive ? calculatedTotalStock : 0, 
         
+        // sizesAndStock is the legacy/root-level array for simple stock logic
         sizesAndStock: sizesAndStock,
+        
+        // variations now contains the crucial nested 'sizes' array
         variations: variations, 
     };
     

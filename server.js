@@ -886,6 +886,20 @@ function getProductModel(productType) {
     }
 }
 
+
+/**
+ * ====================================================================================
+ * INVENTORY PROCESSING FUNCTION (ATOMIC & TRANSACTIONAL)
+ * ====================================================================================
+ * * Handles inventory deduction when an order is completed, deducting stock from the 
+ * specific product variation. This function MUST ONLY be called after payment confirmation.
+ * It uses a MongoDB Transaction for atomicity across multiple product updates.
+ * * NOTE: Assumes the existence of global functions/variables:
+ * - mongoose, Order (Mongoose Model)
+ * - getProductModel(type): Function to fetch the correct Product Model (e.g., 'ShirtModel')
+ * * @param {string} orderId The ID of the completed order.
+ * @returns {Promise<Object>} The updated Mongoose Order document.
+ */
 async function processOrderCompletion(orderId) {
     // 1. Start a Mongoose session for atomicity (crucial for inventory)
     // Transactions ensure that all inventory updates either succeed or fail together.
@@ -1007,7 +1021,6 @@ async function processOrderCompletion(orderId) {
         session.endSession();
     }
 }
-
 /**
  * ====================================================================================
  * HELPER FUNCTIONS (Preserved as provided)
@@ -1688,6 +1701,7 @@ app.get('/api/admin/orders/:orderId', verifyToken, async (req, res) => {
         return res.status(500).json({ message: 'Server error: Failed to retrieve order details.' });
     }
 });
+
 // =========================================================
 // 9. PUT /api/admin/orders/:orderId/confirm - Confirm an Order (Admin Protected)
 // *** FINAL IMPLEMENTATION WITH EMAIL NOTIFICATION ***
@@ -1775,7 +1789,7 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
         console.error(`Error confirming order ${orderId}:`, error);
         res.status(500).json({ message: 'Failed to confirm order due to a server error.' });
     }
-}); 
+});
 
 // GET /api/admin/capscollections/:id - Fetch Single Cap Collection
 app.get('/api/admin/capscollections/:id', verifyToken, async (req, res) => {

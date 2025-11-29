@@ -1212,7 +1212,7 @@ async function handleCollectionSubmit(event) {
 /**
  * FIX for Error: Missing 'sizesAndStock' or 'isActive' in simple update payload.
  * This function handles simple restock/activation/deactivation from a list.
- * * @param {string} collectionId The ID of the collection to update.
+ * @param {string} collectionId The ID of the collection to update.
  * @param {Array<{size: string, stock: number, variationIndex: number}>} sizesAndStockUpdates The array of size/stock objects.
  * @param {boolean} isActive The new activation status.
  */
@@ -1223,6 +1223,14 @@ async function quickRestockAndActivate(collectionId, sizesAndStockUpdates, isAct
         return;
     }
 
+    // ⭐ FIX: Ensure sizesAndStockUpdates is an array before using .reduce()
+    if (!Array.isArray(sizesAndStockUpdates)) {
+        console.warn("Input sizesAndStockUpdates is not an array. Initializing as empty array to prevent TypeError.");
+        // Log an error/warning and reset to an empty array for safe processing
+        sizesAndStockUpdates = []; 
+    }
+
+    // This line is now safe because sizesAndStockUpdates is guaranteed to be an array
     const calculatedTotalStock = sizesAndStockUpdates.reduce((sum, item) => sum + item.stock, 0);
 
     // CRITICAL: Construct the JSON payload with the two fields the server requires.

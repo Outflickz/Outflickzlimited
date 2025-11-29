@@ -1,190 +1,190 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Order Confirmation | Outflickz</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'ash-red': '#EF4444', // Example based on common design patterns for a brand accent
-                        'ash-dark': '#1F2937', // Example dark color
-                        'color-white': '#FFFFFF',
-                        'color-black': '#111827',
-                    }
-                }
-            }
-        }
-    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Confirmation | Outflickz</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'ash-red': '#EF4444', // Example based on common design patterns for a brand accent
+                        'ash-dark': '#1F2937', // Example dark color
+                        'color-white': '#FFFFFF',
+                        'color-black': '#111827',
+                    }
+                }
+            }
+        }
+    </script>
 </head>
 <body class="bg-color-white text-gray-800 min-h-screen">
 
-    <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
-            <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
-                <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-8 sm:h-10">
-            </a>
+    <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
+            <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
+                <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-8 sm:h-10">
+            </a>
 
-            <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
-                <a href="homepage.html" class="font-medium text-color-black hover:text-gray-600 transition">Homepage</a>
-                <a href="preorder.html" class="font-medium text-color-black hover:text-ash-red transition">Pre Order</a>
-                <a href="newarrivals.html" class="font-medium text-color-black hover:text-ash-red transition">New Arrivals</a>
-                <a href="wearscollection.html" class="font-medium text-color-black hover:text-ash-red transition flex items-center">Wears Collections</a>
-                <a href="capcollection.html" class="font-medium text-color-black hover:text-ash-red transition flex items-center">Cap Collections</a>
-            </nav>
+            <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
+                <a href="homepage.html" class="font-medium text-color-black hover:text-gray-600 transition">Homepage</a>
+                <a href="preorder.html" class="font-medium text-color-black hover:text-ash-red transition">Pre Order</a>
+                <a href="newarrivals.html" class="font-medium text-color-black hover:text-ash-red transition">New Arrivals</a>
+                <a href="wearscollection.html" class="font-medium text-color-black hover:text-ash-red transition flex items-center">Wears Collections</a>
+                <a href="capcollection.html" class="font-medium text-color-black hover:text-ash-red transition flex items-center">Cap Collections</a>
+            </nav>
 
-        
-          <div class="flex items-center space-x-2 sm:space-x-4">
-        <button id="profile-icon" 
-        class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" 
-        aria-label="User Account"
-        onclick="redirectToProfileOrLogin()">
-            <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
-        </button>
-        <a href="cart.html" class="relative p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" aria-label="Shopping Bag">
-            <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
-            <span id="cart-badge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-ash-red rounded-full hidden">
-                0
-            </span>
-        </a>
-        <button class="md:hidden p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
-            <i class="fas fa-bars w-5 h-5 sm:w-6 sm:h-6"></i>
-        </button>
-    </div>
-        </header>
+        
+          <div class="flex items-center space-x-2 sm:space-x-4">
+        <button id="profile-icon" 
+        class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" 
+        aria-label="User Account"
+        onclick="redirectToProfileOrLogin()">
+            <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
+        </button>
+        <a href="cart.html" class="relative p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" aria-label="Shopping Bag">
+            <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
+            <span id="cart-badge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-ash-red rounded-full hidden">
+                0
+            </span>
+        </a>
+        <button class="md:hidden p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
+            <i class="fas fa-bars w-5 h-5 sm:w-6 sm:h-6"></i>
+        </button>
+    </div>
+        </header>
 
-        <div id="cart-alert" class="hidden fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 bg-green-500 text-white text-sm px-4 py-2 rounded-lg shadow-xl z-50 transition-all duration-500 opacity-0 -translate-y-10">
-            Item(s) added to cart!
-        </div>
+        <div id="cart-alert" class="hidden fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 bg-green-500 text-white text-sm px-4 py-2 rounded-lg shadow-xl z-50 transition-all duration-500 opacity-0 -translate-y-10">
+            Item(s) added to cart!
+        </div>
 
-        <div id="mobile-menu" class="hidden md:hidden bg-color-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
-            <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
-                <a href="homepage.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Homepage</a>
-                <a href="preorder.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
-                <a href="newarrivals.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">New Arrivals</a>
-                <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Wears Collection</a>
-                <a href="capcollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cap Collection</a>
-                <a href="useraccount.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Account</a>
-            </div>
-        </div>
+        <div id="mobile-menu" class="hidden md:hidden bg-color-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
+            <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
+                <a href="homepage.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Homepage</a>
+                <a href="preorder.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
+                <a href="newarrivals.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">New Arrivals</a>
+                <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Wears Collection</a>
+                <a href="capcollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cap Collection</a>
+                <a href="useraccount.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Account</a>
+            </div>
+        </div>
 
-        <main class="max-w-3xl mx-auto py-8 sm:py-12 px-4">
-            <div id="confirmation-card" class="bg-white shadow-xl rounded-lg p-6 sm:p-8 text-center border border-gray-100">
-                <i id="confirmation-icon" class="fas fa-check-circle text-5xl sm:text-6xl text-green-500 mb-6"></i>
-                <h2 class="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-2">
-                    <span id="confirmation-title">Thank You for Your Order!</span>
-                </h2>
-                <p id="confirmation-message" class="text-base sm:text-lg text-gray-600 mb-8">
-                    Your order has been successfully placed and is now being processed.
-                </p>
+        <main class="max-w-3xl mx-auto py-8 sm:py-12 px-4">
+            <div id="confirmation-card" class="bg-white shadow-xl rounded-lg p-6 sm:p-8 text-center border border-gray-100">
+                <i id="confirmation-icon" class="fas fa-check-circle text-5xl sm:text-6xl text-green-500 mb-6"></i>
+                <h2 class="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-2">
+                    <span id="confirmation-title">Thank You for Your Order!</span>
+                </h2>
+                <p id="confirmation-message" class="text-base sm:text-lg text-gray-600 mb-8">
+                    Your order has been successfully placed and is now being processed.
+                </p>
 
-                <div id="order-details-container" class="border border-gray-200 rounded-lg p-4 sm:p-6 bg-gray-50">
-                    <div class="flex flex-col sm:flex-row justify-center items-center mb-4">
-                        <p class="text-lg sm:text-xl font-semibold text-gray-700 mb-2 sm:mb-0">Order Confirmation Number:</p>
-                        <p id="order-ref-number" class="ml-0 sm:ml-4 text-xl sm:text-2xl font-bold text-indigo-600">#LOADING...</p>
-                    </div>
-                    <p id="payment-method-message" class="text-sm text-gray-500 mt-2"></p>
-                    <p id="bank-transfer-details" class="text-sm text-red-500 font-medium mt-4 hidden text-left">
-                    Please complete your **Bank Transfer** using the order number above within 24 hours. Your order will be confirmed once payment is received.        
-                    </p>
-                </div>
-                
-                <div id="order-items-section" class="mt-8 text-left">
-                    <h3 class="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Items Ordered</h3>
-                    <div id="order-items-list" class="space-y-4">
-                        <div class="text-center py-4 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Loading order details...</div>
-                    </div>
-                </div>
+                <div id="order-details-container" class="border border-gray-200 rounded-lg p-4 sm:p-6 bg-gray-50">
+                    <div class="flex flex-col sm:flex-row justify-center items-center mb-4">
+                        <p class="text-lg sm:text-xl font-semibold text-gray-700 mb-2 sm:mb-0">Order Confirmation Number:</p>
+                        <p id="order-ref-number" class="ml-0 sm:ml-4 text-xl sm:text-2xl font-bold text-indigo-600">#LOADING...</p>
+                    </div>
+                    <p id="payment-method-message" class="text-sm text-gray-500 mt-2"></p>
+                    <p id="bank-transfer-details" class="text-sm text-red-500 font-medium mt-4 hidden text-left">
+                    Please complete your **Bank Transfer** using the order number above within 24 hours. Your order will be confirmed once payment is received.        
+                    </p>
+                </div>
+                
+                <div id="order-items-section" class="mt-8 text-left">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Items Ordered</h3>
+                    <div id="order-items-list" class="space-y-4">
+                        <div class="text-center py-4 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Loading order details...</div>
+                    </div>
+                </div>
 
-                <div class="mt-10 flex flex-col sm:flex-row justify-center items-center space-y-3 sm:space-y-0 sm:space-x-4">
-                    <a href="homepage.html" class="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                        <i class="fas fa-home mr-2"></i>
-                        Continue Shopping
-                    </a>
-                    <a id="view-orders-btn" href="userorders.html" class="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                        <i class="fas fa-list-alt mr-2"></i>
-                        View Order History
-                    </a>
-                </div>
-            </div>
-        </main>
-        
-        <footer class="bg-gray-900 text-gray-300 py-10 sm:py-14 border-t border-gray-800">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
-                    
-                    <div class="col-span-2 lg:col-span-1">
-                        <a href="homepage.html" class="flex items-center mb-4">
-                            <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-7 filter grayscale invert">
-                        </a>
-                        <p class="text-sm text-gray-500">
-                            The home of exclusive street wear and limited edition drops. Elevate your style.
-                        </p>
-                        <div class="flex space-x-4 mt-4 text-gray-400">
-                            <a href="#" aria-label="Instagram" class="hover:text-ash-red transition"><i class="fab fa-instagram"></i></a>
-                            <a href="#" aria-label="Twitter" class="hover:text-ash-red transition"><i class="fab fa-twitter"></i></a>
-                            <a href="#" aria-label="Facebook" class="hover:text-ash-red transition"><i class="fab fa-facebook-f"></i></a>
-                        </div>
-                    </div>
+                <div class="mt-10 flex flex-col sm:flex-row justify-center items-center space-y-3 sm:space-y-0 sm:space-x-4">
+                    <a href="homepage.html" class="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        <i class="fas fa-home mr-2"></i>
+                        Continue Shopping
+                    </a>
+                    <a id="view-orders-btn" href="userorders.html" class="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        <i class="fas fa-list-alt mr-2"></i>
+                        View Order History
+                    </a>
+                </div>
+            </div>
+        </main>
+        
+        <footer class="bg-gray-900 text-gray-300 py-10 sm:py-14 border-t border-gray-800">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
+                    
+                    <div class="col-span-2 lg:col-span-1">
+                        <a href="homepage.html" class="flex items-center mb-4">
+                            <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-7 filter grayscale invert">
+                        </a>
+                        <p class="text-sm text-gray-500">
+                            The home of exclusive street wear and limited edition drops. Elevate your style.
+                        </p>
+                        <div class="flex space-x-4 mt-4 text-gray-400">
+                            <a href="#" aria-label="Instagram" class="hover:text-ash-red transition"><i class="fab fa-instagram"></i></a>
+                            <a href="#" aria-label="Twitter" class="hover:text-ash-red transition"><i class="fab fa-twitter"></i></a>
+                            <a href="#" aria-label="Facebook" class="hover:text-ash-red transition"><i class="fab fa-facebook-f"></i></a>
+                        </div>
+                    </div>
 
-                    <div class="col-span-1">
-                        <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Quick Links</h3>
-                        <ul class="space-y-2 text-sm">
-                            <li><a href="wearscollection.html" class="text-gray-400 hover:text-ash-red transition">Wears</a></li>
-                            <li><a href="capcollection.html" class="text-gray-400 hover:text-ash-red transition">Caps</a></li>
-                            <li><a href="newarrivals.html" class="text-gray-400 hover:text-ash-red transition">New Arrivals</a></li>
-                            <li><a href="preorder.html" class="text-gray-400 hover:text-ash-red transition">Pre-Order</a></li>
-                        </ul>
-                    </div>
+                    <div class="col-span-1">
+                        <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Quick Links</h3>
+                        <ul class="space-y-2 text-sm">
+                            <li><a href="wearscollection.html" class="text-gray-400 hover:text-ash-red transition">Wears</a></li>
+                            <li><a href="capcollection.html" class="text-gray-400 hover:text-ash-red transition">Caps</a></li>
+                            <li><a href="newarrivals.html" class="text-gray-400 hover:text-ash-red transition">New Arrivals</a></li>
+                            <li><a href="preorder.html" class="text-gray-400 hover:text-ash-red transition">Pre-Order</a></li>
+                        </ul>
+                    </div>
 
-                    <div class="col-span-1">
-                        <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Customer Care</h3>
-                        <ul class="space-y-2 text-sm">
-                            <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Contact Us</a></li>
-                            <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Shipping & Returns</a></li>
-                            <li><a href="#" class="text-gray-400 hover:text-ash-red transition">FAQ</a></li>
-                            <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Size Guide</a></li>
-                        </ul>
-                    </div>
+                    <div class="col-span-1">
+                        <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Customer Care</h3>
+                        <ul class="space-y-2 text-sm">
+                            <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Contact Us</a></li>
+                            <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Shipping & Returns</a></li>
+                            <li><a href="#" class="text-gray-400 hover:text-ash-red transition">FAQ</a></li>
+                            <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Size Guide</a></li>
+                        </ul>
+                    </div>
 
-                    <div class="col-span-2 md:col-span-1">
-                        <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Get In Touch</h3>
-                        <address class="text-sm not-italic space-y-2">
-                            <p class="text-gray-400">
-                                <i class="fas fa-map-marker-alt mr-2 text-ash-red"></i> 123 Streetwear Ave, City, Country
-                            </p>
-                            <p class="text-gray-400">
-                                <i class="fas fa-envelope mr-2 text-ash-red"></i> support@outflickz.com
-                            </p>
-                            <p class="text-gray-400">
-                                <i class="fas fa-phone mr-2 text-ash-red"></i> +1 (555) 123-4567
-                            </p>
-                        </address>
-                    </div>
-                </div>
+                    <div class="col-span-2 md:col-span-1">
+                        <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Get In Touch</h3>
+                        <address class="text-sm not-italic space-y-2">
+                            <p class="text-gray-400">
+                                <i class="fas fa-map-marker-alt mr-2 text-ash-red"></i> 123 Streetwear Ave, City, Country
+                            </p>
+                            <p class="text-gray-400">
+                                <i class="fas fa-envelope mr-2 text-ash-red"></i> support@outflickz.com
+                            </p>
+                            <p class="text-gray-400">
+                                <i class="fas fa-phone mr-2 text-ash-red"></i> +1 (555) 123-4567
+                            </p>
+                        </address>
+                    </div>
+                </div>
 
-                <div class="border-t border-gray-800 mt-10 pt-6">
-                    <p class="text-center text-xs text-gray-500">
-                        &copy; 2025 Outflickz. All rights reserved. | <a href="#" class="hover:text-ash-red">Privacy Policy</a> | <a href="#" class="hover:text-ash-red">Terms of Use</a>
-                    </p>
-                </div>
-            </div>
-        </footer>
+                <div class="border-t border-gray-800 mt-10 pt-6">
+                    <p class="text-center text-xs text-gray-500">
+                        &copy; 2025 Outflickz. All rights reserved. | <a href="#" class="hover:text-ash-red">Privacy Policy</a> | <a href="#" class="hover:text-ash-red">Terms of Use</a>
+                    </p>
+                </div>
+            </div>
+        </footer>
 
-        
-        <a href="https://wa.me/2347042882706?text=HELLO!%20WELCOME%20TO%20OUTFLICKZ!%20HOW%20CAN%20WE%20HELP%20YOU" 
-            target="_blank" 
-            class="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-3 sm:p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105" 
-            aria-label="Chat with us on WhatsApp">
-            <i class="fab fa-whatsapp text-2xl sm:text-3xl"></i>
-        </a>
-        
+        
+        <a href="https://wa.me/2347042882706?text=HELLO!%20WELCOME%20TO%20OUTFLICKZ!%20HOW%20CAN%20WE%20HELP%20YOU" 
+            target="_blank" 
+            class="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-3 sm:p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105" 
+            aria-label="Chat with us on WhatsApp">
+            <i class="fab fa-whatsapp text-2xl sm:text-3xl"></i>
+        </a>
+        
 
-     <script>
+     <script>
 // **MISSING GLOBAL VARIABLE** added for the JavaScript logic to work
 const LOCAL_TAX_RATE = 0.00; 
         
@@ -227,11 +227,11 @@ function updateCartBadge() {
 }
 
 /**
- * Redirects to the account page. If logged in, shows the profile; otherwise, shows the login/signup form.
- */
+ * Redirects to the account page. If logged in, shows the profile; otherwise, shows the login/signup form.
+ */
 function redirectToProfileOrLogin() {
-    // 🚩 FIX 1: Redirects to useraccount.html for both logged-in and logged-out states
-    window.location.href = 'useraccount.html';
+    // 🚩 FIX 1: Redirects to useraccount.html for both logged-in and logged-out states
+    window.location.href = 'useraccount.html';
 }
 
 function toggleMenu() {
@@ -300,6 +300,14 @@ async function fetchOrderCollection(orderId) {
             return;
         }
 
+        // 🛠️ START OF CRITICAL UPDATE: Calculate/default price components 🛠️
+        const subtotal = orderDetails.subtotal || 0.00;
+        const shippingFee = orderDetails.shippingFee || 0.00;
+        const tax = orderDetails.tax || 0.00; 
+        const total = orderDetails.totalAmount || (subtotal + shippingFee + tax); 
+        // 🛠️ END OF CRITICAL UPDATE 🛠️
+
+
         itemsListEl.innerHTML = `
             ${orderDetails.items.map(item => `
                 <div class="flex justify-between items-start py-2 border-b border-gray-100 last:border-b-0">
@@ -315,15 +323,15 @@ async function fetchOrderCollection(orderId) {
                 `).join('')}
 
                 <div class="text-right pt-4 space-y-1">
-                    <p class="text-sm text-gray-700">Subtotal: <span class="font-semibold">${CURRENCY_SYMBOL}${orderDetails.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></p>
-                    <p class="text-sm text-gray-700">Shipping: <span class="font-semibold">${CURRENCY_SYMBOL}${orderDetails.shippingFee.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></p>
-                    <p class="text-sm text-gray-700">Tax (${(LOCAL_TAX_RATE * 100).toFixed(0)}%): <span class="font-semibold">${CURRENCY_SYMBOL}${orderDetails.tax.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></p>
-                    <p class="text-lg font-bold text-indigo-600 border-t pt-2 mt-2">Total: ${CURRENCY_SYMBOL}${orderDetails.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                    <p class="text-sm text-gray-700">Subtotal: <span class="font-semibold">${CURRENCY_SYMBOL}${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></p>
+                    <p class="text-sm text-gray-700">Shipping: <span class="font-semibold">${CURRENCY_SYMBOL}${shippingFee.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></p>
+                    <p class="text-sm text-gray-700">Tax (${(LOCAL_TAX_RATE * 100).toFixed(0)}%): <span class="font-semibold">${CURRENCY_SYMBOL}${tax.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></p>
+                    <p class="text-lg font-bold text-indigo-600 border-t pt-2 mt-2">Total: ${CURRENCY_SYMBOL}${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                 </div>
             `;
 
             // 2. Email Notification Check (Handled by the server during checkout)
-            console.log(`Order details loaded. Confirmation email should have been sent to ${orderDetails.shippingAddress.email}.`);
+            console.log(`Order details loaded. Confirmation email should have been sent to ${orderDetails.shippingAddress?.email}.`);
 
 
         } catch (error) {

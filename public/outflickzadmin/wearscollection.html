@@ -753,7 +753,7 @@ function addProductSection(variationData = null) {
 
     // Data for pre-populating inputs if editing
     const variationId = variationData ? variationData._id : '';
-    // REVERTED to use standard URL strings for JSON submission
+    // Use the permanent URLs for display (you'd typically pass a signed URL here)
     const frontUrl = variationData ? variationData.frontImageUrl : '';
     const backUrl = variationData ? variationData.backImageUrl : '';
     const colorHex = variationData ? variationData.colorHex : '#10B981';
@@ -763,6 +763,8 @@ function addProductSection(variationData = null) {
         <h4 class="text-md font-bold text-gray-600 mb-3 flex justify-between items-center">
             Product Variation #${index}
             ${variationId ? `<input type="hidden" name="variationId" value="${variationId}">` : ''}
+            ${frontUrl ? `<input type="hidden" name="existingFrontImageUrl" value="${frontUrl}">` : ''}
+            ${backUrl ? `<input type="hidden" name="existingBackImageUrl" value="${backUrl}">` : ''}
 
             ${index > 1 ? `<button type="button" onclick="removeProductSection('variation-section-${index}')" class="text-red-500 hover:text-red-700 transition duration-150 text-sm">Remove</button>` : ''}
         </h4>
@@ -783,32 +785,36 @@ function addProductSection(variationData = null) {
             </div>
 
             <div>
-                <label for="front-image-url-${index}" class="block text-sm font-medium text-gray-700">Front Image URL</label>
-                <input type="url" id="front-image-url-${index}" 
-                    name="frontImageUrl" 
-                    value="${frontUrl}"
-                    required 
-                    placeholder="e.g., https://i.imgur.com/image.png"
-                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
+                <label for="front-view-upload-${index}" class="block text-sm font-medium text-gray-700">Front Image Upload</label>
+                <input type="file" id="front-view-upload-${index}" 
+                    name="front-view-upload-${index}" 
+                    accept="image/*" 
+                    class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+                    ${!frontUrl ? 'required' : ''}>
                 
                 ${frontUrl 
-                    ? `<img src="${frontUrl}" alt="Current Front Preview" class="mt-2 max-w-full h-auto rounded-lg shadow-md max-h-32 object-contain" />` 
-                    : '<p class="mt-1 text-xs text-red-500">Required: External image link.</p>'
+                    ? `
+                    <p class="mt-1 text-xs text-gray-500">Current image exists. Upload a new file to replace it.</p>
+                    <img src="${frontUrl}" alt="Current Front Preview" class="mt-2 max-w-full h-auto rounded-lg shadow-md max-h-32 object-contain" />
+                    ` 
+                    : '<p class="mt-1 text-xs text-red-500">Required for new variations.</p>'
                 }
             </div>
             
             <div>
-                <label for="back-image-url-${index}" class="block text-sm font-medium text-gray-700">Back Image URL</label>
-                <input type="url" id="back-image-url-${index}" 
-                    name="backImageUrl" 
-                    value="${backUrl}"
-                    required 
-                    placeholder="e.g., https://i.imgur.com/image_back.png"
-                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
+                <label for="back-view-upload-${index}" class="block text-sm font-medium text-gray-700">Back Image Upload</label>
+                <input type="file" id="back-view-upload-${index}" 
+                    name="back-view-upload-${index}" 
+                    accept="image/*" 
+                    class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+                    ${!backUrl ? 'required' : ''}>
                 
                 ${backUrl 
-                    ? `<img src="${backUrl}" alt="Current Back Preview" class="mt-2 max-w-full h-auto rounded-lg shadow-md max-h-32 object-contain" />` 
-                    : '<p class="mt-1 text-xs text-red-500">Required: External image link.</p>'
+                    ? `
+                    <p class="mt-1 text-xs text-gray-500">Current image exists. Upload a new file to replace it.</p>
+                    <img src="${backUrl}" alt="Current Back Preview" class="mt-2 max-w-full h-auto rounded-lg shadow-md max-h-32 object-contain" />
+                    ` 
+                    : '<p class="mt-1 text-xs text-red-500">Required for new variations.</p>'
                 }
             </div>
         </div>
@@ -823,7 +829,7 @@ function addProductSection(variationData = null) {
 `;
 productSectionsContainer.insertAdjacentHTML('beforeend', sectionHtml);
 
-    // If editing, populate the sizes
+    // If editing, populate the sizes (existing logic remains)
     if (variationData && variationData.sizes && variationData.sizes.length > 0) {
         variationData.sizes.forEach(sizeData => {
             addSizeStockInput(index, sizeData.size, sizeData.stock);
@@ -987,7 +993,7 @@ function updateColorPreview(colorValue, previewId) {
 
 /**
  * Handles the form submission (CREATE or UPDATE).
- * CRITICAL UPDATE: Rewritten to use JSON payload and calculate totalStock from nested sizes.
+ * CRITICAL UPDATE: Rewritten to use FormData for file uploads.
  */
 async function handleCollectionSubmit(event) {
     event.preventDefault();
@@ -997,10 +1003,9 @@ async function handleCollectionSubmit(event) {
     
     // Disable button and show loading state
     submitBtn.disabled = true;
-    submitBtn.textContent = isUpdate ? 'Updating...' : 'Submitting...';
+    submitBtn.textContent = isUpdate ? 'Uploading & Updating...' : 'Uploading & Submitting...';
     submitBtn.classList.remove('hover:bg-emerald-700', 'hover:bg-yellow-700', 'bg-emerald-600', 'bg-yellow-600');
     submitBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
-
 
     const token = getAuthToken();
     if (!token) {
@@ -1008,9 +1013,10 @@ async function handleCollectionSubmit(event) {
         return;
     }
 
+    const formData = new FormData();
     let totalStock = 0;
     const variations = [];
-
+    
     // 1. Collect form data and build the variations array
     const variationSections = Array.from(productSectionsContainer.children).filter(el => el.id.startsWith('variation-section-'));
 
@@ -1023,22 +1029,27 @@ async function handleCollectionSubmit(event) {
     for (const [index, section] of variationSections.entries()) {
         const variationIndex = index + 1; // 1-based index
         
-        // Safely get input values
-        const colorHexInput = section.querySelector(`[name="colorHexText"]`);
-        const frontImageUrlInput = section.querySelector(`[name="frontImageUrl"]`);
-        const backImageUrlInput = section.querySelector(`[name="backImageUrl"]`);
-        const variationIdInput = section.querySelector(`[name="variationId"]`);
+        // --- 1a. Collect image files and existing URLs ---
+        const frontFileInput = section.querySelector(`[name="front-view-upload-${variationIndex}"]`);
+        const backFileInput = section.querySelector(`[name="back-view-upload-${variationIndex}"]`);
+        const existingFrontUrlInput = section.querySelector(`[name="existingFrontImageUrl"]`);
+        const existingBackUrlInput = section.querySelector(`[name="existingBackImageUrl"]`);
 
-        if (!colorHexInput || !frontImageUrlInput || !backImageUrlInput) {
-             showErrorModal(`Missing input fields in Variation #${variationIndex}. Please ensure all required fields are present.`);
-             resetFormSubmitButtonState(isUpdate);
-             return;
+        // Check for required files/existing URLs
+        if ((!frontFileInput || frontFileInput.files.length === 0) && !existingFrontUrlInput) {
+            showErrorModal(`Missing Front Image in Variation #${variationIndex}. Please upload a file or ensure existing data is present.`);
+            resetFormSubmitButtonState(isUpdate);
+            return;
         }
-
-        const colorHex = colorHexInput.value;
-        const frontImageUrl = frontImageUrlInput.value;
-        const backImageUrl = backImageUrlInput.value;
-        const variationId = variationIdInput ? variationIdInput.value : null;
+        if ((!backFileInput || backFileInput.files.length === 0) && !existingBackUrlInput) {
+            showErrorModal(`Missing Back Image in Variation #${variationIndex}. Please upload a file or ensure existing data is present.`);
+            resetFormSubmitButtonState(isUpdate);
+            return;
+        }
+        
+        // --- 1b. Collect variation data fields (color, sizes) ---
+        const colorHex = section.querySelector(`[name="colorHexText"]`).value;
+        const variationId = section.querySelector(`[name="variationId"]`)?.value || null;
         
         const sizes = [];
         let variationStock = 0;
@@ -1057,13 +1068,8 @@ async function handleCollectionSubmit(event) {
             const size = sizeInputs[i].value.trim().toUpperCase(); // Normalize size
             const stock = parseInt(stockInputs[i].value, 10);
 
-            if (!size) {
-                showErrorModal(`Size field cannot be empty in Variation #${variationIndex}.`);
-                resetFormSubmitButtonState(isUpdate);
-                return;
-            }
-            if (isNaN(stock) || stock < 0) {
-                showErrorModal(`Stock must be a valid non-negative number in Variation #${variationIndex}.`);
+            if (!size || isNaN(stock) || stock < 0) {
+                showErrorModal(`Invalid size or stock in Variation #${variationIndex}.`);
                 resetFormSubmitButtonState(isUpdate);
                 return;
             }
@@ -1077,27 +1083,38 @@ async function handleCollectionSubmit(event) {
         variations.push({
             variationIndex,
             colorHex,
-            frontImageUrl,
-            backImageUrl,
-            sizes, // The new critical nested data
-            // Include _id if updating existing variation
+            sizes,
+            // Pass the existing URLs so the backend knows not to delete them if no new file is uploaded
+            existingFrontImageUrl: existingFrontUrlInput?.value || null,
+            existingBackImageUrl: existingBackUrlInput?.value || null,
             ...(variationId && { _id: variationId })
         });
+
+        // --- 1c. Append files to FormData with unique keys for the backend to process ---
+        if (frontFileInput.files.length > 0) {
+             // The backend will look for a file named like 'variation-1-front'
+             formData.append(`variation-${variationIndex}-front`, frontFileInput.files[0]);
+        }
+        if (backFileInput.files.length > 0) {
+             formData.append(`variation-${variationIndex}-back`, backFileInput.files[0]);
+        }
     }
 
-    // 2. Prepare final payload
-    const payload = {
+    // 2. Add main payload data to FormData (JSON stringified)
+    const mainPayload = {
         name: document.getElementById('collection-name').value,
         tag: document.getElementById('collection-description').value,
         price: parseFloat(document.getElementById('collection-price').value),
-        // If the collection is marked inactive, totalStock should be 0 regardless of nested stock sum
         isActive: document.getElementById('is-active').checked, 
-        variations: variations,
-        // totalStock is CALCULATED from the sum of all nested size stocks
-        totalStock: document.getElementById('is-active').checked ? totalStock : 0
+        totalStock: document.getElementById('is-active').checked ? totalStock : 0,
+        // CRITICAL: Send the structured variations array as a JSON string
+        variations: variations, 
     };
 
-    // 3. Send API Request
+    // Append the JSON payload as a single string field
+    formData.append('data', JSON.stringify(mainPayload));
+    
+    // 3. Send API Request using FormData
     const method = collectionIdToUpdate ? 'PUT' : 'POST';
     const url = collectionIdToUpdate ? `${API_BASE_URL}/${collectionIdToUpdate}` : API_BASE_URL;
     
@@ -1105,18 +1122,19 @@ async function handleCollectionSubmit(event) {
         const response = await fetch(url, {
             method: method,
             headers: { 
-                'Content-Type': 'application/json',
+                // IMPORTANT: DO NOT set Content-Type header when using FormData. The browser handles it.
                 'Authorization': `Bearer ${token}` 
             },
-            body: JSON.stringify(payload)
+            // CRITICAL: Send the FormData object directly
+            body: formData 
         });
 
         if (!response.ok) {
+            // ... Error handling remains the same ...
             let errorData;
             try {
                 errorData = await response.json();
             } catch (e) {
-                // If response text is not valid JSON
                 const errorText = await response.text();
                 throw new Error(`Server returned status ${response.status}. Raw response: ${errorText.substring(0, 100)}...`);
             }

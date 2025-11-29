@@ -921,7 +921,7 @@ async function processOrderCompletion(orderId) {
         for (const item of order.items) {
             // Assume item includes productId, productType, variationIndex, size, and quantity
             // NOTE: In a real app, you must implement getProductModel()
-            const ProductModel = WearsCollectionModel; // Placeholder/Mock for getProductModel(item.productType)
+            const ProductModel = WearsCollection; // Placeholder/Mock for getProductModel(item.productType)
             const quantityOrdered = item.quantity;
 
             // 3. ATOMIC DEDUCTION LOGIC FOR VARIATION STOCK

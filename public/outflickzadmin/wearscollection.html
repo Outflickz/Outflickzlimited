@@ -989,14 +989,15 @@ function updateColorPreview(colorValue, previewId) {
         }
     }
 }
+
 /**
  * CRITICAL NOTE: This file assumes the existence of several helper functions 
  * and variables in the global scope (e.g., API_BASE_URL, collectionIdToUpdate, 
  * productSectionsContainer, submitBtn, showErrorModal, showSuccessModal, 
  * getAuthToken, resetFormSubmitButtonState, resetForm, fetchCollections).
- * * This update focuses ONLY on correcting the data collection and payload structure 
- * in handleCollectionSubmit to match the backend's expectation of a top-level 
- * 'sizesAndStock' array, while preserving the corrected file upload naming.
+ * * * FIX: Added a template function, quickRestockAndActivate, to address the 
+ * server error for simple PUT requests by ensuring the payload contains 
+ * 'sizesAndStock' and 'isActive'.
  */
 
 // Helper to safely get size/stock inputs from a variation section
@@ -1027,10 +1028,7 @@ function getVariationSizes(section, variationIndex) {
 }
 
 /**
- * Handles the form submission (CREATE or UPDATE).
- * CRITICAL UPDATE: Restructured payload to separate 'variations' (images/colors) 
- * from the top-level 'sizesAndStock' (all sizes/stock across all variations)
- * to match the updated Mongoose schema structure.
+ * Handles the form submission (CREATE or UPDATE) for the full form (including file uploads).
  */
 async function handleCollectionSubmit(event) {
     event.preventDefault();
@@ -1052,11 +1050,8 @@ async function handleCollectionSubmit(event) {
     }
 
     const formData = new FormData();
-    let totalStock = 0;
+    let calculatedTotalStock = 0;
     const variations = [];
-    
-    // CRITICAL: New Map to hold ALL unique size/stock combinations for the top-level schema field
-    // We use a Map keyed by size + variationIndex to ensure no duplicate entries are mistakenly processed.
     const sizesAndStockMap = new Map();
 
     const variationSections = Array.from(productSectionsContainer.children).filter(el => el.id.startsWith('variation-section-'));
@@ -1070,7 +1065,7 @@ async function handleCollectionSubmit(event) {
     for (const [index, section] of variationSections.entries()) {
         const variationIndex = index + 1; // 1-based index
         
-        // --- 1a. Collect image files and existing URLs (Image handling logic is correct) ---
+        // --- 1a. Collect image files and existing URLs ---
         const frontFileInput = section.querySelector(`[name="front-view-upload-${variationIndex}"]`);
         const backFileInput = section.querySelector(`[name="back-view-upload-${variationIndex}"]`);
         const existingFrontUrlInput = section.querySelector(`[name="existingFrontImageUrl"]`);
@@ -1102,41 +1097,35 @@ async function handleCollectionSubmit(event) {
         
         const { sizes, variationStock } = sizeResult;
         
-        totalStock += variationStock; // Calculate cumulative total stock
+        calculatedTotalStock += variationStock; // Calculate cumulative total stock
 
-        // CRITICAL: Aggregate stock data for the top-level 'sizesAndStock' array
+        // Aggregate stock data for the top-level 'sizesAndStock' array
         for (const item of sizes) {
-            // Use a unique key combining size and index to prevent accidental overwrites 
-            // if we later decide to merge data (though for now, we just list every size/stock pair).
             const sizesAndStockKey = `${item.size}-${variationIndex}`; 
 
             if (!sizesAndStockMap.has(sizesAndStockKey)) {
                 sizesAndStockMap.set(sizesAndStockKey, {
                     size: item.size,
                     stock: item.stock,
-                    variationIndex: variationIndex, // Useful reference for the backend
+                    variationIndex: variationIndex,
                 });
             } else {
-                 // Safety check: a size/index combination should always be unique
                  showErrorModal(`Internal error: Duplicate size '${item.size}' detected within variation processing.`);
                  resetFormSubmitButtonState(isUpdate);
                  return;
             }
         }
 
-
-        // Push the variation data WITHOUT the 'sizes' array (as it's now top-level)
+        // Push the variation data (metadata)
         variations.push({
             variationIndex,
             colorHex,
-            // frontImageUrl and backImageUrl are placeholders for existing URLs
             existingFrontImageUrl: existingFrontUrlInput?.value || null,
             existingBackImageUrl: existingBackUrlInput?.value || null,
-            // Include Mongoose ID for updating existing variations
             ...(variationId && { _id: variationId })
         });
 
-        // --- 1c. Append files to FormData with the CORRECT keys ---
+        // --- 1c. Append files to FormData ---
         if (frontFileInput.files.length > 0) {
             formData.append(`front-view-upload-${variationIndex}`, frontFileInput.files[0]);
         }
@@ -1148,25 +1137,42 @@ async function handleCollectionSubmit(event) {
     // Convert the map values into the final array structure
     const sizesAndStock = Array.from(sizesAndStockMap.values());
     
+    // --- Validation for main fields ---
+    const collectionName = document.getElementById('collection-name').value.trim();
+    const priceValue = parseFloat(document.getElementById('collection-price').value);
+    const isActive = document.getElementById('is-active').checked;
+
+    if (!collectionName) {
+        showErrorModal("Collection Name is required.");
+        resetFormSubmitButtonState(isUpdate);
+        return;
+    }
+    if (isNaN(priceValue) || priceValue <= 0) {
+        showErrorModal("A valid Price is required (must be greater than 0).");
+        resetFormSubmitButtonState(isUpdate);
+        return;
+    }
+
+
     // 2. Add main payload data to FormData (JSON stringified)
     const mainPayload = {
-        name: document.getElementById('collection-name').value,
+        name: collectionName,
         tag: document.getElementById('collection-description').value,
-        price: parseFloat(document.getElementById('collection-price').value),
-        isActive: document.getElementById('is-active').checked, 
-        totalStock: totalStock, // Calculated total stock for the entire collection
+        price: priceValue,
+        isActive: isActive, 
         
-        // CRITICAL: Send the required top-level size and stock array
+        totalStock: isActive ? calculatedTotalStock : 0, 
+        
         sizesAndStock: sizesAndStock,
-        
-        // Send the structured variations array (now only containing color/image/ID info)
         variations: variations, 
     };
+    
+    console.log('Sending Collection Payload:', JSON.stringify(mainPayload, null, 2));
     
     // Append the JSON payload as a single string field
     formData.append('collectionData', JSON.stringify(mainPayload));
 
-    // 3. Send API Request using FormData (Same logic as before)
+    // 3. Send API Request using FormData
     const method = collectionIdToUpdate ? 'PUT' : 'POST';
     const url = collectionIdToUpdate ? `${API_BASE_URL}/${collectionIdToUpdate}` : API_BASE_URL;
     
@@ -1175,7 +1181,6 @@ async function handleCollectionSubmit(event) {
             method: method,
             headers: { 
                 'Authorization': `Bearer ${token}` 
-                // DO NOT set Content-Type header when using FormData.
             },
             body: formData 
         });
@@ -1183,7 +1188,6 @@ async function handleCollectionSubmit(event) {
         if (!response.ok) {
             const errorText = await response.text(); 
             let errorMessage = `Server returned status ${response.status}.`;
-
             try {
                 const errorData = JSON.parse(errorText);
                 errorMessage = errorData.message || errorData.details || 'Operation failed due to a server error.';
@@ -1210,6 +1214,63 @@ async function handleCollectionSubmit(event) {
     } finally {
         // Re-enable button
         resetFormSubmitButtonState(isUpdate);
+    }
+}
+
+/**
+ * FIX for Error: Missing 'sizesAndStock' or 'isActive' in simple update payload.
+ * This function handles simple restock/activation/deactivation from a list.
+ * * @param {string} collectionId The ID of the collection to update.
+ * @param {Array<{size: string, stock: number, variationIndex: number}>} sizesAndStockUpdates The array of size/stock objects.
+ * @param {boolean} isActive The new activation status.
+ */
+async function quickRestockAndActivate(collectionId, sizesAndStockUpdates, isActive) {
+    const token = getAuthToken();
+    if (!token) {
+        showErrorModal("Authentication token missing.");
+        return;
+    }
+
+    const calculatedTotalStock = sizesAndStockUpdates.reduce((sum, item) => sum + item.stock, 0);
+
+    // CRITICAL: Construct the JSON payload with the two fields the server requires.
+    const payload = {
+        sizesAndStock: sizesAndStockUpdates,
+        isActive: isActive,
+        // Calculate totalStock based on active status, matching handleCollectionSubmit logic.
+        totalStock: isActive ? calculatedTotalStock : 0 
+    };
+
+    try {
+        const url = `${API_BASE_URL}/${collectionId}`;
+        const response = await fetch(url, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json', // IMPORTANT: Use JSON header for this PUT request
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text(); 
+            let errorMessage = `Server returned status ${response.status}.`;
+
+            try {
+                const errorData = JSON.parse(errorText);
+                errorMessage = errorData.message || errorData.details || 'Operation failed due to a server error.';
+            } catch (e) {
+                errorMessage += ` Raw response: ${errorText.substring(0, 100)}...`;
+            }
+            throw new Error(errorMessage);
+        }
+
+        const data = await response.json();
+        showSuccessModal(`Collection <mark>**${data.name}**</mark> updated successfully via quick action!`);
+        fetchCollections(); // Refresh the list
+    } catch (error) {
+        console.error('Restock failed:', error);
+        showErrorModal(`Error restocking collection: <mark>${error.message}</mark>`);
     }
 }
 

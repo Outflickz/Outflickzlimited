@@ -367,6 +367,7 @@ function addToCart(collectionId, quantity) {
 
     console.log(`Added ${quantity} of item ${collectionId}. New cart total: ${newCount}`);
 }
+
 /**
  * Handles adding an item to the cart. 
  * Tries API (permanent cart via secure cookie) first.
@@ -483,75 +484,82 @@ async function simulateAddToCart(productDetails) {
     };
     
     // --- 3. Attempt Authenticated API Call ---
-  try {
-    const response = await fetch('/api/users/cart', {
-        method: 'POST',
-        headers: {
-            // Content-Type is needed for the JSON body
-            'Content-Type': 'application/json'
-            // Authorization header is intentionally omitted, as the token
-            // is expected to be sent automatically via the cookie.
-        },
-        body: JSON.stringify(itemDataForAPI),
-        // ✅ CRITICAL ADDITION: This tells the browser to include the HTTP-only cookie.
-        credentials: 'include' 
-    });
+    try {
+        const response = await fetch('/api/users/cart', {
+            method: 'POST',
+            headers: {
+                // Content-Type is needed for the JSON body
+                'Content-Type': 'application/json'
+                // Authorization header is intentionally omitted, as the token
+                // is expected to be sent automatically via the cookie.
+            },
+            body: JSON.stringify(itemDataForAPI),
+            // ✅ CRITICAL ADDITION: This tells the browser to include the HTTP-only cookie.
+            credentials: 'include' 
+        });
 
-        const data = await response.json();
+        const data = await response.json();
 
-        if (response.ok) {
-            // 3a. Success: Item added to permanent cart
-            localStorage.setItem(CART_STORAGE_KEY, data.items.length.toString());
-            updateCartBadge();
-            
-            // Display success alert (Green background)
-            const alertMessage = document.getElementById('cart-alert');
-            if (alertMessage) {
-                alertMessage.textContent = 'Item added to your permanent shopping bag!';
-                alertMessage.className = 'absolute top-0 right-0 p-3 m-3 rounded shadow-lg transition-all duration-300 ease-in-out bg-green-500 text-white opacity-100 translate-y-0';
-                setTimeout(() => {
-                    alertMessage.classList.add('opacity-0', '-translate-y-10');
-                    setTimeout(() => alertMessage.classList.remove('bg-green-500'), 300);
-                }, 3000);
-            }
+        if (response.ok) {
+            // 3a. Success: Item added to permanent cart
+            // 💥 FIX FOR TypeError: Cannot read properties of undefined (reading 'length') 💥
+            if (data.items && Array.isArray(data.items)) {
+                localStorage.setItem(CART_STORAGE_KEY, data.items.length.toString());
+                updateCartBadge();
+            } else {
+                // If API is OK but returns unexpected data, still alert the user
+                console.error("API success but data.items missing. Falling back to simple update.");
+                updateCartBadge(); // Just ensure the badge is updated with existing count
+            }
+            
+            // Display success alert (Green background)
+            const alertMessage = document.getElementById('cart-alert');
+            if (alertMessage) {
+                alertMessage.textContent = 'Item added to your permanent shopping bag!';
+                alertMessage.className = 'absolute top-0 right-0 p-3 m-3 rounded shadow-lg transition-all duration-300 ease-in-out bg-green-500 text-white opacity-100 translate-y-0';
+                setTimeout(() => {
+                    alertMessage.classList.add('opacity-0', '-translate-y-10');
+                    setTimeout(() => alertMessage.classList.remove('bg-green-500'), 300);
+                }, 3000);
+            }
 
-        } else if (response.status === 401 || response.status === 403) {
-            // 3b. Unauthorized (Cookie failed/expired) -> FALLBACK TO LOCAL CART
-            console.log("401/403 received (Unauthenticated). Falling back to local cart.");
-            handleLocalCartFallback(requiredDetails);
+        } else if (response.status === 401 || response.status === 403) {
+            // 3b. Unauthorized (Cookie failed/expired) -> FALLBACK TO LOCAL CART
+            console.log("401/403 received (Unauthenticated). Falling back to local cart.");
+            handleLocalCartFallback(requiredDetails);
 
-        } else {
-            // 3c. Other API Errors
-            // Use the flashing alert for generic error (Red background)
-            const alertMessage = document.getElementById('cart-alert');
-            if (alertMessage) {
-                 alertMessage.textContent = data.message || 'Failed to add item.';
-                 alertMessage.className = 'absolute top-0 right-0 p-3 m-3 rounded shadow-lg transition-all duration-300 ease-in-out bg-red-500 text-white opacity-100 translate-y-0';
-                 setTimeout(() => {
-                     alertMessage.classList.add('opacity-0', '-translate-y-10');
-                     setTimeout(() => alertMessage.classList.remove('bg-red-500'), 300); 
-                 }, 3000);
-             }
-        }
-        
-    } catch (error) {
-        // --- 4. Network or Fetch Error -> FALLBACK TO LOCAL CART ---
-        console.error('Error in addToCart API (Network or Fetch Error):', error);
-        
-        // Use the fallback function
-        handleLocalCartFallback(requiredDetails);
+        } else {
+            // 3c. Other API Errors
+            // Use the flashing alert for generic error (Red background)
+            const alertMessage = document.getElementById('cart-alert');
+            if (alertMessage) {
+                 alertMessage.textContent = data.message || 'Failed to add item.';
+                 alertMessage.className = 'absolute top-0 right-0 p-3 m-3 rounded shadow-lg transition-all duration-300 ease-in-out bg-red-500 text-white opacity-100 translate-y-0';
+                 setTimeout(() => {
+                     alertMessage.classList.add('opacity-0', '-translate-y-10');
+                     setTimeout(() => alertMessage.classList.remove('bg-red-500'), 300); 
+                 }, 3000);
+             }
+        }
+        
+    } catch (error) {
+        // --- 4. Network or Fetch Error -> FALLBACK TO LOCAL CART ---
+        console.error('Error in addToCart API (Network or Fetch Error):', error);
+        
+        // Use the fallback function
+        handleLocalCartFallback(requiredDetails);
 
-        // Display error alert (Red background)
-        const alertMessage = document.getElementById('cart-alert');
-        if (alertMessage) {
-            alertMessage.textContent = 'Could not reach server. Item added to local cart.';
-            alertMessage.className = 'absolute top-0 right-0 p-3 m-3 rounded shadow-lg transition-all duration-300 ease-in-out bg-red-500 text-white opacity-100 translate-y-0';
-            setTimeout(() => {
-                alertMessage.classList.add('opacity-0', '-translate-y-10');
-                setTimeout(() => alertMessage.classList.remove('bg-red-500'), 300);
-            }, 3000);
-        }
-    }
+        // Display error alert (Red background)
+        const alertMessage = document.getElementById('cart-alert');
+        if (alertMessage) {
+            alertMessage.textContent = 'Could not reach server. Item added to local cart.';
+            alertMessage.className = 'absolute top-0 right-0 p-3 m-3 rounded shadow-lg transition-all duration-300 ease-in-out bg-red-500 text-white opacity-100 translate-y-0';
+            setTimeout(() => {
+                alertMessage.classList.add('opacity-0', '-translate-y-10');
+                setTimeout(() => alertMessage.classList.remove('bg-red-500'), 300);
+            }, 3000);
+        }
+    }
 }
 
 // Initialize the cart badge on page load

@@ -3242,10 +3242,12 @@ app.delete(
     }
 );
 
+// --- PUBLIC ROUTES (Existing) ---
+
 // GET /api/collections/wears (For Homepage Display)
 app.get('/api/collections/wears', async (req, res) => {
     try {
-        // Fetch only ACTIVE collections, ensuring 'sizes' (the field for available sizes, which contains objects) is selected.
+        // Fetch only ACTIVE collections (WearsCollection)
         const collections = await WearsCollection.find({ isActive: true }) 
             .select('_id name tag price variations sizes totalStock') 
             .sort({ createdAt: -1 })
@@ -3261,21 +3263,12 @@ app.get('/api/collections/wears', async (req, res) => {
                 backImageUrl: await generateSignedUrl(v.backImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Back+View+Error'
             })));
 
-            // === FIX START: Transform the array of size objects into an array of size strings ===
-            // Assuming each size object in collection.sizes has a property called 'name' or 'sizeName'.
-            // I will use 'name' as the most common convention.
-            const sizeNames = Array.isArray(collection.sizes)
-                ? collection.sizes.map(sizeObj => sizeObj.name).filter(Boolean)
-                : [];
-            // === FIX END ===
-
             return {
                 _id: collection._id,
                 name: collection.name,
                 tag: collection.tag,
                 price: collection.price, 
-                // Now passing the transformed array of size strings
-                availableSizes: sizeNames,
+                availableSizes: collection.sizes,
                 availableStock: collection.totalStock, 
                 variants: variants
             };

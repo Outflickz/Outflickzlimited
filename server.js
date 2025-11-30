@@ -3243,7 +3243,6 @@ app.delete(
 );
 
 // --- PUBLIC ROUTES (Existing) ---
-
 // GET /api/collections/wears (For Homepage Display)
 app.get('/api/collections/wears', async (req, res) => {
     try {
@@ -3263,12 +3262,21 @@ app.get('/api/collections/wears', async (req, res) => {
                 backImageUrl: await generateSignedUrl(v.backImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Back+View+Error'
             })));
 
+            // === FIX: Transform the array of size objects into an array of size strings ===
+            // Since the database stores 'sizes' as an array of objects (e.g., [{name: 'S'}, {name: 'M'}]),
+            // we map over it to extract only the 'name' property to get ["S", "M"].
+            const sizeNames = Array.isArray(collection.sizes)
+                ? collection.sizes.map(sizeObj => sizeObj.name).filter(Boolean)
+                : [];
+            // === END FIX ===
+            
             return {
                 _id: collection._id,
                 name: collection.name,
                 tag: collection.tag,
                 price: collection.price, 
-                availableSizes: collection.sizes,
+                // Now passing the transformed array of size strings, which the frontend expects
+                availableSizes: sizeNames,
                 availableStock: collection.totalStock, 
                 variants: variants
             };

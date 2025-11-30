@@ -939,7 +939,55 @@ function createCollectionCard(collection, size = 'default') {
     `;
 }
 
+/**
+ * Generates the HTML for the size selection options within the collection card.
+ * @param {string} collectionId - The ID of the collection/product.
+ * @param {string[]} availableSizes - Array of size strings (e.g., ['S', 'M', 'L']).
+ * @param {boolean} isReduced - Flag for applying smaller size classes.
+ * @returns {string} The HTML string for the size options.
+ */
+function createSizeList(collectionId, availableSizes, isReduced) {
+    if (!availableSizes || availableSizes.length === 0) {
+        // If the array is empty, we return HTML that displays 'N/A' clearly
+        return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
+    }
 
+    // Use smaller sizing classes if the card is in reduced mode
+    const sizeClasses = isReduced ? 'w-5 h-5 text-[0.6rem]' : 'w-6 h-6 text-xs';
+
+    // Map each available size to a small, clickable tag (radio button substitute)
+    const sizeOptionsHtml = availableSizes.map((size, index) => {
+        // Simple sanitization of size for use in IDs/Names
+        const safeSize = size.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
+        const inputId = `size-${collectionId}-${safeSize}`;
+        const nameGroup = `size-group-${collectionId}`;
+        
+        // Determine if this should be the default selected size (first item)
+        const isChecked = index === 0 ? 'checked' : '';
+        // Note: The 'peer-checked' class is crucial for styling the label when the radio is checked
+        
+        return `
+            <input 
+                type="radio" 
+                id="${inputId}" 
+                name="${nameGroup}" 
+                value="${size}" 
+                class="hidden size-radio peer" 
+                data-size-id="${collectionId}"
+                ${isChecked}
+            >
+            <label 
+                for="${inputId}" 
+                class="${sizeClasses} border cursor-pointer rounded-full flex items-center justify-center font-medium transition-all duration-150 border-gray-300 text-gray-700 hover:border-ash-dark hover:bg-gray-100 
+                       peer-checked:border-ash-dark peer-checked:bg-ash-dark peer-checked:text-white"
+            >
+                ${size}
+            </label>
+        `;
+    }).join('');
+
+    return sizeOptionsHtml;
+}
 
 // --- FETCH AND RENDER COLLECTIONS (Existing functions) ---
 async function fetchAndRenderWearsCollections() {

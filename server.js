@@ -3243,11 +3243,10 @@ app.delete(
 );
 
 // --- PUBLIC ROUTES (Existing) ---
-
 // GET /api/collections/wears (For Homepage Display)
 app.get('/api/collections/wears', async (req, res) => {
     try {
-        // Fetch only ACTIVE collections (WearsCollection)
+        // Fetch only ACTIVE collections, ensuring 'sizes' (the field for available sizes) is selected.
         const collections = await WearsCollection.find({ isActive: true }) 
             .select('_id name tag price variations sizes totalStock') 
             .sort({ createdAt: -1 })
@@ -3268,6 +3267,7 @@ app.get('/api/collections/wears', async (req, res) => {
                 name: collection.name,
                 tag: collection.tag,
                 price: collection.price, 
+                // CRITICAL CHECK: The 'sizes' field from the database is correctly mapped to the frontend's 'availableSizes' property.
                 availableSizes: collection.sizes,
                 availableStock: collection.totalStock, 
                 variants: variants

@@ -780,21 +780,15 @@ function createCollectionCard(collection, size = 'default') {
     const itemPrice = collection.price; 
     const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
 
-    // *** REVISED FIX: Extract unique size strings that have stock > 0 ***
-    // 1. Flatten all size objects from all variations.
-    const allSizeObjects = collection.variations
-        ? collection.variations.flatMap(v => v.sizes || [])
+    // *** FIX: Extract unique available sizes from the nested variations array ***
+    // 1. Use flatMap to combine all 'size' arrays from all variations into one flat array of size strings
+    // 2. Filter out duplicates to get a unique list of available sizes (e.g., ['S', 'M', 'L'])
+    const allAvailableSizes = collection.variations
+        ? collection.variations
+            .flatMap(v => v.sizes ? v.sizes.map(s => s.size) : [])
+            .filter((value, index, self) => self.indexOf(value) === index)
         : [];
-        
-    // 2. Filter for sizes with stock > 0 and extract the unique size names (strings).
-    // Using a Set ensures uniqueness of size names.
-    const uniqueInStockSizes = new Set();
-    allSizeObjects
-        .filter(s => s.stock > 0)
-        .forEach(s => uniqueInStockSizes.add(s.size));
-        
-    const allAvailableSizes = Array.from(uniqueInStockSizes);
-    // *** END REVISED FIX ***
+    // *** END FIX ***
 
 
     // *** Conditional Size List Render ***
@@ -816,8 +810,6 @@ function createCollectionCard(collection, size = 'default') {
     const maxStock = collection.availableStock > 0 ? collection.availableStock : 0; 
     
     // *** Check Stock Status ***
-    // Note: Use allAvailableSizes count for more accurate stock indication for size selector
-    const hasAnyInStockSize = allAvailableSizes.length > 0;
     const isOutOfStock = maxStock === 0 || collection.availableStock === 0;
 
     const description = collection.tag || (isPreorder ? 'Secure your exclusive item before it sells out' : 'Exclusive limited edition item.');
@@ -839,7 +831,7 @@ function createCollectionCard(collection, size = 'default') {
         buyNowButtonText = 'PRE-ORDER'; 
         buyNowButtonClasses = 'bg-ash-red text-white hover:bg-red-700';
         cartButtonClasses = 'bg-gray-700 text-white hover:bg-gray-800';
-    } else if (isOutOfStock || !hasAnyInStockSize) {
+    } else if (isOutOfStock) {
         stockBadge = '<span class="absolute top-2 left-2 bg-ash-red text-white text-[0.6rem] sm:text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">OOS</span>';
         cartButtonText = 'N/A';
         buyNowButtonText = 'N/A';
@@ -848,7 +840,7 @@ function createCollectionCard(collection, size = 'default') {
     }
     
     // *** Define Buttons/Labels based on Stock Status ***
-    const isButtonDisabled = (isOutOfStock || !hasAnyInStockSize) && !isPreorder;
+    const isButtonDisabled = isOutOfStock && !isPreorder;
     
     // Get current quantity value for the button click
     const quantityGetter = `document.getElementById('quantity-input-${collection._id}').value`;
@@ -877,7 +869,7 @@ function createCollectionCard(collection, size = 'default') {
     `;
 
     // Quantity control (TIGHTER FOR MOBILE)
-    const quantityControlHtml = (isOutOfStock || !hasAnyInStockSize) && !isPreorder
+    const quantityControlHtml = isOutOfStock && !isPreorder
         ? `<div class="w-10 sm:w-16 ${controlHeight} border border-gray-300 rounded-sm flex items-center justify-center text-xs text-gray-500">N/A</div>`
         : `
             <div class="flex items-center border border-gray-300 rounded-sm">
@@ -975,8 +967,7 @@ function createSizeList(collectionId, availableSizes, isReduced) {
     // Filter the available sizes to only include the standard, valid sizes.
     // We check the uppercase/trimmed version against the standard list.
     const filteredSizes = (availableSizes || [])
-        // Ensure size is a string and matches the standard list
-        .filter(size => typeof size === 'string' && standardSizes.includes(size.toUpperCase().trim()));
+        .filter(size => standardSizes.includes(size.toUpperCase().trim()));
 
     if (filteredSizes.length === 0) {
         // If the array is empty after filtering, display 'N/A'

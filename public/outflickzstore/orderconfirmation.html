@@ -229,17 +229,62 @@ const CURRENCY_SYMBOL = '₦';
 const API_BASE_URL = 'https://outflickz.netlify.app';
 
 // =================================================================
-// 🚀 UTILITY FUNCTIONS
+// 🚀 AUTHENTICATION & UTILITY FUNCTIONS
 // =================================================================
+
 /**
- * Retrieves the user's authentication token from local storage.
+ * Retrieves the user's JWT token from local storage (used for specific data APIs like orders).
  * @returns {string | null} The JWT token or null if not found.
  */
 function getAuthToken() {
-    // Ensuring the token is retrieved and trimmed for clean use
     const token = localStorage.getItem('outflickzAuthToken');
     return token ? token.trim() : null; 
 }
+
+/**
+ * Checks the user's authentication status via the API (/api/auth/status) 
+ * which relies on the HTTP-only cookie for proof of session.
+ * @returns {boolean} True if the API returns 200, false otherwise.
+ */
+async function isUserLoggedIn() {
+    try {
+        // Fetch status - the browser automatically sends the secure HTTP-only cookie.
+        const response = await fetch(`${API_BASE_URL}/api/auth/status`, {
+            method: 'GET'
+        });
+        return response.status === 200;
+    } catch (error) {
+        // Treat network errors as logged out
+        console.error('isUserLoggedIn check failed:', error);
+        return false;
+    }
+}
+
+/**
+ * Checks the user's authentication status and redirects to the appropriate page.
+ * Uses the new HTTP-only cookie check.
+ */
+async function redirectToProfileOrLogin() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/auth/status`, {
+            method: 'GET'
+        });
+
+        if (response.status === 200) {
+            // Server confirms user is authenticated (Cookie is valid)
+            window.location.href = 'userprofile.html'; 
+        } else {
+            // Server returned 401/403 (Cookie is missing or expired)
+            window.location.href = 'useraccount.html';
+        }
+
+    } catch (error) {
+        // Handle network errors
+        console.error('Authentication status check failed:', error);
+        window.location.href = 'useraccount.html';
+    }
+}
+
 
 /**
  * Updates the visual cart badge count in the header.
@@ -257,13 +302,6 @@ function updateCartBadge() {
     }
 }
 
-/**
- * Redirects to the user account page based on login status.
- */
-function redirectToProfileOrLogin() {
-    // This function can be simplified as it only needs to take the user to the auth page.
-    window.location.href = 'useraccount.html';
-}
 
 /**
  * Toggles the mobile menu open/closed state using CSS transitions.
@@ -291,17 +329,15 @@ function toggleMenu() {
 /**
  * Updates the profile icon's appearance and Aria label based on login status.
  */
-function updateProfileIconStatus() {
-    const token = getAuthToken();
+async function updateProfileIconStatus() {
+    // Check status using the primary cookie method
+    const isLoggedIn = await isUserLoggedIn(); 
     const profileIconBtn = document.getElementById('profile-icon');
     
     if (profileIconBtn) {
-        // const icon = profileIconBtn.querySelector('i'); // Removed unused variable
-        
-        if (token) {
+        if (isLoggedIn) {
             // User is logged in
             profileIconBtn.setAttribute('aria-label', 'User Account');
-            // Change color to indicate logged in, or add a slight border
             profileIconBtn.classList.add('text-primary-indigo', 'border-primary-indigo', 'border');
             profileIconBtn.classList.remove('text-gray-700', 'border-transparent', 'border');
         } else {
@@ -320,23 +356,28 @@ function updateProfileIconStatus() {
 async function fetchOrderCollection(orderId) {
     const itemsListEl = document.getElementById('order-items-list');
     const priceSummaryEl = document.getElementById('price-summary');
+    // Note: Order fetching still relies on the JWT (getAuthToken)
     const token = getAuthToken();
     
     // Helper function to render login prompt
-    const renderLoginPrompt = () => {
+    const renderLoginPrompt = (isExpired = false) => {
         // Construct the full URL for redirection
         const currentUrl = window.location.pathname + window.location.search;
         const redirectUrl = `useraccount.html?redirect=${encodeURIComponent(currentUrl)}`;
+        const message = isExpired 
+            ? 'Your session has expired or you do not have permission.' 
+            : 'You must be logged in to view detailed order history.';
+        
         return `<div class="text-center py-4 text-red-500">
-            <i class="fas fa-exclamation-triangle mr-2"></i> You must be logged in to view detailed order history. 
+            <i class="fas fa-exclamation-triangle mr-2"></i> ${message} 
             <a href="${redirectUrl}" class="font-semibold underline text-primary-indigo hover:text-indigo-800">Click here to log in.</a>
         </div>`;
     };
 
 
-    // 🛑 PRIMARY CHECK: If no token is found in local storage
+    // 🛑 PRIMARY CHECK: If no JWT token is found in local storage
     if (!token) {
-        itemsListEl.innerHTML = renderLoginPrompt();
+        itemsListEl.innerHTML = renderLoginPrompt(false);
         priceSummaryEl.innerHTML = '';
         return;
     }
@@ -354,17 +395,14 @@ async function fetchOrderCollection(orderId) {
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({ message: 'Server error' }));
             
-            // 🛑 SECONDARY CHECK: If the token is invalid or expired
+            // 🛑 SECONDARY CHECK: If the JWT token is invalid or expired
             if (response.status === 401 || response.status === 403) {
-                 // Clear the invalid token immediately
+                 // Clear the invalid JWT token immediately
                  localStorage.removeItem('outflickzAuthToken');
-                 updateProfileIconStatus(); // Update the icon to logged out
+                 // Also ensure the header icon updates based on cookie status if it was relying on the JWT
+                 updateProfileIconStatus(); 
                  
-                 const expiredPrompt = `<div class="text-center py-4 text-red-500">
-                     <i class="fas fa-exclamation-triangle mr-2"></i> Your session has expired or you do not have permission. Please <a href="useraccount.html?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}" class="font-semibold underline text-primary-indigo hover:text-indigo-800">log in</a> again.
-                 </div>`;
-
-                 itemsListEl.innerHTML = expiredPrompt;
+                 itemsListEl.innerHTML = renderLoginPrompt(true);
                  priceSummaryEl.innerHTML = '';
                  return;
             }
@@ -494,8 +532,10 @@ function displayConfirmationDetails() {
 
 // --- Main Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
+    // We don't need enforceAuthGate() here since this page is confirmation, 
+    // but we use the new check for the header icon
     updateCartBadge(); 
-    updateProfileIconStatus(); // Check login status for the icon on load
+    updateProfileIconStatus(); // Use the new cookie-based check to update the profile icon
     displayConfirmationDetails(); 
 });
 </script>

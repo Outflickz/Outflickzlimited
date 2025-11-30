@@ -254,6 +254,7 @@ async function generateHashAndSaveVerificationCode(user) {
     );
         return verificationCode;
 }
+
 /**
  * Utility function to format a number as Naira (NGN) currency.
  * @param {number} amount The amount in NGN (base currency).
@@ -275,14 +276,24 @@ function generateOrderEmailHtml(order) {
     // Determine the primary product URL for display
     const itemsHtml = order.items.map(item => {
         // Use a placeholder if the image URL is missing or add a width/style
+        // NOTE: The augmentOrdersWithProductDetails ensures this is a signed URL or a solid placeholder.
         const itemImageUrl = item.imageUrl || 'https://placehold.co/60x60/f8f8f8/999999?text=NO+IMG';
         
         return `
             <tr>
-                <td style="padding: 12px; border: 1px solid #ddd; display: flex; align-items: center;">
-                    <img src="${itemImageUrl}" alt="${item.name}" style="width: 60px; height: 60px; object-fit: cover; margin-right: 15px; border-radius: 4px;">
-                    <div>
-                        <p style="margin: 0; font-weight: bold;">${item.name}</p>
+                <td style="padding: 12px; border: 1px solid #ddd; display: flex; align-items: center; text-align: left;">
+                    <img src="${itemImageUrl}" alt="${item.name}" 
+                        style="
+                            width: 60px; 
+                            min-width: 60px; /* Ensure fixed width */
+                            height: 60px; 
+                            object-fit: cover; 
+                            margin-right: 15px; 
+                            border-radius: 4px; 
+                            display: block; /* CRITICAL FIX: Helps image rendering in some clients */
+                        ">
+                    <div style="flex-grow: 1;">
+                        <p style="margin: 0; font-weight: 900; font-size: 1.1em; color: #1F2937;">${item.name}</p>
                         <p style="margin: 2px 0 0 0; font-size: 0.9em; color: #555;">Size: ${item.size || 'N/A'}</p>
                         <p style="margin: 0; font-size: 0.9em; color: #555;">Details: ${item.variation || 'N/A'}</p>
                     </div>

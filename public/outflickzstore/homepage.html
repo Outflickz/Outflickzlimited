@@ -728,7 +728,6 @@ function createColorList(collectionId, variants) {
 
     return mapHtml + buttonsHtml;
 }
-
 // --- REDESIGNED WEARS COLLECTION CARD JS (MATCHES IMAGE LAYOUT) ---
 // UPDATED: Now handles the 'caps' size by removing the size selection UI.
 function createCollectionCard(collection, size = 'default') {
@@ -941,22 +940,33 @@ function createCollectionCard(collection, size = 'default') {
 
 /**
  * Generates the HTML for the size selection options within the collection card.
- * @param {string} collectionId - The ID of the collection/product.
+ *
+ * IMPORTANT: This function now filters the incoming sizes to only display
+ * the standard set: S, M, L, XL.
+ * * @param {string} collectionId - The ID of the collection/product.
  * @param {string[]} availableSizes - Array of size strings (e.g., ['S', 'M', 'L']).
  * @param {boolean} isReduced - Flag for applying smaller size classes.
  * @returns {string} The HTML string for the size options.
  */
 function createSizeList(collectionId, availableSizes, isReduced) {
-    if (!availableSizes || availableSizes.length === 0) {
-        // If the array is empty, we return HTML that displays 'N/A' clearly
+    // Define the only allowed, standard sizes as requested by the user.
+    const standardSizes = ['S', 'M', 'L', 'XL']; 
+
+    // Filter the available sizes to only include the standard, valid sizes.
+    // We check the uppercase/trimmed version against the standard list.
+    const filteredSizes = (availableSizes || [])
+        .filter(size => standardSizes.includes(size.toUpperCase().trim()));
+
+    if (filteredSizes.length === 0) {
+        // If the array is empty after filtering, display 'N/A'
         return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
     }
 
     // Use smaller sizing classes if the card is in reduced mode
     const sizeClasses = isReduced ? 'w-5 h-5 text-[0.6rem]' : 'w-6 h-6 text-xs';
 
-    // Map each available size to a small, clickable tag (radio button substitute)
-    const sizeOptionsHtml = availableSizes.map((size, index) => {
+    // Map each filtered available size to a small, clickable tag (radio button substitute)
+    const sizeOptionsHtml = filteredSizes.map((size, index) => {
         // Simple sanitization of size for use in IDs/Names
         const safeSize = size.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
         const inputId = `size-${collectionId}-${safeSize}`;
@@ -979,7 +989,7 @@ function createSizeList(collectionId, availableSizes, isReduced) {
             <label 
                 for="${inputId}" 
                 class="${sizeClasses} border cursor-pointer rounded-full flex items-center justify-center font-medium transition-all duration-150 border-gray-300 text-gray-700 hover:border-ash-dark hover:bg-gray-100 
-                       peer-checked:border-ash-dark peer-checked:bg-ash-dark peer-checked:text-white"
+                        peer-checked:border-ash-dark peer-checked:bg-ash-dark peer-checked:text-white"
             >
                 ${size}
             </label>
@@ -1053,6 +1063,7 @@ async function fetchAndRenderWearsCollections() {
         container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server (502/Down).</p>';
     }
 }
+
 // --- NEW ARRIVALS COLLECTION JS ---
 async function fetchAndRenderNewArrivals() {
     const container = document.getElementById('new-arrivals-grid');

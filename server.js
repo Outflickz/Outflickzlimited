@@ -1877,13 +1877,14 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Failed to confirm order due to a server error.' });
     }
 });
-
 // =========================================================
 // 10. PUT /api/admin/orders/:orderId/status - Update Fulfillment Status
 // =========================================================
 app.put('/api/admin/orders/:orderId/status', verifyToken, async (req, res) => {
     const { orderId } = req.params;
-    const { newStatus, trackingNumber, shippingCompany } = req.body;
+    // Keep trackingNumber and shippingCompany available in case the admin enters them,
+    // but remove the requirement check.
+    const { newStatus, trackingNumber, shippingCompany } = req.body; 
     
     // Define valid transitions for the fulfillment workflow
     const validTransitions = {
@@ -1916,23 +1917,26 @@ app.put('/api/admin/orders/:orderId/status', verifyToken, async (req, res) => {
             });
         }
 
-        // 2. Handle 'Shipped' transition (requires tracking info)
+        // 2. Handle 'Shipped' transition (REMOVED TRACKING NUMBER REQUIREMENT)
         if (newStatus === 'Shipped') {
-            if (!trackingNumber) {
-                return res.status(400).json({ message: 'Tracking number is required when changing status to Shipped.' });
-            }
-            // Add shipping details to the update
+            // ⭐ REMOVED THE FOLLOWING CHECK:
+            // if (!trackingNumber) {
+            //     return res.status(400).json({ message: 'Tracking number is required when changing status to Shipped.' });
+            // }
+            
+            // Add shipping details if provided (they are now optional)
             updateFields = { 
                 ...updateFields, 
-                trackingNumber, 
-                shippingCompany,
+                // Only set if they exist in the request body
+                ...(trackingNumber && { trackingNumber }), 
+                ...(shippingCompany && { shippingCompany }),
                 shippedAt: new Date()
             };
         }
         
         // 3. Handle 'Delivered' transition
         if (newStatus === 'Delivered') {
-             updateFields = { 
+              updateFields = { 
                 ...updateFields, 
                 deliveredAt: new Date()
             };
@@ -1953,7 +1957,8 @@ app.put('/api/admin/orders/:orderId/status', verifyToken, async (req, res) => {
             try {
                 // Assume sendShippingUpdateEmail and sendDeliveredEmail are implemented
                 if (newStatus === 'Shipped') {
-                    await sendShippingUpdateEmail(customerEmail, finalOrder);
+                    // NOTE: sendShippingUpdateEmail should be updated to handle a missing tracking number
+                    await sendShippingUpdateEmail(customerEmail, finalOrder); 
                 } else if (newStatus === 'Delivered') {
                     await sendDeliveredEmail(customerEmail, finalOrder);
                 }
@@ -1973,7 +1978,6 @@ app.put('/api/admin/orders/:orderId/status', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Failed to update order status due to a server error.' });
     }
 });
-
 // GET /api/admin/capscollections/:id - Fetch Single Cap Collection
 app.get('/api/admin/capscollections/:id', verifyToken, async (req, res) => {
     try {

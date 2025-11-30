@@ -173,22 +173,57 @@
                 </div>
 
                 <h3 class="text-xl font-semibold text-gray-800 border-b pb-2">Contact & Shipping</h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                        <p class="text-xs font-medium text-gray-500">Contact Phone 📞</p>
-                        <p class="text-lg text-gray-700" id="detail-phone"></p>
-                    </div>
-                    <div>
-                        <p class="text-xs font-medium text-gray-500">WhatsApp Contact 💬</p>
-                        <p class="text-lg text-green-700 font-semibold" id="detail-whatsapp"></p>
-                    </div>
-                    <div class="md:col-span-1">
-                        <p class="text-xs font-medium text-gray-500">Shipping Address 🏠</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
                         <div class="bg-gray-50 p-4 rounded-lg">
-                            <p class="text-base text-gray-700" id="detail-address">No Address Provided</p>
+                            <p class="text-xs font-medium text-gray-500 mb-1">Contact Phone 📞</p>
+                            <p class="text-lg text-gray-700" id="detail-phone">N/A</p>
+                            
+                            <p class="text-xs font-medium text-gray-500 mt-3 mb-1">WhatsApp Contact 💬</p>
+                            <p class="text-lg text-green-700 font-semibold" id="detail-whatsapp">N/A</p>
+                            
+                            <p class="text-xs font-medium text-gray-500 mt-3 mb-1">Current Shipping Address 🏠</p>
+                            <p class="text-base text-gray-700 font-medium" id="detail-address">No Address Provided</p>
                         </div>
                     </div>
-                </div>
+                    
+                    <div class="p-4 border border-indigo-200 bg-indigo-50 rounded-lg shadow-inner">
+                        <h4 class="text-lg font-bold text-indigo-700 mb-3">📦 Update Shipping Details</h4>
+                        
+                        <form id="shippingDetailsForm" class="space-y-3">
+                            <div>
+                                <label for="shippingFormStreet" class="block text-sm font-medium text-gray-700">Street Address</label>
+                                <input type="text" id="shippingFormStreet" name="street" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label for="shippingFormCity" class="block text-sm font-medium text-gray-700">City</label>
+                                    <input type="text" id="shippingFormCity" name="city" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+                                <div>
+                                    <label for="shippingFormState" class="block text-sm font-medium text-gray-700">State/Province</label>
+                                    <input type="text" id="shippingFormState" name="state" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label for="shippingFormZip" class="block text-sm font-medium text-gray-700">Zip/Postal Code</label>
+                                    <input type="text" id="shippingFormZip" name="zipCode" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+                                <div>
+                                    <label for="shippingFormCountry" class="block text-sm font-medium text-gray-700">Country</label>
+                                    <input type="text" id="shippingFormCountry" name="country" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+                            </div>
+                            
+                            <p id="shippingUpdateStatus" class="text-sm font-semibold pt-2"></p>
+                            
+                            <button type="submit" class="w-full justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150">
+                                Save New Shipping Address
+                            </button>
+                        </form>
+                    </div>
+                    </div>
 
                 <h3 class="text-xl font-semibold text-gray-800 border-b pb-2 flex items-center space-x-2">
                     <span>Order History 📦</span>
@@ -270,12 +305,22 @@
         
         // Order History Elements
         const orderHistoryBody = document.getElementById('order-history-body');
-        const orderCountDisplay = document.getElementById('order-count');
+        const orderCountDisplayInDetails = document.getElementById('order-count'); // Renamed for clarity vs global count
         
-        // Modal Elements (NEW)
+        // Modal Elements
         const orderDetailsModal = document.getElementById('order-details-modal');
         const modalOrderId = document.getElementById('modal-order-id');
         const modalItemsContainer = document.getElementById('modal-items-container');
+        
+        // --- NEW SHIPPING FORM ELEMENTS ---
+        const shippingDetailsForm = document.getElementById('shippingDetailsForm');
+        const shippingFormStreet = document.getElementById('shippingFormStreet');
+        const shippingFormCity = document.getElementById('shippingFormCity');
+        const shippingFormState = document.getElementById('shippingFormState');
+        const shippingFormZip = document.getElementById('shippingFormZip');
+        const shippingFormCountry = document.getElementById('shippingFormCountry');
+        const shippingUpdateStatus = document.getElementById('shippingUpdateStatus'); // For success/error messages
+
         // --- END DETAILS SECTION VARIABLES ---
 
         // --- Navigation Functions (unchanged) ---
@@ -294,8 +339,12 @@
             localStorage.removeItem('adminToken');
             window.location.href = './admin-login.html'; 
         }
+        
+        function getAdminToken() {
+            return localStorage.getItem('adminToken');
+        }
 
-      // Helper function for date formatting
+       // Helper function for date formatting
         function formatDate(dateString) {
             if (!dateString) return 'N/A';
             try {
@@ -354,6 +403,47 @@
         }
         
         // --- API Fetch Functions ---
+        
+        async function fetchUserDetails(userId) {
+            const token = getAdminToken();
+            try {
+                // ASSUMPTION: Backend route for fetching a single user's details
+                const response = await fetch(`/api/admin/users/${userId}`, { 
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    }
+                });
+
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return await response.json();
+            } catch (error) {
+                console.error('Error fetching user details:', error);
+                return null;
+            }
+        }
+
+        async function fetchUserOrders(userId) {
+            const token = getAdminToken();
+            try {
+                // ASSUMPTION: Backend route for fetching a user's orders
+                const response = await fetch(`/api/admin/users/${userId}/orders`, { 
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    }
+                });
+
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                return data.orders || []; // ASSUMPTION: Backend returns { orders: [...] }
+            } catch (error) {
+                console.error('Error fetching user orders:', error);
+                return null;
+            }
+        }
 
         /**
          * Fetches all registered user data from the API (used for the main table).
@@ -394,130 +484,55 @@
                 return null;
             }
         }
-        
+
+        // --- Main Table Rendering ---
+
         /**
-         * Fetches the full profile details for a specific user ID.
-         * Assumes a protected GET /api/admin/users/:id endpoint exists.
-         * @param {string} userId - The ID of the user to fetch.
-         * @returns {Promise<Object | null>} Single user object with full details or null on error.
-         */
-        async function fetchUserDetails(userId) {
-            const token = localStorage.getItem('adminToken');
-            if (!token) {
-                logoutAdmin();
-                return null;
-            }
-            
-            try {
-                const response = await fetch(`/api/admin/users/${userId}`, { 
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}` 
-                    }
-                });
-
-                if (!response.ok) {
-                    if (response.status === 401 || response.status === 403) {
-                        logoutAdmin();
-                    }
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const data = await response.json();
-                return data.user; // ASSUMPTION: Backend returns { user: {...} }
-
-            } catch (error) {
-                console.error(`Error fetching user details for ID ${userId}:`, error);
-                return null;
-            }
-        }
-        
-        /**
-         * Fetches the order history for a specific user ID.
-         * Assumes a protected GET /api/admin/users/:id/orders endpoint exists.
-         * @param {string} userId - The ID of the user to fetch orders for.
-         * @returns {Promise<Array<Object> | null>} Array of order objects or null on error.
-         */
-        async function fetchUserOrders(userId) {
-            const token = localStorage.getItem('adminToken');
-            if (!token) return null; // Auth handled by parent function
-
-            try {
-                // Backend route for orders for a user
-                const response = await fetch(`/api/admin/users/${userId}/orders`, { 
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}` 
-                    }
-                });
-
-                if (!response.ok) {
-                    // Log the error but don't force logout here
-                    console.error(`Order fetch failed for ${userId}: status ${response.status}`);
-                    return null;
-                }
-
-                const data = await response.json();
-                // ASSUMPTION: Backend returns { orders: [...] }
-                return data.orders || []; 
-
-            } catch (error) {
-                console.error(`Error fetching user orders for ID ${userId}:`, error);
-                return null;
-            }
-        }
-        
-        // --- Rendering Functions ---
-        
-        /**
-         * Renders the user data into the main membership table.
+         * Renders the user list into the main table.
          * @param {Array<Object>} users - Array of user objects.
          */
         function renderUserTable(users) {
-            userTableBody.innerHTML = ''; 
+            userTableBody.innerHTML = ''; // Clear previous data
             userCountDisplay.textContent = `Total Users: ${users.length.toLocaleString()}`;
 
             if (users.length === 0) {
-                userTableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No registered users found.</td></tr>';
+                userTableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">No users found.</td></tr>';
                 return;
             }
 
             users.forEach(user => {
-                const isMember = user.isMember; 
-                const statusText = isMember ? 'VIP Member' : 'Basic User';
-                const statusColor = isMember ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800';
-                
+                const statusText = user.isMember ? 'VIP Member' : 'Basic User';
+                const statusClass = user.isMember ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600';
+
                 const row = document.createElement('tr');
                 row.className = 'hover:bg-gray-50';
-                
                 row.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 truncate max-w-xs" title="${user._id}">${user._id}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${user.name || 'N/A'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${user.email}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${user.name || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${user.email}</td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColor}">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
                             ${statusText}
                         </span>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        ${formatDate(user.createdAt)}
-                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(user.createdAt)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button onclick="viewUserDetails('${user._id}')" class="text-blue-600 hover:text-blue-900 transition duration-150">View Details</button>
+                        <button onclick="viewUserDetails('${user._id}')" 
+                            class="text-indigo-600 hover:text-indigo-900 transition duration-150">View Details</button>
                     </td>
                 `;
                 userTableBody.appendChild(row);
             });
         }
-        
+
+
         /**
          * Renders the order history into the table.
          * @param {Array<Object>} orders - Array of order objects.
          */
         function renderOrderHistory(orders) {
             orderHistoryBody.innerHTML = ''; // Clear previous data
-            orderCountDisplay.textContent = `Total Orders: ${orders.length.toLocaleString()}`;
+            orderCountDisplayInDetails.textContent = `Total Orders: ${orders.length.toLocaleString()}`;
 
             if (!orders || orders.length === 0) {
                 // Adjusted colspan to 5
@@ -548,22 +563,84 @@
             });
         }
         
-        // --- Details and Modal Functions ---
+        // --- NEW FUNCTION: Update Shipping Details ---
+
+        /**
+         * Sends a request to the API to update the user's shipping details.
+         * @param {Event} e - The form submission event.
+         * @param {string} userId - The ID of the user being updated.
+         */
+        async function updateShippingDetails(e, userId) {
+            e.preventDefault(); // Prevent default form submission
+            
+            shippingUpdateStatus.textContent = '';
+            shippingUpdateStatus.classList.remove('text-green-600', 'text-red-600');
+
+            // Get data from the form
+            const updatedAddress = {
+                street: shippingFormStreet.value,
+                city: shippingFormCity.value,
+                state: shippingFormState.value,
+                zipCode: shippingFormZip.value,
+                country: shippingFormCountry.value,
+            };
+            
+            const token = getAdminToken();
+            const apiEndpoint = `/api/admin/users/${userId}/shipping`; 
+            
+            try {
+                const response = await fetch(apiEndpoint, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    },
+                    body: JSON.stringify({ shippingAddress: updatedAddress })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server responded with status: ${response.status}`);
+                }
+
+                // const result = await response.json(); // You might not need the result, but keep it if API sends useful data.
+                
+                // Success message
+                shippingUpdateStatus.textContent = '✅ Shipping details updated successfully!';
+                shippingUpdateStatus.classList.add('text-green-600');
+                
+                // Re-render the displayed address to reflect the change without re-fetching orders
+                viewUserDetails(userId, false); 
+                
+            } catch (error) {
+                console.error('Error updating shipping details:', error);
+                shippingUpdateStatus.textContent = '❌ Failed to update shipping details. Try again.';
+                shippingUpdateStatus.classList.add('text-red-600');
+            }
+        }
         
+        // --- MODIFIED FUNCTION: View User Details ---
+
         /**
          * Handles the click of the 'View Details' button and loads the data into the details section.
          * @param {string} userId - The ID of the user whose details to view.
+         * @param {boolean} [doShowView=true] - Whether to show the details view (used to avoid re-transitioning on internal updates).
          */
-        async function viewUserDetails(userId) {
-            showUserDetailsView();
+        async function viewUserDetails(userId, doShowView = true) {
+            if (doShowView) {
+                showUserDetailsView();
+            }
             detailsLoadingIndicator.classList.remove('hidden');
             userProfileData.classList.add('hidden');
             detailsErrorMessage.classList.add('hidden');
-            
+            shippingUpdateStatus.textContent = ''; // Clear status on new load
+
             // Clear previous order history body
             orderHistoryBody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-sm text-gray-500">Loading orders...</td></tr>';
-            orderCountDisplay.textContent = 'Total Orders: 0';
-
+            orderCountDisplayInDetails.textContent = 'Total Orders: 0';
+            
+            // Attach the update handler to the form
+            // This ensures the correct userId is used every time the form is submitted
+            shippingDetailsForm.onsubmit = (e) => updateShippingDetails(e, userId);
 
             const userPromise = fetchUserDetails(userId);
             const ordersPromise = fetchUserOrders(userId); 
@@ -589,23 +666,31 @@
                 detailPhone.textContent = user.phone || 'N/A';
                 detailWhatsapp.textContent = user.whatsappNumber || user.phone || 'N/A'; 
                 
-                if (user.shippingAddress && user.shippingAddress.street) {
-                    const address = user.shippingAddress;
+                const currentAddress = user.shippingAddress || {};
+                
+                if (currentAddress.street) {
                     detailAddress.innerHTML = `
-                        ${address.street}<br>
-                        ${address.city}, ${address.state}<br>
-                        ${address.zipCode || ''} ${address.country || ''}
+                        ${currentAddress.street}<br>
+                        ${currentAddress.city}, ${currentAddress.state}<br>
+                        ${currentAddress.zipCode || ''} ${currentAddress.country || ''}
                     `;
                 } else {
                     detailAddress.textContent = user.contactAddress || 'No Address Provided';
                 }
+
+                // --- Populate Shipping Update Form ---
+                shippingFormStreet.value = currentAddress.street || '';
+                shippingFormCity.value = currentAddress.city || '';
+                shippingFormState.value = currentAddress.state || '';
+                shippingFormZip.value = currentAddress.zipCode || '';
+                shippingFormCountry.value = currentAddress.country || '';
 
                 // Render Order History (even if orders is null, renderOrderHistory handles it)
                 if (orders !== null) {
                     renderOrderHistory(orders);
                 } else {
                     orderHistoryBody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-sm text-red-500">Failed to load order history. Check API.</td></tr>';
-                    orderCountDisplay.textContent = `Total Orders: N/A`;
+                    orderCountDisplayInDetails.textContent = `Total Orders: N/A`;
                 }
 
                 userProfileData.classList.remove('hidden');
@@ -710,6 +795,7 @@
             window.showMembershipList = showMembershipList;
             window.showOrderDetailsModal = showOrderDetailsModal; // Expose the new modal function
             window.closeModal = closeModal; // Expose the close modal function
+            window.updateShippingDetails = updateShippingDetails; // Expose the new function
 
             loadMembershipData();
 

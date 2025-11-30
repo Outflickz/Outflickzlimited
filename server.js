@@ -412,6 +412,54 @@ async function sendOrderConfirmationEmailForAdmin(customerEmail, order) {
     }
 }
 
+/**
+ * Sends an email notification to the customer when their order status is updated to 'Shipped'.
+ * This simplified version confirms shipment without providing tracking details.
+ * @param {string} customerEmail - The verified email of the customer.
+ * @param {Object} orderDetails - The updated Mongoose order document (status: 'Shipped').
+ */
+async function sendShippingUpdateEmail(customerEmail, orderDetails) {
+    
+    const orderIdShort = orderDetails._id.toString().substring(0, 8);
+    // Subject line simplified to focus only on shipment
+    const subject = `🚀 Your Order #${orderIdShort} Has Shipped for Delivery!`;
+
+    // 1. Determine Tracking Information Content (Simplified to a single notification block)
+    const notificationHtml = `
+        <div style="background-color: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 5px solid #2196f3;">
+            <h3 style="color: #1976d2; margin-top: 0;">📦 Shipment Update!</h3>
+            <p>Your order has officially been **shipped** and is on its way to your delivery address.</p>
+            <p>We'll notify you again when your order is out for final delivery.</p>
+        </div>
+    `;
+
+    // 2. Generate the full HTML content
+    const htmlContent = `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <h2 style="color: #2196f3;">Hello Customer,</h2>
+            <p>We are excited to inform you that the fulfillment of your order is complete!</p>
+            <p><strong>Order ID:</strong> #${orderIdShort}</p>
+            <p><strong>Date Shipped:</strong> ${new Date().toLocaleDateString('en-US')}</p>
+            
+            ${notificationHtml}
+            
+            <p>Thank you for your business! We appreciate your patience.</p>
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+            <p style="font-size: 0.9em; color: #777;">If you have any questions about your delivery, please contact our support team.</p>
+        </div>
+    `;
+
+    // 3. Send the Email
+    try {
+        // Assume sendMail is a pre-defined utility function (like from Nodemailer)
+        const info = await sendMail(customerEmail, subject, htmlContent);
+        console.log(`Shipping Update Email sent: ${info.messageId} to ${customerEmail}`);
+    } catch (error) {
+        // Log the email failure
+        console.error(`ERROR sending shipping update email for order ${orderDetails._id}:`, error);
+    }
+}
+
 // --- CONFIGURATION ---
 const MONGODB_URI = process.env.MONGODB_URI
 const JWT_SECRET = process.env.JWT_SECRET

@@ -273,10 +273,15 @@ function formatCurrency(amount) {
 
 // Function to format the HTML content for the order confirmation email
 function generateOrderEmailHtml(order) {
-    // Determine the primary product URL for display
+    // --- Correction for Item Price Conversion ---
+    // Assuming item.priceAtTimeOfPurchase is stored in Kobo (smallest unit)
     const itemsHtml = order.items.map(item => {
-        // Use a placeholder if the image URL is missing or add a width/style
-        // NOTE: The augmentOrdersWithProductDetails ensures this is a signed URL or a solid placeholder.
+        // Calculate the total item price in Kobo
+        const totalItemPriceKobo = item.priceAtTimeOfPurchase * item.quantity;
+        
+        // Convert the total item price to Naira for display
+        const totalItemPriceNgn = totalItemPriceKobo / 100;
+
         const itemImageUrl = item.imageUrl || 'https://placehold.co/60x60/f8f8f8/999999?text=NO+IMG';
         
         return `
@@ -299,20 +304,21 @@ function generateOrderEmailHtml(order) {
                     </div>
                 </td>
                 <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${item.quantity}</td>
-                <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${formatCurrency(item.priceAtTimeOfPurchase * item.quantity / 100)}</td>
+                <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${formatCurrency(totalItemPriceNgn)}</td>
             </tr>
         `;
     }).join('');
+    // --- End Correction for Item Price Conversion ---
 
-    // Assuming all amounts (subtotal, shipping, tax, totalAmount) are stored in Kobo (or equivalent smallest unit)
-    // and need to be divided by 100 for NGN display.
+    // Define the Kobo to NGN conversion function
     const KoboToNgn = (kobo) => kobo / 100;
     
     // Use stored amounts where possible. Fallback calculation uses order totals.
+    // NOTE: This part correctly assumes all stored values are in Kobo.
     const totalAmountKobo = order.totalAmount || order.amountPaidKobo || 0;
     const shippingFeeKobo = order.shippingFee || 0;
     
-    const subtotalKobo = totalAmountKobo - shippingFeeKobo - (order.tax || 0); // Use tax if available
+    const subtotalKobo = order.subtotal || (totalAmountKobo - shippingFeeKobo - (order.tax || 0)); // Use order.subtotal if available
     const taxKobo = order.tax || (totalAmountKobo - subtotalKobo - shippingFeeKobo); 
 
     const finalTotal = KoboToNgn(totalAmountKobo);

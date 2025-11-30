@@ -220,7 +220,7 @@
         <i class="fab fa-whatsapp text-2xl sm:text-3xl"></i>
     </a>
     
-    <script>
+  <script>
 // Global constants
 const LOCAL_TAX_RATE = 0.00; 
 const LOCAL_CART_KEY = 'outflickzLocalCart'; 
@@ -236,7 +236,9 @@ const API_BASE_URL = 'https://outflickz.netlify.app';
  * @returns {string | null} The JWT token or null if not found.
  */
 function getAuthToken() {
-    return localStorage.getItem('outflickzAuthToken'); // Assuming the token is stored under this key
+    // Ensuring the token is retrieved and trimmed for clean use
+    const token = localStorage.getItem('outflickzAuthToken');
+    return token ? token.trim() : null; 
 }
 
 /**
@@ -259,8 +261,7 @@ function updateCartBadge() {
  * Redirects to the user account page based on login status.
  */
 function redirectToProfileOrLogin() {
-    // If a token exists, redirect to the account page. Otherwise, the useraccount.html 
-    // page is typically set up to handle the redirect to login/register if needed.
+    // This function can be simplified as it only needs to take the user to the auth page.
     window.location.href = 'useraccount.html';
 }
 
@@ -295,7 +296,7 @@ function updateProfileIconStatus() {
     const profileIconBtn = document.getElementById('profile-icon');
     
     if (profileIconBtn) {
-        const icon = profileIconBtn.querySelector('i');
+        // const icon = profileIconBtn.querySelector('i'); // Removed unused variable
         
         if (token) {
             // User is logged in
@@ -320,16 +321,22 @@ async function fetchOrderCollection(orderId) {
     const itemsListEl = document.getElementById('order-items-list');
     const priceSummaryEl = document.getElementById('price-summary');
     const token = getAuthToken();
-
-    // The order confirmation page should load, but show a login prompt for details if token is missing
-    if (!token) {
+    
+    // Helper function to render login prompt
+    const renderLoginPrompt = () => {
         // Construct the full URL for redirection
         const currentUrl = window.location.pathname + window.location.search;
         const redirectUrl = `useraccount.html?redirect=${encodeURIComponent(currentUrl)}`;
-        itemsListEl.innerHTML = `<div class="text-center py-4 text-red-500">
+        return `<div class="text-center py-4 text-red-500">
             <i class="fas fa-exclamation-triangle mr-2"></i> You must be logged in to view detailed order history. 
             <a href="${redirectUrl}" class="font-semibold underline text-primary-indigo hover:text-indigo-800">Click here to log in.</a>
         </div>`;
+    };
+
+
+    // 🛑 PRIMARY CHECK: If no token is found in local storage
+    if (!token) {
+        itemsListEl.innerHTML = renderLoginPrompt();
         priceSummaryEl.innerHTML = '';
         return;
     }
@@ -340,23 +347,29 @@ async function fetchOrderCollection(orderId) {
             method: 'GET',
             headers: { 
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`, 
+                'Authorization': `Bearer ${token}`, // Pass the JWT token
             },
         });
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({ message: 'Server error' }));
             
+            // 🛑 SECONDARY CHECK: If the token is invalid or expired
             if (response.status === 401 || response.status === 403) {
-                 // The token is invalid or expired, redirect to login with the current page as redirect target
-                 const currentUrl = window.location.pathname + window.location.search;
-                 const redirectUrl = `useraccount.html?redirect=${encodeURIComponent(currentUrl)}`;
-                 itemsListEl.innerHTML = `<div class="text-center py-4 text-red-500">
-                     <i class="fas fa-exclamation-triangle mr-2"></i> Your session has expired or you do not have permission. Please <a href="${redirectUrl}" class="font-semibold underline text-primary-indigo hover:text-indigo-800">log in</a> again.
-                    </div>`;
+                 // Clear the invalid token immediately
+                 localStorage.removeItem('outflickzAuthToken');
+                 updateProfileIconStatus(); // Update the icon to logged out
+                 
+                 const expiredPrompt = `<div class="text-center py-4 text-red-500">
+                     <i class="fas fa-exclamation-triangle mr-2"></i> Your session has expired or you do not have permission. Please <a href="useraccount.html?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}" class="font-semibold underline text-primary-indigo hover:text-indigo-800">log in</a> again.
+                 </div>`;
+
+                 itemsListEl.innerHTML = expiredPrompt;
+                 priceSummaryEl.innerHTML = '';
                  return;
             }
 
+            // Other errors (e.g., 404 order not found)
             throw new Error(errorData.message || `Failed to retrieve order details (Status: ${response.status}).`);
         }
 
@@ -438,6 +451,7 @@ function displayConfirmationDetails() {
 
     if (!orderId || !method) {
         orderRefEl.textContent = 'N/A';
+        // Assuming 'ash-red' is defined in your Tailwind config
         confIconEl.classList.remove('fa-check-circle', 'text-green-500', 'animate-pulse');
         confIconEl.classList.add('fa-exclamation-circle', 'text-ash-red');
         confTitleEl.textContent = 'Confirmation Error';
@@ -464,9 +478,10 @@ function displayConfirmationDetails() {
         confTitleEl.textContent = 'Order Created (Payment Pending)';
         confMsgEl.textContent = 'Thank you for your order! We are now waiting for your bank transfer confirmation. You will receive an email once payment is verified.';
         payMethodMsgEl.textContent = `You selected **Bank Transfer**. Please transfer the total amount using the order number above as reference.`;
-        bankDetailsEl.classList.remove('hidden');
-        
-        // Preserve local storage state if the user needs to retry the bank transfer or check details later
+        // Assuming 'bank-transfer-details' is correctly hidden/shown
+        if (bankDetailsEl) {
+            bankDetailsEl.classList.remove('hidden');
+        }
     } 
     
     // **CRITICAL**: Call function to fetch collection details using the Order ID.
@@ -480,7 +495,7 @@ function displayConfirmationDetails() {
 // --- Main Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
     updateCartBadge(); 
-    updateProfileIconStatus(); // NEW: Check login status for the icon on load
+    updateProfileIconStatus(); // Check login status for the icon on load
     displayConfirmationDetails(); 
 });
 </script>

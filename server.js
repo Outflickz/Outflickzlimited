@@ -1727,7 +1727,6 @@ app.get('/api/admin/orders/pending', verifyToken, async (req, res) => {
     }
 });
 
-
 // =========================================================
 // 8b. GET /api/admin/orders/:orderId - Fetch Single Detailed Order (Admin Protected)
 // =========================================================
@@ -1743,12 +1742,10 @@ app.get('/api/admin/orders/:orderId', verifyToken, async (req, res) => {
         }
         
         // 2. Augment order items with product details (name, imageUrl)
-        // NOTE: augmentOrdersWithProductDetails MUST now internally call generateSignedUrl 
-        // for each item.imageUrl if the images are private.
         const detailedOrders = await augmentOrdersWithProductDetails([order]);
         let detailedOrder = detailedOrders[0];
 
-        // 🚨 FIX: Generate Signed URL for the Payment Receipt (Necessary for private B2 bucket access)
+        // 🚨 FIX: Generate Signed URL for the Payment Receipt
         if (detailedOrder.paymentReceiptUrl) {
             detailedOrder.paymentReceiptUrl = await generateSignedUrl(detailedOrder.paymentReceiptUrl);
         }
@@ -1771,11 +1768,15 @@ app.get('/api/admin/orders/:orderId', verifyToken, async (req, res) => {
         // 4. Combine all details
         const finalDetailedOrder = {
             ...detailedOrder,
-            userName: userName,
+            // Ensure customerName is explicitly set, as the frontend uses order.customerName
+            customerName: userName, 
             email: email
         };
 
-        return res.status(200).json(finalDetailedOrder);
+        // 🚀 FIX APPLIED HERE: Wrap the finalDetailedOrder object in a parent object with the 'order' key.
+        return res.status(200).json({ 
+            order: finalDetailedOrder 
+        });
 
     } catch (error) {
         console.error(`Error fetching order details for ${req.params.orderId}:`, error);

@@ -311,403 +311,404 @@
         </div>
     </div>
     <script>
-        // --- JAVASCRIPT LOGIC ---
-        
-        const sidebar = document.getElementById('sidebar');
-        const sidebarToggle = document.getElementById('sidebar-toggle');
-        const navButtons = document.querySelectorAll('nav button');
-        const userTableBody = document.getElementById('user-table-body');
-        const loadingIndicator = document.getElementById('loading-indicator');
-        const userTableContainer = document.getElementById('user-table-container');
-        const errorMessage = document.getElementById('error-message');
-        const userCountDisplay = document.getElementById('user-count');
+    // --- JAVASCRIPT LOGIC ---
+    
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const navButtons = document.querySelectorAll('nav button');
+    const userTableBody = document.getElementById('user-table-body');
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const userTableContainer = document.getElementById('user-table-container');
+    const errorMessage = document.getElementById('error-message');
+    const userCountDisplay = document.getElementById('user-count');
 
-        // --- DETAILS SECTION VARIABLES ---
-        const contentMembership = document.getElementById('content-membership');
-        const contentUserDetails = document.getElementById('content-user-details');
-        const contentOrderDetails = document.getElementById('content-order-details'); // NEW
+    // --- DETAILS SECTION VARIABLES ---
+    const contentMembership = document.getElementById('content-membership');
+    const contentUserDetails = document.getElementById('content-user-details');
+    const contentOrderDetails = document.getElementById('content-order-details'); // NEW
 
-        const detailsLoadingIndicator = document.getElementById('details-loading-indicator');
-        const userProfileData = document.getElementById('user-profile-data');
-        const detailsErrorMessage = document.getElementById('details-error-message');
-        
-        const detailsHeaderName = document.getElementById('details-header-name');
-        const detailEmail = document.getElementById('detail-email');
-        const detailStatus = document.getElementById('detail-status');
-        const detailJoined = document.getElementById('detail-joined');
-        const detailPhone = document.getElementById('detail-phone');
-        const detailAddress = document.getElementById('detail-address');
-        const detailWhatsapp = document.getElementById('detail-whatsapp'); 
-        
-        // Order History Elements
-        const orderHistoryBody = document.getElementById('order-history-body');
-        const orderCountDisplay = document.getElementById('order-count');
-        
-        // Modal Elements (ORIGINAL, now unused for Order Details)
-        const orderDetailsModal = document.getElementById('order-details-modal');
-        const modalOrderId = document.getElementById('modal-order-id');
-        const modalItemsContainer = document.getElementById('modal-items-container');
-        
-        // ORDER UPDATE SECTION VARIABLES (NEW)
-        const orderDetailsHeaderId = document.getElementById('order-details-header-id');
-        const orderDetailsLoadingIndicator = document.getElementById('order-details-loading-indicator');
-        const orderUpdateForm = document.getElementById('order-update-form');
-        const orderDetailCustomerName = document.getElementById('order-detail-customer-name');
-        const orderDetailDate = document.getElementById('order-detail-date');
-        const orderDetailAddress = document.getElementById('order-detail-address');
-        const orderDetailCurrentStatus = document.getElementById('order-detail-current-status');
-        const newOrderStatusSelect = document.getElementById('new-order-status');
-        const orderItemsList = document.getElementById('order-items-list');
-        const orderUpdateMessage = document.getElementById('order-update-message');
+    const detailsLoadingIndicator = document.getElementById('details-loading-indicator');
+    const userProfileData = document.getElementById('user-profile-data');
+    const detailsErrorMessage = document.getElementById('details-error-message');
+    
+    const detailsHeaderName = document.getElementById('details-header-name');
+    const detailEmail = document.getElementById('detail-email');
+    const detailStatus = document.getElementById('detail-status');
+    const detailJoined = document.getElementById('detail-joined');
+    const detailPhone = document.getElementById('detail-phone');
+    const detailAddress = document.getElementById('detail-address');
+    const detailWhatsapp = document.getElementById('detail-whatsapp'); 
+    
+    // Order History Elements
+    const orderHistoryBody = document.getElementById('order-history-body');
+    const orderCountDisplay = document.getElementById('order-count');
+    
+    // Modal Elements (ORIGINAL, now unused for Order Details)
+    const orderDetailsModal = document.getElementById('order-details-modal');
+    const modalOrderId = document.getElementById('modal-order-id');
+    const modalItemsContainer = document.getElementById('modal-items-container');
+    
+    // ORDER UPDATE SECTION VARIABLES (NEW)
+    const orderDetailsHeaderId = document.getElementById('order-details-header-id');
+    const orderDetailsLoadingIndicator = document.getElementById('order-details-loading-indicator');
+    const orderUpdateForm = document.getElementById('order-update-form');
+    const orderDetailCustomerName = document.getElementById('order-detail-customer-name');
+    const orderDetailDate = document.getElementById('order-detail-date');
+    const orderDetailAddress = document.getElementById('order-detail-address');
+    const orderDetailCurrentStatus = document.getElementById('order-detail-current-status');
+    const newOrderStatusSelect = document.getElementById('new-order-status');
+    const orderItemsList = document.getElementById('order-items-list');
+    const orderUpdateMessage = document.getElementById('order-update-message');
 
-        let currentViewingUserId = null; // To store the User ID when viewing details
-        let currentViewingOrderId = null; // To store the Order ID when viewing order details
-        // --- END DETAILS SECTION VARIABLES ---
+    let currentViewingUserId = null; // To store the User ID when viewing details
+    let currentViewingOrderId = null; // To store the Order ID when viewing order details
+    // --- END DETAILS SECTION VARIABLES ---
 
-        // --- Navigation Functions (unchanged) ---
+    // --- Navigation Functions (unchanged) ---
 
-        function navigateToDashboard() { window.location.href = './admin-dashboard.html'; }
-        function navigateToSettings() { window.location.href = './admin-dashboard.html?view=settings'; }
-        function navigateToWearsCollection() { window.location.href = './wearscollection.html'; }
-        function navigateToCapsCollection() { window.location.href = './capscollection.html'; }
-        function navigateToNewArrivals() { window.location.href = './newarrivals.html'; }
-        function navigateToPreOrders() { window.location.href = './preorders.html'; }
-        function navigateToMembership() { window.location.href = './membership.html'; } // Self-link
-        function navigateToUserOrders() { console.log("Navigating to User Orders..."); } // Placeholder 
+    function navigateToDashboard() { window.location.href = './admin-dashboard.html'; }
+    function navigateToSettings() { window.location.href = './admin-dashboard.html?view=settings'; }
+    function navigateToWearsCollection() { window.location.href = './wearscollection.html'; }
+    function navigateToCapsCollection() { window.location.href = './capscollection.html'; }
+    function navigateToNewArrivals() { window.location.href = './newarrivals.html'; }
+    function navigateToPreOrders() { window.location.href = './preorders.html'; }
+    function navigateToMembership() { window.location.href = './membership.html'; } // Self-link
+    function navigateToUserOrders() { console.log("Navigating to User Orders..."); } // Placeholder 
 
-        function logoutAdmin() {
-            console.log("Logging out... Clearing admin token.");
-            localStorage.removeItem('adminToken');
-            window.location.href = './admin-login.html'; 
+    function logoutAdmin() {
+        console.log("Logging out... Clearing admin token.");
+        localStorage.removeItem('adminToken');
+        window.location.href = './admin-login.html'; 
+    }
+
+    // Helper function for date formatting
+    function formatDate(dateString) {
+        if (!dateString) return 'N/A';
+        try {
+            const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+            return new Date(dateString).toLocaleDateString(undefined, options);
+        } catch (e) {
+            return 'Invalid Date';
         }
+    }
+    
+    // Helper function for currency formatting
+    function formatCurrency(amount) {
+        if (typeof amount !== 'number') return 'N/A';
+        // Assumes NGN currency for formatting
+        return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount);
+    }
 
-      // Helper function for date formatting
-        function formatDate(dateString) {
-            if (!dateString) return 'N/A';
-            try {
-                const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-                return new Date(dateString).toLocaleDateString(undefined, options);
-            } catch (e) {
-                return 'Invalid Date';
-            }
-        }
+    // Helper function to determine status badge classes for Orders
+    function getStatusBadge(status) {
+        let className = '';
+        let text = status || 'N/A';
         
-        // Helper function for currency formatting
-        function formatCurrency(amount) {
-            if (typeof amount !== 'number') return 'N/A';
-            // Assumes NGN currency for formatting
-            return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount);
-        }
-
-        // Helper function to determine status badge classes for Orders
-        function getStatusBadge(status) {
-            let className = '';
-            let text = status || 'N/A';
-            
-            switch (status) {
-                case 'Delivered':
-                    className = 'bg-green-100 text-green-800';
-                    break;
-                case 'Shipped':
-                    className = 'bg-blue-100 text-blue-800';
-                    break;
-                case 'Processing':
-                    className = 'bg-yellow-100 text-yellow-800';
-                    break;
-                case 'Cancelled':
-                    className = 'bg-red-100 text-red-800';
-                    break;
-                default:
-                    className = 'bg-gray-100 text-gray-800';
-                    break;
-            }
-            
-            return `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${className}">${text}</span>`;
+        switch (status) {
+            case 'Delivered':
+                className = 'bg-green-100 text-green-800';
+                break;
+            case 'Shipped':
+                className = 'bg-blue-100 text-blue-800';
+                break;
+            case 'Processing':
+                className = 'bg-yellow-100 text-yellow-800';
+                break;
+            case 'Cancelled':
+                className = 'bg-red-100 text-red-800';
+                break;
+            default:
+                className = 'bg-gray-100 text-gray-800';
+                break;
         }
         
-        // --- View Switching Functions ---
-        
-        /** Shows the main user list table and hides the details views. */
-        function showMembershipList() {
-            contentUserDetails.classList.add('hidden');
-            contentOrderDetails.classList.add('hidden'); // Hide order details
-            contentMembership.classList.remove('hidden');
+        return `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${className}">${text}</span>`;
+    }
+    
+    // --- View Switching Functions ---
+    
+    /** Shows the main user list table and hides the details views. */
+    function showMembershipList() {
+        contentUserDetails.classList.add('hidden');
+        contentOrderDetails.classList.add('hidden'); // Hide order details
+        contentMembership.classList.remove('hidden');
+    }
+
+    /** Shows the single user details view and hides the list/order views. */
+    function showUserDetailsView() {
+        contentMembership.classList.add('hidden');
+        contentOrderDetails.classList.add('hidden'); // Hide order details
+        contentUserDetails.classList.remove('hidden');
+    }
+    
+    /** Shows the order details view and hides the list/user details views. (NEW) */
+    function showOrderDetailsUpdateView() {
+        contentMembership.classList.add('hidden');
+        contentUserDetails.classList.add('hidden');
+        contentOrderDetails.classList.remove('hidden');
+    }
+    
+    // --- API Fetch Functions (Original, plus new Order Details fetch) ---
+
+    /**
+     * Fetches all registered user data from the API (used for the main table).
+     */
+    async function fetchUserData() {
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            console.error("No adminToken found. Redirecting to login.");
+            logoutAdmin();
+            return null;
         }
 
-        /** Shows the single user details view and hides the list/order views. */
-        function showUserDetailsView() {
-            contentMembership.classList.add('hidden');
-            contentOrderDetails.classList.add('hidden'); // Hide order details
-            contentUserDetails.classList.remove('hidden');
-        }
-        
-        /** Shows the order details view and hides the list/user details views. (NEW) */
-        function showOrderDetailsUpdateView() {
-            contentMembership.classList.add('hidden');
-            contentUserDetails.classList.add('hidden');
-            contentOrderDetails.classList.remove('hidden');
-        }
-        
-        // --- API Fetch Functions (Original, plus new Order Details fetch) ---
-
-        /**
-         * Fetches all registered user data from the API (used for the main table).
-         */
-        async function fetchUserData() {
-            const token = localStorage.getItem('adminToken');
-            if (!token) {
-                console.error("No adminToken found. Redirecting to login.");
-                logoutAdmin();
-                return null;
-            }
-
-            try {
-                // ASSUMPTION: Backend route for fetching ALL users
-                const response = await fetch('/api/admin/users/all', { 
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}` 
-                    }
-                });
-
-                if (!response.ok) {
-                    if (response.status === 401 || response.status === 403) {
-                        console.error(`Authentication error (${response.status}). Token expired or invalid.`);
-                        logoutAdmin();
-                        return null;
-                    }
-                    throw new Error(`HTTP error! status: ${response.status}`);
+        try {
+            // ASSUMPTION: Backend route for fetching ALL users
+            const response = await fetch('/api/admin/users/all', { 
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
                 }
+            });
 
-                const data = await response.json();
-                return data.users || []; // ASSUMPTION: Backend returns { users: [...], count: 50 }
-
-            } catch (error) {
-                console.error('Error fetching user data:', error);
-                return null;
-            }
-        }
-        
-        /**
-         * Fetches the full profile details for a specific user ID.
-         */
-        async function fetchUserDetails(userId) {
-            const token = localStorage.getItem('adminToken');
-            if (!token) {
-                logoutAdmin();
-                return null;
-            }
-            
-            try {
-                const response = await fetch(`/api/admin/users/${userId}`, { 
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}` 
-                    }
-                });
-
-                if (!response.ok) {
-                    if (response.status === 401 || response.status === 403) {
-                        logoutAdmin();
-                    }
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const data = await response.json();
-                return data.user; // ASSUMPTION: Backend returns { user: {...} }
-
-            } catch (error) {
-                console.error(`Error fetching user details for ID ${userId}:`, error);
-                return null;
-            }
-        }
-        
-        /**
-         * Fetches the order history for a specific user ID.
-         */
-        async function fetchUserOrders(userId) {
-            const token = localStorage.getItem('adminToken');
-            if (!token) return null; // Auth handled by parent function
-
-            try {
-                // Backend route for orders for a user
-                const response = await fetch(`/api/admin/users/${userId}/orders`, { 
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}` 
-                    }
-                });
-
-                if (!response.ok) {
-                    console.error(`Order fetch failed for ${userId}: status ${response.status}`);
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    console.error(`Authentication error (${response.status}). Token expired or invalid.`);
+                    logoutAdmin();
                     return null;
                 }
-
-                const data = await response.json();
-                // ASSUMPTION: Backend returns { orders: [...] }
-                return data.orders || []; 
-
-            } catch (error) {
-                console.error(`Error fetching user orders for ID ${userId}:`, error);
-                return null;
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
+
+            const data = await response.json();
+            return data.users || []; // ASSUMPTION: Backend returns { users: [...], count: 50 }
+
+        } catch (error) {
+            console.error('Error fetching user data:', error);
+            return null;
+        }
+    }
+    
+    /**
+     * Fetches the full profile details for a specific user ID.
+     */
+    async function fetchUserDetails(userId) {
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            logoutAdmin();
+            return null;
         }
         
-        /**
-         * Fetches a single order's details (Used for the update form). (NEW)
-         */
-        async function fetchOrderDetails(orderId) {
-            const token = localStorage.getItem('adminToken');
-            if (!token) {
-                logoutAdmin();
-                return null;
-            }
-            
-            try {
-                // ASSUMPTION: Backend route for fetching a single order detail
-                const response = await fetch(`/api/admin/orders/${orderId}`, { 
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}` 
-                    }
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+        try {
+            const response = await fetch(`/api/admin/users/${userId}`, { 
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
                 }
+            });
 
-                const data = await response.json();
-                return data.order; // ASSUMPTION: Backend returns { order: {...} }
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    logoutAdmin();
+                }
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
-            } catch (error) {
-                console.error(`Error fetching order details for ID ${orderId}:`, error);
+            const data = await response.json();
+            return data.user; // ASSUMPTION: Backend returns { user: {...} }
+
+        } catch (error) {
+            console.error(`Error fetching user details for ID ${userId}:`, error);
+            return null;
+        }
+    }
+    
+    /**
+     * Fetches the order history for a specific user ID.
+     */
+    async function fetchUserOrders(userId) {
+        const token = localStorage.getItem('adminToken');
+        if (!token) return null; // Auth handled by parent function
+
+        try {
+            // Backend route for orders for a user
+            const response = await fetch(`/api/admin/users/${userId}/orders`, { 
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}` 
+                }
+            });
+
+            if (!response.ok) {
+                console.error(`Order fetch failed for ${userId}: status ${response.status}`);
                 return null;
             }
+
+            const data = await response.json();
+            // ASSUMPTION: Backend returns { orders: [...] }
+            return data.orders || []; 
+
+        } catch (error) {
+            console.error(`Error fetching user orders for ID ${userId}:`, error);
+            return null;
+        }
+    }
+    
+    /**
+     * Fetches a single order's details (Used for the update form). (NEW)
+     */
+    async function fetchOrderDetails(orderId) {
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            logoutAdmin();
+            return null;
         }
         
-        /**
-         * Sends an API request to update the status of an order. (NEW)
-         */
-        async function updateOrderStatus(orderId, newStatus) {
-            const token = localStorage.getItem('adminToken');
-            if (!token) {
-                logoutAdmin();
-                return { success: false, message: 'Authentication required.' };
-            }
-            
-            try {
-                // ASSUMPTION: Backend route for updating order status
-                const response = await fetch(`/api/admin/orders/${orderId}/status`, { 
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}` 
-                    },
-                    body: JSON.stringify({ status: newStatus })
-                });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(data.message || `Failed to update status. Server error: ${response.status}`);
+        try {
+            // ASSUMPTION: Backend route for fetching a single order detail
+            const response = await fetch(`/api/admin/orders/${orderId}`, { 
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}` 
                 }
-
-                return { success: true, message: `Order ${orderId} status successfully updated to ${newStatus}.`, order: data.order };
-            } catch (error) {
-                console.error(`Error updating order status for ID ${orderId}:`, error.message);
-                return { success: false, message: error.message };
-            }
-        }
-
-
-        // --- Rendering Functions ---
-        
-        /**
-         * Renders the user data into the main membership table.
-         * @param {Array<Object>} users - Array of user objects.
-         */
-        function renderUserTable(users) {
-            userTableBody.innerHTML = ''; 
-            userCountDisplay.textContent = `Total Users: ${users.length.toLocaleString()}`;
-
-            if (users.length === 0) {
-                userTableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No registered users found.</td></tr>';
-                return;
-            }
-
-            users.forEach(user => {
-                const isMember = user.isMember; 
-                const statusText = isMember ? 'VIP Member' : 'Basic User';
-                const statusColor = isMember ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800';
-                
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-gray-50';
-                
-                row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 truncate max-w-xs" title="${user._id}">${user._id}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${user.name || 'N/A'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${user.email}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColor}">
-                            ${statusText}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        ${formatDate(user.createdAt)}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button onclick="viewUserDetails('${user._id}')" class="text-blue-600 hover:text-blue-900 transition duration-150">View Details</button>
-                    </td>
-                `;
-                userTableBody.appendChild(row);
             });
-        }
-        
-        /**
-         * Renders the order history into the table.
-         * The 'Actions' button is changed to call viewOrderDetails().
-         * @param {Array<Object>} orders - Array of order objects.
-         */
-        function renderOrderHistory(orders) {
-            orderHistoryBody.innerHTML = ''; // Clear previous data
-            orderCountDisplay.textContent = `Total Orders: ${orders.length.toLocaleString()}`;
 
-            if (!orders || orders.length === 0) {
-                orderHistoryBody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-sm text-gray-500">No orders found for this user.</td></tr>';
-                return;
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            orders.forEach(order => {
-                const statusBadge = getStatusBadge(order.status);
-                // We pass the userId along with the orderId to simplify the backToUserDetails flow
-                const itemsJson = encodeURIComponent(JSON.stringify(order.items || [])); 
-                
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-gray-50';
+            const data = await response.json();
+            return data.order; // ASSUMPTION: Backend returns { order: {...} }
 
-                // --- UPDATED TABLE ROW HTML: BUTTON CALLS viewOrderDetails ---
-                row.innerHTML = `
-                    <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 truncate max-w-xs" title="${order._id}">${order._id}</td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">${formatDate(order.createdAt)}</td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700 font-semibold">${formatCurrency(order.totalAmount)}</td>
-                    <td class="px-4 py-4 whitespace-nowrap">${statusBadge}</td>
-                    <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button onclick="viewOrderDetails('${order._id}', '${order.userId || currentViewingUserId}')" 
-                            class="text-indigo-600 hover:text-indigo-900 transition duration-150">Update Status</button>
-                    </td>
-                `;
-                orderHistoryBody.appendChild(row);
-            });
+        } catch (error) {
+            console.error(`Error fetching order details for ID ${orderId}:`, error);
+            return null;
+        }
+    }
+    
+    /**
+     * Sends an API request to update the status of an order. (NEW - FIXED PAYLOAD)
+     */
+    async function updateOrderStatus(orderId, newStatus) {
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            logoutAdmin();
+            return { success: false, message: 'Authentication required.' };
         }
         
-        /**
-         * Renders the items list within the Order Update form. (NEW)
-         */
-        function renderOrderItems(items) {
-            orderItemsList.innerHTML = '';
-             if (!items || items.length === 0) {
+        try {
+            // ASSUMPTION: Backend route for updating order status
+            const response = await fetch(`/api/admin/orders/${orderId}/status`, { 
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
+                },
+                // ⭐ CRITICAL FIX: Changed 'status' to 'newStatus' to match backend destructuring
+                body: JSON.stringify({ newStatus: newStatus }) 
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || `Failed to update status. Server error: ${response.status}`);
+            }
+
+            return { success: true, message: `Order ${orderId} status successfully updated to ${newStatus}.`, order: data.order };
+        } catch (error) {
+            console.error(`Error updating order status for ID ${orderId}:`, error.message);
+            return { success: false, message: error.message };
+        }
+    }
+
+
+    // --- Rendering Functions ---
+    
+    /**
+     * Renders the user data into the main membership table.
+     * @param {Array<Object>} users - Array of user objects.
+     */
+    function renderUserTable(users) {
+        userTableBody.innerHTML = ''; 
+        userCountDisplay.textContent = `Total Users: ${users.length.toLocaleString()}`;
+
+        if (users.length === 0) {
+            userTableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No registered users found.</td></tr>';
+            return;
+        }
+
+        users.forEach(user => {
+            const isMember = user.isMember; 
+            const statusText = isMember ? 'VIP Member' : 'Basic User';
+            const statusColor = isMember ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800';
+            
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50';
+            
+            row.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 truncate max-w-xs" title="${user._id}">${user._id}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${user.name || 'N/A'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${user.email}</td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColor}">
+                        ${statusText}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    ${formatDate(user.createdAt)}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button onclick="viewUserDetails('${user._id}')" class="text-blue-600 hover:text-blue-900 transition duration-150">View Details</button>
+                </td>
+            `;
+            userTableBody.appendChild(row);
+        });
+    }
+    
+    /**
+     * Renders the order history into the table.
+     * The 'Actions' button is changed to call viewOrderDetails().
+     * @param {Array<Object>} orders - Array of order objects.
+     */
+    function renderOrderHistory(orders) {
+        orderHistoryBody.innerHTML = ''; // Clear previous data
+        orderCountDisplay.textContent = `Total Orders: ${orders.length.toLocaleString()}`;
+
+        if (!orders || orders.length === 0) {
+            orderHistoryBody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-sm text-gray-500">No orders found for this user.</td></tr>';
+            return;
+        }
+
+        orders.forEach(order => {
+            const statusBadge = getStatusBadge(order.status);
+            // We pass the userId along with the orderId to simplify the backToUserDetails flow
+            const itemsJson = encodeURIComponent(JSON.stringify(order.items || [])); 
+            
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50';
+
+            // --- UPDATED TABLE ROW HTML: BUTTON CALLS viewOrderDetails ---
+            row.innerHTML = `
+                <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 truncate max-w-xs" title="${order._id}">${order._id}</td>
+                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">${formatDate(order.createdAt)}</td>
+                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700 font-semibold">${formatCurrency(order.totalAmount)}</td>
+                <td class="px-4 py-4 whitespace-nowrap">${statusBadge}</td>
+                <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button onclick="viewOrderDetails('${order._id}', '${order.userId || currentViewingUserId}')" 
+                        class="text-indigo-600 hover:text-indigo-900 transition duration-150">Update Status</button>
+                </td>
+            `;
+            orderHistoryBody.appendChild(row);
+        });
+    }
+    
+    /**
+     * Renders the items list within the Order Update form. (NEW)
+     */
+    function renderOrderItems(items) {
+        orderItemsList.innerHTML = '';
+            if (!items || items.length === 0) {
                 orderItemsList.innerHTML = '<p class="text-center text-gray-500 py-4">No items listed for this order.</p>';
                 return;
             }
@@ -733,245 +734,300 @@
                 `;
                 orderItemsList.appendChild(itemDiv);
             });
-        }
+    }
 
-        // --- Details and Modal Functions ---
+    // --- Details and Modal Functions ---
+    
+    /**
+     * Handles the click of the 'View Details' button and loads the data into the details section.
+     * @param {string} userId - The ID of the user whose details to view.
+     */
+    async function viewUserDetails(userId) {
+        currentViewingUserId = userId; // Store the current user ID
+        showUserDetailsView();
+        detailsLoadingIndicator.classList.remove('hidden');
+        userProfileData.classList.add('hidden');
+        detailsErrorMessage.classList.add('hidden');
         
-        /**
-         * Handles the click of the 'View Details' button and loads the data into the details section.
-         * @param {string} userId - The ID of the user whose details to view.
-         */
-        async function viewUserDetails(userId) {
-            currentViewingUserId = userId; // Store the current user ID
-            showUserDetailsView();
-            detailsLoadingIndicator.classList.remove('hidden');
-            userProfileData.classList.add('hidden');
-            detailsErrorMessage.classList.add('hidden');
+        // Clear previous order history body
+        orderHistoryBody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-sm text-gray-500">Loading orders...</td></tr>';
+        orderCountDisplay.textContent = 'Total Orders: 0';
+
+
+        const userPromise = fetchUserDetails(userId);
+        const ordersPromise = fetchUserOrders(userId); 
+
+        const [user, orders] = await Promise.all([userPromise, ordersPromise]);
+        
+        detailsLoadingIndicator.classList.add('hidden'); // Hide loading indicator for details view
+
+        if (user) {
+            // Render basic info
+            detailsHeaderName.textContent = user.name || 'N/A';
+            detailEmail.textContent = user.email;
             
-            // Clear previous order history body
-            orderHistoryBody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-sm text-gray-500">Loading orders...</td></tr>';
-            orderCountDisplay.textContent = 'Total Orders: 0';
-
-
-            const userPromise = fetchUserDetails(userId);
-            const ordersPromise = fetchUserOrders(userId); 
-
-            const [user, orders] = await Promise.all([userPromise, ordersPromise]);
+            const statusText = user.isMember ? 'VIP Member 🌟' : 'Basic User';
+            const statusColor = user.isMember ? 'text-emerald-700' : 'text-gray-700';
             
-            detailsLoadingIndicator.classList.add('hidden'); // Hide loading indicator for details view
-
-            if (user) {
-                // Render basic info
-                detailsHeaderName.textContent = user.name || 'N/A';
-                detailEmail.textContent = user.email;
-                
-                const statusText = user.isMember ? 'VIP Member 🌟' : 'Basic User';
-                const statusColor = user.isMember ? 'text-emerald-700' : 'text-gray-700';
-                
-                detailStatus.className = `text-xl font-bold ${statusColor}`;
-                detailStatus.textContent = statusText;
-                
-                detailJoined.textContent = formatDate(user.createdAt);
-                
-                // Render contact info and address
-                detailPhone.textContent = user.phone || 'N/A';
-                detailWhatsapp.textContent = user.whatsappNumber || user.phone || 'N/A'; 
-                
-                if (user.shippingAddress && user.shippingAddress.street) {
-                    const address = user.shippingAddress;
-                    detailAddress.innerHTML = `
-                        ${address.street}<br>
-                        ${address.city}, ${address.state}<br>
-                        ${address.zipCode || ''} ${address.country || ''}
-                    `;
-                } else {
-                    detailAddress.textContent = user.contactAddress || 'No Address Provided';
-                }
-
-                // Render Order History (even if orders is null, renderOrderHistory handles it)
-                if (orders !== null) {
-                    renderOrderHistory(orders);
-                } else {
-                    orderHistoryBody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-sm text-red-500">Failed to load order history. Check API.</td></tr>';
-                    orderCountDisplay.textContent = `Total Orders: N/A`;
-                }
-
-                userProfileData.classList.remove('hidden');
+            detailStatus.className = `text-xl font-bold ${statusColor}`;
+            detailStatus.textContent = statusText;
+            
+            detailJoined.textContent = formatDate(user.createdAt);
+            
+            // Render contact info and address
+            detailPhone.textContent = user.phone || 'N/A';
+            detailWhatsapp.textContent = user.whatsappNumber || user.phone || 'N/A'; 
+            
+            if (user.shippingAddress && user.shippingAddress.street) {
+                const address = user.shippingAddress;
+                detailAddress.innerHTML = `
+                    ${address.street}<br>
+                    ${address.city}, ${address.state}<br>
+                    ${address.zipCode || ''} ${address.country || ''}
+                `;
             } else {
-                detailsErrorMessage.classList.remove('hidden');
+                detailAddress.textContent = user.contactAddress || 'No Address Provided';
             }
+
+            // Render Order History (even if orders is null, renderOrderHistory handles it)
+            if (orders !== null) {
+                renderOrderHistory(orders);
+            } else {
+                orderHistoryBody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-sm text-red-500">Failed to load order history. Check API.</td></tr>';
+                orderCountDisplay.textContent = `Total Orders: N/A`;
+            }
+
+            userProfileData.classList.remove('hidden');
+        } else {
+            detailsErrorMessage.classList.remove('hidden');
+        }
+    }
+    
+    /**
+     * Switches view and loads the full order details for status update. (NEW - FIXED DROPDOWN)
+     * @param {string} orderId - The ID of the order to view.
+     */
+    async function viewOrderDetails(orderId, userId) {
+        currentViewingOrderId = orderId; // Store for update function
+        currentViewingUserId = userId; // Ensure we retain the user ID for the back button
+        showOrderDetailsUpdateView();
+        
+        orderDetailsLoadingIndicator.classList.remove('hidden');
+        orderUpdateForm.classList.add('hidden');
+        orderUpdateMessage.classList.add('hidden');
+        
+        orderDetailsHeaderId.textContent = orderId;
+        
+        const order = await fetchOrderDetails(orderId);
+        
+        orderDetailsLoadingIndicator.classList.add('hidden');
+
+        if (order) {
+            // Set initial form values and details
+            orderDetailCustomerName.textContent = order.customerName || 'N/A';
+            orderDetailDate.textContent = formatDate(order.createdAt);
+            
+            const currentStatus = order.status || 'Processing';
+            orderDetailCurrentStatus.textContent = currentStatus;
+            
+            // ⭐ LOGIC FIX: Populate the dropdown with the current status and the NEXT valid status
+            newOrderStatusSelect.innerHTML = ''; // Clear existing options
+            
+            let nextStatus = null;
+            if (currentStatus === 'Processing') {
+                nextStatus = 'Shipped';
+            } else if (currentStatus === 'Shipped') {
+                nextStatus = 'Delivered';
+            }
+            
+            // Add current status as default, disabled option
+            const currentOption = new Option(`Current: ${currentStatus}`, currentStatus, true, true);
+            currentOption.disabled = true;
+            newOrderStatusSelect.add(currentOption);
+            
+            if (nextStatus) {
+                // Add the single, valid next transition status
+                const nextOption = new Option(`Change to: ${nextStatus}`, nextStatus);
+                newOrderStatusSelect.add(nextOption);
+                newOrderStatusSelect.disabled = false;
+                document.getElementById('updateStatusButton').disabled = false;
+            } else {
+                // Order is Delivered or Cancelled - no further status updates
+                newOrderStatusSelect.disabled = true;
+                document.getElementById('updateStatusButton').disabled = true;
+            }
+            // End LOGIC FIX
+            
+            // Render Shipping Address
+            if (order.shippingAddress && order.shippingAddress.street) {
+                const address = order.shippingAddress;
+                orderDetailAddress.innerHTML = `
+                    ${address.street}<br>
+                    ${address.city}, ${address.state}<br>
+                    ${address.zipCode || ''} ${address.country || ''}
+                `;
+            } else {
+                orderDetailAddress.textContent = 'No Shipping Address Available';
+            }
+
+            // Render Order Items
+            renderOrderItems(order.items);
+            
+            orderUpdateForm.classList.remove('hidden');
+        } else {
+             orderUpdateForm.classList.add('hidden');
+             orderUpdateMessage.classList.remove('hidden');
+             orderUpdateMessage.className = 'p-3 rounded-lg text-white bg-red-500 font-medium';
+             orderUpdateMessage.textContent = 'Failed to load order details for updating.';
+        }
+    }
+    
+    /**
+     * Handles the order status update process. (NEW)
+     */
+    async function handleStatusUpdate() {
+        const newStatus = newOrderStatusSelect.value;
+        const updateButton = document.getElementById('updateStatusButton'); // Assume you have a button with this ID
+        
+        if (!currentViewingOrderId) {
+            alert("Error: No order selected for update.");
+            return;
         }
         
-        /**
-         * Switches view and loads the full order details for status update. (NEW)
-         * @param {string} orderId - The ID of the order to view.
-         */
-        async function viewOrderDetails(orderId, userId) {
-            currentViewingOrderId = orderId; // Store for update function
-            currentViewingUserId = userId; // Ensure we retain the user ID for the back button
-            showOrderDetailsUpdateView();
-            
-            orderDetailsLoadingIndicator.classList.remove('hidden');
-            orderUpdateForm.classList.add('hidden');
-            orderUpdateMessage.classList.add('hidden');
-            
-            orderDetailsHeaderId.textContent = orderId;
-            
-            const order = await fetchOrderDetails(orderId);
-            
-            orderDetailsLoadingIndicator.classList.add('hidden');
+        // Prevent submission if the user hasn't selected a valid transition (i.e., only current status is selected)
+        if (newStatus === orderDetailCurrentStatus.textContent || updateButton.disabled) {
+             orderUpdateMessage.classList.remove('hidden');
+             orderUpdateMessage.className = 'p-3 rounded-lg text-white bg-yellow-500 font-medium';
+             orderUpdateMessage.textContent = 'Status is already at this stage or cannot be updated further.';
+             return;
+        }
 
-            if (order) {
-                // Set initial form values and details
-                orderDetailCustomerName.textContent = order.customerName || 'N/A';
-                orderDetailDate.textContent = formatDate(order.createdAt);
-                orderDetailCurrentStatus.textContent = order.status || 'N/A';
-                newOrderStatusSelect.value = order.status || 'Processing';
-                
-                // Render Shipping Address
-                if (order.shippingAddress && order.shippingAddress.street) {
-                    const address = order.shippingAddress;
-                    orderDetailAddress.innerHTML = `
-                        ${address.street}<br>
-                        ${address.city}, ${address.state}<br>
-                        ${address.zipCode || ''} ${address.country || ''}
-                    `;
-                } else {
-                    orderDetailAddress.textContent = 'No Shipping Address Available';
-                }
 
-                // Render Order Items
-                renderOrderItems(order.items);
+        if (confirm(`Are you sure you want to change the status of Order ${currentViewingOrderId} to ${newStatus}?`)) {
+            // Show a brief loading state on the button/message area
+            updateButton.disabled = true;
+            const originalButtonText = updateButton.textContent;
+            updateButton.textContent = 'Updating...';
+
+            orderUpdateMessage.classList.remove('hidden');
+            orderUpdateMessage.className = 'p-3 rounded-lg text-white bg-blue-500 font-medium';
+            orderUpdateMessage.textContent = 'Updating status...';
+            
+            const result = await updateOrderStatus(currentViewingOrderId, newStatus);
+            
+            updateButton.textContent = originalButtonText; // Reset button text
+
+            if (result.success) {
+                // Re-fetch the entire order details to fully refresh the form, including the dropdown options
+                // (This is better than manually manipulating the status display/dropdown)
+                await viewOrderDetails(currentViewingOrderId, currentViewingUserId); 
+
+                orderUpdateMessage.className = 'p-3 rounded-lg text-white bg-green-500 font-medium';
+                orderUpdateMessage.textContent = result.message;
                 
-                orderUpdateForm.classList.remove('hidden');
             } else {
-                 orderUpdateForm.classList.add('hidden');
-                 orderUpdateMessage.classList.remove('hidden');
-                 orderUpdateMessage.className = 'p-3 rounded-lg text-white bg-red-500 font-medium';
-                 orderUpdateMessage.textContent = 'Failed to load order details for updating.';
+                updateButton.disabled = false; // Re-enable button on failure
+                orderUpdateMessage.className = 'p-3 rounded-lg text-white bg-red-500 font-medium';
+                orderUpdateMessage.textContent = result.message;
             }
         }
+    }
+    
+    /**
+     * Handles the 'Back to User Profile' button click from the Order Details view. (NEW)
+     */
+    function backToUserDetails() {
+         // Re-render the user details view, which will automatically re-fetch the order history
+         // to show the updated status.
+        if (currentViewingUserId) {
+            viewUserDetails(currentViewingUserId);
+        } else {
+            showMembershipList(); // Fallback to main list
+        }
+    }
+
+    // --- Main Load Function ---
+
+    /**
+     * Main function to load and display data, including auth check.
+     */
+    async function loadMembershipData() {
+        loadingIndicator.classList.remove('hidden');
+        userTableContainer.classList.add('hidden');
+        errorMessage.classList.add('hidden');
+        contentUserDetails.classList.add('hidden'); // Ensure details view is hidden initially
+        contentOrderDetails.classList.add('hidden'); // Ensure order update view is hidden initially
+
+        const users = await fetchUserData();
+
+        loadingIndicator.classList.add('hidden');
+
+        if (users === null) {
+            // fetchUserData already called logoutAdmin() if the token was bad
+            errorMessage.classList.remove('hidden');
+            errorMessage.innerHTML = 'Authentication failed or token expired. Please log in again.';
+        } else if (Array.isArray(users)) {
+            renderUserTable(users);
+            userTableContainer.classList.remove('hidden');
+        } else {
+            errorMessage.classList.remove('hidden');
+            errorMessage.innerHTML = 'Failed to load user data. Please check the network connection and API status.';
+        }
+    }
+
+
+    // --- Initialization and Event Listeners ---
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Expose global functions required by inline HTML handlers
+        window.viewUserDetails = viewUserDetails;
+        window.showMembershipList = showMembershipList;
+        window.viewOrderDetails = viewOrderDetails; // Expose the new view function
+        window.handleStatusUpdate = handleStatusUpdate; // Expose the update logic
+        window.backToUserDetails = backToUserDetails; // Expose the back button function
         
-        /**
-         * Handles the order status update process. (NEW)
-         */
-        async function handleStatusUpdate() {
-            const newStatus = newOrderStatusSelect.value;
-            
-            if (!currentViewingOrderId) {
-                alert("Error: No order selected for update.");
-                return;
-            }
+        // Original modal functions (kept, but unused for order history)
+        // window.showOrderDetailsModal = showOrderDetailsModal; 
+        // window.closeModal = closeModal; 
 
-            if (confirm(`Are you sure you want to change the status of Order ${currentViewingOrderId} to ${newStatus}?`)) {
-                // Show a brief loading state on the button/message area
-                orderUpdateMessage.classList.remove('hidden');
-                orderUpdateMessage.className = 'p-3 rounded-lg text-white bg-blue-500 font-medium';
-                orderUpdateMessage.textContent = 'Updating status...';
-                
-                const result = await updateOrderStatus(currentViewingOrderId, newStatus);
-                
-                if (result.success) {
-                    // Update display elements with the new status
-                    orderDetailCurrentStatus.textContent = newStatus;
-                    
-                    orderUpdateMessage.className = 'p-3 rounded-lg text-white bg-green-500 font-medium';
-                    orderUpdateMessage.textContent = result.message;
-                    
-                } else {
-                    orderUpdateMessage.className = 'p-3 rounded-lg text-white bg-red-500 font-medium';
-                    orderUpdateMessage.textContent = result.message;
-                }
-            }
-        }
+
+        loadMembershipData();
+
+        // Toggle sidebar visibility on mobile
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('-translate-x-full');
+        });
         
-        /**
-         * Handles the 'Back to User Profile' button click from the Order Details view. (NEW)
-         */
-        function backToUserDetails() {
-             // Re-render the user details view, which will automatically re-fetch the order history
-             // to show the updated status.
-            if (currentViewingUserId) {
-                viewUserDetails(currentViewingUserId);
-            } else {
-                showMembershipList(); // Fallback to main list
-            }
-        }
-
-        // --- Main Load Function ---
-
-        /**
-         * Main function to load and display data, including auth check.
-         */
-        async function loadMembershipData() {
-            loadingIndicator.classList.remove('hidden');
-            userTableContainer.classList.add('hidden');
-            errorMessage.classList.add('hidden');
-            contentUserDetails.classList.add('hidden'); // Ensure details view is hidden initially
-            contentOrderDetails.classList.add('hidden'); // Ensure order update view is hidden initially
-
-            const users = await fetchUserData();
-
-            loadingIndicator.classList.add('hidden');
-
-            if (users === null) {
-                // fetchUserData already called logoutAdmin() if the token was bad
-                errorMessage.classList.remove('hidden');
-                errorMessage.innerHTML = 'Authentication failed or token expired. Please log in again.';
-            } else if (Array.isArray(users)) {
-                renderUserTable(users);
-                userTableContainer.classList.remove('hidden');
-            } else {
-                errorMessage.classList.remove('hidden');
-                errorMessage.innerHTML = 'Failed to load user data. Please check the network connection and API status.';
-            }
-        }
-
-
-        // --- Initialization and Event Listeners ---
-
-        document.addEventListener('DOMContentLoaded', () => {
-            // Expose global functions required by inline HTML handlers
-            window.viewUserDetails = viewUserDetails;
-            window.showMembershipList = showMembershipList;
-            window.viewOrderDetails = viewOrderDetails; // Expose the new view function
-            window.handleStatusUpdate = handleStatusUpdate; // Expose the update logic
-            window.backToUserDetails = backToUserDetails; // Expose the back button function
-            
-            // Original modal functions (kept, but unused for order history)
-            // window.showOrderDetailsModal = showOrderDetailsModal; 
-            // window.closeModal = closeModal; 
-
-
-            loadMembershipData();
-
-            // Toggle sidebar visibility on mobile
-            sidebarToggle.addEventListener('click', () => {
-                sidebar.classList.toggle('-translate-x-full');
-            });
-            
-            // Close sidebar on mobile after clicking a link
-            navButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    if (window.innerWidth < 1024 && !sidebar.classList.contains('-translate-x-full')) {
-                        sidebar.classList.add('-translate-x-full');
-                    }
-                });
-            });
-
-            // Original modal handlers (kept but now only for the abandoned modal)
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && !orderDetailsModal.classList.contains('hidden')) {
-                    closeModal();
-                }
-            });
-            
-            orderDetailsModal.addEventListener('click', (e) => {
-                if (e.target === orderDetailsModal) {
-                    closeModal();
+        // Close sidebar on mobile after clicking a link
+        navButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                if (window.innerWidth < 1024 && !sidebar.classList.contains('-translate-x-full')) {
+                    sidebar.classList.add('-translate-x-full');
                 }
             });
         });
-    </script>
+
+        // Original modal handlers (kept but now only for the abandoned modal)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !orderDetailsModal.classList.contains('hidden')) {
+                closeModal();
+            }
+        });
+        
+        orderDetailsModal.addEventListener('click', (e) => {
+            if (e.target === orderDetailsModal) {
+                closeModal();
+            }
+        });
+
+        // Add Event Listener for the Order Update Form Submission
+        if (orderUpdateForm) {
+            orderUpdateForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                handleStatusUpdate();
+            });
+        }
+    });
+</script>
 </body>
 </html>

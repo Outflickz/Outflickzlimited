@@ -256,9 +256,11 @@ function updateCartBadge() {
 }
 
 /**
- * Redirects to the user account page.
+ * Redirects to the user account page based on login status.
  */
 function redirectToProfileOrLogin() {
+    // If a token exists, redirect to the account page. Otherwise, the useraccount.html 
+    // page is typically set up to handle the redirect to login/register if needed.
     window.location.href = 'useraccount.html';
 }
 
@@ -284,6 +286,31 @@ function toggleMenu() {
         document.querySelector('button[aria-controls="mobile-menu"]').setAttribute('aria-expanded', 'true');
     }
 }
+
+/**
+ * Updates the profile icon's appearance and Aria label based on login status.
+ */
+function updateProfileIconStatus() {
+    const token = getAuthToken();
+    const profileIconBtn = document.getElementById('profile-icon');
+    
+    if (profileIconBtn) {
+        const icon = profileIconBtn.querySelector('i');
+        
+        if (token) {
+            // User is logged in
+            profileIconBtn.setAttribute('aria-label', 'User Account');
+            // Change color to indicate logged in, or add a slight border
+            profileIconBtn.classList.add('text-primary-indigo', 'border-primary-indigo', 'border');
+            profileIconBtn.classList.remove('text-gray-700', 'border-transparent', 'border');
+        } else {
+            // User is logged out
+            profileIconBtn.setAttribute('aria-label', 'Login or Register');
+            profileIconBtn.classList.add('text-gray-700');
+            profileIconBtn.classList.remove('text-primary-indigo', 'border-primary-indigo', 'border');
+        }
+    }
+}
     
 /**
  * Fetches the full order details (items, final amount) from the server.
@@ -294,10 +321,13 @@ async function fetchOrderCollection(orderId) {
     const priceSummaryEl = document.getElementById('price-summary');
     const token = getAuthToken();
 
+    // The order confirmation page should load, but show a login prompt for details if token is missing
     if (!token) {
-        const redirectUrl = `useraccount.html?redirect=orderconfirmation.html?id=${orderId}`;
+        // Construct the full URL for redirection
+        const currentUrl = window.location.pathname + window.location.search;
+        const redirectUrl = `useraccount.html?redirect=${encodeURIComponent(currentUrl)}`;
         itemsListEl.innerHTML = `<div class="text-center py-4 text-red-500">
-            <i class="fas fa-exclamation-triangle mr-2"></i> You must be logged in to view order details. 
+            <i class="fas fa-exclamation-triangle mr-2"></i> You must be logged in to view detailed order history. 
             <a href="${redirectUrl}" class="font-semibold underline text-primary-indigo hover:text-indigo-800">Click here to log in.</a>
         </div>`;
         priceSummaryEl.innerHTML = '';
@@ -318,10 +348,12 @@ async function fetchOrderCollection(orderId) {
             const errorData = await response.json().catch(() => ({ message: 'Server error' }));
             
             if (response.status === 401 || response.status === 403) {
-                 const redirectUrl = `useraccount.html?redirect=orderconfirmation.html?id=${orderId}`;
+                 // The token is invalid or expired, redirect to login with the current page as redirect target
+                 const currentUrl = window.location.pathname + window.location.search;
+                 const redirectUrl = `useraccount.html?redirect=${encodeURIComponent(currentUrl)}`;
                  itemsListEl.innerHTML = `<div class="text-center py-4 text-red-500">
-                     <i class="fas fa-exclamation-triangle mr-2"></i> Your session has expired. Please <a href="${redirectUrl}" class="font-semibold underline text-primary-indigo hover:text-indigo-800">log in</a> again.
-                   </div>`;
+                     <i class="fas fa-exclamation-triangle mr-2"></i> Your session has expired or you do not have permission. Please <a href="${redirectUrl}" class="font-semibold underline text-primary-indigo hover:text-indigo-800">log in</a> again.
+                    </div>`;
                  return;
             }
 
@@ -362,7 +394,6 @@ async function fetchOrderCollection(orderId) {
                             
                         </div>
                     </div>
-                    <!-- Right-aligned price section - responsive adjustment -->
                     <div class="mt-2 sm:mt-0 text-right sm:pl-4 w-full sm:w-auto">
                         <span class="text-sm font-bold text-gray-900">${CURRENCY_SYMBOL}${formatNaira(item.priceAtTimeOfPurchase * item.quantity)}</span>
                         <p class="text-xs text-gray-400">@ ${CURRENCY_SYMBOL}${formatNaira(item.priceAtTimeOfPurchase)} each</p>
@@ -449,6 +480,7 @@ function displayConfirmationDetails() {
 // --- Main Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
     updateCartBadge(); 
+    updateProfileIconStatus(); // NEW: Check login status for the icon on load
     displayConfirmationDetails(); 
 });
 </script>

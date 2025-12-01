@@ -112,8 +112,7 @@ async function generateSignedUrl(fileUrl) {
         });
 
         // 3. Generate the signed URL (expires in 300 seconds = 5 minutes)
-        const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 });
-        
+const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });         
         console.log(`[Signed URL DEBUG] Signed URL successfully generated for key: ${fileKey}`);
         return signedUrl;
 
@@ -2529,6 +2528,7 @@ app.delete('/api/admin/newarrivals/:id', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Server error during product deletion.' });
     }
 });
+
 // GET /api/admin/wearscollections/:id (Fetch Single Collection)
 app.get('/api/admin/wearscollections/:id', verifyToken, async (req, res) => {
     try {

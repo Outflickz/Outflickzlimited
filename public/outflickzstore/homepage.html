@@ -970,31 +970,28 @@ function createSizeList(collectionId, availableSizes, isReduced) {
         const safeSize = size.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
         const inputId = `size-${collectionId}-${safeSize}`;
         
-        // --- 🛑 FIX: Remove default 'checked' attribute ---
-        // const isChecked = index === 0 ? 'checked' : ''; // REMOVED
-        
-        return `
-            <input 
-                type="radio" 
-                id="${inputId}" 
-                name="${correctNameGroup}" 
-                value="${size}" 
-                class="hidden size-radio peer" 
-                data-size-id="${collectionId}"
-                
-            >
-            <label 
-                for="${inputId}" 
-                class="${sizeClasses} border cursor-pointer rounded-full flex items-center justify-center font-medium transition-all duration-150 
-                       border-gray-300 text-gray-700 hover:border-ash-dark hover:bg-gray-100 
-                       
-                       /* --- 🚀 FIX: Ensure styles only apply when actually checked --- */
-                       peer-checked:border-ash-dark peer-checked:bg-ash-dark peer-checked:text-white"
-            >
-                ${size}
-            </label>
-        `;
-    }).join('');
+     return `
+        <input 
+            type="radio" 
+            id="${inputId}" 
+            name="${correctNameGroup}" 
+            value="${size}" 
+            class="hidden size-radio peer" 
+            data-size-id="${collectionId}"
+            // The 'checked' attribute is correctly missing here, meaning none are selected initially.
+        >
+        <label 
+            for="${inputId}" 
+            class="${sizeClasses} border cursor-pointer rounded-full flex items-center justify-center font-medium transition-all duration-150 
+                    border-gray-300 text-gray-700 hover:border-ash-dark hover:bg-gray-100 
+                    
+                    /* This peer-checked style ensures only the currently selected (checked) radio's label is highlighted. */
+                    peer-checked:border-ash-dark peer-checked:bg-ash-dark peer-checked:text-white"
+        >
+            ${size}
+        </label>
+    `;
+}).join('');
 
     return sizeOptionsHtml;
 }

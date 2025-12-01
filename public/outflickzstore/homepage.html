@@ -945,7 +945,7 @@ const sizeListHtml = showSizeSelection ? `
  *
  * IMPORTANT: This function filters the incoming sizes to only display
  * the standard set: S, M, L, XL.
- * * @param {string} collectionId - The ID of the collection/product.
+ * @param {string} collectionId - The ID of the collection/product.
  * @param {string[]} availableSizes - Array of size strings (e.g., ['S', 'M', 'L']).
  * @param {boolean} isReduced - Flag for applying smaller size classes.
  * @returns {string} The HTML string for the size options.
@@ -963,15 +963,15 @@ function createSizeList(collectionId, availableSizes, isReduced) {
     }
 
     const sizeClasses = isReduced ? 'w-5 h-5 text-[0.6rem]' : 'w-6 h-6 text-xs';
-    // The correctNameGroup ensures only one size per product is selected (mutually exclusive group)
+    // Use the correct radio button name attribute expected by simulateAddToCart
     const correctNameGroup = `size-${collectionId}`;
 
-    const sizeOptionsHtml = filteredSizes.map((size, index) => { // <-- Use 'index' to check the first item
+    const sizeOptionsHtml = filteredSizes.map((size) => {
         const safeSize = size.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
         const inputId = `size-${collectionId}-${safeSize}`;
         
-        // --- ✅ FIX: Select the first size by default ---
-        const isChecked = index === 0 ? 'checked' : ''; // <-- Re-introduced for default selection
+        // --- 🛑 FIX: Remove default 'checked' attribute ---
+        // const isChecked = index === 0 ? 'checked' : ''; // REMOVED
         
         return `
             <input 
@@ -981,15 +981,15 @@ function createSizeList(collectionId, availableSizes, isReduced) {
                 value="${size}" 
                 class="hidden size-radio peer" 
                 data-size-id="${collectionId}"
-                ${isChecked} // <-- Applies 'checked' to the first size, ensuring one is always active
+                
             >
             <label 
                 for="${inputId}" 
                 class="${sizeClasses} border cursor-pointer rounded-full flex items-center justify-center font-medium transition-all duration-150 
-                        border-gray-300 text-gray-700 hover:border-ash-dark hover:bg-gray-100 
-                        
-                        /* This peer-checked class ensures the label style updates ONLY when its corresponding radio button is selected */
-                        peer-checked:border-ash-dark peer-checked:bg-ash-dark peer-checked:text-white"
+                       border-gray-300 text-gray-700 hover:border-ash-dark hover:bg-gray-100 
+                       
+                       /* --- 🚀 FIX: Ensure styles only apply when actually checked --- */
+                       peer-checked:border-ash-dark peer-checked:bg-ash-dark peer-checked:text-white"
             >
                 ${size}
             </label>

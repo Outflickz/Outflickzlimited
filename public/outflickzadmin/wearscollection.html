@@ -492,7 +492,7 @@ function renderCollectionsTable(collections) {
         const statusText = isActiveAndStocked ? 'Active' : 'Out of Stock / Inactive';
 
         // CRITICAL UPDATE: Extract the FIRST variation's imageUrl (which is now a direct URL)
-const firstImageUrl = firstVariation?.frontImageUrl || 'https://placehold.co/40x40/cccccc/333333?text=N/A';
+        const firstImageUrl = collection.variations[0]?.frontImageUrl || 'https://via.placeholder.com/64?text=N/A';
         const imagePreview = `<img src="${firstImageUrl}" alt="Preview" class="w-10 h-10 object-cover rounded-full inline mr-2 shadow-sm">`;
         
         // --- UPDATED PRICE FORMAT TO NAIRA (₦) ---

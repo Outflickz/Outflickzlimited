@@ -925,7 +925,7 @@ const sizeListHtml = showSizeSelection ? `
 
 /**
  * Generates the HTML for the size selection options within the collection card.
- * **FIXED:** Removed the wrapping div to allow horizontal layout via the parent's 'flex gap-1' class.
+ * **FIXED:** Reverted to type="radio" to use native browser single-selection logic.
  * * @param {string} collectionId - The ID of the collection/product.
  * @param {string[]} availableSizes - Array of size strings (e.g., ['S', 'M', 'L']).
  * @param {boolean} isReduced - Flag for applying smaller size classes.
@@ -942,7 +942,7 @@ function createSizeList(collectionId, availableSizes, isReduced) {
     }
 
     const sizeClasses = isReduced ? 'w-5 h-5 text-[0.6rem]' : 'w-6 h-6 text-xs';
-    // Use a unique group name for the container for JS targeting
+    // Use the collection ID for the unique group name (the radio button 'name')
     const sizeGroupClass = `size-group-${collectionId}`;
 
     const sizeOptionsHtml = filteredSizes.map((size) => {
@@ -951,13 +951,13 @@ function createSizeList(collectionId, availableSizes, isReduced) {
         
         return `
             <input 
-                type="checkbox" 
+                type="radio" // <-- CHANGED BACK TO RADIO for single selection
                 id="${inputId}" 
-                name="${sizeGroupClass}" 
+                name="${sizeGroupClass}" // <-- The common 'name' ensures only one radio is selected
                 value="${size}" 
-                class="hidden size-checkbox peer single-select-size" 
+                class="hidden size-radio peer" // <-- Updated class
                 data-product-id="${collectionId}"
-                data-group-class="${sizeGroupClass}" 
+                // Removed data-group-class as JS listener is gone
             >
             <label 
                 for="${inputId}" 
@@ -971,38 +971,9 @@ function createSizeList(collectionId, availableSizes, isReduced) {
         `;
     }).join('');
     
-    // **FIX:** Removed the wrapping div. The elements will now flow horizontally 
-    // because they are direct children of the 'flex gap-1' container in createCollectionCard.
+    // Elements flow horizontally because they are direct children of the 'flex gap-1' container.
     return sizeOptionsHtml;
 }
-/**
- * Ensures only one checkbox is checked at a time within its designated group.
- * **UPDATED:** Logic now uses `closest('.flex.gap-1')` to find the correct parent container.
- */
-document.addEventListener('change', function(event) {
-    // Check if the change event came from one of our size checkboxes
-    if (event.target.matches('.single-select-size')) {
-        const currentCheckbox = event.target;
-        
-        // Find the immediate parent div that is responsible for the horizontal layout (the 'flex gap-1' container)
-        const container = currentCheckbox.closest('.flex.gap-1'); 
-        
-        // If the current checkbox was just CHECKED, uncheck all others in the group
-        if (currentCheckbox.checked) {
-            if (container) {
-                // Select all other checkboxes in this specific size group container
-                const siblings = container.querySelectorAll('.single-select-size');
-                siblings.forEach(checkbox => {
-                    // Uncheck all siblings that are NOT the one currently being handled
-                    if (checkbox !== currentCheckbox) {
-                        checkbox.checked = false;
-                    }
-                });
-            }
-        }
-        // If the current checkbox was UNCHECKED, we do nothing, allowing it to be unchecked.
-    }
-});
 
 // --- FETCH AND RENDER COLLECTIONS (Existing functions) ---
 async function fetchAndRenderWearsCollections() {

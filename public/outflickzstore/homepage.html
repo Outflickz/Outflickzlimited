@@ -809,8 +809,8 @@ function createCollectionCard(collection, size = 'default') {
         : null;
 
     // Safely assign URLs. If primaryVariant is null, the default placeholder is used.
-    const frontImageUrl = primaryVariant?.frontImageUrl || defaultFrontImage;
-    const backImageUrl = primaryVariant?.backImageUrl || defaultBackImage;
+    const frontImageUrl = primaryVariant?.frontImageUrl || collection.frontImageUrl || defaultFrontImage;
+    const backImageUrl = primaryVariant?.backImageUrl || collection.backImageUrl || defaultBackImage;
     // --- END FINAL FIX ---
 
     const itemPrice = collection.price;

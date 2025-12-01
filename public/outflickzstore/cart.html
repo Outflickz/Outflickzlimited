@@ -169,6 +169,8 @@ function handleLocalCartFallback(details) {
         details.quantity = details.quantity || 1;
         
         // 🚀 IMPROVED: Generate a short, unique, client-side ID for the local item.
+        // This is safer and less error-prone than concatenating product details.
+        // We use a simple composite key for uniqueness check above, but a true ID for manipulation.
         details._id = details._id || `${details.productId}_${details.variationIndex}_${Date.now()}`; 
         
         localCart.push(details);
@@ -206,7 +208,7 @@ async function simulateAddToCart(productDetails) {
     const sizeSelectionExists = card.querySelector(`input[name="size-${productDetails.productId}"]`);
     
     // Find the currently selected size and color inputs
-    const selectedSizeInput = card.querySelector(`.single-select-size[data-product-id="${productDetails.productId}"]:checked`);
+    const selectedSizeInput = card.querySelector(`input[name="size-${productDetails.productId}"]:checked`);
     const selectedColorInput = card.querySelector(`input[name="color-${productDetails.productId}"]:checked`);
     
     // --- 🛑 SIZE VALIDATION CHECK (NEW/FIXED LOGIC) ---
@@ -235,15 +237,9 @@ async function simulateAddToCart(productDetails) {
     const rawIndex = variantInput?.dataset?.variationIndex || productDetails.variationIndex;
     const variationIndex = parseInt(rawIndex) || 0; // Safely convert to number, default 0
     
-    // ⭐️ FIX HERE: Generate a robust variation string from selected color and size
-    const sizeStr = size !== 'N/A' ? `Size: ${size}` : '';
-    const colorStr = color !== 'N/A' ? `Color: ${color}` : '';
-    const combinedVariationStr = [colorStr, sizeStr].filter(Boolean).join(', ');
-
     const variation = variantInput?.dataset?.variationName || 
                       productDetails.variation || 
-                      combinedVariationStr || 
-                      'Default Variant';
+                      (color !== 'N/A' ? `${color} / ${size}` : `Default Variant`);
     // -------------------------------------------------------------
     
     // Unified item data structure for both API (minimal fields) and Local Cart (all fields)
@@ -257,7 +253,7 @@ async function simulateAddToCart(productDetails) {
         imageUrl: productDetails.imageUrl,
         quantity: productDetails.quantity || 1,
         variationIndex: variationIndex,
-        variation: variation // ✅ This is now the correctly formatted string
+        variation: variation 
     };
     
     // Construct data for API call 
@@ -433,11 +429,10 @@ function renderCartItems(items, isApiCart) {
                         <h3 class="text-base sm:text-lg">
                             <a href="#" class="font-semibold text-gray-900 hover:text-ash-red">${item.name}</a>
                         </h3>
-                        
-                        <p class="mt-1 text-xs sm:text-sm text-gray-500">
-                            ${item.variation || (item.color !== 'N/A' || item.size !== 'N/A' ? `Color: ${item.color}, Size: ${item.size}` : 'Default Variant')}
-                        </p>
-                        </div>
+                        ${item.variation ? `<p class="mt-1 text-xs sm:text-sm text-gray-500">${item.variation}</p>` : ''}
+                        <p class="mt-1 text-xs sm:text-sm text-gray-500">Color: ${item.color}</p>
+                        <p class="text-xs sm:text-sm text-gray-500">Size: ${item.size}</p>
+                    </div>
 
                     <p class="mt-2 text-base font-bold text-gray-900 sm:mt-0 text-right sm:text-left">
                         ${currencySymbol}${(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}

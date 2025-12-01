@@ -336,9 +336,9 @@
     }
 
     /**
- * Sends a request to the API to confirm (complete) an order.
- * @param {string} orderId - The ID of the order to confirm.
- */
+* Sends a request to the API to confirm (complete) an order.
+* @param {string} orderId - The ID of the order to confirm.
+*/
 async function confirmOrder(orderId) {
     const token = localStorage.getItem('adminToken');
     if (!token) {
@@ -524,10 +524,15 @@ async function confirmOrder(orderId) {
             const itemPrice = parseFloat(item.priceAtTimeOfPurchase || item.price) || 0;
             // Calculate subtotal for the row
             const itemSubtotal = parseFloat(item.quantity * itemPrice) || 0; 
-            
+
+            // ⭐ CRITICAL FIX: Robust check for item.imageUrl to prevent broken image icon for empty string URL
+            const itemImageSource = item.imageUrl && item.imageUrl.trim() 
+                ? item.imageUrl 
+                : 'https://placehold.co/32x32/CBD5E1/475569/png?text=P';
+
             itemRow.innerHTML = `
                 <td class="px-4 py-3 text-sm font-medium text-gray-900 flex items-center">
-                    <img src="${item.imageUrl || 'https://placehold.co/32x32/CBD5E1/475569/png?text=P'}" 
+                    <img src="${itemImageSource}" 
                         alt="${item.name} image" class="w-8 h-8 rounded mr-2 object-cover">
                     ${item.name}
                 </td>
@@ -647,10 +652,10 @@ if (order.paymentReceiptUrl && order.paymentReceiptUrl.trim()) {
     }
         
     /**
-   /**
- * Handles the click on 'View Details' and loads the order details section.
- * @param {string} orderId - The ID of the order to view.
- */
+    /**
+* Handles the click on 'View Details' and loads the order details section.
+* @param {string} orderId - The ID of the order to view.
+*/
 async function handleViewDetails(orderId) {
     // Show loading state 
     showToast(`Loading details for order #${orderId.substring(0, 8)}...`, 'bg-blue-600');

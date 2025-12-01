@@ -675,6 +675,7 @@ function toggleImage(collectionId) {
         toggleButton.title = "Show Back View";
     }
 }
+
 // --- UTILITY FOR COLOR LIST (FIXED for Pre-Order Collections) ---
 function createColorList(collectionId, variants) {
     // 1. Initial Safety Check
@@ -744,15 +745,15 @@ function createCollectionCard(collection, size = 'default') {
 
     
     // Card Padding
-    const cardPadding = isReduced ? 'p-1 sm:p-2' : 'p-2 sm:p-3';    
+    const cardPadding = isReduced ? 'p-1 sm:p-2' : 'p-2 sm:p-3';    
     const nameFontSize = isReduced ? 'text-xs sm:text-sm' : 'text-sm sm:text-base';
     const descriptionFontSize = isReduced ? 'text-[0.6rem] sm:text-xs' : 'text-xs sm:text-sm';
     const priceFontSize = isReduced ? 'text-xs font-bold sm:text-sm' : 'text-base font-semibold';
     const controlHeight = isReduced ? 'h-6' : 'h-7';
     const controlTextSize = isReduced ? 'text-[0.5rem] sm:text-[0.6rem]' : 'text-xs sm:text-sm'; 
     const quantityInputWidth = isReduced ? 'w-4 sm:w-6' : 'w-6 sm:w-8';
-    const quantityButtonSize = isReduced ? 'w-6 h-6' : 'w-7 h-7';    
-    const quantityInputTextSize = isReduced ? 'text-[0.6rem] sm:text-xs' : 'text-xs sm:text-sm';    
+    const quantityButtonSize = isReduced ? 'w-6 h-6' : 'w-7 h-7';    
+    const quantityInputTextSize = isReduced ? 'text-[0.6rem] sm:text-xs' : 'text-xs sm:text-sm';    
     const buttonFlexClasses = 'flex-1';
     // --- FIX 1: Use 'variants' from payload, not 'variations' ---
     const primaryVariant = collection.variants && collection.variants.length > 0 ? collection.variants[0] : null;
@@ -766,22 +767,16 @@ function createCollectionCard(collection, size = 'default') {
     const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
 
     
-    const showSizeSelection = true; 
+   const showSizeSelection = true; 
 
-// 🎯 START OF SIZE LIST FIX
 const sizeListHtml = showSizeSelection ? `
-    // Using gap-1 for a tighter container spacing
-    <div class="flex items-center gap-1 mt-2 mb-3"> 
-        // Ensure the label doesn't shrink, giving max space to buttons
-        <span class="text-xs font-medium text-gray-700 flex-shrink-0">Size:</span> 
-        
-        // Added flex-nowrap to keep all sizes on one line, and overflow-x-auto for smaller screens
-        <div class="flex gap-1 flex-nowrap overflow-x-auto text-gray-700"> 
+    <div class="flex items-center space-x-2 mt-2 mb-3">
+        <span class="text-xs font-medium text-gray-700">Size:</span>
+        <div class="flex gap-1 text-gray-700">
             ${createSizeList(collection._id, collection.availableSizes || [], isReduced)}
         </div>
     </div>
 ` : '';
-// 🎯 END OF SIZE LIST FIX
     
     const colorListHtml = createColorList(collection._id, collection.variants); // Use 'variants'
     
@@ -930,8 +925,7 @@ const sizeListHtml = showSizeSelection ? `
 
 /**
  * Generates the HTML for the size selection options within the collection card.
- * * NOTE: Changed from type="radio" to type="checkbox" to allow unchecking, 
- * and added class="single-select-size" to enable custom JS validation.
+ * **FIXED:** Removed the wrapping div to allow horizontal layout via the parent's 'flex gap-1' class.
  * * @param {string} collectionId - The ID of the collection/product.
  * @param {string[]} availableSizes - Array of size strings (e.g., ['S', 'M', 'L']).
  * @param {boolean} isReduced - Flag for applying smaller size classes.
@@ -947,8 +941,7 @@ function createSizeList(collectionId, availableSizes, isReduced) {
         return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
     }
 
-    // FIX: Changed default size from w-6 h-6 to w-5 h-5 for more compact horizontal space
-    const sizeClasses = isReduced ? 'w-5 h-5 text-[0.6rem]' : 'w-5 h-5 text-xs'; 
+    const sizeClasses = isReduced ? 'w-5 h-5 text-[0.6rem]' : 'w-6 h-6 text-xs';
     // Use a unique group name for the container for JS targeting
     const sizeGroupClass = `size-group-${collectionId}`;
 
@@ -958,44 +951,46 @@ function createSizeList(collectionId, availableSizes, isReduced) {
         
         return `
             <input 
-                type="checkbox" // <-- CHANGED TO CHECKBOX
+                type="checkbox" 
                 id="${inputId}" 
-                name="${sizeGroupClass}" // <-- Changed name to group class
+                name="${sizeGroupClass}" 
                 value="${size}" 
-                class="hidden size-checkbox peer single-select-size" // <-- New class for JS
+                class="hidden size-checkbox peer single-select-size" 
                 data-product-id="${collectionId}"
-                data-group-class="${sizeGroupClass}" // <-- Pass group class for JS
+                data-group-class="${sizeGroupClass}" 
             >
             <label 
                 for="${inputId}" 
                 class="${sizeClasses} border cursor-pointer rounded-full flex items-center justify-center font-medium transition-all duration-150 
-                         border-gray-300 text-gray-700 hover:border-ash-dark hover:bg-gray-100 
-                         
-                         peer-checked:border-ash-dark peer-checked:bg-ash-dark peer-checked:text-white"
+                        border-gray-300 text-gray-700 hover:border-ash-dark hover:bg-gray-100 
+                        
+                        peer-checked:border-ash-dark peer-checked:bg-ash-dark peer-checked:text-white"
             >
                 ${size}
             </label>
         `;
     }).join('');
     
-    // Wrap the size options in a container for the JS listener
-    return `<div class="size-options-container ${sizeGroupClass}">${sizeOptionsHtml}</div>`;
+    // **FIX:** Removed the wrapping div. The elements will now flow horizontally 
+    // because they are direct children of the 'flex gap-1' container in createCollectionCard.
+    return sizeOptionsHtml;
 }
 /**
  * Ensures only one checkbox is checked at a time within its designated group.
+ * **UPDATED:** Logic now uses `closest('.flex.gap-1')` to find the correct parent container.
  */
 document.addEventListener('change', function(event) {
     // Check if the change event came from one of our size checkboxes
     if (event.target.matches('.single-select-size')) {
         const currentCheckbox = event.target;
-        const productId = currentCheckbox.getAttribute('data-product-id');
-        const groupClass = currentCheckbox.getAttribute('data-group-class');
+        
+        // Find the immediate parent div that is responsible for the horizontal layout (the 'flex gap-1' container)
+        const container = currentCheckbox.closest('.flex.gap-1'); 
         
         // If the current checkbox was just CHECKED, uncheck all others in the group
         if (currentCheckbox.checked) {
-            // Select all other checkboxes in the same product group
-            const container = document.querySelector(`.${groupClass}`);
             if (container) {
+                // Select all other checkboxes in this specific size group container
                 const siblings = container.querySelectorAll('.single-select-size');
                 siblings.forEach(checkbox => {
                     // Uncheck all siblings that are NOT the one currently being handled

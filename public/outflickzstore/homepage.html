@@ -745,32 +745,16 @@ function createCollectionCard(collection, size = 'default') {
 
     
     // Card Padding
-    const cardPadding = isReduced ? 'p-1 sm:p-2' : 'p-2 sm:p-3';
-    
-    // Name and Description Text Size
+    const cardPadding = isReduced ? 'p-1 sm:p-2' : 'p-2 sm:p-3';    
     const nameFontSize = isReduced ? 'text-xs sm:text-sm' : 'text-sm sm:text-base';
     const descriptionFontSize = isReduced ? 'text-[0.6rem] sm:text-xs' : 'text-xs sm:text-sm';
-    
-    // Price Text Size
     const priceFontSize = isReduced ? 'text-xs font-bold sm:text-sm' : 'text-base font-semibold';
-    
-    // Control Height/Size (REDUCED FOR MOBILE)
     const controlHeight = isReduced ? 'h-6' : 'h-7';
-    
-    // Reduced Button Text Size (AGGRESSIVELY SMALLER FOR MOBILE)
     const controlTextSize = isReduced ? 'text-[0.5rem] sm:text-[0.6rem]' : 'text-xs sm:text-sm'; 
-    
-    // Quantity Input/Button (TIGHTER FOR MOBILE)
     const quantityInputWidth = isReduced ? 'w-4 sm:w-6' : 'w-6 sm:w-8';
-    const quantityButtonSize = isReduced ? 'w-6 h-6' : 'w-7 h-7';
-    
-    // Reduced Quantity Text Size
-    const quantityInputTextSize = isReduced ? 'text-[0.6rem] sm:text-xs' : 'text-xs sm:text-sm';
-    
-    // NEW: Button flex classes for 50/50 split
+    const quantityButtonSize = isReduced ? 'w-6 h-6' : 'w-7 h-7';    
+    const quantityInputTextSize = isReduced ? 'text-[0.6rem] sm:text-xs' : 'text-xs sm:text-sm';    
     const buttonFlexClasses = 'flex-1';
-    // --- End Conditional Sizing Classes ---
-
     // --- FIX 1: Use 'variants' from payload, not 'variations' ---
     const primaryVariant = collection.variants && collection.variants.length > 0 ? collection.variants[0] : null;
     
@@ -939,22 +923,18 @@ const sizeListHtml = showSizeSelection ? `
     `;
 }
 
-
 /**
  * Generates the HTML for the size selection options within the collection card.
- *
- * IMPORTANT: This function filters the incoming sizes to only display
- * the standard set: S, M, L, XL.
- * @param {string} collectionId - The ID of the collection/product.
+ * * NOTE: Changed from type="radio" to type="checkbox" to allow unchecking, 
+ * and added class="single-select-size" to enable custom JS validation.
+ * * @param {string} collectionId - The ID of the collection/product.
  * @param {string[]} availableSizes - Array of size strings (e.g., ['S', 'M', 'L']).
  * @param {boolean} isReduced - Flag for applying smaller size classes.
  * @returns {string} The HTML string for the size options.
  */
 function createSizeList(collectionId, availableSizes, isReduced) {
-    // Define the only allowed, standard sizes as requested by the user.
     const standardSizes = ['S', 'M', 'L', 'XL']; 
 
-    // Filter the available sizes to only include the standard, valid sizes.
     const filteredSizes = (availableSizes || [])
         .filter(size => standardSizes.includes(size.toUpperCase().trim()));
 
@@ -963,41 +943,65 @@ function createSizeList(collectionId, availableSizes, isReduced) {
     }
 
     const sizeClasses = isReduced ? 'w-5 h-5 text-[0.6rem]' : 'w-6 h-6 text-xs';
-    // The name attribute groups the radio buttons, enforcing single selection (mutually exclusive)
-    const correctNameGroup = `size-${collectionId}`;
+    // Use a unique group name for the container for JS targeting
+    const sizeGroupClass = `size-group-${collectionId}`;
 
-    const sizeOptionsHtml = filteredSizes.map((size) => { // Removed 'index' as it's not needed for checking
+    const sizeOptionsHtml = filteredSizes.map((size) => {
         const safeSize = size.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
         const inputId = `size-${collectionId}-${safeSize}`;
         
-        // --- ✅ FIX: Ensure NO size is checked by default (user must choose) ---
-        // By removing the 'isChecked' variable and attribute, all radio buttons start UNCHECKED.
-        
         return `
             <input 
-                type="radio" 
+                type="checkbox" // <-- CHANGED TO CHECKBOX
                 id="${inputId}" 
-                name="${correctNameGroup}" 
+                name="${sizeGroupClass}" // <-- Changed name to group class
                 value="${size}" 
-                class="hidden size-radio peer" 
-                data-size-id="${collectionId}"
-                // The 'checked' attribute is deliberately omitted here.
+                class="hidden size-checkbox peer single-select-size" // <-- New class for JS
+                data-product-id="${collectionId}"
+                data-group-class="${sizeGroupClass}" // <-- Pass group class for JS
             >
             <label 
                 for="${inputId}" 
                 class="${sizeClasses} border cursor-pointer rounded-full flex items-center justify-center font-medium transition-all duration-150 
                         border-gray-300 text-gray-700 hover:border-ash-dark hover:bg-gray-100 
                         
-                        /* The peer-checked class still ensures only the selected label has the active style */
                         peer-checked:border-ash-dark peer-checked:bg-ash-dark peer-checked:text-white"
             >
                 ${size}
             </label>
         `;
     }).join('');
-
-    return sizeOptionsHtml;
+    
+    // Wrap the size options in a container for the JS listener
+    return `<div class="size-options-container ${sizeGroupClass}">${sizeOptionsHtml}</div>`;
 }
+/**
+ * Ensures only one checkbox is checked at a time within its designated group.
+ */
+document.addEventListener('change', function(event) {
+    // Check if the change event came from one of our size checkboxes
+    if (event.target.matches('.single-select-size')) {
+        const currentCheckbox = event.target;
+        const productId = currentCheckbox.getAttribute('data-product-id');
+        const groupClass = currentCheckbox.getAttribute('data-group-class');
+        
+        // If the current checkbox was just CHECKED, uncheck all others in the group
+        if (currentCheckbox.checked) {
+            // Select all other checkboxes in the same product group
+            const container = document.querySelector(`.${groupClass}`);
+            if (container) {
+                const siblings = container.querySelectorAll('.single-select-size');
+                siblings.forEach(checkbox => {
+                    // Uncheck all siblings that are NOT the one currently being handled
+                    if (checkbox !== currentCheckbox) {
+                        checkbox.checked = false;
+                    }
+                });
+            }
+        }
+        // If the current checkbox was UNCHECKED, we do nothing, allowing it to be unchecked.
+    }
+});
 
 // --- FETCH AND RENDER COLLECTIONS (Existing functions) ---
 async function fetchAndRenderWearsCollections() {

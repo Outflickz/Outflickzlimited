@@ -925,7 +925,8 @@ const sizeListHtml = showSizeSelection ? `
 
 /**
  * Generates the HTML for the size selection options within the collection card.
- * **FIXED:** Uses type="radio" for single selection and adds default 'checked'.
+ * **UPDATED:** Reverted to type="checkbox" to allow unchecking, and added class="single-select-size" 
+ * to enable custom JS validation for single selection.
  * * @param {string} collectionId - The ID of the collection/product.
  * @param {string[]} availableSizes - Array of size strings (e.g., ['S', 'M', 'L']).
  * @param {boolean} isReduced - Flag for applying smaller size classes.
@@ -942,22 +943,23 @@ function createSizeList(collectionId, availableSizes, isReduced) {
     }
 
     const sizeClasses = isReduced ? 'w-5 h-5 text-[0.6rem]' : 'w-6 h-6 text-xs';
-    // Use the collection ID for the unique group name (the radio button 'name')
+    // Use the collection ID for the unique group name (for JS targeting)
     const sizeGroupClass = `size-group-${collectionId}`;
 
-    const sizeOptionsHtml = filteredSizes.map((size, index) => { // Added 'index'
+    const sizeOptionsHtml = filteredSizes.map((size) => {
         const safeSize = size.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
         const inputId = `size-${collectionId}-${safeSize}`;
         
         return `
             <input 
-                type="radio" 
+                type="checkbox" // <-- REVERTED TO CHECKBOX
                 id="${inputId}" 
-                name="${sizeGroupClass}" // This name MUST be unique per product
+                name="${sizeGroupClass}" // This name is now just a group identifier
                 value="${size}" 
-                class="hidden size-radio peer" 
+                class="hidden size-checkbox peer single-select-size" // <-- CRITICAL: For JS listener
                 data-product-id="${collectionId}"
-                ${index === 0 ? 'unchecked' : ''} // Set the first size to be checked by default
+                data-group-class="${sizeGroupClass}" // <-- Pass group class for JS
+                // REMOVED: Default 'checked' attribute
             >
             <label 
                 for="${inputId}" 
@@ -976,28 +978,24 @@ function createSizeList(collectionId, availableSizes, isReduced) {
 
 /**
  * Ensures only one checkbox is checked at a time within its designated group.
- * **THIS FUNCTION IS NOW OBSOLETE AND SHOULD BE REMOVED.**
  */
 document.addEventListener('change', function(event) {
     // Check if the change event came from one of our size checkboxes
     if (event.target.matches('.single-select-size')) {
         const currentCheckbox = event.target;
-        
-        // Find the immediate parent div that is responsible for the horizontal layout (the 'flex gap-1' container)
-        const container = currentCheckbox.closest('.flex.gap-1'); 
+        const groupClass = currentCheckbox.getAttribute('data-group-class');
         
         // If the current checkbox was just CHECKED, uncheck all others in the group
         if (currentCheckbox.checked) {
-            if (container) {
-                // Select all other checkboxes in this specific size group container
-                const siblings = container.querySelectorAll('.single-select-size');
-                siblings.forEach(checkbox => {
-                    // Uncheck all siblings that are NOT the one currently being handled
-                    if (checkbox !== currentCheckbox) {
-                        checkbox.checked = false;
-                    }
-                });
-            }
+            // Find all checkboxes that share the same data-group-class
+            const siblings = document.querySelectorAll(`[data-group-class="${groupClass}"].single-select-size`);
+            
+            siblings.forEach(checkbox => {
+                // Uncheck all siblings that are NOT the one currently being handled
+                if (checkbox !== currentCheckbox) {
+                    checkbox.checked = false;
+                }
+            });
         }
         // If the current checkbox was UNCHECKED, we do nothing, allowing it to be unchecked.
     }

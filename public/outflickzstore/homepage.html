@@ -369,7 +369,6 @@ function addToCart(collectionId, quantity) {
 
     console.log(`Added ${quantity} of item ${collectionId}. New cart total: ${newCount}`);
 }
-
 /**
  * Handles adding an item to the cart. 
  * Tries API (permanent cart via secure cookie) first.
@@ -434,8 +433,8 @@ async function simulateAddToCart(productDetails) {
         variationIndex: variationIndex 
     };
     
-   // Construct minimal data for API call 
-   const itemDataForAPI = {
+    // Construct minimal data for API call 
+    const itemDataForAPI = {
         productId: requiredDetails.productId,
         name: requiredDetails.name, 
         productType: requiredDetails.productType, 
@@ -447,7 +446,7 @@ async function simulateAddToCart(productDetails) {
         imageUrl: requiredDetails.imageUrl,
         // 🚀 CRITICAL FIX 4: Add variationIndex to the API payload! (This solves the 400 error)
         variationIndex: requiredDetails.variationIndex
-   };
+    };
     
     // --- 2. Local Cart Fallback Helper Function (Updated for variationIndex) ---
     const handleLocalCartFallback = (details) => {
@@ -502,7 +501,22 @@ async function simulateAddToCart(productDetails) {
             credentials: 'include' 
         });
 
-        const data = await response.json();
+        // 💡 FIX: Safely parse JSON or default to an error object
+        let data;
+        try {
+            // Attempt to parse the response body
+            data = await response.json();
+        } catch (e) {
+            // This catch block handles the SyntaxError when the body is not JSON (e.g., 503 HTML)
+            // If response is not OK, this non-JSON parsing attempt is common.
+            console.warn(`Could not parse JSON response for status ${response.status}. Assuming non-JSON body.`);
+            data = { 
+                message: `Server Error (${response.status}) received. Item added to local cart.`,
+                // Use the response status if no message is available for specific handling
+                status: response.status 
+            };
+        }
+
 
         if (response.ok) {
             // 3a. Success: Item added to permanent cart
@@ -533,17 +547,25 @@ async function simulateAddToCart(productDetails) {
             handleLocalCartFallback(requiredDetails);
 
         } else {
-            // 3c. Other API Errors
+            // 3c. Other API Errors (e.g., 400 Bad Request, 409 Conflict/Stock, 503 Service Unavailable)
+            
+            // If it's a 5xx error, we should probably treat it like a temporary outage and use the local cart.
+            if (response.status >= 500) {
+                 console.log(`Server Error ${response.status} received. Falling back to local cart.`);
+                 handleLocalCartFallback(requiredDetails);
+            }
+
             // Use the flashing alert for generic error (Red background)
             const alertMessage = document.getElementById('cart-alert');
             if (alertMessage) {
-                 alertMessage.textContent = data.message || 'Failed to add item.';
-                 alertMessage.className = 'absolute top-0 right-0 p-3 m-3 rounded shadow-lg transition-all duration-300 ease-in-out bg-red-500 text-white opacity-100 translate-y-0';
-                 setTimeout(() => {
-                     alertMessage.classList.add('opacity-0', '-translate-y-10');
-                     setTimeout(() => alertMessage.classList.remove('bg-red-500'), 300); 
-                 }, 3000);
-             }
+                // Use the message from the API or a generic one if data object was manually created (503)
+                alertMessage.textContent = data.message || `Failed to add item (Status ${response.status}).`;
+                alertMessage.className = 'absolute top-0 right-0 p-3 m-3 rounded shadow-lg transition-all duration-300 ease-in-out bg-red-500 text-white opacity-100 translate-y-0';
+                setTimeout(() => {
+                    alertMessage.classList.add('opacity-0', '-translate-y-10');
+                    setTimeout(() => alertMessage.classList.remove('bg-red-500'), 300); 
+                }, 3000);
+            }
         }
         
     } catch (error) {

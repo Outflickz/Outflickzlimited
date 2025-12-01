@@ -977,12 +977,19 @@ document.addEventListener('change', function(event) {
     // Check if the change event came from one of our size checkboxes
     if (event.target.matches('.single-select-size')) {
         const currentCheckbox = event.target;
-        const groupClass = currentCheckbox.getAttribute('data-group-class');
         
+        // 1. Find the parent product card container
+        const productCard = currentCheckbox.closest('.collection-card'); 
+
+        if (!productCard) {
+            console.error("Parent collection card not found.");
+            return;
+        }
+
         // If the current checkbox was just CHECKED, uncheck all others in the group
         if (currentCheckbox.checked) {
-            // Find all checkboxes that share the same data-group-class
-            const siblings = document.querySelectorAll(`[data-group-class="${groupClass}"].single-select-size`);
+            // 2. Query only within this specific product card for size inputs
+            const siblings = productCard.querySelectorAll('.single-select-size');
             
             siblings.forEach(checkbox => {
                 // Uncheck all siblings that are NOT the one currently being handled

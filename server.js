@@ -48,6 +48,44 @@ const s3Client = new S3Client({
 });
 
 /**
+ * Extracts the file key (path inside the bucket) from the permanent B2 URL.
+ * This is the SINGLE SOURCE OF TRUTH for key extraction.
+ * @param {string} fileUrl - The permanent B2 URL (e.g., https://endpoint/bucketName/path/to/file.jpg).
+ * @returns {string|null} The file key (path inside the bucket), or null if extraction fails.
+ */
+function getFileKeyFromUrl(fileUrl) { 
+    if (!fileUrl) return null;
+
+    try {
+        // Construct the marker: BUCKET_NAME/
+        const marker = `${BLAZE_BUCKET_NAME}/`;
+        
+        // Find the index of the marker
+        const markerIndex = fileUrl.indexOf(marker);
+
+        if (markerIndex === -1) {
+            console.warn(`[Key Extraction] Bucket marker '${marker}' not found in URL: ${fileUrl}`);
+            return null;
+        }
+
+        // The file key is the string slice immediately after the marker
+        const fileKey = fileUrl.substring(markerIndex + marker.length);
+        
+        if (!fileKey) {
+            console.warn(`[Key Extraction] Resulting file key was empty for URL: ${fileUrl}`);
+            return null;
+        }
+        
+        return fileKey;
+
+    } catch (e) {
+        console.error('Error extracting file key:', e.message);
+        return null;
+    }
+}
+
+
+/**
  * Generates a temporary, pre-signed URL for private files in Backblaze B2.
  * @param {string} fileUrl - The permanent B2 URL.
  * @returns {Promise<string|null>} The temporary signed URL, or null if key extraction fails.
@@ -56,24 +94,16 @@ async function generateSignedUrl(fileUrl) {
     if (!fileUrl) return null;
 
     try {
-        // 1. Extract the Key (path after BLAZE_BUCKET_NAME) from the URL
-        const urlObj = new URL(fileUrl);
-        const pathSegments = urlObj.pathname.split('/');
+        // --- 1. Use the consolidated helper function ---
+        const fileKey = getFileKeyFromUrl(fileUrl);
+        // ---------------------------------------------
         
-        // Find the index of the bucket name, and take everything after it.
-        const bucketNameIndex = pathSegments.findIndex(segment => segment === BLAZE_BUCKET_NAME);
-        if (bucketNameIndex === -1) {
-            console.warn(`[Signed URL] Bucket name not found in path: ${fileUrl}`);
-            return null;
-        }
-
-        // The file key is everything after the bucket name
-        const fileKey = pathSegments.slice(bucketNameIndex + 1).join('/');
-
         if (!fileKey) {
-            console.warn(`[Signed URL] Could not determine file key from URL: ${fileUrl}`);
+            // Error logged inside getFileKeyFromUrl
             return null;
         }
+
+        console.log(`[Signed URL DEBUG] Extracted Key: ${fileKey}`); // Debugging check
 
         // 2. Create the GetObject command
         const command = new GetObjectCommand({
@@ -83,56 +113,16 @@ async function generateSignedUrl(fileUrl) {
 
         // 3. Generate the signed URL (expires in 300 seconds = 5 minutes)
         const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 });
-
+        
+        console.log(`[Signed URL DEBUG] Signed URL successfully generated for key: ${fileKey}`);
         return signedUrl;
 
     } catch (error) {
-        // Log the failure but don't crash the server
         console.error(`[Signed URL] Failed to generate signed URL for ${fileUrl}:`, error);
         return null;
     }
 }
 
-
-/**
- * Uploads a file buffer (from Multer memory storage) to Backblaze B2.
- * @param {object} file - The file object from Multer (must contain `buffer`, `originalname`, and `mimetype`).
- * @returns {Promise<string>} The public URL of the uploaded file (this is the permanent, private path).
- */
-async function uploadFileToPermanentStorage(file) {
-    console.log(`[Backblaze B2] Starting upload for: ${file.originalname}`);
-
-    // !!! CRITICAL: We DO NOT set ACL to public-read here, ensuring the bucket stays private.
-    const fileKey = `wearscollections/${Date.now()}-${Math.random().toString(36).substring(2)}-${file.originalname.replace(/\s/g, '_')}`;
-
-    const params = {
-        Bucket: BLAZE_BUCKET_NAME,
-        Key: fileKey,
-        Body: file.buffer,
-        ContentType: file.mimetype,
-    };
-
-    try {
-        const uploader = new Upload({
-            client: s3Client,
-            params: params,
-        });
-
-        const result = await uploader.done();
-
-        // Construct the permanent, private URL which we will store in MongoDB
-        const permanentUrl = `${BLAZE_ENDPOINT}/${BLAZE_BUCKET_NAME}/${fileKey}`;
-
-        console.log(`[Backblaze B2] Upload success. Location: ${result.Location}`);
-        console.log(`[Backblaze B2] Permanent URL stored in DB: ${permanentUrl}`);
-
-        return permanentUrl;
-
-    } catch (error) {
-        console.error("Backblaze B2 Upload Error:", error);
-        throw new Error(`Failed to upload file to Backblaze B2: ${error.message}`);
-    }
-}
 
 /**
  * Deletes a file from Backblaze B2 given its URL.
@@ -142,20 +132,13 @@ async function deleteFileFromPermanentStorage(fileUrl) {
     if (!fileUrl) return;
 
     try {
-        // Extract the Key (path after BLAZE_BUCKET_NAME) from the URL
-        const urlObj = new URL(fileUrl);
-        const pathSegments = urlObj.pathname.split('/');
-        
-        const bucketNameIndex = pathSegments.findIndex(segment => segment === BLAZE_BUCKET_NAME);
-        if (bucketNameIndex === -1) {
-            console.warn(`[Delete] Bucket name not found in path: ${fileUrl}`);
-            return;
-        }
-        const fileKey = pathSegments.slice(bucketNameIndex + 1).join('/');
+        // --- 1. Use the consolidated helper function ---
+        const fileKey = getFileKeyFromUrl(fileUrl);
+        // ---------------------------------------------
         
         if (!fileKey) {
-             console.warn(`Could not determine file key from URL: ${fileUrl}`);
-             return;
+            // Error logged inside getFileKeyFromUrl
+            return;
         }
 
         console.log(`[Backblaze B2] Deleting file with Key: ${fileKey}`);
@@ -168,41 +151,7 @@ async function deleteFileFromPermanentStorage(fileUrl) {
         await s3Client.send(command);
         console.log(`[Backblaze B2] Deletion successful for key: ${fileKey}`);
     } catch (error) {
-        // Log the error but don't stop the main process if deletion fails
         console.error(`[Backblaze B2] Failed to delete file at ${fileUrl}:`, error);
-    }
-}
-
-// Helper to convert the stream from B2/S3 response body into a Buffer
-const streamToBuffer = (stream) => // Exported
-    new Promise((resolve, reject) => {
-        const chunks = [];
-        stream.on("data", (chunk) => chunks.push(chunk));
-        stream.on("error", reject);
-        stream.on("end", () => resolve(Buffer.concat(chunks)));
-    });
-
-
-/**
- * Extracts the file key (path inside the bucket) from the permanent B2 URL.
- * This function is synchronous.
- */
-function getFileKeyFromUrl(fileUrl) { 
-    if (!fileUrl) return null;
-    try {
-        const urlObj = new URL(fileUrl);
-        const pathSegments = urlObj.pathname.split('/');
-        
-        // Find the index of the bucket name
-        const bucketNameIndex = pathSegments.findIndex(segment => segment === BLAZE_BUCKET_NAME);
-        if (bucketNameIndex === -1) return null;
-
-        // The file key is everything after the bucket name
-        return pathSegments.slice(bucketNameIndex + 1).join('/');
-
-    } catch (e) {
-        console.error('Error extracting file key:', e);
-        return null;
     }
 }
 

@@ -1607,7 +1607,6 @@ app.get('/api/admin/dashboard/stats', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Failed to retrieve dashboard stats.' });
     }
 });
-
 app.get('/api/admin/users/all', verifyToken, async (req, res) => {
     try {
         // Fetch all users. Select only necessary fields and exclude the password (which is selected: false by default, but we re-specify for clarity).
@@ -1668,7 +1667,6 @@ app.get('/api/admin/users/:id', verifyToken, async (req, res) => {
             email: user.email,
             isMember: user.status.role === 'vip',
             createdAt: user.membership.memberSince,
-            phone: user.profile.phone || 'N/A',
             // --- 📢 NEW ADDITION FOR WHATSAPP CONTACT 📢 ---
             whatsappNumber: user.profile.whatsapp || 'N/A', 
             // ----------------------------------------------------
@@ -1705,18 +1703,22 @@ app.get('/api/admin/users/:userId/orders', verifyToken, async (req, res) => {
             .sort({ createdAt: -1 })
             .lean(); // Returns plain JavaScript objects
 
-        // 3. Simple transformation: Since OrderItemSchema is now denormalized 
-        //    (includes name and imageUrl), we can return the data directly.
-        const augmentedOrders = userOrders.map(order => ({
+        // ⭐ CRITICAL FIX: Ensure order items are augmented with product details (name, imageUrl)
+        // This addresses the potential frontend rendering error if denormalization is incomplete 
+        // or if the frontend expects signed URLs, which is often done in augmentOrdersWithProductDetails.
+        const augmentedOrders = await augmentOrdersWithProductDetails(userOrders);
+
+        // 3. Transformation (Simplified now that augmentation handles details)
+        const finalOrders = augmentedOrders.map(order => ({
             ...order,
-            // Items already contain name and imageUrl from the denormalized schema
+            // Items should now contain full details from augmentation
             items: order.items || [], 
         }));
 
         // Success Response
         return res.status(200).json({ 
-            orders: augmentedOrders,
-            count: augmentedOrders.length
+            orders: finalOrders,
+            count: finalOrders.length
         });
 
     } catch (error) {
@@ -1969,7 +1971,7 @@ app.put('/api/admin/orders/:orderId/status', verifyToken, async (req, res) => {
         if (newStatus === 'Shipped') {
             // ⭐ REMOVED THE FOLLOWING CHECK:
             // if (!trackingNumber) {
-            //     return res.status(400).json({ message: 'Tracking number is required when changing status to Shipped.' });
+            //     return res.status(400).json({ message: 'Tracking number is required when changing status to Shipped.' });
             // }
             
             // Add shipping details if provided (they are now optional)
@@ -1984,7 +1986,7 @@ app.put('/api/admin/orders/:orderId/status', verifyToken, async (req, res) => {
         
         // 3. Handle 'Delivered' transition
         if (newStatus === 'Delivered') {
-              updateFields = { 
+             updateFields = { 
                 ...updateFields, 
                 deliveredAt: new Date()
             };

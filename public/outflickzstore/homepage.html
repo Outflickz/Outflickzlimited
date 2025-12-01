@@ -381,6 +381,7 @@ async function simulateAddToCart(productDetails) {
     const card = document.querySelector(`.collection-card[data-collection-id="${productDetails.productId}"]`);
     if (!card) return;
     
+    // The createSizeList function now uses radio buttons again, so this selector is correct.
     const selectedSizeInput = card.querySelector(`input[name="size-${productDetails.productId}"]:checked`);
     const selectedColorInput = card.querySelector(`input[name="color-${productDetails.productId}"]:checked`);
     
@@ -450,6 +451,7 @@ async function simulateAddToCart(productDetails) {
     
     // --- 2. Local Cart Fallback Helper Function (Updated for variationIndex) ---
     const handleLocalCartFallback = (details) => {
+        // NOTE: Assume LOCAL_CART_KEY and CART_STORAGE_KEY are defined globally or elsewhere
         let localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
         
         // 🚀 CRITICAL FIX 5: Include variationIndex in the findIndex check for local cart

@@ -484,104 +484,113 @@ async function confirmOrder(orderId) {
             return null;
         }
     }
-
-    /**
-    * Renders the full details of a single order into the dedicated section.
-    * @param {Object} order - The single order object with full details.
-    */
-    function renderOrderDetail(order) {
-        currentDetailOrderId = order._id; // Set the current order ID
-        showContent('orderdetails'); // Switch view
-
-        // 1. HEADER
-        document.getElementById('detail-order-id').textContent = order._id.substring(0, 8);
-
-        // 2. SUMMARY CARD (FIXED SECTION)
-        document.getElementById('detail-customer-name').textContent = order.userName || 'N/A';
-        document.getElementById('detail-customer-email').textContent = order.email || 'N/A';
-        document.getElementById('detail-date').textContent = formatDate(order.createdAt);
-        document.getElementById('detail-payment-method').textContent = order.paymentMethod || 'Bank Transfer'; // Default if missing
-        
-        // Ensure all financial numbers are parsed safely as floats before formatting
-        const safeSubtotal = parseFloat(order.subtotal) || 0;
-        const safeShippingFee = parseFloat(order.shippingFee) || 0; 
-        const safeTax = parseFloat(order.tax) || 0;
-        const safeTotalAmount = parseFloat(order.totalAmount) || 0;
-
-        // Populate fields using the correctly configured formatNaira
-        document.getElementById('detail-subtotal').textContent = formatNaira(safeSubtotal);
-        document.getElementById('detail-shipping').textContent = formatNaira(safeShippingFee);
-        document.getElementById('detail-tax').textContent = formatNaira(safeTax);
-        document.getElementById('detail-total').textContent = formatNaira(safeTotalAmount);
-        
-        // 3. ORDER ITEMS
-        detailItemsBody.innerHTML = '';
-        order.items.forEach(item => {
-            const itemRow = document.createElement('tr');
-            itemRow.className = 'border-b hover:bg-gray-50';
-            
-            // Determine the price to display (use the priceAtTimeOfPurchase from the order item)
-            const itemPrice = parseFloat(item.priceAtTimeOfPurchase || item.price) || 0;
-            // Calculate subtotal for the row
-            const itemSubtotal = parseFloat(item.quantity * itemPrice) || 0; 
-            
-            itemRow.innerHTML = `
-                <td class="px-4 py-3 text-sm font-medium text-gray-900 flex items-center">
-                    <img src="${item.imageUrl || 'https://placehold.co/32x32/CBD5E1/475569/png?text=P'}" 
-                        alt="${item.name} image" class="w-8 h-8 rounded mr-2 object-cover">
-                    ${item.name}
-                </td>
-                <td class="px-4 py-3 text-sm text-gray-600">${item.variation || 'N/A'}</td>
-                <td class="px-4 py-3 text-sm text-gray-900 text-right">${formatNaira(itemPrice)}</td>
-                <td class="px-4 py-3 text-sm text-gray-600 text-center">${item.quantity}</td>
-                <td class="px-4 py-3 text-sm font-semibold text-gray-900 text-right">${formatNaira(itemSubtotal)}</td>
-            `;
-            detailItemsBody.appendChild(itemRow);
-        });
-
-        // 4. PAYMENT RECEIPT
-        const receiptContainer = document.getElementById('receipt-container');
-        receiptContainer.innerHTML = ''; // Clear previous content
-
-        if (order.paymentReceiptUrl) {
-            receiptContainer.innerHTML = `
-                <a href="${order.paymentReceiptUrl}" target="_blank" class="block w-full h-80 overflow-hidden bg-gray-100 rounded-lg group">
-                    <img src="${order.paymentReceiptUrl}" alt="Payment Receipt" class="object-contain w-full h-full transition duration-300 group-hover:opacity-80"/>
-                </a>
-                <a href="${order.paymentReceiptUrl}" target="_blank" class="mt-3 inline-flex items-center text-sm font-medium text-emerald-600 hover:text-emerald-800 transition">
-                    View Full Receipt in New Tab 
-                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-                </a>
-            `;
-        } else {
-            receiptContainer.innerHTML = '<p class="text-gray-500 p-8">No receipt image uploaded for this order.</p>';
+/**
+    * Renders the full details of a single order into the dedicated section.
+    * @param {Object} order - The single order object with full details.
+    */
+    function renderOrderDetail(order) {
+        // 🛑 CRITICAL FIX 1: Ensure the order object and its ID exist before proceeding
+        if (!order || !order._id) {
+            console.error("renderOrderDetail failed: Invalid or missing order object.", order);
+            // Optionally, show an error toast and return to the list view
+            showToast("Error: Failed to display order details due to missing ID.", 'bg-red-500');
+            showContent('userorders');
+            return;
         }
         
-        // Update Action Card state (Color) based on status
-        const actionCard = document.getElementById('detail-actions-card');
-        actionCard.classList.remove('border-red-500', 'border-gray-300', 'border-yellow-300');
-        if (order.status === 'Pending') {
-            actionCard.classList.add('border-yellow-300');
-        } else {
-            actionCard.classList.add('border-gray-300'); 
-        }
-        
-        // Update action button visibility/text
-        const confirmBtn = document.getElementById('detail-confirm-btn');
-        const cancelBtn = document.getElementById('detail-cancel-btn');
+        currentDetailOrderId = order._id; // Set the current order ID
+        showContent('orderdetails'); // Switch view
 
-        if (order.status === 'Pending') {
-            confirmBtn.classList.remove('hidden');
-            confirmBtn.disabled = false;
-            confirmBtn.textContent = '✅ Confirm Payment & Process Order';
-            confirmBtn.classList.remove('opacity-50');
-            cancelBtn.classList.remove('hidden');
-        } else {
-            // If not pending, hide action buttons
-            confirmBtn.classList.add('hidden');
-            cancelBtn.classList.add('hidden');
-        }
-    }
+        // 1. HEADER
+        // ✅ CRITICAL FIX 2: Added defensive check to ensure order._id exists before calling substring
+        document.getElementById('detail-order-id').textContent = order._id ? order._id.substring(0, 8) : 'N/A';
+
+        // 2. SUMMARY CARD (FIXED SECTION)
+        document.getElementById('detail-customer-name').textContent = order.userName || 'N/A';
+        document.getElementById('detail-customer-email').textContent = order.email || 'N/A';
+        document.getElementById('detail-date').textContent = formatDate(order.createdAt);
+        document.getElementById('detail-payment-method').textContent = order.paymentMethod || 'Bank Transfer'; // Default if missing
+        
+        // Ensure all financial numbers are parsed safely as floats before formatting
+        const safeSubtotal = parseFloat(order.subtotal) || 0;
+        const safeShippingFee = parseFloat(order.shippingFee) || 0; 
+        const safeTax = parseFloat(order.tax) || 0;
+        const safeTotalAmount = parseFloat(order.totalAmount) || 0;
+
+        // Populate fields using the correctly configured formatNaira
+        document.getElementById('detail-subtotal').textContent = formatNaira(safeSubtotal);
+        document.getElementById('detail-shipping').textContent = formatNaira(safeShippingFee);
+        document.getElementById('detail-tax').textContent = formatNaira(safeTax);
+        document.getElementById('detail-total').textContent = formatNaira(safeTotalAmount);
+        
+        // 3. ORDER ITEMS
+        detailItemsBody.innerHTML = '';
+        order.items.forEach(item => {
+            const itemRow = document.createElement('tr');
+            itemRow.className = 'border-b hover:bg-gray-50';
+            
+            // Determine the price to display (use the priceAtTimeOfPurchase from the order item)
+            const itemPrice = parseFloat(item.priceAtTimeOfPurchase || item.price) || 0;
+            // Calculate subtotal for the row
+            const itemSubtotal = parseFloat(item.quantity * itemPrice) || 0; 
+            
+            itemRow.innerHTML = `
+                <td class="px-4 py-3 text-sm font-medium text-gray-900 flex items-center">
+                    <img src="${item.imageUrl || 'https://placehold.co/32x32/CBD5E1/475569/png?text=P'}" 
+                        alt="${item.name} image" class="w-8 h-8 rounded mr-2 object-cover">
+                    ${item.name}
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-600">${item.variation || 'N/A'}</td>
+                <td class="px-4 py-3 text-sm text-gray-900 text-right">${formatNaira(itemPrice)}</td>
+                <td class="px-4 py-3 text-sm text-gray-600 text-center">${item.quantity}</td>
+                <td class="px-4 py-3 text-sm font-semibold text-gray-900 text-right">${formatNaira(itemSubtotal)}</td>
+            `;
+            detailItemsBody.appendChild(itemRow);
+        });
+
+        // 4. PAYMENT RECEIPT
+        const receiptContainer = document.getElementById('receipt-container');
+        receiptContainer.innerHTML = ''; // Clear previous content
+
+        if (order.paymentReceiptUrl) {
+            receiptContainer.innerHTML = `
+                <a href="${order.paymentReceiptUrl}" target="_blank" class="block w-full h-80 overflow-hidden bg-gray-100 rounded-lg group">
+                    <img src="${order.paymentReceiptUrl}" alt="Payment Receipt" class="object-contain w-full h-full transition duration-300 group-hover:opacity-80"/>
+                </a>
+                <a href="${order.paymentReceiptUrl}" target="_blank" class="mt-3 inline-flex items-center text-sm font-medium text-emerald-600 hover:text-emerald-800 transition">
+                    View Full Receipt in New Tab 
+                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                </a>
+            `;
+        } else {
+            receiptContainer.innerHTML = '<p class="text-gray-500 p-8">No receipt image uploaded for this order.</p>';
+        }
+        
+        // Update Action Card state (Color) based on status
+        const actionCard = document.getElementById('detail-actions-card');
+        actionCard.classList.remove('border-red-500', 'border-gray-300', 'border-yellow-300');
+        if (order.status === 'Pending') {
+            actionCard.classList.add('border-yellow-300');
+        } else {
+            actionCard.classList.add('border-gray-300'); 
+        }
+        
+        // Update action button visibility/text
+        const confirmBtn = document.getElementById('detail-confirm-btn');
+        const cancelBtn = document.getElementById('detail-cancel-btn');
+
+        if (order.status === 'Pending') {
+            confirmBtn.classList.remove('hidden');
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = '✅ Confirm Payment & Process Order';
+            confirmBtn.classList.remove('opacity-50');
+            cancelBtn.classList.remove('hidden');
+        } else {
+            // If not pending, hide action buttons
+            confirmBtn.classList.add('hidden');
+            cancelBtn.classList.add('hidden');
+        }
+    }
 
     /**
     * Renders the fetched orders into the table.

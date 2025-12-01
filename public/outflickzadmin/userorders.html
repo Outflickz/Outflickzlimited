@@ -646,25 +646,29 @@ async function confirmOrder(orderId) {
     }
         
     /**
-    * Handles the click on 'View Details' and loads the order details section.
-    * @param {string} orderId - The ID of the order to view.
-    */
-    async function handleViewDetails(orderId) {
-        // Show loading state 
-        showToast(`Loading details for order #${orderId.substring(0, 8)}...`, 'bg-blue-600');
-        
-        // Call the REAL API endpoint
-        const orderDetails = await fetchDetailedOrder(orderId); 
-        
-        if (orderDetails) {
-            renderOrderDetail(orderDetails);
-            // Dismiss the loading toast if successful (it will fade automatically, but clearing ensures no overlap)
-            toastContainer.innerHTML = '';
-        } else {
-            // If fetch fails, revert to the list view
-            showContent('userorders');
-        }
+   /**
+ * Handles the click on 'View Details' and loads the order details section.
+ * @param {string} orderId - The ID of the order to view.
+ */
+async function handleViewDetails(orderId) {
+    // Show loading state 
+    showToast(`Loading details for order #${orderId.substring(0, 8)}...`, 'bg-blue-600');
+    
+    // Call the REAL API endpoint
+    const response = await fetchDetailedOrder(orderId); 
+    
+    // ⭐ CRITICAL FIX APPLIED: Unwrap the actual order object from the API response payload.
+    const orderDetails = response ? response.order : null; 
+    
+    if (orderDetails) {
+        renderOrderDetail(orderDetails);
+        // Dismiss the loading toast if successful (it will fade automatically, but clearing ensures no overlap)
+        toastContainer.innerHTML = '';
+    } else {
+        // If fetch fails, revert to the list view
+        showContent('userorders');
     }
+}
 
     /**
     * Main function to fetch and display orders.

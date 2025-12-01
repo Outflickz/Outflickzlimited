@@ -984,6 +984,7 @@ async function getRealTimeDashboardStats() {
  * Utility function to get the correct Mongoose Model based on the productType string.
  * This is robust for single-file environments where all models are registered.
  * @param {string} productType The string name of the collection (e.g., 'WearsCollection').
+ * @throws {Error} If mongoose is unavailable or the model is not registered.
  */
 function getProductModel(productType) {
     // ⚠️ CRITICAL: Ensure 'mongoose' is defined or imported in the environment scope
@@ -3990,6 +3991,7 @@ app.get('/api/auth/status', verifyUserToken, (req, res) => {
     // We just return a success status.
     res.status(200).json({ message: 'Authenticated', isAuthenticated: true });
 });
+
 // =========================================================
 // 5. POST /api/users/cart - Add Item to Cart (Protected)
 // =========================================================
@@ -4115,6 +4117,13 @@ app.post('/api/users/cart', verifyUserToken, async (req, res) => {
     } catch (error) {
         console.error('Error adding item to cart:', error);
         
+        // NEW: Handle Mongoose CastError (e.g., invalid productId format) and ValidationError
+        if (error.name === 'CastError' || error.name === 'ValidationError') {
+            return res.status(400).json({ 
+                message: `Invalid request data format: ${error.message.split(':').slice(-1).pop().trim()}`
+            });
+        }
+
         // Check for specific getProductModel error (Model not registered)
         if (error.message.includes('Model not registered for product type')) {
             return res.status(400).json({ message: `Invalid product type provided: ${error.message.split(':').pop().trim()}` });
@@ -4128,6 +4137,7 @@ app.post('/api/users/cart', verifyUserToken, async (req, res) => {
         res.status(500).json({ message: 'Failed to add item to shopping bag.' });
     }
 });
+
 // =========================================================
 // 1. GET /api/users/cart - Retrieve Cart (Protected)
 // =========================================================

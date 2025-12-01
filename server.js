@@ -48,6 +48,30 @@ const s3Client = new S3Client({
 });
 
 /**
+ * Helper function to clean a URL by removing all query parameters.
+ * This is CRITICAL for handling corrupted URLs (where a signed URL was
+ * inadvertently saved instead of the clean path).
+ * @param {string} url - The potentially corrupted B2 URL.
+ * @returns {string} The clean base URL path without query parameters.
+ */
+function cleanUrlPath(url) {
+    if (!url || typeof url !== 'string') {
+        return url;
+    }
+    // Remove the first instance of '?' (standard query separator)
+    let clean = url.split('?')[0];
+    
+    // Check for the URL-encoded '?' (%3F) which often precedes the broken signature.
+    const encodedQuestionMarkIndex = clean.indexOf('%3F');
+    if (encodedQuestionMarkIndex !== -1) {
+        clean = clean.substring(0, encodedQuestionMarkIndex);
+    }
+    
+    // Remove leading or trailing slashes if they appear during the cleanup
+    return clean.trim().replace(/\/+$/, '');
+}
+
+/**
  * Extracts the file key (path inside the bucket) from the permanent B2 URL.
  * This is the SINGLE SOURCE OF TRUTH for key extraction.
  * @param {string} fileUrl - The permanent B2 URL (e.g., https://endpoint/bucketName/path/to/file.jpg).
@@ -58,6 +82,7 @@ function getFileKeyFromUrl(fileUrl) {
 
     try {
         // Construct the marker: BUCKET_NAME/
+        // BLAZE_BUCKET_NAME must be available in scope (e.g., 'outflickz')
         const marker = `${BLAZE_BUCKET_NAME}/`;
         
         // Find the index of the marker
@@ -84,23 +109,25 @@ function getFileKeyFromUrl(fileUrl) {
     }
 }
 
-
 /**
  * Generates a temporary, pre-signed URL for private files in Backblaze B2.
  * @param {string} fileUrl - The permanent B2 URL.
  * @returns {Promise<string|null>} The temporary signed URL, or null if key extraction fails.
  */
 async function generateSignedUrl(fileUrl) {
-    if (!fileUrl) return null;
+   if (!fileUrl) return null;
 
     try {
-        // --- 1. Use the consolidated helper function ---
-        const fileKey = getFileKeyFromUrl(fileUrl);
+        // --- 🚨 CRITICAL FIX: Sanitize the URL first! ---
+        const cleanUrl = cleanUrlPath(fileUrl);
         // ---------------------------------------------
+        
+        // 1. Use the consolidated helper function
+        const fileKey = getFileKeyFromUrl(cleanUrl);
         
         if (!fileKey) {
             // Error logged inside getFileKeyFromUrl
-            return null;
+            return `https://placehold.co/400x400/FF0000/FFFFFF?text=KEY+FAILED`;
         }
 
         console.log(`[Signed URL DEBUG] Extracted Key: ${fileKey}`); // Debugging check
@@ -111,14 +138,15 @@ async function generateSignedUrl(fileUrl) {
             Key: fileKey,
         });
 
-        // 3. Generate the signed URL (expires in 300 seconds = 5 minutes)
-const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });         
+        // 3. Generate the signed URL (expires in 604800 seconds = 7 days)
+        const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 604800 }); 
+        
         console.log(`[Signed URL DEBUG] Signed URL successfully generated for key: ${fileKey}`);
         return signedUrl;
 
     } catch (error) {
         console.error(`[Signed URL] Failed to generate signed URL for ${fileUrl}:`, error);
-        return null;
+        return `https://placehold.co/400x400/FF0000/FFFFFF?text=SIGNATURE+FAILED`;
     }
 }
 
@@ -131,9 +159,12 @@ async function deleteFileFromPermanentStorage(fileUrl) {
     if (!fileUrl) return;
 
     try {
-        // --- 1. Use the consolidated helper function ---
-        const fileKey = getFileKeyFromUrl(fileUrl);
+        // --- 🚨 CRITICAL: Sanitize the URL first! ---
+        const cleanUrl = cleanUrlPath(fileUrl);
         // ---------------------------------------------
+        
+        // 1. Use the consolidated helper function
+        const fileKey = getFileKeyFromUrl(cleanUrl);
         
         if (!fileKey) {
             // Error logged inside getFileKeyFromUrl
@@ -153,6 +184,7 @@ async function deleteFileFromPermanentStorage(fileUrl) {
         console.error(`[Backblaze B2] Failed to delete file at ${fileUrl}:`, error);
     }
 }
+
 
 /**
  * Helper function to send email using the configured transporter.

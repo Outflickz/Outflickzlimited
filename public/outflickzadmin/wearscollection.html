@@ -428,6 +428,7 @@ function resetForm() {
     document.getElementById('content-wearscollection').scrollIntoView({ behavior: 'smooth' });
 }
 
+
 /**
  * Fetches all collections and renders them to the table.
  */
@@ -1016,6 +1017,7 @@ function getVariationSizes(section, variationIndex) {
 
     return { sizes, variationStock };
 }
+
 /**
  * Handles the form submission (CREATE or UPDATE) for the full form (including file uploads).
  */
@@ -1025,7 +1027,7 @@ async function handleCollectionSubmit(event) {
     // Determine if this is a POST (Create) or PUT (Update) operation
     const isUpdate = collectionIdToUpdate !== null;
     
-    // Disable button and show loading state
+    // --- ANTI-DOUBLE SUBMISSION: STEP 1 (Disable Button) ---
     submitBtn.disabled = true;
     submitBtn.textContent = isUpdate ? 'Uploading & Updating...' : 'Uploading & Submitting...';
     submitBtn.classList.remove('hover:bg-emerald-700', 'hover:bg-yellow-700', 'bg-emerald-600', 'bg-yellow-600');
@@ -1054,7 +1056,7 @@ async function handleCollectionSubmit(event) {
     for (const [index, section] of variationSections.entries()) {
         const variationIndex = index + 1; // 1-based index
         
-        // --- 1a. Collect image files and existing URLs ---
+        // --- 1a. Collect image files and existing URLs (Validation Omitted for Brevity) ---
         const frontFileInput = section.querySelector(`[name="front-view-upload-${variationIndex}"]`);
         const backFileInput = section.querySelector(`[name="back-view-upload-${variationIndex}"]`);
         const existingFrontUrlInput = section.querySelector(`[name="existingFrontImageUrl"]`);
@@ -1072,7 +1074,7 @@ async function handleCollectionSubmit(event) {
             return;
         }
         
-        // --- 1b. Collect variation data fields (color, sizes) ---
+        // --- 1b. Collect variation data fields (color, sizes) (Processing Omitted for Brevity) ---
         const colorHex = section.querySelector(`[name="colorHexText"]`).value;
         const variationId = section.querySelector(`[name="variationId"]`)?.value || null;
 
@@ -1084,14 +1086,11 @@ async function handleCollectionSubmit(event) {
             return;
         }
         
-        // Destructure the results including the 'sizes' array
         const { sizes, variationStock } = sizeResult; 
         
-        calculatedTotalStock += variationStock; // Calculate cumulative total stock
+        calculatedTotalStock += variationStock; 
 
         // Aggregate stock data for the top-level 'sizesAndStock' array
-        // NOTE: We rely on the unique combination of size and variationIndex for the key 
-        // to handle the flattened top-level array required by your existing backend.
         for (const item of sizes) {
             const sizesAndStockKey = `${item.size}-${variationIndex}`; 
 
@@ -1102,22 +1101,19 @@ async function handleCollectionSubmit(event) {
                     variationIndex: variationIndex,
                 });
             } else {
-                 showErrorModal(`Internal error: Duplicate size '${item.size}' detected within variation processing.`);
-                 resetFormSubmitButtonState(isUpdate);
-                 return;
+                showErrorModal(`Internal error: Duplicate size '${item.size}' detected within variation processing.`);
+                resetFormSubmitButtonState(isUpdate);
+                return;
             }
         }
 
-        // 🟢 CRITICAL FIX: Include the 'sizes' array in the 'variations' object
+        // Include the 'sizes' array in the 'variations' object
         variations.push({
             variationIndex,
             colorHex,
             existingFrontImageUrl: existingFrontUrlInput?.value || null,
             existingBackImageUrl: existingBackUrlInput?.value || null,
-            
-            // 🔥 This is the change: Nest the full size/stock array here
             sizes: sizes, 
-            
             ...(variationId && { _id: variationId })
         });
 
@@ -1133,10 +1129,10 @@ async function handleCollectionSubmit(event) {
     // Convert the map values into the final array structure
     const sizesAndStock = Array.from(sizesAndStockMap.values());
     
-    // --- Validation for main fields ---
+    // --- Validation for main fields (Omitted for Brevity) ---
     const collectionName = document.getElementById('collection-name').value.trim();
     const priceValue = parseFloat(document.getElementById('collection-price').value);
-    const collectionTag = document.getElementById('collection-description').value; // Using 'tag' from the description input
+    const collectionTag = document.getElementById('collection-description').value; 
     const isActive = document.getElementById('is-active').checked;
 
     if (!collectionName) {
@@ -1157,14 +1153,8 @@ async function handleCollectionSubmit(event) {
         tag: collectionTag,
         price: priceValue,
         isActive: isActive, 
-        
-        // totalStock is required by the backend and calculated correctly
         totalStock: isActive ? calculatedTotalStock : 0, 
-        
-        // sizesAndStock is the legacy/root-level array for simple stock logic
         sizesAndStock: sizesAndStock,
-        
-        // variations now contains the crucial nested 'sizes' array
         variations: variations, 
     };
     
@@ -1213,7 +1203,8 @@ async function handleCollectionSubmit(event) {
         console.error('Submission failed:', error);
         showErrorModal(`Error submitting collection: <mark>${error.message}</mark>`);
     } finally {
-        // Re-enable button
+        // --- ANTI-DOUBLE SUBMISSION: STEP 2 (Re-enable Button) ---
+        // This runs whether the try block succeeded or the catch block failed.
         resetFormSubmitButtonState(isUpdate);
     }
 }

@@ -728,9 +728,7 @@ function createColorList(collectionId, variants) {
 
     return mapHtml + buttonsHtml;
 }
-
-// --- REDESIGNED WEARS COLLECTION CARD JS (MATCHES IMAGE LAYOUT) ---
-// UPDATED: Now correctly reads available sizes from the nested 'variations' array.
+// --- CORRECTED & UPDATED WEARS COLLECTION CARD JS ---
 function createCollectionCard(collection, size = 'default') {
     const currencySymbol = '₦'; 
     const PLACEHOLDER_URL = 'https://s3.us-west-004.backblazeb2.com/public/placeholder-image-v1.jpg';
@@ -741,6 +739,7 @@ function createCollectionCard(collection, size = 'default') {
     const reducedSizes = ['reduced', 'caps', 'wears', 'newarrivals', 'preorder'];
     const isReduced = reducedSizes.includes(size);
     const isCaps = size === 'caps';
+    const isWears = size === 'wears'; // New flag for specific check
     const isPreorder = size === 'preorder';
 
     
@@ -771,42 +770,42 @@ function createCollectionCard(collection, size = 'default') {
     const buttonFlexClasses = 'flex-1';
     // --- End Conditional Sizing Classes ---
 
-    const primaryVariant = collection.variations && collection.variations.length > 0 ? collection.variations[0] : null;
+    // --- FIX 1: Use 'variants' from payload, not 'variations' ---
+    const primaryVariant = collection.variants && collection.variants.length > 0 ? collection.variants[0] : null;
     
-    // Initial image URLs are the first variant's URLs
-    const frontImageUrl = collection.frontImageUrl || primaryVariant?.frontImageUrl || defaultFrontImage;
-    const backImageUrl = collection.backImageUrl || primaryVariant?.backImageUrl || defaultBackImage;
+    // Initial image URLs are the first variant's URLs. Removed 'collection.frontImageUrl' since it's not in the payload.
+    const frontImageUrl = primaryVariant?.frontImageUrl || defaultFrontImage;
+    const backImageUrl = primaryVariant?.backImageUrl || defaultBackImage;
+    // --- END FIX 1 ---
     
     const itemPrice = collection.price; 
     const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
 
-    // *** FIX: Extract unique available sizes from the nested variations array ***
-    // 1. Use flatMap to combine all 'size' arrays from all variations into one flat array of size strings
-    // 2. Filter out duplicates to get a unique list of available sizes (e.g., ['S', 'M', 'L'])
-    const allAvailableSizes = collection.variations
-        ? collection.variations
-            .flatMap(v => v.sizes ? v.sizes.map(s => s.size) : [])
-            .filter((value, index, self) => self.indexOf(value) === index)
-        : [];
-    // *** END FIX ***
-
-
-    // *** Conditional Size List Render ***
-    const showSizeSelection = !isCaps;
+    // *** FIX 2 & 3: Size Logic Update (Hiding for Wears/Caps) ***
+    
+    // Removed allAvailableSizes extraction as requested.
+    
+    // Only show size selection if NOT caps AND NOT wears.
+    const showSizeSelection = !isCaps && !isWears; 
 
     const sizeListHtml = showSizeSelection ? `
         <div class="flex flex-wrap items-center gap-1 mt-2 mb-3">
             <span class="text-xs font-medium text-gray-700">Size:</span>
             <div class="flex flex-wrap gap-1 text-gray-700">
-                ${createSizeList(collection._id, allAvailableSizes, isReduced)}
+                ${createSizeList(collection._id, collection.availableSizes || [], isReduced)}
             </div>
         </div>
     ` : ''; 
-
-    const colorListHtml = createColorList(collection._id, collection.variations); 
+    // If showSizeSelection is false (i.e., for Wears or Caps), sizeListHtml is an empty string, removing the size line entirely.
     
-    // Note: The schema shows `totalStock` but the JS uses `availableStock`. 
-    // Assuming `availableStock` is either computed or `totalStock` from the API.
+    // Note: The previous logic for size rendering inside this block was for demonstration. 
+    // We retain the correct size list for non-wear/cap collections (like Preorder).
+    // The sizes for Preorder items will come from `availableSizes` (if the backend sends it) or the nested structure (if that's the canonical source).
+    // For this specific update, we just focus on hiding it for Wears.
+    // --- END FIX 2 & 3 ---
+    
+    const colorListHtml = createColorList(collection._id, collection.variants); // Use 'variants'
+    
     const maxStock = collection.availableStock > 0 ? collection.availableStock : 0; 
     
     // *** Check Stock Status ***

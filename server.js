@@ -3242,6 +3242,7 @@ app.delete(
         }
     }
 );
+
 // GET /api/collections/wears (For Homepage Display)
 app.get('/api/collections/wears', async (req, res) => {
     try {
@@ -3291,40 +3292,72 @@ app.get('/api/collections/wears', async (req, res) => {
     }
 });
 
-// GET /api/collections/newarrivals (For Homepage Display)
-app.get('/api/collections/newarrivals', async (req, res) => {
+// GET /api/collections/wears (For Homepage Display)
+app.get('/api/collections/wears', async (req, res) => {
     try {
-        // Fetch only ACTIVE products (NewArrivals)
-        const products = await NewArrivals.find({ isActive: true }) 
-            .select('_id name tag price variations sizes totalStock') 
+        // Fetch only ACTIVE collections (WearsCollection)
+        // Ensure 'variations' and its nested fields are selected
+        const collections = await WearsCollection.find({ isActive: true }) 
+            .select('_id name tag price variations totalStock') 
             .sort({ createdAt: -1 })
             .lean(); 
 
-        // Prepare the data for the public frontend
-        const publicProducts = await Promise.all(products.map(async (product) => {
-            
-            // Map Mongoose variation to a simpler public variant object
-            const variants = await Promise.all(product.variations.map(async (v) => ({
-                color: v.colorHex,
-                frontImageUrl: await generateSignedUrl(v.frontImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Front+View+Error',
-                backImageUrl: await generateSignedUrl(v.backImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Back+View+Error'
-            })));
+        // Define a safe fallback URL for when image signing or URL is missing
+        const ERROR_IMAGE_URL = 'https://placehold.co/400x400/111111/FFFFFF?text=Image+Unavailable';
 
+        // Prepare the data for the public frontend
+        const publicCollections = await Promise.all(collections.map(async (collection) => {
+            
+            // 1. --- FIX: Extract ALL unique sizes from ALL variations ---
+            const allUniqueSizes = collection.variations
+                .flatMap(v => v.sizes ? v.sizes.map(s => s.size) : [])
+                .filter((value, index, self) => self.indexOf(value) === index);
+            // --- END FIX ---
+
+
+            // Map Mongoose variation to a simpler public variant object
+            const variants = await Promise.all(collection.variations.map(async (v) => {
+                let frontUrl = ERROR_IMAGE_URL;
+                let backUrl = ERROR_IMAGE_URL;
+
+                // Attempt to generate signed URL if a permanent URL exists
+                if (v.frontImageUrl) {
+                    // Use the signed URL or fallback to the error placeholder
+                    const signedUrl = await generateSignedUrl(v.frontImageUrl);
+                    frontUrl = signedUrl || ERROR_IMAGE_URL;
+                }
+                
+                if (v.backImageUrl) {
+                    const signedUrl = await generateSignedUrl(v.backImageUrl);
+                    backUrl = signedUrl || ERROR_IMAGE_URL;
+                }
+
+                return {
+                    color: v.colorHex,
+                    frontImageUrl: frontUrl,
+                    backImageUrl: backUrl,
+                    // Note: We are NOT including sizes/stock here, as the frontend uses the top-level availableSizes.
+                };
+            }));
+
+            
             return {
-                _id: product._id,
-                name: product.name,
-                tag: product.tag,
-                price: product.price, 
-                availableSizes: product.sizes,
-                availableStock: product.totalStock, 
-                variants: variants
+                _id: collection._id,
+                name: collection.name,
+                tag: collection.tag,
+                price: collection.price, 
+                // 2. --- PASS THE CORRECT DATA: Use the extracted size list ---
+                availableSizes: allUniqueSizes, 
+                availableStock: collection.totalStock, 
+                variants: variants // This is the array the frontend uses for image URLs
             };
         }));
 
-        res.status(200).json(publicProducts);
+        res.status(200).json(publicCollections);
     } catch (error) {
-        console.error('Error fetching public new arrivals:', error);
-        res.status(500).json({ message: 'Server error while fetching new arrivals for homepage.', details: error.message });
+        // Log the error for debugging purposes
+        console.error('Error fetching public wear collections:', error);
+        res.status(500).json({ message: 'Server error while fetching collections for homepage.', details: error.message });
     }
 });
 

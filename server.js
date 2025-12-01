@@ -10,7 +10,6 @@ const nodemailer = require('nodemailer');
 const cookieParser = require('cookie-parser');
 
 
-// --- BACKBLAZE B2 INTEGRATION (USING AWS SDK v3) ---
 const { S3Client, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { Upload } = require('@aws-sdk/lib-storage');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner'); 
@@ -18,11 +17,11 @@ const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 // Load environment variables (ensure these are set in your .env file)
 dotenv.config();
 
-// --- B2 CONFIGURATION ---
-const BLAZE_ACCESS_KEY = process.env.BLAZE_ACCESS_KEY;
-const BLAZE_SECRET_KEY = process.env.BLAZE_SECRET_KEY;
-const BLAZE_ENDPOINT = process.env.BLAZE_ENDPOINT;
-const BLAZE_BUCKET_NAME = process.env.BLAZE_BUCKET_NAME;
+// --- IDRIVE E2 CONFIGURATION ---
+const IDRIVE_ACCESS_KEY = process.env.IDRIVE_ACCESS_KEY;
+const IDRIVE_SECRET_KEY = process.env.IDRIVE_SECRET_KEY;
+const IDRIVE_ENDPOINT = process.env.IDRIVE_ENDPOINT;
+const IDRIVE_BUCKET_NAME = process.env.IDRIVE_BUCKET_NAME;
 
 // --- 1. EMAIL TRANSPORT SETUP ---
 // Configuration to connect to an SMTP service (e.g., Gmail using an App Password)
@@ -36,13 +35,13 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-// Initialize the S3 Client configured for Backblaze B2
 const s3Client = new S3Client({
-    endpoint: BLAZE_ENDPOINT,
-    region: 'us-west-004', // The region is often implied by the endpoint, but good practice to include
+    // Use the IDrive E2 Endpoint
+    endpoint: IDRIVE_ENDPOINT,    
+    region: 'us-west-1',     
     credentials: {
-        accessKeyId: BLAZE_ACCESS_KEY,
-        secretAccessKey: BLAZE_SECRET_KEY,
+        accessKeyId: IDRIVE_ACCESS_KEY,
+        secretAccessKey: IDRIVE_SECRET_KEY,
     },
     forcePathStyle: true,
 });
@@ -70,20 +69,18 @@ function cleanUrlPath(url) {
     // Remove leading or trailing slashes if they appear during the cleanup
     return clean.trim().replace(/\/+$/, '');
 }
-
 /**
- * Extracts the file key (path inside the bucket) from the permanent B2 URL.
+ * Extracts the file key (path inside the bucket) from the permanent IDrive E2 URL.
  * This is the SINGLE SOURCE OF TRUTH for key extraction.
- * @param {string} fileUrl - The permanent B2 URL (e.g., https://endpoint/bucketName/path/to/file.jpg).
+ * @param {string} fileUrl - The permanent IDrive E2 URL (e.g., https://endpoint/bucketName/path/to/file.jpg).
  * @returns {string|null} The file key (path inside the bucket), or null if extraction fails.
  */
 function getFileKeyFromUrl(fileUrl) { 
     if (!fileUrl) return null;
 
     try {
-        // Construct the marker: BUCKET_NAME/
-        // BLAZE_BUCKET_NAME must be available in scope (e.g., 'outflickz')
-        const marker = `${BLAZE_BUCKET_NAME}/`;
+        const marker = `${IDRIVE_BUCKET_NAME}/`;
+        // ----------------------------------------------------
         
         // Find the index of the marker
         const markerIndex = fileUrl.indexOf(marker);
@@ -108,10 +105,9 @@ function getFileKeyFromUrl(fileUrl) {
         return null;
     }
 }
-
 /**
- * Generates a temporary, pre-signed URL for private files in Backblaze B2.
- * @param {string} fileUrl - The permanent B2 URL.
+ * Generates a temporary, pre-signed URL for private files in IDrive E2.
+ * @param {string} fileUrl - The permanent IDrive E2 URL.
  * @returns {Promise<string|null>} The temporary signed URL, or null if key extraction fails.
  */
 async function generateSignedUrl(fileUrl) {
@@ -134,11 +130,14 @@ async function generateSignedUrl(fileUrl) {
 
         // 2. Create the GetObject command
         const command = new GetObjectCommand({
-            Bucket: BLAZE_BUCKET_NAME,
+            // --- ⚠️ CRITICAL CHANGE: Use IDRIVE_BUCKET_NAME ---
+            Bucket: IDRIVE_BUCKET_NAME,
+            // ----------------------------------------------------
             Key: fileKey,
         });
 
         // 3. Generate the signed URL (expires in 604800 seconds = 7 days)
+        // s3Client is now configured for IDrive E2
         const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 604800 }); 
         
         console.log(`[Signed URL DEBUG] Signed URL successfully generated for key: ${fileKey}`);
@@ -150,10 +149,9 @@ async function generateSignedUrl(fileUrl) {
     }
 }
 
-
 /**
- * Deletes a file from Backblaze B2 given its URL.
- * @param {string} fileUrl - The permanent B2 URL of the file to delete.
+ * Deletes a file from IDrive E2 given its URL.
+ * @param {string} fileUrl - The permanent IDrive E2 URL of the file to delete.
  */
 async function deleteFileFromPermanentStorage(fileUrl) {
     if (!fileUrl) return;
@@ -171,20 +169,21 @@ async function deleteFileFromPermanentStorage(fileUrl) {
             return;
         }
 
-        console.log(`[Backblaze B2] Deleting file with Key: ${fileKey}`);
+        console.log(`[IDrive E2] Deleting file with Key: ${fileKey}`);
 
         const command = new DeleteObjectCommand({
-            Bucket: BLAZE_BUCKET_NAME,
+            // --- ⚠️ CRITICAL CHANGE: Use IDRIVE_BUCKET_NAME ---
+            Bucket: IDRIVE_BUCKET_NAME,
+            // ----------------------------------------------------
             Key: fileKey,
         });
 
         await s3Client.send(command);
-        console.log(`[Backblaze B2] Deletion successful for key: ${fileKey}`);
+        console.log(`[IDrive E2] Deletion successful for key: ${fileKey}`);
     } catch (error) {
-        console.error(`[Backblaze B2] Failed to delete file at ${fileUrl}:`, error);
+        console.error(`[IDrive E2] Failed to delete file at ${fileUrl}:`, error);
     }
 }
-
 
 /**
  * Helper function to send email using the configured transporter.
@@ -1399,9 +1398,8 @@ async function augmentOrdersWithProductDetails(orders) {
     return Promise.all(detailedOrdersPromises);
 }
 
-
 /**
- * Uploads a file buffer (from Multer) to Backblaze B2 and returns the permanent URL.
+ * Uploads a file buffer (from Multer) to IDrive E2 and returns the permanent URL.
  * @param {Object} file - The Multer file object (includes buffer, mimetype, originalname).
  * @returns {Promise<string>} The permanent public URL of the uploaded file.
  */
@@ -1416,13 +1414,15 @@ async function uploadFileToPermanentStorage(file) {
     const fileKey = `uploads/${uniqueFileName}`; // Key structure inside the bucket
 
     try {
-        console.log(`[Backblaze B2] Starting upload for key: ${fileKey}`);
+        console.log(`[IDrive E2] Starting upload for key: ${fileKey}`); // Updated logging
 
         // --- Using the robust 'Upload' utility for large file support ---
         const parallelUploads3 = new Upload({
-            client: s3Client,
+            client: s3Client, // s3Client is already configured for IDrive E2
             params: {
-                Bucket: BLAZE_BUCKET_NAME,
+                // --- ⚠️ CRITICAL CHANGE: Use IDRIVE_BUCKET_NAME ---
+                Bucket: IDRIVE_BUCKET_NAME,
+                // ----------------------------------------------------
                 Key: fileKey,
                 Body: file.buffer, // The actual file content
                 ContentType: file.mimetype,
@@ -1433,16 +1433,18 @@ async function uploadFileToPermanentStorage(file) {
 
         await parallelUploads3.done();
         
-        console.log(`[Backblaze B2] Upload successful for key: ${fileKey}`);
+        console.log(`[IDrive E2] Upload successful for key: ${fileKey}`); // Updated logging
 
-        // Construct the permanent URL based on your B2 endpoint pattern.
-        const permanentUrl = `${BLAZE_ENDPOINT}/${BLAZE_BUCKET_NAME}/${fileKey}`;
+        // Construct the permanent URL based on your IDrive E2 endpoint pattern.
+        // --- ⚠️ CRITICAL CHANGE: Use IDRIVE_ENDPOINT and IDRIVE_BUCKET_NAME ---
+        const permanentUrl = `${IDRIVE_ENDPOINT}/${IDRIVE_BUCKET_NAME}/${fileKey}`;
+        // ----------------------------------------------------------------------
         
         return permanentUrl;
 
     } catch (error) {
-        console.error(`[Backblaze B2] Failed to upload file ${file.originalname}:`, error);
-        throw new Error('Permanent file storage failed. Check B2 credentials and bucket policy.');
+        console.error(`[IDrive E2] Failed to upload file ${file.originalname}:`, error); // Updated logging
+        throw new Error('Permanent file storage failed. Check IDrive E2 credentials and bucket policy.'); // Updated error message
     }
 }
 
@@ -2306,7 +2308,6 @@ app.delete('/api/admin/capscollections/:id', verifyToken, async (req, res) => {
             return res.status(404).json({ message: 'Cap Collection not found for deletion.' });
         }
 
-        // Delete associated images from Backblaze B2 (fire and forget)
         deletedCollection.variations.forEach(v => {
             if (v.frontImageUrl) deleteFileFromPermanentStorage(v.frontImageUrl);
             if (v.backImageUrl) deleteFileFromPermanentStorage(v.backImageUrl);
@@ -2597,7 +2598,6 @@ app.delete('/api/admin/newarrivals/:id', verifyToken, async (req, res) => {
             return res.status(404).json({ message: 'New Arrival not found for deletion.' });
         }
 
-        // Delete associated images from Backblaze B2 (fire and forget)
         deletedProduct.variations.forEach(v => {
             if (v.frontImageUrl) deleteFileFromPermanentStorage(v.frontImageUrl);
             if (v.backImageUrl) deleteFileFromPermanentStorage(v.backImageUrl);
@@ -2708,7 +2708,7 @@ app.post(
             const savedCollection = await newCollection.save();
 
             res.status(201).json({ 
-                message: 'Wears Collection created and images uploaded successfully to Backblaze B2.',
+                message: 'Wears Collection created and images uploaded successfully to IDRIVE.',
                 collectionId: savedCollection._id,
                 name: savedCollection.name
             });
@@ -2886,7 +2886,6 @@ app.delete('/api/admin/wearscollections/:id', verifyToken, async (req, res) => {
             return res.status(404).json({ message: 'Collection not found for deletion.' });
         }
 
-        // Delete associated images from Backblaze B2 (fire and forget)
         deletedCollection.variations.forEach(v => {
             if (v.frontImageUrl) deleteFileFromPermanentStorage(v.frontImageUrl);
             if (v.backImageUrl) deleteFileFromPermanentStorage(v.backImageUrl);
@@ -4396,7 +4395,7 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
 
                     // b. Create the GetObject command
                     const getObjectCommand = new GetObjectCommand({
-                        Bucket: BLAZE_BUCKET_NAME,
+                        Bucket: IDRIVE_BUCKET_NAME,
                         Key: fileKey,
                     });
 
@@ -4712,7 +4711,6 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
                     return res.status(400).json({ message: 'Bank payment receipt image is required for a Bank Transfer order.' });
                 }
                 
-                // 3. Upload the receipt file to Backblaze B2
                 paymentReceiptUrl = await uploadFileToPermanentStorage(receiptFile);
                 
                 if (!paymentReceiptUrl) {

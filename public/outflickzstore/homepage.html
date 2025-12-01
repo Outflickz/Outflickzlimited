@@ -970,7 +970,9 @@ function createSizeList(collectionId, availableSizes, isReduced) {
         const safeSize = size.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
         const inputId = `size-${collectionId}-${safeSize}`;
         
-    
+        // --- ✅ FIX: Select the first size by default ---
+        const isChecked = index === 0 ? 'checked' : ''; // <-- Re-introduced for default selection
+        
         return `
             <input 
                 type="radio" 
@@ -996,6 +998,7 @@ function createSizeList(collectionId, availableSizes, isReduced) {
 
     return sizeOptionsHtml;
 }
+
 // --- FETCH AND RENDER COLLECTIONS (Existing functions) ---
 async function fetchAndRenderWearsCollections() {
     const container = document.getElementById('wears-collections-grid');

@@ -3242,42 +3242,43 @@ app.delete(
         }
     }
 );
-
-// --- PUBLIC ROUTES (Existing) ---
 // GET /api/collections/wears (For Homepage Display)
 app.get('/api/collections/wears', async (req, res) => {
     try {
         // Fetch only ACTIVE collections (WearsCollection)
+        // Ensure 'variations' and its nested fields are selected
         const collections = await WearsCollection.find({ isActive: true }) 
-            .select('_id name tag price variations sizes totalStock') 
+            .select('_id name tag price variations totalStock') 
             .sort({ createdAt: -1 })
             .lean(); 
 
         // Prepare the data for the public frontend
         const publicCollections = await Promise.all(collections.map(async (collection) => {
             
+            // 1. --- FIX: Extract ALL unique sizes from ALL variations ---
+            // The Mongoose schema stores detailed sizes inside the 'variations' array.
+            const allUniqueSizes = collection.variations
+                .flatMap(v => v.sizes ? v.sizes.map(s => s.size) : [])
+                .filter((value, index, self) => self.indexOf(value) === index);
+            // --- END FIX ---
+
+
             // Map Mongoose variation to a simpler public variant object
             const variants = await Promise.all(collection.variations.map(async (v) => ({
                 color: v.colorHex,
                 frontImageUrl: await generateSignedUrl(v.frontImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Front+View+Error',
-                backImageUrl: await generateSignedUrl(v.backImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Back+View+Error'
+                backImageUrl: await generateSignedUrl(v.backImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Back+View+Error',
+                // Note: We are NOT including sizes/stock here, as the frontend uses the top-level availableSizes.
             })));
 
-            // === FIX: Transform the array of size objects into an array of size strings ===
-            // Since the database stores 'sizes' as an array of objects (e.g., [{name: 'S'}, {name: 'M'}]),
-            // we map over it to extract only the 'name' property to get ["S", "M"].
-            const sizeNames = Array.isArray(collection.sizes)
-                ? collection.sizes.map(sizeObj => sizeObj.name).filter(Boolean)
-                : [];
-            // === END FIX ===
             
             return {
                 _id: collection._id,
                 name: collection.name,
                 tag: collection.tag,
                 price: collection.price, 
-                // Now passing the transformed array of size strings, which the frontend expects
-                availableSizes: sizeNames,
+                // 2. --- PASS THE CORRECT DATA: Use the extracted size list ---
+                availableSizes: allUniqueSizes, 
                 availableStock: collection.totalStock, 
                 variants: variants
             };

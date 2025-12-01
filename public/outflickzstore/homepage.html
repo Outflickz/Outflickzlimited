@@ -970,9 +970,7 @@ function createSizeList(collectionId, availableSizes, isReduced) {
         const safeSize = size.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
         const inputId = `size-${collectionId}-${safeSize}`;
         
-        // --- ✅ FIX: Select the first size by default ---
-       // const isChecked = index === 0 ? 'checked' : ''; // <-- Re-introduced for default selection
-        
+    
         return `
             <input 
                 type="radio" 

@@ -3990,7 +3990,6 @@ app.get('/api/auth/status', verifyUserToken, (req, res) => {
     // We just return a success status.
     res.status(200).json({ message: 'Authenticated', isAuthenticated: true });
 });
-
 // =========================================================
 // 5. POST /api/users/cart - Add Item to Cart (Protected)
 // =========================================================
@@ -3998,8 +3997,6 @@ app.post('/api/users/cart', verifyUserToken, async (req, res) => {
     // --- 1. Gather and Validate Client Input ---
     const { productId, productType, size, quantity, variationIndex } = req.body;
     const userId = req.userId;
-
-    // We no longer rely on client-provided price/name/imageUrl directly for security.
 
     // Basic Input Validation
     if (!productId || !productType || !size || !quantity || quantity < 1 || variationIndex === undefined || variationIndex === null) {
@@ -4009,25 +4006,24 @@ app.post('/api/users/cart', verifyUserToken, async (req, res) => {
     // --- 2. Server-Side Product Validation and Lookup ---
     try {
         const ProductModel = getProductModel(productType);
-        if (!ProductModel) {
-            return res.status(400).json({ message: 'Invalid product type provided.' });
-        }
-
+        
         // Find the product and project only the necessary fields
         const product = await ProductModel.findById(productId)
-            .select('name price variants') // Assume base price is at top level
+            .select('name price variants') 
             .lean();
 
         if (!product) {
             return res.status(404).json({ message: 'Product not found.' });
         }
 
+        // Find the specific variant
         const variant = product.variants.find(v => v.variationIndex === variationIndex);
 
         if (!variant) {
             return res.status(400).json({ message: 'Invalid product variant selected.' });
         }
         
+        // Find the specific size and stock data
         const sizeData = variant.sizes.find(s => s.size === size);
 
         if (!sizeData) {
@@ -4043,25 +4039,21 @@ app.post('/api/users/cart', verifyUserToken, async (req, res) => {
         
         // --- 3. Construct Final Item Data from Server (Secure) ---
         
-        // Use the product's base price (assuming price is constant across variants for the same product)
         const verifiedPrice = product.price; 
         const verifiedName = product.name;
-        const verifiedImageUrl = variant.frontImageUrl; // Use the verified image from the DB
+        const verifiedImageUrl = variant.frontImageUrl; 
         const verifiedColor = variant.colorHex;
-        
-        // Construct user-friendly variation string
         const verifiedVariation = `Color: ${verifiedColor} / Size: ${size}`;
-
 
         const newItem = {
             productId,
             name: verifiedName,
             productType,
             size,
-            color: verifiedColor || 'N/A', // Use the verified color
-            price: verifiedPrice,          // Use the verified price
+            color: verifiedColor || 'N/A', 
+            price: verifiedPrice, 
             quantity: quantity,
-            imageUrl: verifiedImageUrl,    // Use the verified image URL
+            imageUrl: verifiedImageUrl, 
             variationIndex,
             variation: verifiedVariation, 
         };
@@ -4122,14 +4114,20 @@ app.post('/api/users/cart', verifyUserToken, async (req, res) => {
 
     } catch (error) {
         console.error('Error adding item to cart:', error);
+        
+        // Check for specific getProductModel error (Model not registered)
+        if (error.message.includes('Model not registered for product type')) {
+            return res.status(400).json({ message: `Invalid product type provided: ${error.message.split(':').pop().trim()}` });
+        }
+        
         // Ensure specific stock/validation errors aren't masked as 500
         if (error.message.includes('stock')) {
              return res.status(409).json({ message: error.message });
         }
+        
         res.status(500).json({ message: 'Failed to add item to shopping bag.' });
     }
 });
-
 // =========================================================
 // 1. GET /api/users/cart - Retrieve Cart (Protected)
 // =========================================================

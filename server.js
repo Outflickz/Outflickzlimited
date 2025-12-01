@@ -928,24 +928,6 @@ async function getRealTimeDashboardStats() {
     }
 }
 
-/**
- * Utility function to get the correct Mongoose Model based on the productType string.
- * This is robust for single-file environments where all models are registered.
- * @param {string} productType The string name of the collection (e.g., 'WearsCollection').
- */
-function getProductModel(productType) {
-    // ⚠️ CRITICAL: Ensure 'mongoose' is defined or imported in the environment scope
-    if (typeof mongoose === 'undefined' || !mongoose.models) {
-        throw new Error("Mongoose is not available or models are not registered.");
-    }
-
-    const Model = mongoose.models[productType];
-    
-    if (!Model) {
-        throw new Error(`Model not registered for product type: ${productType}`);
-    }
-    return Model;
-}
 
 /**
  * Utility function to handle rollback logic by updating the Order status.
@@ -1262,6 +1244,26 @@ async function mergeLocalCart(userId, localItems) {
 }
 
 /**
+ * Utility function to get the correct Mongoose Model based on the productType string.
+ * This is robust for single-file environments where all models are registered.
+ * @param {string} productType The string name of the collection (e.g., 'WearsCollection').
+ */
+async function getProductModel(productType) {
+    // ⚠️ CRITICAL: Ensure 'mongoose' is defined or imported in the environment scope
+    if (typeof mongoose === 'undefined' || !mongoose.models) {
+        throw new Error("Mongoose is not available or models are not registered.");
+    }
+
+    const Model = mongoose.models[productType];
+    
+    if (!Model) {
+        throw new Error(`Model not registered for product type: ${productType}`);
+    }
+    return Model;
+}
+
+
+/**
  * Takes a list of order documents and adds 'name' and 'imageUrl' to each item 
  * by fetching product details from all relevant collections.
  * * 🚨 CRITICAL UPDATE: This now generates a temporary, pre-signed URL for the imageUrl
@@ -1365,6 +1367,53 @@ async function augmentOrdersWithProductDetails(orders) {
     return Promise.all(detailedOrdersPromises);
 }
 
+
+/**
+ * Uploads a file buffer (from Multer) to Backblaze B2 and returns the permanent URL.
+ * @param {Object} file - The Multer file object (includes buffer, mimetype, originalname).
+ * @returns {Promise<string>} The permanent public URL of the uploaded file.
+ */
+async function uploadFileToPermanentStorage(file) {
+    if (!file || !file.buffer) {
+        throw new Error('File object or buffer is missing for upload.');
+    }
+    
+    // Create a unique file path/key to prevent naming conflicts.
+    const fileExtension = file.originalname.split('.').pop();
+    const uniqueFileName = `${Date.now()}-${crypto.randomUUID()}.${fileExtension}`; 
+    const fileKey = `uploads/${uniqueFileName}`; // Key structure inside the bucket
+
+    try {
+        console.log(`[Backblaze B2] Starting upload for key: ${fileKey}`);
+
+        // --- Using the robust 'Upload' utility for large file support ---
+        const parallelUploads3 = new Upload({
+            client: s3Client,
+            params: {
+                Bucket: BLAZE_BUCKET_NAME,
+                Key: fileKey,
+                Body: file.buffer, // The actual file content
+                ContentType: file.mimetype,
+            },
+            partSize: 1024 * 1024 * 5, // 5MB part size
+            queueSize: 4, // Number of concurrent uploads
+        });
+
+        await parallelUploads3.done();
+        
+        console.log(`[Backblaze B2] Upload successful for key: ${fileKey}`);
+
+        // Construct the permanent URL based on your B2 endpoint pattern.
+        const permanentUrl = `${BLAZE_ENDPOINT}/${BLAZE_BUCKET_NAME}/${fileKey}`;
+        
+        return permanentUrl;
+
+    } catch (error) {
+        console.error(`[Backblaze B2] Failed to upload file ${file.originalname}:`, error);
+        throw new Error('Permanent file storage failed. Check B2 credentials and bucket policy.');
+    }
+}
+
 // --- EXPRESS CONFIGURATION AND MIDDLEWARE ---
 const app = express();
 // Ensure express.json() is used BEFORE the update route, but after the full form route
@@ -1424,7 +1473,7 @@ const verifyToken = (req, res, next) => {
 // --- Multer Configuration (upload) ---
 const upload = multer({ 
     storage: multer.memoryStorage(), // Stores file buffer in req.file.buffer
-    limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+    limits: { fileSize: 50 * 1024 * 1024 } // 5MB limit
 });
 
 // Define the expected file fields dynamically (e.g., front-view-upload-1, back-view-upload-1, up to index 4)
@@ -1435,7 +1484,7 @@ const uploadFields = Array.from({ length: 4 }, (_, i) => [
 
 const singleReceiptUpload = multer({ 
     storage: multer.memoryStorage(), // Use memory storage as defined
-    limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+    limits: { fileSize: 50 * 1024 * 1024 } // 5MB limit
 
 }).single('receipt'); 
 

@@ -426,10 +426,8 @@ async function simulateAddToCart(productDetails) {
         color: color,
         price: productDetails.price,
         productType: productDetails.productType || 'WearsCollection',
-        // ⭐️ NOW using the dynamically selected image URL
         imageUrl: selectedImageUrl, 
         quantity: productDetails.quantity || 1,
-        // 🚀 CRITICAL FIX 3: Add variationIndex to requiredDetails (used for local fallback lookup)
         variationIndex: variationIndex 
     };
     

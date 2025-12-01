@@ -196,12 +196,33 @@ function handleLocalCartFallback(details) {
 async function simulateAddToCart(productDetails) {
     // 1. Gather all item details needed for local cart fallback and API
     const card = document.querySelector(`.collection-card[data-collection-id="${productDetails.productId}"]`) || document;
+    
+    // Check if size radio buttons exist on the card
+    const sizeSelectionExists = card.querySelector(`input[name="size-${productDetails.productId}"]`);
+    
+    // Find the currently selected size and color inputs
     const selectedSizeInput = card.querySelector(`input[name="size-${productDetails.productId}"]:checked`);
     const selectedColorInput = card.querySelector(`input[name="color-${productDetails.productId}"]:checked`);
     
+    // --- 🛑 SIZE VALIDATION CHECK (NEW/FIXED LOGIC) ---
+    // If size selection inputs exist but none are checked, display an error and stop.
+    if (sizeSelectionExists && !selectedSizeInput) {
+        displayMessage('Please **select a size** before adding this item to your bag.');
+        
+        // Optional: Re-enable/reset the 'Add to Cart' button state here if necessary
+        const cartButton = card.querySelector('.add-to-cart-btn');
+        if (cartButton) {
+             // Assuming your application disables the button immediately on click, 
+             // you might need application-specific logic to re-enable it.
+        }
+        return; // Stop the function execution
+    }
+    // --- END SIZE VALIDATION CHECK ---
+
     // 🛑 CRITICAL FIX: Base variation data extraction on the selected color/size input
     const variantInput = selectedColorInput || selectedSizeInput;
     
+    // The size variable now holds the confirmed selection (or 'N/A' if no selector existed)
     const size = selectedSizeInput ? selectedSizeInput.value : productDetails.size || 'N/A';
     const color = selectedColorInput ? selectedColorInput.value : productDetails.color || 'N/A';
     
@@ -218,7 +239,7 @@ async function simulateAddToCart(productDetails) {
     const requiredDetails = {
         productId: productDetails.productId,
         name: productDetails.name, 
-        size: size,
+        size: size, // Now guaranteed to be the selected value
         color: color,
         price: productDetails.price,
         productType: productDetails.productType || 'WearsCollection',

@@ -963,15 +963,15 @@ function createSizeList(collectionId, availableSizes, isReduced) {
     }
 
     const sizeClasses = isReduced ? 'w-5 h-5 text-[0.6rem]' : 'w-6 h-6 text-xs';
-    // Use the correct radio button name attribute expected by simulateAddToCart
+    // The name attribute groups the radio buttons, enforcing single selection (mutually exclusive)
     const correctNameGroup = `size-${collectionId}`;
 
-    const sizeOptionsHtml = filteredSizes.map((size) => {
+    const sizeOptionsHtml = filteredSizes.map((size) => { // Removed 'index' as it's not needed for checking
         const safeSize = size.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
         const inputId = `size-${collectionId}-${safeSize}`;
         
-        // --- 🛑 FIX: Remove default 'checked' attribute ---
-        // const isChecked = index === 0 ? 'checked' : ''; // REMOVED
+        // --- ✅ FIX: Ensure NO size is checked by default (user must choose) ---
+        // By removing the 'isChecked' variable and attribute, all radio buttons start UNCHECKED.
         
         return `
             <input 
@@ -981,15 +981,15 @@ function createSizeList(collectionId, availableSizes, isReduced) {
                 value="${size}" 
                 class="hidden size-radio peer" 
                 data-size-id="${collectionId}"
-                
+                // The 'checked' attribute is deliberately omitted here.
             >
             <label 
                 for="${inputId}" 
                 class="${sizeClasses} border cursor-pointer rounded-full flex items-center justify-center font-medium transition-all duration-150 
-                       border-gray-300 text-gray-700 hover:border-ash-dark hover:bg-gray-100 
-                       
-                       /* --- 🚀 FIX: Ensure styles only apply when actually checked --- */
-                       peer-checked:border-ash-dark peer-checked:bg-ash-dark peer-checked:text-white"
+                        border-gray-300 text-gray-700 hover:border-ash-dark hover:bg-gray-100 
+                        
+                        /* The peer-checked class still ensures only the selected label has the active style */
+                        peer-checked:border-ash-dark peer-checked:bg-ash-dark peer-checked:text-white"
             >
                 ${size}
             </label>

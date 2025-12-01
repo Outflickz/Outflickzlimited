@@ -152,7 +152,8 @@ function redirectToProfileOrLogin() {
 function handleLocalCartFallback(details) {
     let localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
     
-    // 🛑 UPDATE: Include variationIndex in the uniqueness check
+    // 🛑 CRITICAL FIX: Ensure the item is uniquely identified by all variant properties
+    // (productId, size, color, variationIndex) before adding.
     const existingItemIndex = localCart.findIndex(item => 
         item.productId === details.productId && 
         item.size === details.size &&
@@ -161,16 +162,22 @@ function handleLocalCartFallback(details) {
     );
 
     if (existingItemIndex > -1) {
+        // Item already exists: increment quantity
         localCart[existingItemIndex].quantity += details.quantity || 1;
     } else {
+        // Item is new: set quantity and assign a truly unique ID.
         details.quantity = details.quantity || 1;
-        // 🛑 UPDATE: Include variationIndex in the generated local _id for true uniqueness
-        details._id = details._id || `${details.productId}-${details.size}-${details.color}-${details.variationIndex}`.replace(/\s/g, ''); 
+        
+        // 🚀 IMPROVED: Generate a short, unique, client-side ID for the local item.
+        // This is safer and less error-prone than concatenating product details.
+        // We use a simple composite key for uniqueness check above, but a true ID for manipulation.
+        details._id = details._id || `${details.productId}_${details.variationIndex}_${Date.now()}`; 
+        
         localCart.push(details);
     }
 
     localStorage.setItem(LOCAL_CART_KEY, JSON.stringify(localCart));
-    // The badge should reflect the ITEM COUNT, not the number of unique items (localCart.length)
+    // The badge should reflect the total ITEM COUNT, not the number of unique items
     const totalItemCount = localCart.reduce((acc, item) => acc + item.quantity, 0);
     localStorage.setItem(CART_STORAGE_KEY, totalItemCount.toString()); 
     updateCartBadge();
@@ -181,7 +188,7 @@ function handleLocalCartFallback(details) {
     // If we are on the cart page, refresh the view
     if (document.getElementById('cart-items-list')) {
         // Render immediately with the local cart data, avoiding a re-fetch loop
-        renderCartItems(localCart, false);
+        renderCartItems(localCart, false); 
         const localTotals = calculateLocalTotals(localCart); 
         updateCartSummary(localTotals);
         // Set checkout button state correctly for local cart
@@ -443,8 +450,8 @@ function renderCartItems(items, isApiCart) {
                         </button>
                     </div>
                     
-                    <button onclick="${isApiCart ? `removeItemFromCart('${item._id}')` : `handleLocalItemRemoval('${item._id}', '${item.productId}', '${item.size}', '${item.color}')`}" type="button" class="ml-4 text-xs sm:text-sm font-medium text-gray-700 hover:text-ash-red transition">
-                        <i class="fas fa-trash-alt mr-1"></i> Remove
+                <button onclick="${isApiCart ? `removeItemFromCart('${item._id}')` : `handleLocalItemRemoval('${item._id}')`}" type="button" class="ml-4 text-xs sm:text-sm font-medium text-gray-700 hover:text-ash-red transition">
+                            <i class="fas fa-trash-alt mr-1"></i> Remove
                     </button>
                 </div>
             </div>
@@ -455,11 +462,12 @@ function renderCartItems(items, isApiCart) {
 
 /**
  * Handles removal of an item from the local storage cart.
+ * @param {string} itemId - The unique _id of the item to remove (e.g., from the DOM element).
  */
-function handleLocalItemRemoval(itemId, productId, size, color) {
+function handleLocalItemRemoval(itemId) {
     let localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
 
-    // Remove item based on the unique _id (which we set as a composite key)
+    // 🚀 IMPROVED: Filter the cart directly using the unique itemId
     const initialLength = localCart.length;
     localCart = localCart.filter(item => item._id !== itemId);
 

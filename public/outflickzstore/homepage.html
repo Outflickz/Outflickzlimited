@@ -952,11 +952,11 @@ function createSizeList(collectionId, availableSizes, isReduced) {
         
         return `
             <input 
-                type="checkbox" // <-- REVERTED TO CHECKBOX
+                type="uncheckbox" // <-- REVERTED TO CHECKBOX
                 id="${inputId}" 
                 name="${sizeGroupClass}" // This name is now just a group identifier
                 value="${size}" 
-                class="hidden size-checkbox peer single-select-size" // <-- CRITICAL: For JS listener
+                class="hidden size-uncheckbox peer single-select-size" // <-- CRITICAL: For JS listener
                 data-product-id="${collectionId}"
                 data-group-class="${sizeGroupClass}" // <-- Pass group class for JS
                 // REMOVED: Default 'checked' attribute

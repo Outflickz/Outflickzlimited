@@ -7,142 +7,144 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="icon" type="image/png" href="https://i.imgur.com/ioWFyQB.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <style>
-        /* Load Inter (main font) and Playfair Display (for "OUTFLICKZ") */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+<style>
+    /* Load Inter (main font) and Playfair Display (for "OUTFLICKZ") */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
 
-        /* Custom style for the large, stylized 'OUTFLICKZ' text */
-        .roulette-text {
-            font-family: 'Playfair Display', serif;
-            font-weight: 900;
-            line-height: 0.9;
-            letter-spacing: -0.05em;
-            text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.7);
-            word-break: break-word;
-            color: #FFFFFF;
-        }
+    /* Custom style for the large, stylized 'OUTFLICKZ' text */
+    .roulette-text {
+        font-family: 'Playfair Display', serif;
+        font-weight: 900;
+        line-height: 0.9;
+        letter-spacing: -0.05em;
+        text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.7);
+        word-break: break-word;
+        color: #FFFFFF;
+    }
 
-        /* Using Inter as the main font */
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        
-        /* --- SLIDER STYLES --- */
-        .hero-bg-slider-container {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-        }
+    /* Using Inter as the main font */
+    body {
+        font-family: 'Inter', sans-serif;
+    }
+    
+    /* --- SLIDER STYLES --- */
+    .hero-bg-slider-container {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+    }
+    .slider-cell {
+        position: absolute;
+        top: 0;
+        height: 100%;
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        opacity: 0;
+        transition: opacity 1.5s ease-in-out;
+    }
+    /* Mobile Default: Cell 1 takes full width, Cell 2 is hidden */
+    .slider-cell-1 {
+        width: 100%;
+        left: 0;
+        z-index: 10;
+    }
+    .slider-cell-2 {
+        display: none; /* Hide cell 2 completely on mobile */
+    }
+    /* Tablet/Desktop: Cell 2 is displayed next to Cell 1 (50% width each) */
+    @media (min-width: 768px) {
         .slider-cell {
-            position: absolute;
-            top: 0;
-            height: 100%;
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            opacity: 0;
-            transition: opacity 1.5s ease-in-out;
-        }
-        /* Mobile Default: Cell 1 takes full width, Cell 2 is hidden */
-        .slider-cell-1 {
-            width: 100%;
-            left: 0;
-            z-index: 10;
+            width: 50%; /* Each cell takes half the width */
         }
         .slider-cell-2 {
-            display: none; /* Hide cell 2 completely on mobile */
+            display: block; /* Show cell 2 */
+            left: 50%;
+            z-index: 10;
         }
-        /* Tablet/Desktop: Cell 2 is displayed next to Cell 1 (50% width each) */
-        @media (min-width: 768px) {
-            .slider-cell {
-                width: 50%; /* Each cell takes half the width */
-            }
-            .slider-cell-2 {
-                display: block; /* Show cell 2 */
-                left: 50%;
-                z-index: 10;
-            }
-        }
-        .slider-cell.active {
-            opacity: 1;
-        }
-        .image-overlay {
-            background-color: rgba(0, 0, 0, 0.5);
-        }
-        /* --- END SLIDER STYLES --- */
+    }
+    .slider-cell.active {
+        opacity: 1;
+    }
+    .image-overlay {
+        background-color: rgba(0, 0, 0, 0.5);
+    }
+    /* --- END SLIDER STYLES --- */
 
-        /* --- MODAL STYLES --- */
-        .modal {
-            transition: opacity 0.3s ease-in-out;
-        }
+    /* --- MODAL STYLES --- */
+    .modal {
+        transition: opacity 0.3s ease-in-out;
+    }
 
-        /* --- CARD STYLES --- */
-        .card-image-box {
-            aspect-ratio: 1/1.1;
-            overflow: hidden;
-        }
-        .card-image-box img {
-            object-fit: cover !important;
-        }
+    /* --- CARD STYLES --- */
+    .card-image-box {
+        aspect-ratio: 1/1.1;
+        overflow: hidden;
+    }
+    .card-image-box img {
+        object-fit: cover !important;
+    }
 
-        /* Custom style for active size/color selection */
-        .size-label input:checked + span {
-            border-color: #a80000; /* ash-red */
-            color: #a80000;
-            font-weight: 600;
-        }
+    /* 🛑 REMOVED OLD .size-label input:checked + span style as it conflicted with JS single-select logic */
 
-        .color-label input:checked + span {
-            border-width: 2px; /* Thicker border for selected state */
-            border-color: #a80000; /* ash-red */
-        }
+    /* ✅ NEW CRITICAL FIX: Styles for the size selection, manually applied by JavaScript */
+    .size-label-styled.is-checked {
+        border-color: #3b3b3b !important; /* ash-dark equivalent */
+        background-color: #3b3b3b !important; /* ash-dark equivalent */
+        color: white !important; 
+    }
 
-        /* --- NEW MOBILE SLIDER STYLE FOR COLLECTIONS AND ADS --- */
-        /* Only apply flex/scroll to the grid container on screens smaller than md (768px) */
-        @media (max-width: 767px) {
-            #wears-collections-grid, #new-arrivals-grid, #caps-collections-grid, #advertisements-grid, #preorder-collections-grid {
-                display: flex;
-                overflow-x: scroll;
-                scroll-snap-type: x mandatory;
-                padding-bottom: 1rem; /* Space for shadow/scroll bar */
-            }
-            /* Wears Collection (Default size) - LARGER */
-            #wears-collections-grid .collection-card, #preorder-collections-grid .collection-card {
-                flex-shrink: 0; /* Cards won't shrink */
-                width: 50vw; /* Standard size */
-                max-width: 300px; /* Optional max width */
-                scroll-snap-align: start;
-                margin-right: 1rem;
-            }
-            /* New Arrivals & Caps (Reduced size) - SMALLER */
-            #new-arrivals-grid .collection-card, #caps-collections-grid .collection-card {
-                flex-shrink: 0; 
-                width: 45vw; /* Reduced size for visual difference */
-                max-width: 250px;
-                scroll-snap-align: start;
-                margin-right: 1rem;
-            }
-            /* Advertisements */
-            #advertisements-grid .ad-image-box {
-                flex-shrink: 0;
-                width: 90vw; /* Increased width for better fill */
-                max-width: 450px;
-                scroll-snap-align: center;
-                margin-right: 1rem;
-            }
-            /* Ensure the last card snaps correctly */
-            #wears-collections-grid > div:last-child, 
-            #new-arrivals-grid > div:last-child,
-            #caps-collections-grid > div:last-child,
-            #advertisements-grid > div:last-child,
-            #preorder-collections-grid > div:last-child {
-                margin-right: 0;
-            }
+    .color-label input:checked + span {
+        border-width: 2px; /* Thicker border for selected state */
+        border-color: #a80000; /* ash-red */
+    }
+
+    /* --- NEW MOBILE SLIDER STYLE FOR COLLECTIONS AND ADS --- */
+    /* Only apply flex/scroll to the grid container on screens smaller than md (768px) */
+    @media (max-width: 767px) {
+        #wears-collections-grid, #new-arrivals-grid, #caps-collections-grid, #advertisements-grid, #preorder-collections-grid {
+            display: flex;
+            overflow-x: scroll;
+            scroll-snap-type: x mandatory;
+            padding-bottom: 1rem; /* Space for shadow/scroll bar */
         }
-        /* --- END NEW MOBILE SLIDER STYLE --- */
-    </style>
+        /* Wears Collection (Default size) - LARGER */
+        #wears-collections-grid .collection-card, #preorder-collections-grid .collection-card {
+            flex-shrink: 0; /* Cards won't shrink */
+            width: 50vw; /* Standard size */
+            max-width: 300px; /* Optional max width */
+            scroll-snap-align: start;
+            margin-right: 1rem;
+        }
+        /* New Arrivals & Caps (Reduced size) - SMALLER */
+        #new-arrivals-grid .collection-card, #caps-collections-grid .collection-card {
+            flex-shrink: 0; 
+            width: 45vw; /* Reduced size for visual difference */
+            max-width: 250px;
+            scroll-snap-align: start;
+            margin-right: 1rem;
+        }
+        /* Advertisements */
+        #advertisements-grid .ad-image-box {
+            flex-shrink: 0;
+            width: 90vw; /* Increased width for better fill */
+            max-width: 450px;
+            scroll-snap-align: center;
+            margin-right: 1rem;
+        }
+        /* Ensure the last card snaps correctly */
+        #wears-collections-grid > div:last-child, 
+        #new-arrivals-grid > div:last-child,
+        #caps-collections-grid > div:last-child,
+        #advertisements-grid > div:last-child,
+        #preorder-collections-grid > div:last-child {
+            margin-right: 0;
+        }
+    }
+    /* --- END NEW MOBILE SLIDER STYLE --- */
+</style>
 <script>
 // Customizing Tailwind colors to match the theme
 tailwind.config = {
@@ -922,9 +924,9 @@ const sizeListHtml = showSizeSelection ? `
         </div>
     `;
 }
-
 /**
  * Generates the HTML for the size selection options within the collection card.
+ * ***FIXED: Removed 'peer' class and added JS styling classes.***
  */
 function createSizeList(collectionId, availableSizes, isReduced) {
     const standardSizes = ['S', 'M', 'L', 'XL']; 
@@ -949,17 +951,18 @@ function createSizeList(collectionId, availableSizes, isReduced) {
                 id="${inputId}" 
                 name="${sizeGroupClass}" 
                 value="${size}" 
-                class="hidden size-checkbox peer single-select-size" 
+                class="hidden single-select-size" 
                 data-product-id="${collectionId}"
                 data-group-class="${sizeGroupClass}" 
-                // No 'checked' attribute means it starts unchecked
+                // CRITICAL: Removed 'size-checkbox' and 'peer'
             >
             <label 
                 for="${inputId}" 
+                data-input-id="${inputId}" // NEW: Used for JS targeting
                 class="${sizeClasses} border cursor-pointer rounded-full flex items-center justify-center font-medium transition-all duration-150 
                         border-gray-300 text-gray-700 hover:border-ash-dark hover:bg-gray-100 
-                        
-                        peer-checked:border-ash-dark peer-checked:bg-ash-dark peer-checked:text-white"
+                        size-label-styled" // NEW: Class for JS-based styling
+                // CRITICAL: Removed all 'peer-checked' classes
             >
                 ${size}
             </label>
@@ -968,15 +971,15 @@ function createSizeList(collectionId, availableSizes, isReduced) {
     
     return sizeOptionsHtml;
 }
-
 /**
  * Ensures only one checkbox is checked at a time within its designated group,
- * while still allowing the selected size to be unchecked by clicking it again.
+ * AND manually applies the "checked" style via JS to fix the peer issue.
  */
 document.addEventListener('change', function(event) {
     // Check if the change event came from one of our size checkboxes
     if (event.target.matches('.single-select-size')) {
         const currentCheckbox = event.target;
+        const inputId = currentCheckbox.id; // Get the ID of the input clicked
         
         // 1. Find the parent product card container
         const productCard = currentCheckbox.closest('.collection-card'); 
@@ -986,19 +989,29 @@ document.addEventListener('change', function(event) {
             return;
         }
 
-        // If the current checkbox was just CHECKED, uncheck all others in the group
+        // 2. Clear styling from ALL sizes in this card first
+        productCard.querySelectorAll('.size-label-styled').forEach(label => {
+            label.classList.remove('is-checked');
+        });
+
+        // 3. Enforce single selection
         if (currentCheckbox.checked) {
-            // 2. Query only within this specific product card for size inputs
             const siblings = productCard.querySelectorAll('.single-select-size');
-            
             siblings.forEach(checkbox => {
                 // Uncheck all siblings that are NOT the one currently being handled
                 if (checkbox !== currentCheckbox) {
                     checkbox.checked = false;
                 }
             });
+            
+            // 4. Manually apply styling to the CURRENTLY CHECKED size label
+            const currentLabel = productCard.querySelector(`[data-input-id="${inputId}"]`);
+            if (currentLabel) {
+                currentLabel.classList.add('is-checked');
+            }
         }
-        // If the current checkbox was UNCHECKED, we do nothing, allowing it to remain unchecked.
+        // If the current checkbox was UNCHECKED, the styling was already cleared in step 2,
+        // and it won't be re-applied in step 4, allowing it to remain unchecked and unstyled.
     }
 });
 

@@ -1315,30 +1315,33 @@ async function mergeLocalCart(userId, localItems) {
 
 /**
  * Takes a list of order documents and adds 'name' and 'imageUrl' to each item 
- * by fetching product details from all relevant collections.
- * * 🚨 CRITICAL UPDATE: This now generates a temporary, pre-signed URL for the imageUrl
- * if the image is stored privately (e.g., in Backblaze B2).
+ * by fetching product details from all relevant collections, AND
+ * 🚨 CRITICALLY: generates a temporary, pre-signed URL for the imageUrl AND the paymentReceiptUrl.
  * * @param {Array<Object>} orders - Array of order documents (must have an 'items' array).
- * @param {function} generateSignedUrl - The function to generate a pre-signed URL for private files.
- * @returns {Promise<Array<Object>>} - Orders with augmented item details, including signed image URLs.
+ * @param {function} generateSignedUrl - The function to generate a pre-signed URL (must be provided).
+ * @returns {Promise<Array<Object>>} - Orders with augmented item details and signed image/receipt URLs.
  */
 async function augmentOrdersWithProductDetails(orders, generateSignedUrl) {
     if (!orders || orders.length === 0) {
         return [];
     }
     
-    // 1. Get all unique product IDs from all orders
+    if (typeof generateSignedUrl !== 'function') {
+        throw new Error("generateSignedUrl function is required for private image access.");
+    }
+    
+    // 1. Get all unique product IDs from all orders (Code remains unchanged)
     const allProductIds = orders.flatMap(order => 
         order.items.map(item => item.productId)
     );
-    
-    // Convert unique string IDs back into Mongoose ObjectIds for $in query
+    // ... Mongoose ObjectId conversion code ... (Assuming mongoose is in scope)
     const uniqueProductObjectIds = [
         ...new Set(allProductIds.map(id => id.toString()))
     ].map(idStr => new mongoose.Types.ObjectId(idStr)); 
 
-    // 2. Fetch product details (Names and Variations array for image URL)
+    // 2. Fetch product details (Names and Variations array for image URL) (Code remains unchanged)
     const projection = 'name variations'; 
+    // ... Fetching from WearsCollection, CapCollection, etc. ... 
     
     const wears = await WearsCollection.find({ _id: { $in: uniqueProductObjectIds } }).select(projection).lean();
     const caps = await CapCollection.find({ _id: { $in: uniqueProductObjectIds } }).select(projection).lean();
@@ -1347,7 +1350,7 @@ async function augmentOrdersWithProductDetails(orders, generateSignedUrl) {
 
     const allProducts = [...wears, ...caps, ...newArrivals, ...preOrders];
     
-    // 3. Build Product Map (productId string -> { name, variations })
+    // 3. Build Product Map (Code remains unchanged)
     const productMap = {};
     allProducts.forEach(product => {
         productMap[product._id.toString()] = {
@@ -1359,53 +1362,46 @@ async function augmentOrdersWithProductDetails(orders, generateSignedUrl) {
     // 4. Transform and merge product details into the orders array, signing URLs
     const detailedOrdersPromises = orders.map(async (order) => {
         
-        // --- 🚨 CRITICAL FIX A: Sign the Payment Receipt URL if it exists and is private ---
+        // --- 🚨 CRITICAL FIX A: Sign the Payment Receipt URL if it exists ---
         let signedReceiptUrl = order.paymentReceiptUrl;
-        if (order.paymentReceiptUrl && generateSignedUrl) {
-             // Assuming generateSignedUrl is available in scope
+        if (order.paymentReceiptUrl) {
             const signedUrl = await generateSignedUrl(order.paymentReceiptUrl);
             if (signedUrl) {
                 signedReceiptUrl = signedUrl;
             }
         }
-        // ---------------------------------------------------------------------------------
+        // --------------------------------------------------------------------
 
         const detailedItemsPromises = order.items.map(async (item) => {
             const productIdStr = item.productId.toString();
             const productInfo = productMap[productIdStr];
             
-            let permanentImageUrl = null; // Store the B2 URL temporarily
+            let permanentImageUrl = null; 
             let productName = 'Unknown Product (Deleted)';
 
-            if (productInfo) {
+            // ... Logic to find permanentImageUrl (unchanged) ...
+             if (productInfo) {
                 productName = productInfo.name;
-                
-                // Find the exact variation based on the saved variationIndex
                 const purchasedVariation = productInfo.variations.find(v => 
-                    // Ensure robust comparison by converting both to strings
                     String(v.variationIndex) === String(item.variationIndex)
                 );
-
-                // Determine the permanent B2 URL
                 if (purchasedVariation && purchasedVariation.frontImageUrl) {
                     permanentImageUrl = purchasedVariation.frontImageUrl;
                 } else if (productInfo.variations.length > 0) {
-                    // Fallback to the first variation's front image if exact match fails
                     if (productInfo.variations[0].frontImageUrl) {
                         permanentImageUrl = productInfo.variations[0].frontImageUrl;
                     }
                 }
             }
-
             // --- 🚨 CRITICAL FIX B: Generate Signed URL for private product image access ---
             let signedImageUrl = 'https://placehold.co/32x32/CBD5E1/475569/png?text=N/A';
-            if (permanentImageUrl && generateSignedUrl) {
+            if (permanentImageUrl) {
                 const signedUrl = await generateSignedUrl(permanentImageUrl); 
                 if (signedUrl) {
                     signedImageUrl = signedUrl;
                 }
             }
-            // ---------------------------------------------------------------------------------
+            // --------------------------------------------------------------------
 
             return {
                 ...item,
@@ -1415,17 +1411,15 @@ async function augmentOrdersWithProductDetails(orders, generateSignedUrl) {
             };
         });
         
-        // Wait for all item promises to resolve (including signing the URLs)
         const detailedItems = await Promise.all(detailedItemsPromises);
 
         return {
             ...order,
             items: detailedItems,
-            paymentReceiptUrl: signedReceiptUrl, // Use the new signed URL for the receipt
+            paymentReceiptUrl: signedReceiptUrl, // Attach the newly signed receipt URL
         };
     });
     
-    // Wait for all order promises to resolve
     return Promise.all(detailedOrdersPromises);
 }
 
@@ -1803,16 +1797,16 @@ app.get('/api/admin/orders/:orderId', verifyToken, async (req, res) => {
             return res.status(404).json({ message: 'Order not found.' });
         }
         
-        // 2. Augment order items with product details (name, imageUrl)
-        const detailedOrders = await augmentOrdersWithProductDetails([order]);
+        // 2. Augment order items and SIGN URLS (product images and receipt)
+        // 🚨 CRITICAL FIX: Pass generateSignedUrl into the utility function
+        const detailedOrders = await augmentOrdersWithProductDetails([order], generateSignedUrl);
         let detailedOrder = detailedOrders[0];
+        
+        // NOTE: The previous manual receipt signing is now handled INSIDE augmentOrdersWithProductDetails, 
+        // but if you prefer to keep it here, you must ensure you are not double-signing.
+        // For simplicity and clarity, we'll assume augmentOrdersWithProductDetails handles all signing.
 
-        // 🚨 FIX: Generate Signed URL for the Payment Receipt
-        if (detailedOrder.paymentReceiptUrl) {
-            detailedOrder.paymentReceiptUrl = await generateSignedUrl(detailedOrder.paymentReceiptUrl);
-        }
-
-        // 3. Get User Details (Name and Email)
+        // 3. Get User Details (Name and Email) (Code remains unchanged)
         const user = await User.findById(detailedOrder.userId)
             .select('profile.firstName profile.lastName email') 
             .lean();
@@ -1820,18 +1814,17 @@ app.get('/api/admin/orders/:orderId', verifyToken, async (req, res) => {
         const firstName = user?.profile?.firstName;
         const lastName = user?.profile?.lastName;
 
-        // Construct userName: Use full name if both exist, otherwise fall back to email
         const userName = (firstName && lastName) 
             ? `${firstName} ${lastName}` 
             : user?.email || 'N/A';
             
         const email = user ? user.email : 'Unknown User';
         
-        // 4. Combine all details
+        // 4. Combine all details (Code remains unchanged)
         const finalDetailedOrder = {
             ...detailedOrder,
-            // Ensure customerName is explicitly set, as the frontend uses order.customerName
-            customerName: userName, 
+            // customerName: userName, // Use the proper key used on the frontend
+            userName: userName, // Using userName to align with what the frontend currently uses
             email: email
         };
 

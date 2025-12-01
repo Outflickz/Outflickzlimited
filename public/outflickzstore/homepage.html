@@ -728,6 +728,7 @@ function createColorList(collectionId, variants) {
 
     return mapHtml + buttonsHtml;
 }
+
 // --- CORRECTED & UPDATED WEARS COLLECTION CARD JS ---
 function createCollectionCard(collection, size = 'default') {
     const currencySymbol = '₦'; 
@@ -938,16 +939,7 @@ const sizeListHtml = showSizeSelection ? `
     `;
 }
 
-/**
- * Generates the HTML for the size selection options within the collection card.
- *
- * IMPORTANT: This function filters the incoming sizes to only display
- * the standard set: S, M, L, XL.
- * * @param {string} collectionId - The ID of the collection/product.
- * @param {string[]} availableSizes - Array of size strings (e.g., ['S', 'M', 'L']).
- * @param {boolean} isReduced - Flag for applying smaller size classes.
- * @returns {string} The HTML string for the size options.
- */
+
 function createSizeList(collectionId, availableSizes, isReduced) {
     // Define the only allowed, standard sizes as requested by the user.
     const standardSizes = ['S', 'M', 'L', 'XL']; 
@@ -965,12 +957,15 @@ function createSizeList(collectionId, availableSizes, isReduced) {
     // Use smaller sizing classes if the card is in reduced mode
     const sizeClasses = isReduced ? 'w-5 h-5 text-[0.6rem]' : 'w-6 h-6 text-xs';
 
+    // *** FIX: Use the correct radio button name attribute expected by simulateAddToCart ***
+    // The name MUST be 'size-${collectionId}' for all radio buttons in this group.
+    const correctNameGroup = `size-${collectionId}`;
+
     // Map each filtered available size to a small, clickable tag (radio button substitute)
     const sizeOptionsHtml = filteredSizes.map((size, index) => {
         // Simple sanitization of size for use in IDs/Names
         const safeSize = size.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
         const inputId = `size-${collectionId}-${safeSize}`;
-        const nameGroup = `size-group-${collectionId}`;
         
         // Determine if this should be the default selected size (first item)
         const isChecked = index === 0 ? 'checked' : '';
@@ -980,7 +975,7 @@ function createSizeList(collectionId, availableSizes, isReduced) {
             <input 
                 type="radio" 
                 id="${inputId}" 
-                name="${nameGroup}" 
+                name="${correctNameGroup}" 
                 value="${size}" 
                 class="hidden size-radio peer" 
                 data-size-id="${collectionId}"

@@ -1315,33 +1315,29 @@ async function mergeLocalCart(userId, localItems) {
 
 /**
  * Takes a list of order documents and adds 'name' and 'imageUrl' to each item 
- * by fetching product details from all relevant collections, AND
- * 🚨 CRITICALLY: generates a temporary, pre-signed URL for the imageUrl AND the paymentReceiptUrl.
+ * by fetching product details from all relevant collections.
+ * * 🚨 CRITICAL UPDATE: This now generates a temporary, pre-signed URL for the imageUrl
+ * if the image is stored privately (e.g., in Backblaze B2).
  * * @param {Array<Object>} orders - Array of order documents (must have an 'items' array).
- * @param {function} generateSignedUrl - The function to generate a pre-signed URL (must be provided).
- * @returns {Promise<Array<Object>>} - Orders with augmented item details and signed image/receipt URLs.
+ * @returns {Promise<Array<Object>>} - Orders with augmented item details, including signed image URLs.
  */
-async function augmentOrdersWithProductDetails(orders, generateSignedUrl) {
+async function augmentOrdersWithProductDetails(orders) {
     if (!orders || orders.length === 0) {
         return [];
     }
     
-    if (typeof generateSignedUrl !== 'function') {
-        throw new Error("generateSignedUrl function is required for private image access.");
-    }
-    
-    // 1. Get all unique product IDs from all orders (Code remains unchanged)
+    // 1. Get all unique product IDs from all orders
     const allProductIds = orders.flatMap(order => 
         order.items.map(item => item.productId)
     );
-    // ... Mongoose ObjectId conversion code ... (Assuming mongoose is in scope)
+    
+    // Convert unique string IDs back into Mongoose ObjectIds for $in query
     const uniqueProductObjectIds = [
         ...new Set(allProductIds.map(id => id.toString()))
     ].map(idStr => new mongoose.Types.ObjectId(idStr)); 
 
-    // 2. Fetch product details (Names and Variations array for image URL) (Code remains unchanged)
+    // 2. Fetch product details (Names and Variations array for image URL)
     const projection = 'name variations'; 
-    // ... Fetching from WearsCollection, CapCollection, etc. ... 
     
     const wears = await WearsCollection.find({ _id: { $in: uniqueProductObjectIds } }).select(projection).lean();
     const caps = await CapCollection.find({ _id: { $in: uniqueProductObjectIds } }).select(projection).lean();
@@ -1350,7 +1346,7 @@ async function augmentOrdersWithProductDetails(orders, generateSignedUrl) {
 
     const allProducts = [...wears, ...caps, ...newArrivals, ...preOrders];
     
-    // 3. Build Product Map (Code remains unchanged)
+    // 3. Build Product Map (productId string -> { name, variations })
     const productMap = {};
     allProducts.forEach(product => {
         productMap[product._id.toString()] = {
@@ -1362,40 +1358,37 @@ async function augmentOrdersWithProductDetails(orders, generateSignedUrl) {
     // 4. Transform and merge product details into the orders array, signing URLs
     const detailedOrdersPromises = orders.map(async (order) => {
         
-        // --- 🚨 CRITICAL FIX A: Sign the Payment Receipt URL if it exists ---
-        let signedReceiptUrl = order.paymentReceiptUrl;
-        if (order.paymentReceiptUrl) {
-            const signedUrl = await generateSignedUrl(order.paymentReceiptUrl);
-            if (signedUrl) {
-                signedReceiptUrl = signedUrl;
-            }
-        }
-        // --------------------------------------------------------------------
-
         const detailedItemsPromises = order.items.map(async (item) => {
             const productIdStr = item.productId.toString();
             const productInfo = productMap[productIdStr];
             
-            let permanentImageUrl = null; 
+            let permanentImageUrl = null; // Store the B2 URL temporarily
             let productName = 'Unknown Product (Deleted)';
 
-            // ... Logic to find permanentImageUrl (unchanged) ...
-             if (productInfo) {
+            if (productInfo) {
                 productName = productInfo.name;
+                
+                // Find the exact variation based on the saved variationIndex
                 const purchasedVariation = productInfo.variations.find(v => 
+                    // Ensure robust comparison by converting both to strings
                     String(v.variationIndex) === String(item.variationIndex)
                 );
+
+                // Determine the permanent B2 URL
                 if (purchasedVariation && purchasedVariation.frontImageUrl) {
                     permanentImageUrl = purchasedVariation.frontImageUrl;
                 } else if (productInfo.variations.length > 0) {
+                    // Fallback to the first variation's front image if exact match fails
                     if (productInfo.variations[0].frontImageUrl) {
                         permanentImageUrl = productInfo.variations[0].frontImageUrl;
                     }
                 }
             }
-            // --- 🚨 CRITICAL FIX B: Generate Signed URL for private product image access ---
+
+            // --- 🚨 CRITICAL FIX: Generate Signed URL for private image access ---
             let signedImageUrl = 'https://placehold.co/32x32/CBD5E1/475569/png?text=N/A';
             if (permanentImageUrl) {
+                // Assuming generateSignedUrl is available in scope (passed in context)
                 const signedUrl = await generateSignedUrl(permanentImageUrl); 
                 if (signedUrl) {
                     signedImageUrl = signedUrl;
@@ -1411,15 +1404,16 @@ async function augmentOrdersWithProductDetails(orders, generateSignedUrl) {
             };
         });
         
+        // Wait for all item promises to resolve (including signing the URLs)
         const detailedItems = await Promise.all(detailedItemsPromises);
 
         return {
             ...order,
             items: detailedItems,
-            paymentReceiptUrl: signedReceiptUrl, // Attach the newly signed receipt URL
         };
     });
     
+    // Wait for all order promises to resolve
     return Promise.all(detailedOrdersPromises);
 }
 

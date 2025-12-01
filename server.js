@@ -1319,9 +1319,10 @@ async function mergeLocalCart(userId, localItems) {
  * * 🚨 CRITICAL UPDATE: This now generates a temporary, pre-signed URL for the imageUrl
  * if the image is stored privately (e.g., in Backblaze B2).
  * * @param {Array<Object>} orders - Array of order documents (must have an 'items' array).
+ * @param {function} generateSignedUrl - The function to generate a pre-signed URL for private files.
  * @returns {Promise<Array<Object>>} - Orders with augmented item details, including signed image URLs.
  */
-async function augmentOrdersWithProductDetails(orders) {
+async function augmentOrdersWithProductDetails(orders, generateSignedUrl) {
     if (!orders || orders.length === 0) {
         return [];
     }
@@ -1358,6 +1359,17 @@ async function augmentOrdersWithProductDetails(orders) {
     // 4. Transform and merge product details into the orders array, signing URLs
     const detailedOrdersPromises = orders.map(async (order) => {
         
+        // --- 🚨 CRITICAL FIX A: Sign the Payment Receipt URL if it exists and is private ---
+        let signedReceiptUrl = order.paymentReceiptUrl;
+        if (order.paymentReceiptUrl && generateSignedUrl) {
+             // Assuming generateSignedUrl is available in scope
+            const signedUrl = await generateSignedUrl(order.paymentReceiptUrl);
+            if (signedUrl) {
+                signedReceiptUrl = signedUrl;
+            }
+        }
+        // ---------------------------------------------------------------------------------
+
         const detailedItemsPromises = order.items.map(async (item) => {
             const productIdStr = item.productId.toString();
             const productInfo = productMap[productIdStr];
@@ -1385,16 +1397,15 @@ async function augmentOrdersWithProductDetails(orders) {
                 }
             }
 
-            // --- 🚨 CRITICAL FIX: Generate Signed URL for private image access ---
+            // --- 🚨 CRITICAL FIX B: Generate Signed URL for private product image access ---
             let signedImageUrl = 'https://placehold.co/32x32/CBD5E1/475569/png?text=N/A';
-            if (permanentImageUrl) {
-                // Assuming generateSignedUrl is available in scope (passed in context)
+            if (permanentImageUrl && generateSignedUrl) {
                 const signedUrl = await generateSignedUrl(permanentImageUrl); 
                 if (signedUrl) {
                     signedImageUrl = signedUrl;
                 }
             }
-            // --------------------------------------------------------------------
+            // ---------------------------------------------------------------------------------
 
             return {
                 ...item,
@@ -1410,6 +1421,7 @@ async function augmentOrdersWithProductDetails(orders) {
         return {
             ...order,
             items: detailedItems,
+            paymentReceiptUrl: signedReceiptUrl, // Use the new signed URL for the receipt
         };
     });
     

@@ -974,6 +974,35 @@ function createSizeList(collectionId, availableSizes, isReduced) {
     return sizeOptionsHtml;
 }
 
+/**
+ * Ensures only one checkbox is checked at a time within its designated group.
+ * **THIS FUNCTION IS NOW OBSOLETE AND SHOULD BE REMOVED.**
+ */
+document.addEventListener('change', function(event) {
+    // Check if the change event came from one of our size checkboxes
+    if (event.target.matches('.single-select-size')) {
+        const currentCheckbox = event.target;
+        
+        // Find the immediate parent div that is responsible for the horizontal layout (the 'flex gap-1' container)
+        const container = currentCheckbox.closest('.flex.gap-1'); 
+        
+        // If the current checkbox was just CHECKED, uncheck all others in the group
+        if (currentCheckbox.checked) {
+            if (container) {
+                // Select all other checkboxes in this specific size group container
+                const siblings = container.querySelectorAll('.single-select-size');
+                siblings.forEach(checkbox => {
+                    // Uncheck all siblings that are NOT the one currently being handled
+                    if (checkbox !== currentCheckbox) {
+                        checkbox.checked = false;
+                    }
+                });
+            }
+        }
+        // If the current checkbox was UNCHECKED, we do nothing, allowing it to be unchecked.
+    }
+});
+
 // --- FETCH AND RENDER COLLECTIONS (Existing functions) ---
 async function fetchAndRenderWearsCollections() {
     const container = document.getElementById('wears-collections-grid');

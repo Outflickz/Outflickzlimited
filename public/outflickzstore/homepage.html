@@ -925,12 +925,6 @@ const sizeListHtml = showSizeSelection ? `
 
 /**
  * Generates the HTML for the size selection options within the collection card.
- * **UPDATED:** Reverted to type="checkbox" to allow unchecking, and added class="single-select-size" 
- * to enable custom JS validation for single selection.
- * * @param {string} collectionId - The ID of the collection/product.
- * @param {string[]} availableSizes - Array of size strings (e.g., ['S', 'M', 'L']).
- * @param {boolean} isReduced - Flag for applying smaller size classes.
- * @returns {string} The HTML string for the size options.
  */
 function createSizeList(collectionId, availableSizes, isReduced) {
     const standardSizes = ['S', 'M', 'L', 'XL']; 
@@ -943,7 +937,6 @@ function createSizeList(collectionId, availableSizes, isReduced) {
     }
 
     const sizeClasses = isReduced ? 'w-5 h-5 text-[0.6rem]' : 'w-6 h-6 text-xs';
-    // Use the collection ID for the unique group name (for JS targeting)
     const sizeGroupClass = `size-group-${collectionId}`;
 
     const sizeOptionsHtml = filteredSizes.map((size) => {
@@ -952,14 +945,14 @@ function createSizeList(collectionId, availableSizes, isReduced) {
         
         return `
             <input 
-                type="uncheckbox" // <-- REVERTED TO CHECKBOX
+                type="checkbox" 
                 id="${inputId}" 
-                name="${sizeGroupClass}" // This name is now just a group identifier
+                name="${sizeGroupClass}" 
                 value="${size}" 
-                class="hidden size-uncheckbox peer single-select-size" // <-- CRITICAL: For JS listener
+                class="hidden size-checkbox peer single-select-size" 
                 data-product-id="${collectionId}"
-                data-group-class="${sizeGroupClass}" // <-- Pass group class for JS
-                // REMOVED: Default 'checked' attribute
+                data-group-class="${sizeGroupClass}" 
+                // No 'checked' attribute means it starts unchecked
             >
             <label 
                 for="${inputId}" 
@@ -977,7 +970,8 @@ function createSizeList(collectionId, availableSizes, isReduced) {
 }
 
 /**
- * Ensures only one checkbox is checked at a time within its designated group.
+ * Ensures only one checkbox is checked at a time within its designated group,
+ * while still allowing the selected size to be unchecked by clicking it again.
  */
 document.addEventListener('change', function(event) {
     // Check if the change event came from one of our size checkboxes
@@ -997,7 +991,7 @@ document.addEventListener('change', function(event) {
                 }
             });
         }
-        // If the current checkbox was UNCHECKED, we do nothing, allowing it to be unchecked.
+        // If the current checkbox was UNCHECKED, we do nothing, allowing it to remain unchecked.
     }
 });
 

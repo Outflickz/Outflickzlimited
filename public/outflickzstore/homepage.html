@@ -567,6 +567,7 @@ async function simulateAddToCart(productDetails) {
 }
 
 // Initialize the cart badge on page load
+// NOTE: Assuming updateCartBadge() is defined elsewhere
 document.addEventListener('DOMContentLoaded', updateCartBadge);
 // --- END CART MANAGEMENT JS ---
 
@@ -611,24 +612,43 @@ function changeQuantity(collectionId, delta) {
 }
 
 // --- UTILITY FOR SIZE LIST (MATCHING IMAGE DESIGN) ---
-// UPDATED: Now accepts isReduced flag for conditional styling
+// REVERTED: Now uses radio buttons for native single-selection behavior.
 function createSizeList(collectionId, sizes, isReduced = false) {
     // Default sizes if none are provided
-    if (!sizes || sizes.length === 0) {
-        sizes = ['S', 'M', 'L', 'XL'];
+    const standardSizes = ['S', 'M', 'L', 'XL'];
+    const filteredSizes = (sizes || [])
+        .filter(size => standardSizes.includes(size.toUpperCase().trim()));
+
+    if (filteredSizes.length === 0) {
+        return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
     }
 
     const sizeClasses = isReduced 
         ? 'text-[0.6rem] px-1.5 py-0.5' // Smaller for reduced card
         : 'text-xs px-2 py-0.5 md:px-2 md:py-1'; // Default size
-    
-    return sizes.map(size => `
-        <label for="size-${collectionId}-${size}" class="size-label border border-gray-300 cursor-pointer hover:border-ash-dark transition-all rounded-sm">
-            <input type="radio" id="size-${collectionId}-${size}" name="size-${collectionId}" value="${size}" class="hidden" ${size === sizes[0] ? 'checked' : ''}>
-            <span class="${sizeClasses}">${size}</span>
-        </label>
-    `).join('');
+
+    // Using radio buttons with the SAME name attribute ensures native single selection
+    return filteredSizes.map((size, index) => {
+        const safeSize = size.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
+        const inputId = `size-${collectionId}-${safeSize}`;
+        const groupName = `size-${collectionId}`; // Use the same name for all radios in this group
+        
+        return `
+            <label for="${inputId}" class="size-label border border-gray-300 cursor-pointer hover:border-ash-dark transition-all rounded-sm has-[:checked]:border-ash-dark has-[:checked]:bg-gray-100">
+                <input 
+                    type="radio" 
+                    id="${inputId}" 
+                    name="${groupName}" 
+                    value="${size}" 
+                    class="hidden" 
+                    ${index === 0 ? 'checked' : ''}
+                >
+                <span class="${sizeClasses}">${size}</span>
+            </label>
+        `;
+    }).join('');
 }
+
 
 // --- NEW FUNCTION TO HANDLE IMAGE SWITCHING (Uses Color Hex/Code as Identifier) ---
 function changeVariantImage(collectionId, colorHex) {
@@ -715,7 +735,7 @@ function createColorList(collectionId, variants) {
         const extraClass = (safeColor === '#FFFFFF' || safeColor === '#FFF') ? 'border-gray-400' : 'border-gray-200';
         
         return `
-            <label for="color-${collectionId}-${colorHex}" class="color-label cursor-pointer p-[1px] rounded-full border border-transparent hover:border-ash-red transition-all">
+            <label for="color-${collectionId}-${colorHex}" class="color-label cursor-pointer p-[1px] rounded-full border border-transparent hover:border-ash-red transition-all has-[:checked]:border-ash-red">
                 <input 
                     type="radio" 
                     id="color-${collectionId}-${colorHex}" 
@@ -749,7 +769,7 @@ function createCollectionCard(collection, size = 'default') {
 
     
     // Card Padding
-    const cardPadding = isReduced ? 'p-1 sm:p-2' : 'p-2 sm:p-3';    
+    const cardPadding = isReduced ? 'p-1 sm:p-2' : 'p-2 sm:p-3'; 
     const nameFontSize = isReduced ? 'text-xs sm:text-sm' : 'text-sm sm:text-base';
     const descriptionFontSize = isReduced ? 'text-[0.6rem] sm:text-xs' : 'text-xs sm:text-sm';
     const priceFontSize = isReduced ? 'text-xs font-bold sm:text-sm' : 'text-base font-semibold';
@@ -771,9 +791,9 @@ function createCollectionCard(collection, size = 'default') {
     const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
 
     
-   const showSizeSelection = true; 
+    const showSizeSelection = true; 
 
-const sizeListHtml = showSizeSelection ? `
+    const sizeListHtml = showSizeSelection ? `
         <div class="flex items-center space-x-2 mt-2 mb-3">
             <span class="text-xs font-medium text-gray-700">Size:</span>
             <div class="flex gap-1 text-gray-700"> 
@@ -926,9 +946,10 @@ const sizeListHtml = showSizeSelection ? `
         </div>
     `;
 }
+
 /**
  * Generates the HTML for the size selection options within the collection card.
- * ***FIXED: Removed 'peer' class and added JS styling classes.***
+ * ***FIXED: Reverted to using radio inputs for native single-selection behavior.***
  */
 function createSizeList(collectionId, availableSizes, isReduced) {
     const standardSizes = ['S', 'M', 'L', 'XL']; 
@@ -940,32 +961,28 @@ function createSizeList(collectionId, availableSizes, isReduced) {
         return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
     }
 
-    const sizeClasses = isReduced ? 'w-5 h-5 text-[0.6rem]' : 'w-6 h-6 text-xs';
-    const sizeGroupClass = `size-group-${collectionId}`;
-
-    const sizeOptionsHtml = filteredSizes.map((size) => {
+    // Adjusted classes to match the look of the color swatches (no explicit padding, just w/h for touch targets)
+    const sizeClasses = isReduced ? 'w-6 h-6 text-[0.6rem]' : 'w-7 h-7 text-xs';
+    const groupName = `size-${collectionId}`;
+    
+    const sizeOptionsHtml = filteredSizes.map((size, index) => {
         const safeSize = size.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
         const inputId = `size-${collectionId}-${safeSize}`;
         
         return `
-            <input 
-                type="checkbox" 
-                id="${inputId}" 
-                name="${sizeGroupClass}" 
-                value="${size}" 
-                class="hidden single-select-size" 
-                data-product-id="${collectionId}"
-                data-group-class="${sizeGroupClass}" 
-                // CRITICAL: Removed 'size-checkbox' and 'peer'
-            >
             <label 
                 for="${inputId}" 
-                data-input-id="${inputId}" // NEW: Used for JS targeting
-                class="${sizeClasses} border cursor-pointer rounded-full flex items-center justify-center font-medium transition-all duration-150 
-                        border-gray-300 text-gray-700 hover:border-ash-dark hover:bg-gray-100 
-                        size-label-styled" // NEW: Class for JS-based styling
-                // CRITICAL: Removed all 'peer-checked' classes
+                class="${sizeClasses} border cursor-pointer rounded-full flex items-center justify-center font-medium transition-all duration-150 has-[:checked]:border-ash-dark has-[:checked]:bg-gray-100" 
+                title="Select size ${size}"
             >
+                <input 
+                    type="radio" 
+                    id="${inputId}" 
+                    name="${groupName}" 
+                    value="${size}" 
+                    class="hidden" 
+                    ${index === 0 ? 'checked' : ''}
+                >
                 ${size}
             </label>
         `;
@@ -973,51 +990,7 @@ function createSizeList(collectionId, availableSizes, isReduced) {
     
     return sizeOptionsHtml;
 }
-/**
- * Ensures only one checkbox is checked at a time within its designated group,
- * AND manually applies the "checked" style via JS to fix the peer issue.
- */
-document.addEventListener('change', function(event) {
-    // Check if the change event came from one of our size checkboxes
-    if (event.target.matches('.single-select-size')) {
-        const currentCheckbox = event.target;
-        const inputId = currentCheckbox.id; // Get the ID of the input clicked
-        
-        // 1. Find the parent product card container
-        const productCard = currentCheckbox.closest('.collection-card'); 
 
-        if (!productCard) {
-            console.error("Parent collection card not found.");
-            return;
-        }
-
-        // 2. Clear styling from ALL sizes in this card first
-        productCard.querySelectorAll('.size-label-styled').forEach(label => {
-            label.classList.remove('is-checked');
-        });
-
-        // 3. Enforce single selection
-        if (currentCheckbox.checked) {
-            const siblings = productCard.querySelectorAll('.single-select-size');
-            siblings.forEach(checkbox => {
-                // Uncheck all siblings that are NOT the one currently being handled
-                if (checkbox !== currentCheckbox) {
-                    checkbox.checked = false;
-                }
-            });
-            
-            // 4. Manually apply styling to the CURRENTLY CHECKED size label
-            const currentLabel = productCard.querySelector(`[data-input-id="${inputId}"]`);
-            if (currentLabel) {
-                currentLabel.classList.add('is-checked');
-            }
-        }
-        // If the current checkbox was UNCHECKED, the styling was already cleared in step 2,
-        // and it won't be re-applied in step 4, allowing it to remain unchecked and unstyled.
-    }
-});
-
-// --- FETCH AND RENDER COLLECTIONS (Existing functions) ---
 async function fetchAndRenderWearsCollections() {
     const container = document.getElementById('wears-collections-grid');
     if (!container) return;

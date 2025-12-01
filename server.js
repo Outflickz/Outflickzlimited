@@ -3995,39 +3995,87 @@ app.get('/api/auth/status', verifyUserToken, (req, res) => {
 // 5. POST /api/users/cart - Add Item to Cart (Protected)
 // =========================================================
 app.post('/api/users/cart', verifyUserToken, async (req, res) => {
-    // ... (gathering and validation remains the same: FIX 1, FIX 2)
-    const { productId, name, productType, size, color, price, quantity, imageUrl, variationIndex, variation } = req.body;
+    // --- 1. Gather and Validate Client Input ---
+    const { productId, productType, size, quantity, variationIndex } = req.body;
     const userId = req.userId;
 
+    // We no longer rely on client-provided price/name/imageUrl directly for security.
+
     // Basic Input Validation
-    if (!productId || !name || !productType || !size || !price || !quantity || price <= 0 || quantity < 1 || variationIndex === undefined || variationIndex === null) {
-        return res.status(400).json({ message: 'Missing or invalid item details, including variation information.' });
+    if (!productId || !productType || !size || !quantity || quantity < 1 || variationIndex === undefined || variationIndex === null) {
+        return res.status(400).json({ message: 'Missing or invalid item details.' });
     }
-
-    const newItem = {
-        productId,
-        name,
-        productType,
-        size,
-        color: color || 'N/A',
-        price,
-        quantity,
-        imageUrl,
-        variationIndex,
-        variation: variation || (color ? `Color: ${color}` : `Var Index: ${variationIndex}`), 
-    };
-
+    
+    // --- 2. Server-Side Product Validation and Lookup ---
     try {
+        const ProductModel = getProductModel(productType);
+        if (!ProductModel) {
+            return res.status(400).json({ message: 'Invalid product type provided.' });
+        }
+
+        // Find the product and project only the necessary fields
+        const product = await ProductModel.findById(productId)
+            .select('name price variants') // Assume base price is at top level
+            .lean();
+
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found.' });
+        }
+
+        const variant = product.variants.find(v => v.variationIndex === variationIndex);
+
+        if (!variant) {
+            return res.status(400).json({ message: 'Invalid product variant selected.' });
+        }
+        
+        const sizeData = variant.sizes.find(s => s.size === size);
+
+        if (!sizeData) {
+            return res.status(400).json({ message: `Size ${size} not available for this variant.` });
+        }
+        
+        // 🚀 CRITICAL SECURITY & INVENTORY CHECKS 🚀
+        const currentStock = sizeData.stock;
+        
+        if (currentStock < quantity) {
+            return res.status(409).json({ message: `Only ${currentStock} unit(s) of ${product.name} (${size}) are available.` });
+        }
+        
+        // --- 3. Construct Final Item Data from Server (Secure) ---
+        
+        // Use the product's base price (assuming price is constant across variants for the same product)
+        const verifiedPrice = product.price; 
+        const verifiedName = product.name;
+        const verifiedImageUrl = variant.frontImageUrl; // Use the verified image from the DB
+        const verifiedColor = variant.colorHex;
+        
+        // Construct user-friendly variation string
+        const verifiedVariation = `Color: ${verifiedColor} / Size: ${size}`;
+
+
+        const newItem = {
+            productId,
+            name: verifiedName,
+            productType,
+            size,
+            color: verifiedColor || 'N/A', // Use the verified color
+            price: verifiedPrice,          // Use the verified price
+            quantity: quantity,
+            imageUrl: verifiedImageUrl,    // Use the verified image URL
+            variationIndex,
+            variation: verifiedVariation, 
+        };
+
+        // --- 4. Cart Logic (Find, Update, or Create) ---
         let cart = await Cart.findOne({ userId });
 
         if (!cart) {
             cart = await Cart.create({ userId, items: [newItem] });
-            // Simplified return for cart creation
             const totals = calculateCartTotals(cart.items);
             return res.status(201).json({ message: 'Cart created and item added.', items: cart.items, ...totals });
         }
 
-        // 3. Check if the item variant already exists in the cart
+        // 5. Check if the item variant already exists in the cart (using all keys for uniqueness)
         const existingItemIndex = cart.items.findIndex(item =>
             item.productId.equals(productId) &&
             item.size === size &&
@@ -4037,24 +4085,29 @@ app.post('/api/users/cart', verifyUserToken, async (req, res) => {
 
         if (existingItemIndex > -1) {
             // Item exists: Update quantity
-            cart.items[existingItemIndex].quantity += quantity;
+            const newTotalQuantity = cart.items[existingItemIndex].quantity + quantity;
+            
+            // Re-check stock against total quantity requested (existing + new)
+            if (currentStock < newTotalQuantity) {
+                 return res.status(409).json({ 
+                     message: `Cannot add. Total quantity requested (${newTotalQuantity}) exceeds stock (${currentStock}).` 
+                 });
+            }
+            
+            cart.items[existingItemIndex].quantity = newTotalQuantity;
             cart.items[existingItemIndex].updatedAt = Date.now();
         } else {
             // Item does not exist: Add new item
             cart.items.push(newItem);
         }
 
-        // 4. Save the updated cart and use Mongoose's ability to return the updated document
-        // 🚀 OPTIMIZATION: Use findOneAndUpdate to save and fetch the final cart in one operation
+        // 6. Save the updated cart
         const updatedCart = await Cart.findOneAndUpdate(
              { userId },
              { items: cart.items, updatedAt: Date.now() },
-             { new: true, lean: true } // Return the new document, use lean for performance
+             { new: true, lean: true } 
         );
         
-        // 💡 REMOVED: await cart.save(); 
-        // 💡 REMOVED: const updatedCart = await Cart.findOne({ userId }).lean();
-
         if (!updatedCart) {
              return res.status(404).json({ message: 'Cart not found during update.' });
         }
@@ -4063,12 +4116,16 @@ app.post('/api/users/cart', verifyUserToken, async (req, res) => {
 
         res.status(200).json({ 
             message: 'Item added/quantity updated successfully.', 
-            items: updatedCart.items, // Return the full updated item list
+            items: updatedCart.items, 
             ...totals
         });
 
     } catch (error) {
         console.error('Error adding item to cart:', error);
+        // Ensure specific stock/validation errors aren't masked as 500
+        if (error.message.includes('stock')) {
+             return res.status(409).json({ message: error.message });
+        }
         res.status(500).json({ message: 'Failed to add item to shopping bag.' });
     }
 });

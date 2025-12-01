@@ -925,8 +925,10 @@ const sizeListHtml = showSizeSelection ? `
 
 /**
  * Generates the HTML for the size selection options within the collection card.
- * **FIXED:** Uses type="radio" for single selection and adds default 'checked'.
- * * @param {string} collectionId - The ID of the collection/product.
+ * * CHANGES:
+ * 1. Removed the 'checked' attribute to ensure no size is pre-selected.
+ * 2. Ensured the HTML structure correctly supports horizontal display via the parent 'flex' container.
+ * * * @param {string} collectionId - The ID of the collection/product.
  * @param {string[]} availableSizes - Array of size strings (e.g., ['S', 'M', 'L']).
  * @param {boolean} isReduced - Flag for applying smaller size classes.
  * @returns {string} The HTML string for the size options.
@@ -945,7 +947,7 @@ function createSizeList(collectionId, availableSizes, isReduced) {
     // Use the collection ID for the unique group name (the radio button 'name')
     const sizeGroupClass = `size-group-${collectionId}`;
 
-    const sizeOptionsHtml = filteredSizes.map((size, index) => { // Added 'index'
+    const sizeOptionsHtml = filteredSizes.map((size, index) => {
         const safeSize = size.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
         const inputId = `size-${collectionId}-${safeSize}`;
         
@@ -957,10 +959,11 @@ function createSizeList(collectionId, availableSizes, isReduced) {
                 value="${size}" 
                 class="hidden size-radio peer" 
                 data-product-id="${collectionId}"
-                ${index === 0 ? 'checked' : ''} // Set the first size to be checked by default
+                // REMOVED: ${index === 0 ? 'checked' : ''} to ensure no default selection
             >
             <label 
                 for="${inputId}" 
+                // CRITICAL FOR HORIZONTAL LAYOUT: These classes define the button size and ensure it respects the parent's flex layout.
                 class="${sizeClasses} border cursor-pointer rounded-full flex items-center justify-center font-medium transition-all duration-150 
                         border-gray-300 text-gray-700 hover:border-ash-dark hover:bg-gray-100 
                         

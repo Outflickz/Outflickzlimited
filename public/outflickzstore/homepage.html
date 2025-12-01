@@ -772,8 +772,8 @@ function createCollectionCard(collection, size = 'default') {
 const sizeListHtml = showSizeSelection ? `
     <div class="flex flex-wrap items-center gap-1 mt-2 mb-3">
         <span class="text-xs font-medium text-gray-700">Size:</span>
-        <div class="flex flex-wrap gap-1 text-gray-700">
-            ${createSizeList(collection._id, collection.availableSizes || [], isReduced)}
+<div class="flex items-center space-x-1 text-gray-700">
+                ${createSizeList(collection._id, collection.availableSizes || [], isReduced)}
         </div>
     </div>
 ` : '';

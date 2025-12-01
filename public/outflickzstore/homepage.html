@@ -781,28 +781,17 @@ function createCollectionCard(collection, size = 'default') {
     const itemPrice = collection.price; 
     const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
 
-    // *** FIX 2 & 3: Size Logic Update (Hiding for Wears/Caps) ***
     
-    // Removed allAvailableSizes extraction as requested.
-    
-    // Only show size selection if NOT caps AND NOT wears.
-    const showSizeSelection = !isCaps && !isWears; 
+   const showSizeSelection = true; 
 
-    const sizeListHtml = showSizeSelection ? `
-        <div class="flex flex-wrap items-center gap-1 mt-2 mb-3">
-            <span class="text-xs font-medium text-gray-700">Size:</span>
-            <div class="flex flex-wrap gap-1 text-gray-700">
-                ${createSizeList(collection._id, collection.availableSizes || [], isReduced)}
-            </div>
+const sizeListHtml = showSizeSelection ? `
+    <div class="flex flex-wrap items-center gap-1 mt-2 mb-3">
+        <span class="text-xs font-medium text-gray-700">Size:</span>
+        <div class="flex flex-wrap gap-1 text-gray-700">
+            ${createSizeList(collection._id, collection.availableSizes || [], isReduced)}
         </div>
-    ` : ''; 
-    // If showSizeSelection is false (i.e., for Wears or Caps), sizeListHtml is an empty string, removing the size line entirely.
-    
-    // Note: The previous logic for size rendering inside this block was for demonstration. 
-    // We retain the correct size list for non-wear/cap collections (like Preorder).
-    // The sizes for Preorder items will come from `availableSizes` (if the backend sends it) or the nested structure (if that's the canonical source).
-    // For this specific update, we just focus on hiding it for Wears.
-    // --- END FIX 2 & 3 ---
+    </div>
+` : '';
     
     const colorListHtml = createColorList(collection._id, collection.variants); // Use 'variants'
     

@@ -1607,6 +1607,7 @@ app.get('/api/admin/dashboard/stats', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Failed to retrieve dashboard stats.' });
     }
 });
+
 app.get('/api/admin/users/all', verifyToken, async (req, res) => {
     try {
         // Fetch all users. Select only necessary fields and exclude the password (which is selected: false by default, but we re-specify for clarity).
@@ -1667,6 +1668,7 @@ app.get('/api/admin/users/:id', verifyToken, async (req, res) => {
             email: user.email,
             isMember: user.status.role === 'vip',
             createdAt: user.membership.memberSince,
+            phone: user.profile.phone || 'N/A',
             // --- 📢 NEW ADDITION FOR WHATSAPP CONTACT 📢 ---
             whatsappNumber: user.profile.whatsapp || 'N/A', 
             // ----------------------------------------------------
@@ -1703,22 +1705,18 @@ app.get('/api/admin/users/:userId/orders', verifyToken, async (req, res) => {
             .sort({ createdAt: -1 })
             .lean(); // Returns plain JavaScript objects
 
-        // ⭐ CRITICAL FIX: Ensure order items are augmented with product details (name, imageUrl)
-        // This addresses the potential frontend rendering error if denormalization is incomplete 
-        // or if the frontend expects signed URLs, which is often done in augmentOrdersWithProductDetails.
-        const augmentedOrders = await augmentOrdersWithProductDetails(userOrders);
-
-        // 3. Transformation (Simplified now that augmentation handles details)
-        const finalOrders = augmentedOrders.map(order => ({
+        // 3. Simple transformation: Since OrderItemSchema is now denormalized 
+        //    (includes name and imageUrl), we can return the data directly.
+        const augmentedOrders = userOrders.map(order => ({
             ...order,
-            // Items should now contain full details from augmentation
+            // Items already contain name and imageUrl from the denormalized schema
             items: order.items || [], 
         }));
 
         // Success Response
         return res.status(200).json({ 
-            orders: finalOrders,
-            count: finalOrders.length
+            orders: augmentedOrders,
+            count: augmentedOrders.length
         });
 
     } catch (error) {
@@ -1791,16 +1789,16 @@ app.get('/api/admin/orders/:orderId', verifyToken, async (req, res) => {
             return res.status(404).json({ message: 'Order not found.' });
         }
         
-        // 2. Augment order items and SIGN URLS (product images and receipt)
-        // 🚨 CRITICAL FIX: Pass generateSignedUrl into the utility function
-        const detailedOrders = await augmentOrdersWithProductDetails([order], generateSignedUrl);
+        // 2. Augment order items with product details (name, imageUrl)
+        const detailedOrders = await augmentOrdersWithProductDetails([order]);
         let detailedOrder = detailedOrders[0];
-        
-        // NOTE: The previous manual receipt signing is now handled INSIDE augmentOrdersWithProductDetails, 
-        // but if you prefer to keep it here, you must ensure you are not double-signing.
-        // For simplicity and clarity, we'll assume augmentOrdersWithProductDetails handles all signing.
 
-        // 3. Get User Details (Name and Email) (Code remains unchanged)
+        // 🚨 FIX: Generate Signed URL for the Payment Receipt
+        if (detailedOrder.paymentReceiptUrl) {
+            detailedOrder.paymentReceiptUrl = await generateSignedUrl(detailedOrder.paymentReceiptUrl);
+        }
+
+        // 3. Get User Details (Name and Email)
         const user = await User.findById(detailedOrder.userId)
             .select('profile.firstName profile.lastName email') 
             .lean();
@@ -1808,17 +1806,18 @@ app.get('/api/admin/orders/:orderId', verifyToken, async (req, res) => {
         const firstName = user?.profile?.firstName;
         const lastName = user?.profile?.lastName;
 
+        // Construct userName: Use full name if both exist, otherwise fall back to email
         const userName = (firstName && lastName) 
             ? `${firstName} ${lastName}` 
             : user?.email || 'N/A';
             
         const email = user ? user.email : 'Unknown User';
         
-        // 4. Combine all details (Code remains unchanged)
+        // 4. Combine all details
         const finalDetailedOrder = {
             ...detailedOrder,
-            // customerName: userName, // Use the proper key used on the frontend
-            userName: userName, // Using userName to align with what the frontend currently uses
+            // Ensure customerName is explicitly set, as the frontend uses order.customerName
+            customerName: userName, 
             email: email
         };
 
@@ -1970,7 +1969,7 @@ app.put('/api/admin/orders/:orderId/status', verifyToken, async (req, res) => {
         if (newStatus === 'Shipped') {
             // ⭐ REMOVED THE FOLLOWING CHECK:
             // if (!trackingNumber) {
-            //     return res.status(400).json({ message: 'Tracking number is required when changing status to Shipped.' });
+            //     return res.status(400).json({ message: 'Tracking number is required when changing status to Shipped.' });
             // }
             
             // Add shipping details if provided (they are now optional)
@@ -1985,7 +1984,7 @@ app.put('/api/admin/orders/:orderId/status', verifyToken, async (req, res) => {
         
         // 3. Handle 'Delivered' transition
         if (newStatus === 'Delivered') {
-             updateFields = { 
+              updateFields = { 
                 ...updateFields, 
                 deliveredAt: new Date()
             };

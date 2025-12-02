@@ -237,61 +237,61 @@
     }
 
    function renderOrderHistory(orders) {
-        const orderList = document.getElementById('order-history-list');
-        orderList.innerHTML = ''; // Clear existing content
+        const orderList = document.getElementById('order-history-list');
+        orderList.innerHTML = ''; // Clear existing content
 
-        if (orders.length === 0) {
-            orderList.innerHTML = '<p class="text-gray-500 italic">You have no previous orders.</p>';
-            return;
-        }
+        if (orders.length === 0) {
+            orderList.innerHTML = '<p class="text-gray-500 italic">You have no previous orders.</p>';
+            return;
+        }
 
-        const tableBody = orders.map(order => {
-            let statusClass = '';
-            let statusIcon = '';
-            switch(order.status) {
-                case 'Delivered':
-                    statusClass = 'bg-green-100 text-green-800';
-                    statusIcon = 'check-circle';
-                    break;
-                case 'Shipped':
-                    statusClass = 'bg-blue-100 text-blue-800';
-                    statusIcon = 'truck';
-                    break;
-                case 'Processing':
-                    statusClass = 'bg-yellow-100 text-yellow-800';
-                    statusIcon = 'sync-alt fa-spin';
-                    break;
-                case 'Cancelled':
-                    statusClass = 'bg-red-100 text-red-800';
-                    statusIcon = 'times-circle';
-                    break;
-                default:
-                    statusClass = 'bg-gray-100 text-gray-700';
-                    statusIcon = 'info-circle';
-            }
-            const formattedDate = new Date(order.date).toLocaleDateString('en-US');
-            // ⭐ CURRENCY CORRECTION: Changed '$' to '₦'
-            const formattedTotal = order.total.toFixed(2);
+        const tableBody = orders.map(order => {
+            let statusClass = '';
+            let statusIcon = '';
+            switch(order.status) {
+                case 'Delivered':
+                    statusClass = 'bg-green-100 text-green-800';
+                    statusIcon = 'check-circle';
+                    break;
+                case 'Shipped':
+                    statusClass = 'bg-blue-100 text-blue-800';
+                    statusIcon = 'truck';
+                    break;
+                case 'Processing':
+                    statusClass = 'bg-yellow-100 text-yellow-800';
+                    statusIcon = 'sync-alt fa-spin';
+                    break;
+                case 'Cancelled':
+                    statusClass = 'bg-red-100 text-red-800';
+                    statusIcon = 'times-circle';
+                    break;
+                default:
+                    statusClass = 'bg-gray-100 text-gray-700';
+                    statusIcon = 'info-circle';
+            }
+            const formattedDate = new Date(order.date).toLocaleDateString('en-US');
+            // ⭐ CURRENCY CORRECTION: Changed '$' to '₦'
+            const formattedTotal = order.total.toFixed(2);
 
-            return `
-                <tr class="border-b hover:bg-gray-50 transition">
-                    <td class="px-6 py-4 font-medium text-gray-900">${order.id}</td>
-                    <td class="px-6 py-4">${formattedDate}</td>
-                    <td class="px-6 py-4">₦${formattedTotal}</td> 
-                    <td class="px-6 py-4">
-                        <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${statusClass}">
-                            <i class="fas fa-${statusIcon} mr-2"></i>
-                            ${order.status}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4">
-                        <a href="order-details.html?id=${order.id}" class="text-ash-red hover:text-ash-red-dark font-medium">
-                            View Details
-                        </a>
-                    </td>
-                </tr>
-            `;
-        }).join('');
+            return `
+                <tr class="border-b hover:bg-gray-50 transition">
+                    <td class="px-6 py-4 font-medium text-gray-900">${order.id}</td>
+                    <td class="px-6 py-4">${formattedDate}</td>
+                    <td class="px-6 py-4">₦${formattedTotal}</td> 
+                    <td class="px-6 py-4">
+                        <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${statusClass}">
+                            <i class="fas fa-${statusIcon} mr-2"></i>
+                            ${order.status}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <a href="order-details.html?id=${order.id}" class="text-ash-red hover:text-ash-red-dark font-medium">
+                            View Details
+                        </a>
+                    </td>
+                </tr>
+            `;
+        }).join('');
 
         orderList.innerHTML = `
             <div class="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
@@ -540,7 +540,7 @@
                                 <p class="text-sm text-gray-500 font-medium uppercase">WhatsApp</p>
                                 <p class="text-lg font-semibold" id="user-whatsapp">Not Set</p>
                             </div>
-                            </div>
+                        </div>
                     </div>
                     
                     <div id="contact-address" class="scroll-mt-24 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
@@ -598,7 +598,7 @@
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-auto transform transition-all">
             <div class="p-6 border-b border-gray-100 flex justify-between items-center">
                 <h3 class="text-xl font-bold text-ash-red">Edit Personal Details</h3>
-                <button onclick="closeModal('edit-profile-modal')" class="text-gray-400 hover:text-gray-600 transition">
+                <button onclick="closeModal('edit-profile-modal')" class="text-gray-400 hover:text-gray-600 transition" aria-label="Close modal">
                     <i class="fas fa-times text-xl"></i>
                 </button>
             </div>
@@ -635,7 +635,7 @@
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-auto transform transition-all">
             <div class="p-6 border-b border-gray-100 flex justify-between items-center">
                 <h3 class="text-xl font-bold text-ash-red">Edit Contact Address</h3>
-                <button onclick="closeModal('edit-address-modal')" class="text-gray-400 hover:text-gray-600 transition">
+                <button onclick="closeModal('edit-address-modal')" class="text-gray-400 hover:text-gray-600 transition" aria-label="Close modal">
                     <i class="fas fa-times text-xl"></i>
                 </button>
             </div>

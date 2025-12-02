@@ -874,7 +874,6 @@ const PreOrderCollectionSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-// --- UPDATED Pre-Save Middleware (PreOrderCollection) ---
 
 // --- UPDATED Pre-Save Middleware (PreOrderCollection) ---
 PreOrderCollectionSchema.pre('save', function(next) {
@@ -3763,8 +3762,10 @@ app.get('/api/collections/caps', async (req, res) => {
 app.get('/api/collections/preorder', async (req, res) => {
     try {
         // 1. Fetch collections, including all variations
+        // NOTE: The 'sizes' field is removed from .select() as it is not a top-level field 
+        // in the provided schema and is now nested inside 'variations'.
         const collections = await PreOrderCollection.find({ isActive: true })
-            .select('_id name tag price sizes totalStock availableDate variations')
+            .select('_id name tag price totalStock availableDate variations')
             .sort({ createdAt: -1 })
             .lean();
 
@@ -3780,11 +3781,22 @@ app.get('/api/collections/preorder', async (req, res) => {
                 backImageUrl: await generateSignedUrl(v.backImageUrl) || null,
             })));
 
-            // --- CRITICAL FIX: Transform the array of size objects [{size: "M", stock: 10}] 
-            //                  into an array of size strings ["M", "L"] 
-            const availableSizesStrings = collection.sizes 
-                ? collection.sizes.map(s => s.size) 
-                : [];
+            // --- CRITICAL FIX: AGGREGATE ALL UNIQUE SIZES FROM ALL VARIATIONS ---
+            // The sizes are nested inside collection.variations[i].sizes
+            let allSizes = [];
+            
+            if (collection.variations && collection.variations.length > 0) {
+                // 1. Flatten all size objects from all variations into one array
+                const allSizeObjects = collection.variations.flatMap(v => v.sizes || []);
+                
+                // 2. Extract the size string from each object and get only unique values
+                const uniqueSizeStrings = new Set(allSizeObjects.map(s => s.size).filter(s => s));
+                
+                // 3. Convert Set back to Array
+                allSizes = Array.from(uniqueSizeStrings);
+            }
+            
+            const availableSizesStrings = allSizes;
             // --- END CRITICAL FIX ---
 
 
@@ -3799,7 +3811,7 @@ app.get('/api/collections/preorder', async (req, res) => {
                 tag: collection.tag,
                 price: collection.price, 
                 
-                // Use the transformed array of strings here:
+                // Use the aggregated, unique size strings here:
                 availableSizes: availableSizesStrings, 
                 
                 availableStock: collection.totalStock, 

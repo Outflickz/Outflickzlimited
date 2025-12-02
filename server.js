@@ -3517,8 +3517,10 @@ app.get('/api/collections/wears', async (req, res) => {
 app.get('/api/collections/newarrivals', async (req, res) => {
     try {
         // Fetch only ACTIVE products (NewArrivals)
+        // 1. UPDATED: Removed 'sizes' from select list, as it's not a root field.
+        // We now select 'variations' which contains the size data.
         const products = await NewArrivals.find({ isActive: true }) 
-            .select('_id name tag price variations sizes totalStock') 
+            .select('_id name tag price variations totalStock') 
             .sort({ createdAt: -1 })
             .lean(); 
 
@@ -3532,12 +3534,31 @@ app.get('/api/collections/newarrivals', async (req, res) => {
                 backImageUrl: await generateSignedUrl(v.backImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Back+View+Error'
             })));
 
+            // 2. NEW LOGIC: Extract unique list of available size names (e.g., ['S', 'M', 'L'])
+            const uniqueSizes = new Set();
+            if (product.variations && product.variations.length > 0) {
+                // Iterate through ALL variations
+                product.variations.forEach(variation => {
+                    // Iterate through the sizes array within each variation
+                    (variation.sizes || []).forEach(sizeEntry => {
+                        // Check if the stock is greater than 0 before adding the size
+                        if (sizeEntry.size && sizeEntry.stock > 0) {
+                            uniqueSizes.add(sizeEntry.size);
+                        }
+                    });
+                });
+            }
+            
+            // Convert the Set back to an Array and sort it (optional but good practice)
+            const availableSizesArray = Array.from(uniqueSizes).sort();
+
             return {
                 _id: product._id,
                 name: product.name,
                 tag: product.tag,
                 price: product.price, 
-                availableSizes: product.sizes,
+                // 3. UPDATED: Use the newly computed array of unique, in-stock sizes
+                availableSizes: availableSizesArray, 
                 availableStock: product.totalStock, 
                 variants: variants
             };

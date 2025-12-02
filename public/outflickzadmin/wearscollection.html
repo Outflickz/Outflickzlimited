@@ -1306,8 +1306,16 @@ document.addEventListener('DOMContentLoaded', () => {
         addProductSection();
     }
 
-    // Attach the form submit handler
-    document.getElementById('wears-collection-form').addEventListener('submit', handleCollectionSubmit);
+    // --- START OF FIX: Prevent Duplicate Listener ---
+    const form = document.getElementById('wears-collection-form');
+    if (form) {
+        // 1. Remove any existing listeners for this function (prevents duplicates)
+        form.removeEventListener('submit', handleCollectionSubmit); 
+        
+        // 2. Attach the handler (guaranteed to be only one now)
+        form.addEventListener('submit', handleCollectionSubmit);
+    }
+    // --- END OF FIX ---
 
     // Toggle sidebar visibility on mobile
     sidebarToggle.addEventListener('click', () => {

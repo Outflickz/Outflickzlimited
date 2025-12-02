@@ -27,6 +27,7 @@
             border-radius: 50%;
             border: 2px solid #e5e7eb; /* gray-200 */
             transition: all 0.2s;
+            cursor: pointer; /* Added for better UX */
         }
         .color-preview:hover {
             border-color: #059669; /* emerald-600 */
@@ -35,6 +36,7 @@
         .modal-backdrop {
             background-color: rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(2px);
+            display: flex; /* Added for centering */
         }
         /* Text selection style for better visibility of markdown output */
         mark {
@@ -42,6 +44,15 @@
             color: #1f2937; /* gray-800 */
             padding: 2px 4px;
             border-radius: 3px;
+        }
+        /* Style for image previews in form */
+        .image-preview {
+            max-width: 100%;
+            height: 120px;
+            object-fit: contain;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #e5e7eb;
         }
     </style>
 </head>
@@ -60,7 +71,7 @@
                     Dashboard
                 </a>
 
-                     <a href="userorders.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <a href="userorders.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14v12a2 2 0 01-2 2H7a2 2 0 01-2-2V9z"></path></svg>
                     User Orders
                 </a>
@@ -79,7 +90,7 @@
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     New Arrivals
                 </a>
-                  <a href="preorders.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <a href="preorders.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     Pre-Order
                 </a>
@@ -148,7 +159,7 @@
                         </div>
                     </div>
                     
-                   <h4 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">Product Variations (Max 4)</h4>
+                    <h4 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">Product Variations (Max 4)</h4>
                     <p class="text-sm text-gray-500 mb-6">Define the four available product options (e.g., different colors/styles) for this collection, including front and back views.</p>
 
                     <div id="product-sections" class="space-y-6">
@@ -178,6 +189,7 @@
                     <button type="submit" id="submit-btn" class="w-full py-3 px-4 bg-emerald-600 text-white font-semibold text-lg rounded-lg shadow-md hover:bg-emerald-700 transition duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">
                         Submit Collection
                     </button>
+                    
                 </form>
             </div>
         </section>
@@ -294,6 +306,7 @@
             </div>
         </div>
     </div>
+
     <script>
 // --- JAVASCRIPT LOGIC ---
 

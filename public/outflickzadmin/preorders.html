@@ -82,7 +82,7 @@
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     New Arrivals
                 </a>
-                  <a href="preorders.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                    <a href="preorders.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     Pre-Order
                 </a>
@@ -110,7 +110,7 @@
         </button>
         
         <section id="content-preordercollection" class="content-section p-6 pt-16 lg:pt-6">
-            <h2 class="text-3xl font-bold text-gray-800 mb-8 border-b pb-2">🚀 Pre-Order Collection Management (New Arrivals)</h2>
+            <h2 class="text-3xl font-bold text-gray-800 mb-8 border-b pb-2">🚀 Pre-Order Collection Management</h2>
             
             <h3 id="form-title" class="text-2xl font-semibold text-gray-800 mb-6 mt-10">🆕 Create New Pre-Order Collection</h3>
             
@@ -175,18 +175,16 @@
                     <h4 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">Global Attributes</h4>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                        <div>
-                            <label for="available-sizes" class="block text-sm font-medium text-gray-700">Available Sizes (Comma Separated)</label>
-                            <input type="text" id="available-sizes" placeholder="S, M, L, XL, XXL" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
-                            <p class="mt-1 text-xs text-gray-500">E.g., S, M, L, XL or 32, 34, 36</p>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Size & Stock Inventory 📦</label>
+                            <div id="size-stock-container" class="space-y-2 border p-3 rounded-lg bg-gray-50">
+                                <p class="text-sm text-gray-500" id="size-stock-placeholder">Add sizes and their stock quantities below (e.g., S: 10, M: 20).</p>
+                            </div>
+                            <button type="button" id="add-size-stock-btn" class="mt-2 px-3 py-1 text-xs font-medium rounded-lg text-indigo-600 border border-indigo-600 hover:bg-indigo-50 transition duration-200">
+                                + Add Size/Stock Pair
+                            </button>
                         </div>
-
-                        <div>
-                            <label for="available-stock" class="block text-sm font-medium text-gray-700">Total Pre-Order Stock Number</label>
-                            <input type="number" id="available-stock" min="0" value="100" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
-                            <p class="mt-1 text-xs text-gray-500">This is the total stock quantity available for pre-order.</p>
                         </div>
-                    </div>
 
                     <button type="submit" id="submit-btn" class="w-full py-3 px-4 bg-emerald-600 text-white font-semibold text-lg rounded-lg shadow-md hover:bg-emerald-700 transition duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">
                         Submit Pre-Order Collection
@@ -498,7 +496,6 @@ async function fetchCollections() {
         loadingIndicator.classList.add('hidden');
     }
 }
-
 /**
  * Renders the fetched collections data into the HTML table.
  * *** MODIFIED: Added Available Date column and removed Variations count. ***
@@ -577,6 +574,7 @@ function getTagClass(tag) {
         default: return 'bg-gray-100 text-gray-800';
     }
 }
+
 /**
  * Fetches data for a specific collection and populates the form for editing.
  * *** MODIFIED: Added Authorization header and robust error handling. Removed color population logic. ***
@@ -940,6 +938,7 @@ function updateAddSectionButtonState() {
 function updateColorPreview(colorValue, previewId) {
     /* No-op, as color has been removed from the Pre-Order form */
 }
+
 /**
  * Handles the form submission (CREATE or UPDATE).
  * *** MODIFIED: Added Available Date and removed Color from the submitted data. ***

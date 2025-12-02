@@ -755,7 +755,7 @@ function addProductSection(variationData = null) {
     // Use the permanent URLs for display (you'd typically pass a signed URL here)
     const frontUrl = variationData ? variationData.frontImageUrl : '';
     const backUrl = variationData ? variationData.backImageUrl : '';
-    const colorHex = variationData ? variationData.colorHex : '#10B981';
+    const colorHex = variationData ? variationData.colorHex : '';
 
    const sectionHtml = `
     <div id="variation-section-${index}" class="p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-inner relative" data-variation-index="${index}">

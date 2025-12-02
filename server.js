@@ -748,56 +748,69 @@ NewArrivalsSchema.pre('save', function(next) {
 });
 const NewArrivals = mongoose.models.NewArrivals || mongoose.model('NewArrivals', NewArrivalsSchema);
 
-// --- 🧢 NEW CAP COLLECTION SCHEMA AND MODEL 🧢 ---
-// This uses the identical ProductVariationSchema as Wears and NewArrivals.
+// --- CapVariationSchema (Used for Caps/No-Size Items) ---
+const CapVariationSchema = new mongoose.Schema({
+    variationIndex: { type: Number, required: true, min: 1, max: 4 },
+    // --- FRONT IMAGE FIELDS ---
+    frontImageUrl: { type: String, required: [true, 'Front view image permanent key is required'], trim: true }, 
+    frontCachedSignedUrl: { type: String, default: null },
+    frontSignedUrlExpiresAt: { type: Date, default: null },
+
+    // --- BACK IMAGE FIELDS ---
+    backImageUrl: { type: String, required: [true, 'Back view image permanent key is required'], trim: true }, 
+    backCachedSignedUrl: { type: String, default: null },
+    backSignedUrlExpiresAt: { type: Date, default: null },
+
+    colorHex: { type: String, required: [true, 'Color Hex code is required'], match: [/^#[0-9A-F]{6}$/i, 'Color must be a valid hex code (e.g., #RRGGBB)'] },
+    
+    // Direct stock counter
+    stock: { type: Number, required: [true, 'Stock count is required'], min: 0, default: 0 }
+}, { _id: false });
+
+// --- 🧢 UPDATED CAP COLLECTION SCHEMA AND MODEL 🧢 ---
 const CapCollectionSchema = new mongoose.Schema({
-    name: {
-        type: String,
-        required: [true, 'Collection name is required'],
-        trim: true,
-        maxlength: [100, 'Collection name cannot exceed 100 characters']
-    },
-    tag: {
-        type: String,
-        required: [true, 'Collection tag is required'],
-        enum: ['Top Deal', 'Hot Deal', 'New', 'Seasonal', 'Clearance']
-    },
-    price: { 
-        type: Number,
-        required: [true, 'Price (in NGN) is required'],
-        min: [0.01, 'Price (in NGN) must be greater than zero']
-    },
+    name: { type: String, required: [true, 'Collection name is required'], trim: true, maxlength: [100, 'Collection name cannot exceed 100 characters'] },
+    tag: { type: String, required: [true, 'Collection tag is required'], enum: ['Top Deal', 'Hot Deal', 'New', 'Seasonal', 'Clearance'] },
+    price: { type: Number, required: [true, 'Price (in NGN) is required'], min: [0.01, 'Price (in NGN) must be greater than zero'] },
     variations: {
-        type: [ProductVariationSchema],
+        type: [CapVariationSchema], 
         required: [true, 'At least one product variation is required'],
         validate: {
             validator: function(v) { return v.length >= 1 && v.length <= 4; },
             message: 'A collection must have between 1 and 4 variations.'
         }
     },
-    totalStock: {
-        type: Number,
-        required: [true, 'Total stock number is required'],
-        min: [0, 'Stock cannot be negative'],
-        default: 0
-    },
+    totalStock: { type: Number, required: [true, 'Total stock number is required'], min: [0, 'Stock cannot be negative'], default: 0 },
     isActive: { type: Boolean, default: true },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
 
-// --- Pre-Save Middleware (CapCollection) ---
-
+// --- UPDATED Pre-Save Middleware (CapCollection) ---
 CapCollectionSchema.pre('save', function(next) {
     this.updatedAt = Date.now();
     
+    // 1. Calculate the new total stock
+    let calculatedTotalStock = 0;
+    
+    if (this.variations && this.variations.length > 0) {
+        calculatedTotalStock = this.variations.reduce((totalStock, variation) => {
+            // Summing the direct 'stock' field
+            return totalStock + (variation.stock || 0);
+        }, 0);
+    }
+    
+    // 2. Apply business logic and set the totalStock field
     if (this.isActive === false) {
         this.totalStock = 0;
+    } else {
+        this.totalStock = calculatedTotalStock;
     }
     
     next();
 });
 
+// --- Model Definition and Export ---
 const CapCollection = mongoose.models.CapCollection || mongoose.model('CapCollection', CapCollectionSchema);
 
 const PreOrderCollectionSchema = new mongoose.Schema({
@@ -2190,18 +2203,57 @@ app.put('/api/admin/orders/:orderId/status', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Failed to update order status due to a server error.' });
     }
 });
+// GET /api/admin/capscollections - Fetch All Cap Collections (List View)
+app.get('/api/admin/capscollections', verifyToken, async (req, res) => {
+    try {
+        // Fetch all collections. Select only necessary fields for the list view display.
+        const collections = await CapCollection.find({})
+            .select('name tag price totalStock isActive variations')
+            .lean();
+
+        // Sign the URL for the main image (e.g., the front view of the first variation)
+        const collectionsWithSignedUrls = await Promise.all(collections.map(async (collection) => {
+            const firstVariation = collection.variations[0];
+            let signedImageUrl = null;
+
+            if (firstVariation && firstVariation.frontImageUrl) {
+                // Generate a signed URL for the thumbnail used in the admin list view
+                signedImageUrl = await generateSignedUrl(firstVariation.frontImageUrl) || firstVariation.frontImageUrl;
+            }
+
+            // Return a streamlined object for the list
+            return {
+                _id: collection._id,
+                name: collection.name,
+                tag: collection.tag,
+                price: collection.price,
+                totalStock: collection.totalStock,
+                isActive: collection.isActive,
+                mainImageUrl: signedImageUrl, // Thumbnail for list view
+                variationCount: collection.variations.length,
+            };
+        }));
+
+        res.status(200).json(collectionsWithSignedUrls);
+    } catch (error) {
+        console.error('Error fetching all cap collections:', error);
+        res.status(500).json({ message: 'Server error fetching cap collections list.' });
+    }
+});
+
 
 // GET /api/admin/capscollections/:id - Fetch Single Cap Collection
 app.get('/api/admin/capscollections/:id', verifyToken, async (req, res) => {
     try {
         const collectionId = req.params.id;
-        const collection = await CapCollection.findById(collectionId).lean();
+        // .lean() is used for performance when no modification or virtuals are needed, which is good practice for simple GETs
+        const collection = await CapCollection.findById(collectionId).lean(); 
 
         if (!collection) {
             return res.status(404).json({ message: 'Cap Collection not found.' });
         }
 
-        // Sign URLs
+        // Sign URLs for all images in all variations for the detailed view
         const signedVariations = await Promise.all(collection.variations.map(async (v) => ({
             ...v,
             frontImageUrl: await generateSignedUrl(v.frontImageUrl) || v.frontImageUrl, 
@@ -2240,6 +2292,7 @@ app.post(
                 const frontFile = files[`front-view-upload-${index}`]?.[0];
                 const backFile = files[`back-view-upload-${index}`]?.[0];
 
+                // Ensure both files are present
                 if (!frontFile || !backFile) {
                     throw new Error(`Missing BOTH front and back image files for Variation #${index}.`);
                 }
@@ -2247,6 +2300,7 @@ app.post(
                 const uploadFrontPromise = uploadFileToPermanentStorage(frontFile);
                 const uploadBackPromise = uploadFileToPermanentStorage(backFile);
                 
+                // Combine the upload promises and push the final variation data
                 const combinedUploadPromise = Promise.all([uploadFrontPromise, uploadBackPromise])
                     .then(([frontImageUrl, backImageUrl]) => {
                         finalVariations.push({
@@ -2260,6 +2314,7 @@ app.post(
                 uploadPromises.push(combinedUploadPromise);
             }
             
+            // Wait for all image uploads to complete
             await Promise.all(uploadPromises);
 
             if (finalVariations.length === 0) {
@@ -2267,7 +2322,7 @@ app.post(
             }
 
             // C. Create the Final Product Object
-            const newCollection = new CapCollection({ // <-- Use CapCollection Model
+            const newCollection = new CapCollection({
                 name: collectionData.name,
                 tag: collectionData.tag,
                 price: collectionData.price, 
@@ -2281,7 +2336,7 @@ app.post(
             const savedCollection = await newCollection.save();
 
             res.status(201).json({ 
-                message: 'Cap Collection created successfully and images uploaded to B2.',
+                message: 'Cap Collection created successfully and images uploaded to storage.',
                 collectionId: savedCollection._id,
                 name: savedCollection.name
             });
@@ -2307,14 +2362,14 @@ app.put(
         let existingCollection;
         
         try {
-            existingCollection = await CapCollection.findById(collectionId); // <-- Use CapCollection Model
+            existingCollection = await CapCollection.findById(collectionId);
             if (!existingCollection) {
                 return res.status(404).json({ message: 'Cap Collection not found for update.' });
             }
 
             const isQuickRestock = req.get('Content-Type')?.includes('application/json');
             
-            // A. HANDLE QUICK RESTOCK (JSON only)
+            // A. HANDLE QUICK RESTOCK (JSON only, no multipart/form-data)
             if (isQuickRestock && !req.body.collectionData) {
                 const { totalStock, isActive } = req.body;
 
@@ -2356,12 +2411,15 @@ app.put(
                 const newFrontFile = files[frontFileKey]?.[0];
 
                 if (newFrontFile) {
+                    // New file uploaded, queue old one for deletion
                     if (existingPermanentVariation?.frontImageUrl) {
                         oldImagesToDelete.push(existingPermanentVariation.frontImageUrl);
                     }
+                    // Upload new file and update the URL when finished
                     const frontUploadPromise = uploadFileToPermanentStorage(newFrontFile).then(url => { finalFrontUrl = url; });
                     uploadPromises.push(frontUploadPromise);
                 } else if (!finalFrontUrl) {
+                    // If no new file and no existing file, throw error
                     throw new Error(`Front image missing for Variation #${index}.`);
                 }
                 
@@ -2370,24 +2428,29 @@ app.put(
                 const newBackFile = files[backFileKey]?.[0];
 
                 if (newBackFile) {
+                    // New file uploaded, queue old one for deletion
                     if (existingPermanentVariation?.backImageUrl) {
                         oldImagesToDelete.push(existingPermanentVariation.backImageUrl);
                     }
+                    // Upload new file and update the URL when finished
                     const backUploadPromise = uploadFileToPermanentStorage(newBackFile).then(url => { finalBackUrl = url; });
                     uploadPromises.push(backUploadPromise);
                 } else if (!finalBackUrl) {
+                    // If no new file and no existing file, throw error
                     throw new Error(`Back image missing for Variation #${index}.`);
                 }
                 
+                // Add to temporary structure. We use the updated final URLs here.
                 updatedVariations.push({
                     variationIndex: index,
                     colorHex: incomingVariation.colorHex,
+                    // Use a function to capture the final URL after all promises resolve
                     get frontImageUrl() { return finalFrontUrl; }, 
                     get backImageUrl() { return finalBackUrl; }, 
                 });
             }
             
-            await Promise.all(uploadPromises);
+            await Promise.all(uploadPromises); // Wait for all uploads to complete
 
             if (updatedVariations.length === 0) {
                 return res.status(400).json({ message: "No valid variations were processed for update." });
@@ -2401,6 +2464,7 @@ app.put(
             existingCollection.totalStock = collectionData.totalStock;
             existingCollection.isActive = collectionData.isActive;
             
+            // Map final URLs to the existing collection model
             existingCollection.variations = updatedVariations.map(v => ({
                 variationIndex: v.variationIndex,
                 colorHex: v.colorHex,
@@ -2435,12 +2499,13 @@ app.put(
 app.delete('/api/admin/capscollections/:id', verifyToken, async (req, res) => {
     try {
         const collectionId = req.params.id;
-        const deletedCollection = await CapCollection.findByIdAndDelete(collectionId); // <-- Use CapCollection Model
+        const deletedCollection = await CapCollection.findByIdAndDelete(collectionId); 
 
         if (!deletedCollection) {
             return res.status(404).json({ message: 'Cap Collection not found for deletion.' });
         }
 
+        // Clean up associated images from permanent storage
         deletedCollection.variations.forEach(v => {
             if (v.frontImageUrl) deleteFileFromPermanentStorage(v.frontImageUrl);
             if (v.backImageUrl) deleteFileFromPermanentStorage(v.backImageUrl);
@@ -2452,7 +2517,6 @@ app.delete('/api/admin/capscollections/:id', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Server error during cap collection deletion.' });
     }
 });
-
 
 /**
  * GET /api/admin/newarrivals - Fetch All New Arrivals

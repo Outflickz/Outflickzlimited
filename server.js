@@ -1998,6 +1998,7 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
         if (!updatedOrder) {
             console.warn(`Order ${orderId} skipped: not found or status is not pending.`);
             // Use 409 Conflict to indicate that the request could not be completed due to the resource's state.
+            // This catches the second request if the first one succeeded AND immediately set status to 'Completed'.
             return res.status(409).json({ message: 'Order not found or is already processed.' });
         }
         
@@ -2008,7 +2009,28 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
             finalOrder = await processOrderCompletion(orderId);
             // If this succeeds, the order status is now 'Completed'
         } catch (inventoryError) {
-            // Rollback status if inventory fails
+            
+            // --- 🎯 FIX START: Handle Business Logic Conflict Separately (Race Condition) ---
+            const conflictMsg = "Order already processed or is being processed.";
+            
+            if (inventoryError.message === conflictMsg) {
+                // This block executes if the second request runs right after the first one set the status to 'Processing' 
+                // but before the inventory deduction finished, or after the deduction finished.
+                
+                console.warn(`Race condition detected: Order ${orderId} status already confirmed/processing by concurrent request. Returning 200.`);
+                
+                // Fetch the now-confirmed order to return a successful response to the admin UI
+                const confirmedOrder = await Order.findById(orderId).lean();
+                
+                // Return success (200 OK) to the admin UI, preventing the front-end error
+                return res.status(200).json({ 
+                    message: `Order ${orderId} was confirmed by a concurrent request. Status: ${confirmedOrder.status}.`,
+                    order: confirmedOrder 
+                });
+            }
+            // --- FIX END ---
+            
+            // Rollback status if inventory fails (This is for genuine stock insufficient errors)
             console.error('Inventory deduction failed during Admin confirmation:', inventoryError.message);
             
             // ⭐ FIX APPLIED HERE: The status must be 'Inventory Failure (Manual Review)' 
@@ -2056,6 +2078,7 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Failed to confirm order due to a server error.' });
     }
 });
+
 // =========================================================
 // 10. PUT /api/admin/orders/:orderId/status - Update Fulfillment Status
 // =========================================================

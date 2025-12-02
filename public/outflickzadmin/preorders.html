@@ -1,297 +1,297 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pre-Order Collection Management - Commerce Hub</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
-    <link rel="icon" type="image/png" href="https://i.imgur.com/ioWFyQB.png">
-    <style>
-        /* Custom scrollbar for a cleaner look */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-thumb {
-            background-color: #05744b; /* emerald-400 */
-            border-radius: 4px;
-        }
-        body {
-            font-family: 'Inter', sans-serif;
-            font-size: 0.95rem; /* Slightly reduced base font size */
-        }
-        /* Custom styles for the color input preview (keeping in case of copy-paste utility, though color is removed from form) */
-        .color-preview {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            border: 2px solid #e5e7eb; /* gray-200 */
-            transition: all 0.2s;
-        }
-        .color-preview:hover {
-            border-color: #059669; /* emerald-600 */
-        }
-        /* Modal Backdrop */
-        .modal-backdrop {
-            background-color: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(2px);
-        }
-        /* Text selection style for better visibility of markdown output */
-        mark {
-            background-color: #fef08a; /* yellow-200 */
-            color: #1f2937; /* gray-800 */
-            padding: 2px 4px;
-            border-radius: 3px;
-        }
-        /* Active link for the New Arrivals page */
-        .active-link-page {
-            background-color: #059669; /* emerald-600 */
-            color: white;
-        }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pre-Order Collection Management - Commerce Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="https://i.imgur.com/ioWFyQB.png">
+    <style>
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #05744b; /* emerald-400 */
+            border-radius: 4px;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem; /* Slightly reduced base font size */
+        }
+        /* Custom styles for the color input preview (keeping in case of copy-paste utility, though color is removed from form) */
+        .color-preview {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid #e5e7eb; /* gray-200 */
+            transition: all 0.2s;
+        }
+        .color-preview:hover {
+            border-color: #059669; /* emerald-600 */
+        }
+        /* Modal Backdrop */
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(2px);
+        }
+        /* Text selection style for better visibility of markdown output */
+        mark {
+            background-color: #fef08a; /* yellow-200 */
+            color: #1f2937; /* gray-800 */
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        /* Active link for the New Arrivals page */
+        .active-link-page {
+            background-color: #059669; /* emerald-600 */
+            color: white;
+        }
+    </style>
 </head>
 <body class="bg-gray-50 min-h-screen flex">
 
-    <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-emerald-900 text-white transform transition-transform duration-300 z-30 lg:translate-x-0 -translate-x-full shadow-2xl flex flex-col">
-        <div class="p-6 flex-shrink-0">
-            <img src="https://i.imgur.com/Fz9w1BA.png" alt="E-commerce Logo" class="h-10 w-auto mb-6 rounded-lg shadow-md border border-emerald-700">
-            <h1 class="text-xl font-extrabold text-emerald-400 pb-4">Commerce Hub</h1>
-        </div>
-        
-        <div class="flex-grow overflow-y-auto">
-            <nav class="space-y-2 px-4">
-                <a href="admin-dashboard.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l-7-7-7 7m10 0v10a1 1 0 01-1 1h-3m-3 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-9 0h10"></path></svg>
-                    Dashboard
-                </a>
-                <a href="userorders.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l-7-7-7 7m10 0v10a1 1 0 01-1 1h-3m-3 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-9 0h10"></path></svg>
-                    User Orders
-                </a>
-                <a href="wearscollection.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14v12a2 2 0 01-2 2H7a2 2 0 01-2-2V9z"></path></svg>
-                    Wears Collection
-                </a>
-                
-                <a href="capscollection.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14v12a2 2 0 01-2 2H7a2 2 0 01-2-2V9z"></path></svg>
-                    Caps Collection
-                </a>
+    <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-emerald-900 text-white transform transition-transform duration-300 z-30 lg:translate-x-0 -translate-x-full shadow-2xl flex flex-col">
+        <div class="p-6 flex-shrink-0">
+            <img src="https://i.imgur.com/Fz9w1BA.png" alt="E-commerce Logo" class="h-10 w-auto mb-6 rounded-lg shadow-md border border-emerald-700">
+            <h1 class="text-xl font-extrabold text-emerald-400 pb-4">Commerce Hub</h1>
+        </div>
+        
+        <div class="flex-grow overflow-y-auto">
+            <nav class="space-y-2 px-4">
+                <a href="admin-dashboard.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l-7-7-7 7m10 0v10a1 1 0 01-1 1h-3m-3 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-9 0h10"></path></svg>
+                    Dashboard
+                </a>
+                <a href="userorders.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l-7-7-7 7m10 0v10a1 1 0 01-1 1h-3m-3 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-9 0h10"></path></svg>
+                    User Orders
+                </a>
+                <a href="wearscollection.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14v12a2 2 0 01-2 2H7a2 2 0 01-2-2V9z"></path></svg>
+                    Wears Collection
+                </a>
+                
+                <a href="capscollection.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14v12a2 2 0 01-2 2H7a2 2 0 01-2-2V9z"></path></svg>
+                    Caps Collection
+                </a>
 
-                <a href="preorder.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg active-link-page">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    New Arrivals
-                </a>
-                    <a href="preorders.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    Pre-Order
-                </a>
-                <a href="membership.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l-7-7-7 7m10 0v10a1 1 0 01-1 1h-3m-3 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-9 0h10"></path></svg>
-                    Membership
-                </a>
-                <a href="settings.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.526.34.813.486 1.066-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                    Settings
-                </a>
-            </nav>
-        </div>
+                <a href="preorder.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg active-link-page">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    New Arrivals
+                </a>
+                    <a href="preorders.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Pre-Order
+                </a>
+                <a href="membership.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l-7-7-7 7m10 0v10a1 1 0 01-1 1h-3m-3 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-9 0h10"></path></svg>
+                    Membership
+                </a>
+                <a href="settings.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.526.34.813.486 1.066-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    Settings
+                </a>
+            </nav>
+        </div>
 
-        <div class="p-4 flex-shrink-0 border-t border-emerald-800">
-            <button id="btn-logout" onclick="logoutAdmin()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-red-600 hover:bg-red-700 text-white shadow-lg">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                Log Out
-            </button>
-        </div>
-    </aside>
-    <main class="flex-1 lg:ml-64 p-4 transition-all duration-300">
-        <button id="sidebar-toggle" class="lg:hidden fixed top-4 left-4 z-40 p-2 bg-emerald-600 text-white rounded-lg shadow-lg hover:bg-emerald-700 transition">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-        </button>
-        
-        <section id="content-preordercollection" class="content-section p-6 pt-16 lg:pt-6">
-            <h2 class="text-3xl font-bold text-gray-800 mb-8 border-b pb-2">🚀 Pre-Order Collection Management</h2>
-            
-            <h3 id="form-title" class="text-2xl font-semibold text-gray-800 mb-6 mt-10">🆕 Create New Pre-Order Collection</h3>
-            
-            <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-emerald-500">
-               <form id="preorder-collection-form" onsubmit="handleCollectionSubmit(event)">
+        <div class="p-4 flex-shrink-0 border-t border-emerald-800">
+            <button id="btn-logout" onclick="logoutAdmin()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-red-600 hover:bg-red-700 text-white shadow-lg">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                Log Out
+            </button>
+        </div>
+    </aside>
+    <main class="flex-1 lg:ml-64 p-4 transition-all duration-300">
+        <button id="sidebar-toggle" class="lg:hidden fixed top-4 left-4 z-40 p-2 bg-emerald-600 text-white rounded-lg shadow-lg hover:bg-emerald-700 transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        </button>
+        
+        <section id="content-preordercollection" class="content-section p-6 pt-16 lg:pt-6">
+            <h2 class="text-3xl font-bold text-gray-800 mb-8 border-b pb-2">🚀 Pre-Order Collection Management</h2>
+            
+            <h3 id="form-title" class="text-2xl font-semibold text-gray-800 mb-6 mt-10">🆕 Create New Pre-Order Collection</h3>
+            
+            <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-emerald-500">
+               <form id="preorder-collection-form" onsubmit="handleCollectionSubmit(event)">
                     <input type="hidden" id="collection-id-field" value="">
-                        <h4 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">Collection Details</h4>
+                        <h4 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">Collection Details</h4>
 
-    <div class="space-y-4 mb-8">
-        <div>
-            <label for="collection-name" class="block text-sm font-medium text-gray-700">Collection Name</label>
-            <input type="text" id="collection-name" name="collection-name" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
-        </div>
+    <div class="space-y-4 mb-8">
+        <div>
+            <label for="collection-name" class="block text-sm font-medium text-gray-700">Collection Name</label>
+            <input type="text" id="collection-name" name="collection-name" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
+        </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-                <label for="collection-description" class="block text-sm font-medium text-gray-700">Description/Tag</label>
-                <select id="collection-description" name="collection-description" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
-                    <option value="" disabled selected>Select a collection tag</option>
-                    <option value="Pre-Order">Pre-Order</option>
-                    <option value="Coming Soon">Coming Soon</option>
-                    <option value="Limited Drop">Limited Drop</option>
-                    <option value="Seasonal">Seasonal</option>
-                </select>
-            </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+                <label for="collection-description" class="block text-sm font-medium text-gray-700">Description/Tag</label>
+                <select id="collection-description" name="collection-description" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
+                    <option value="" disabled selected>Select a collection tag</option>
+                    <option value="Pre-Order">Pre-Order</option>
+                    <option value="Coming Soon">Coming Soon</option>
+                    <option value="Limited Drop">Limited Drop</option>
+                    <option value="Seasonal">Seasonal</option>
+                </select>
+            </div>
 
-            <div>
-                <label for="collection-price" class="block text-sm font-medium text-gray-700">Collection Price (NGN)</label>
-                <input type="number" id="collection-price" name="collection-price" min="0.01" step="0.01" value="00.00" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
-                <p class="mt-1 text-xs text-gray-500">Base price for items in this collection.</p>
-            </div>
+            <div>
+                <label for="collection-price" class="block text-sm font-medium text-gray-700">Collection Price (NGN)</label>
+                <input type="number" id="collection-price" name="collection-price" min="0.01" step="0.01" value="00.00" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
+                <p class="mt-1 text-xs text-gray-500">Base price for items in this collection.</p>
+            </div>
 
-            <div>
-                <label for="available-date" class="block text-sm font-medium text-gray-700">Available Date (Launch)</label>
-                <input type="date" id="available-date" name="available-date" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
-                <p class="mt-1 text-xs text-gray-500">Date the items become available to ship.</p>
-            </div>
-        </div>
+            <div>
+                <label for="available-date" class="block text-sm font-medium text-gray-700">Available Date (Launch)</label>
+                <input type="date" id="available-date" name="available-date" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
+                <p class="mt-1 text-xs text-gray-500">Date the items become available to ship.</p>
+            </div>
+        </div>
 
-        <div class="flex items-center space-x-4">
-            <input type="checkbox" id="is-active" name="is-active" class="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500">
-            <label for="is-active" class="text-sm font-medium text-gray-700">Collection is Available for Pre-Order (Active)</label>
-        </div>
-    </div>
+        <div class="flex items-center space-x-4">
+            <input type="checkbox" id="is-active" name="is-active" class="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500">
+            <label for="is-active" class="text-sm font-medium text-gray-700">Collection is Available for Pre-Order (Active)</label>
+        </div>
+    </div>
 
-    <hr class="my-8 border-gray-200">
+    <hr class="my-8 border-gray-200">
     
-        <h4 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">📸 Product Variations (Max 4)</h4>
-    <p class="text-sm text-gray-500 mb-6">Define the four available product options (e.g., different styles or images) for this collection. **Sizes and stock will be defined per variation.**</p>
+        <h4 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">📸 Product Variations (Max 4)</h4>
+    <p class="text-sm text-gray-500 mb-6">Define the four available product options (e.g., different styles or images) for this collection. **Sizes and stock will be defined per variation.**</p>
 
-    <div id="product-sections" class="space-y-6">
-        </div>
+    <div id="product-sections" class="space-y-6">
+        </div>
 
-    <button type="button" id="add-section-btn" class="mt-4 px-4 py-2 text-sm font-medium rounded-lg text-emerald-600 border border-emerald-600 hover:bg-emerald-50 transition duration-200">
-        + Add Product Variation
-    </button>
-    <button type="button" id="reset-form-btn" onclick="resetForm()" class="mt-4 ml-3 px-4 py-2 text-sm font-medium rounded-lg text-gray-600 border border-gray-300 hover:bg-gray-100 transition duration-200 hidden">
-        Cancel Edit
-    </button>
+    <button type="button" id="add-section-btn" class="mt-4 px-4 py-2 text-sm font-medium rounded-lg text-emerald-600 border border-emerald-600 hover:bg-emerald-50 transition duration-200">
+        + Add Product Variation
+    </button>
+    <button type="button" id="reset-form-btn" onclick="resetForm()" class="mt-4 ml-3 px-4 py-2 text-sm font-medium rounded-lg text-gray-600 border border-gray-300 hover:bg-gray-100 transition duration-200 hidden">
+        Cancel Edit
+    </button>
 
-    <hr class="my-8 border-gray-200">
+    <hr class="my-8 border-gray-200">
 
-    <button type="submit" id="submit-btn" class="w-full py-3 px-4 bg-emerald-600 text-white font-semibold text-lg rounded-lg shadow-md hover:bg-emerald-700 transition duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">
-        Submit Pre-Order Collection
-    </button>
+    <button type="submit" id="submit-btn" class="w-full py-3 px-4 bg-emerald-600 text-white font-semibold text-lg rounded-lg shadow-md hover:bg-emerald-700 transition duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">
+        Submit Pre-Order Collection
+    </button>
 
 </form>
-            </div>
-        </section>
-        <hr class="my-12 border-gray-300">
-        <section id="content-managecollection" class="content-section p-6">
-            <h3 class="text-2xl font-semibold text-gray-800 mb-6">📋 Manage Existing Pre-Order Collections</h3>
-            <div id="loading-indicator" class="text-center p-8 text-gray-500 hidden">Loading collections...</div>
-            <div id="collections-error" class="text-center p-8 text-red-500 hidden">Error loading collections.</div>
+            </div>
+        </section>
+        <hr class="my-12 border-gray-300">
+        <section id="content-managecollection" class="content-section p-6">
+            <h3 class="text-2xl font-semibold text-gray-800 mb-6">📋 Manage Existing Pre-Order Collections</h3>
+            <div id="loading-indicator" class="text-center p-8 text-gray-500 hidden">Loading collections...</div>
+            <div id="collections-error" class="text-center p-8 text-red-500 hidden">Error loading collections.</div>
 
-            <div class="bg-white p-6 rounded-xl shadow-lg overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tag</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="collections-table-body" class="bg-white divide-y divide-gray-200">
-                        </tbody>
-                </table>
-            </div>
-        </section>
+            <div class="bg-white p-6 rounded-xl shadow-lg overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tag</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="collections-table-body" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                </table>
+            </div>
+        </section>
 
-    </main>
+    </main>
 
-    <div id="success-modal" class="fixed inset-0 z-50 items-center justify-center hidden modal-backdrop">
-        <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full mx-4 p-6 transform transition-all">
-            <div class="text-center">
-                <div class="w-12 h-12 mx-auto bg-green-100 rounded-full flex items-center justify-center">
-                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                </div>
-                <h3 class="mt-4 text-lg leading-6 font-medium text-gray-900">Operation Successful</h3>
-                <div class="mt-2">
-                    <p id="success-modal-message" class="text-sm text-gray-500"></p>
-                </div>
-            </div>
-            <div class="mt-5 sm:mt-6">
-                <button type="button" onclick="document.getElementById('success-modal').classList.add('hidden')" class="inline-flex justify-center w-full rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:text-sm">
-                    Close
-                </button>
-            </div>
-        </div>
-    </div>
+    <div id="success-modal" class="fixed inset-0 z-50 items-center justify-center hidden modal-backdrop">
+        <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full mx-4 p-6 transform transition-all">
+            <div class="text-center">
+                <div class="w-12 h-12 mx-auto bg-green-100 rounded-full flex items-center justify-center">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                </div>
+                <h3 class="mt-4 text-lg leading-6 font-medium text-gray-900">Operation Successful</h3>
+                <div class="mt-2">
+                    <p id="success-modal-message" class="text-sm text-gray-500"></p>
+                </div>
+            </div>
+            <div class="mt-5 sm:mt-6">
+                <button type="button" onclick="document.getElementById('success-modal').classList.add('hidden')" class="inline-flex justify-center w-full rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:text-sm">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
 
-    <div id="error-modal" class="fixed inset-0 z-50 items-center justify-center hidden modal-backdrop">
-        <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full mx-4 p-6 transform transition-all">
-            <div class="text-center">
-                <div class="w-12 h-12 mx-auto bg-red-100 rounded-full flex items-center justify-center">
-                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.398 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                </div>
-                <h3 class="mt-4 text-lg leading-6 font-medium text-gray-900">Operation Failed</h3>
-                <div class="mt-2">
-                    <p id="error-modal-message" class="text-sm text-gray-500"></p>
-                </div>
-            </div>
-            <div class="mt-5 sm:mt-6">
-                <button type="button" onclick="document.getElementById('error-modal').classList.add('hidden')" class="inline-flex justify-center w-full rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:text-sm">
-                    Dismiss
-                </button>
-            </div>
-        </div>
-    </div>
+    <div id="error-modal" class="fixed inset-0 z-50 items-center justify-center hidden modal-backdrop">
+        <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full mx-4 p-6 transform transition-all">
+            <div class="text-center">
+                <div class="w-12 h-12 mx-auto bg-red-100 rounded-full flex items-center justify-center">
+                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.398 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                </div>
+                <h3 class="mt-4 text-lg leading-6 font-medium text-gray-900">Operation Failed</h3>
+                <div class="mt-2">
+                    <p id="error-modal-message" class="text-sm text-gray-500"></p>
+                </div>
+            </div>
+            <div class="mt-5 sm:mt-6">
+                <button type="button" onclick="document.getElementById('error-modal').classList.add('hidden')" class="inline-flex justify-center w-full rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:text-sm">
+                    Dismiss
+                </button>
+            </div>
+        </div>
+    </div>
 
-    <div id="confirmation-modal" class="fixed inset-0 z-50 items-center justify-center hidden modal-backdrop">
-        <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 p-6 transform transition-all">
-            <div class="text-center">
-                <div class="w-12 h-12 mx-auto bg-yellow-100 rounded-full flex items-center justify-center">
-                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.398 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                </div>
-                <h3 class="mt-4 text-lg leading-6 font-medium text-gray-900">Confirm Action</h3>
-                <div class="mt-2">
-                    <p id="confirmation-modal-message" class="text-sm text-gray-500"></p>
-                </div>
-            </div>
-            <div class="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse">
-                <button id="confirm-yes-btn" type="button" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm">
-                    Yes, Proceed
-                </button>
-                <button id="confirm-no-btn" type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm">
-                    Cancel
-                </button>
-            </div>
-        </div>
-    </div>
+    <div id="confirmation-modal" class="fixed inset-0 z-50 items-center justify-center hidden modal-backdrop">
+        <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 p-6 transform transition-all">
+            <div class="text-center">
+                <div class="w-12 h-12 mx-auto bg-yellow-100 rounded-full flex items-center justify-center">
+                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.398 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                </div>
+                <h3 class="mt-4 text-lg leading-6 font-medium text-gray-900">Confirm Action</h3>
+                <div class="mt-2">
+                    <p id="confirmation-modal-message" class="text-sm text-gray-500"></p>
+                </div>
+            </div>
+            <div class="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse">
+                <button id="confirm-yes-btn" type="button" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm">
+                    Yes, Proceed
+                </button>
+                <button id="confirm-no-btn" type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
 
-    <div id="restock-modal" class="fixed inset-0 z-50 items-center justify-center hidden modal-backdrop">
-        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6 transform transition-all">
-            <div class="text-center">
-                <div class="w-12 h-12 mx-auto bg-emerald-100 rounded-full flex items-center justify-center">
-                    <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                </div>
-                <h3 class="mt-4 text-lg leading-6 font-medium text-gray-900">📦 Quick Restock & Activation</h3>
-                <p id="restock-modal-name" class="mt-2 text-sm font-semibold text-gray-700"></p>
-                <div class="mt-4">
-                    <label for="restock-input" class="block text-sm font-medium text-gray-700 text-left mb-2">New Total Stock Quantity (must be > 0)</label>
-                    <input type="number" id="restock-input" min="1" value="100" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 text-center focus:ring-emerald-500 focus:border-emerald-500">
-                </div>
-                <p class="mt-2 text-xs text-gray-500">The collection will be marked **Active** with this new stock quantity.</p>
-            </div>
-            <div class="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse">
-                <button id="restock-confirm-btn" type="button" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-emerald-600 text-base font-medium text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 sm:ml-3 sm:w-auto sm:text-sm">
-                    Confirm Restock
-                </button>
-                <button id="restock-cancel-btn" type="button" onclick="document.getElementById('restock-modal').classList.add('hidden');" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm">
-                    Cancel
-                </button>
-            </div>
-        </div>
-    </div>
+    <div id="restock-modal" class="fixed inset-0 z-50 items-center justify-center hidden modal-backdrop">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6 transform transition-all">
+            <div class="text-center">
+                <div class="w-12 h-12 mx-auto bg-emerald-100 rounded-full flex items-center justify-center">
+                    <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                </div>
+                <h3 class="mt-4 text-lg leading-6 font-medium text-gray-900">📦 Quick Restock & Activation</h3>
+                <p id="restock-modal-name" class="mt-2 text-sm font-semibold text-gray-700"></p>
+                <div class="mt-4">
+                    <label for="restock-input" class="block text-sm font-medium text-gray-700 text-left mb-2">New Total Stock Quantity (must be > 0)</label>
+                    <input type="number" id="restock-input" min="1" value="100" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 text-center focus:ring-emerald-500 focus:border-emerald-500">
+                </div>
+                <p class="mt-2 text-xs text-gray-500">The collection will be marked **Active** with this new stock quantity.</p>
+            </div>
+            <div class="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse">
+                <button id="restock-confirm-btn" type="button" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-emerald-600 text-base font-medium text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 sm:ml-3 sm:w-auto sm:text-sm">
+                    Confirm Restock
+                </button>
+                <button id="restock-cancel-btn" type="button" onclick="document.getElementById('restock-modal').classList.add('hidden');" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
 
 
 <script>
@@ -396,7 +396,7 @@ window.removeProductSection = removeProductSection;
 window.quickRestockAndActivate = quickRestockAndActivate;
 window.logoutAdmin = logoutAdmin;
 window.removeNestedSizeStockInput = removeNestedSizeStockInput; // NEW
-window.addNestedSizeStockInput = addNestedSizeStockInput;     // NEW
+window.addNestedSizeStockInput = addNestedSizeStockInput;      // NEW
 // ---------------------------------------------------------
 
 // --- UTILITY FUNCTIONS (Kept the same) ---
@@ -479,7 +479,6 @@ function removeNestedSizeStockInput(groupId, variationId) {
     }
 }
 
-// ------------------------------------------------------------------------------------------
 
 /**
  * Resets the form to "Create New Collection" mode.
@@ -502,10 +501,6 @@ function resetForm() {
     Array.from(productSectionsContainer.querySelectorAll('input[type="file"]')).forEach(input => {
         input.required = true;
     });
-
-    // Resetting global inputs that are no longer used for nested logic (but still in HTML)
-    document.getElementById('available-sizes').value = ''; 
-    document.getElementById('available-stock').value = ''; 
 
     // Scroll to the form
     document.getElementById('content-preordercollection').scrollIntoView({ behavior: 'smooth' });
@@ -565,13 +560,11 @@ function createProductSection(index, variationData = null) {
         nestedSizes.forEach(item => {
             sizeStockInputsHtml += createNestedSizeStockInputHtml(uniqueId, item.size, item.stock);
         });
-    } else {
-        // Default starting size/stock for new sections
+    } else if (!variationData && index === 0) { 
+        // Default starting size/stock for the first section of a new creation
         sizeStockInputsHtml += createNestedSizeStockInputHtml(uniqueId, 'S', 100);
     }
     
-    const sizeStockPlaceholderStyle = (nestedSizes.length > 0 || !isEditing) ? 'none' : 'block';
-
     const sizeStockManagerHtml = `
         <div class="mt-6 border-t border-gray-200 pt-4">
             <h5 class="text-md font-semibold text-gray-700 mb-2">Sizes & Stock for this Variation</h5>
@@ -609,7 +602,7 @@ function createProductSection(index, variationData = null) {
 function addProductSection() {
     if (sectionCount < MAX_VARIATIONS) {
         const newSection = document.createElement('div');
-        // Passing null for variationData will trigger the default size/stock creation
+        // Passing null for variationData will trigger the default size/stock creation (if index is 0)
         newSection.innerHTML = createProductSection(sectionCount).trim(); 
         productSectionsContainer.appendChild(newSection.firstChild);
         sectionCount++;
@@ -633,7 +626,6 @@ function removeProductSection(id) {
 
 /**
  * Re-indexes sections after one is removed to ensure keys are sequential (1, 2, 3, 4).
- * IMPORTANT: This now needs to extract the nested size/stock data before re-creation.
  */
 function reindexProductSections() {
     Array.from(productSectionsContainer.children).forEach((section, index) => {
@@ -686,7 +678,6 @@ function updateAddSectionButtonState() {
 
 /**
  * Fetches data for a specific collection and populates the form for editing.
- * *** MODIFIED: Logic updated to populate NESTED size/stock inputs. ***
  */
 async function editCollection(collectionId) {
     const token = getAuthToken();
@@ -722,10 +713,6 @@ async function editCollection(collectionId) {
         document.getElementById('collection-name').value = collection.name;
         document.getElementById('collection-description').value = collection.tag;
         document.getElementById('collection-price').value = collection.price; 
-        
-        // NOTE: Global size/stock fields are now ignored/left blank in the UI but retained for form submission integrity if backend requires them.
-        document.getElementById('available-sizes').value = (collection.sizes || []).join(', ');
-        document.getElementById('available-stock').value = collection.totalStock; 
         
         document.getElementById('is-active').checked = collection.isActive;
         
@@ -764,7 +751,6 @@ async function editCollection(collectionId) {
 
 /**
  * Handles the form submission (CREATE or UPDATE).
- * *** CRITICALLY MODIFIED: Collects NESTED size/stock data from each variation. ***
  */
 async function handleCollectionSubmit(event) {
     event.preventDefault();
@@ -795,7 +781,7 @@ async function handleCollectionSubmit(event) {
         resetFormSubmitButtonState(isUpdate);
         return;
     }
-
+    
     // --- 1. Collect Variations and Files (NESTED SIZE/STOCK LOGIC) ---
     const formData = new FormData();
     let productVariationsMetadata = [];
@@ -819,9 +805,6 @@ async function handleCollectionSubmit(event) {
         let frontUrlForMetadata = existingFrontUrl;
         let backUrlForMetadata = existingBackUrl;
 
-        // Image validation and file appending... (omitted for brevity, assume original logic is here)
-        // ...
-        
         // --- NESTED SIZE/STOCK COLLECTION ---
         const nestedSizes = [];
         let variationStock = 0;
@@ -854,10 +837,10 @@ async function handleCollectionSubmit(event) {
         computedTotalStock += variationStock;
         // ------------------------------------------
         
-        // Image logic from your block (re-added):
+        // Image logic for validation and file appending:
         if (frontImageFile) {
             formData.append(`front-view-upload-${sectionNumber}`, frontImageFile); 
-            frontUrlForMetadata = null;
+            frontUrlForMetadata = null; // New file means existing URL is ignored/replaced by backend
         } else if (!isUpdate && !existingFrontUrl) { 
             showErrorModal(`Front View Image for Variation <mark>#${sectionNumber}</mark> is missing.`); 
             isValid = false;
@@ -891,7 +874,6 @@ async function handleCollectionSubmit(event) {
             frontImageUrl: frontUrlForMetadata,
             backImageUrl: backUrlForMetadata, 
             sizes: nestedSizes, // <<< CRITICAL CHANGE: Nested Size/Stock Array
-            // Note: variationStock is not sent, as the backend will recalculate it.
         });
         
         return true; // Continue Array.every loop
@@ -917,8 +899,7 @@ async function handleCollectionSubmit(event) {
         name: document.getElementById('collection-name').value,
         tag: document.getElementById('collection-description').value,
         price: parseFloat(document.getElementById('collection-price').value), 
-        // NOTE: These global fields are now derived or legacy, but collected for completeness
-        sizes: [], // The backend should derive all unique sizes from nested variations
+        sizes: [], // Backend should derive all unique sizes from nested variations
         totalStock: finalTotalStock, // Computed total stock from all variations' nested inputs
         isActive: isActive,
         availableDate: document.getElementById('available-date').value, 
@@ -970,8 +951,6 @@ async function handleCollectionSubmit(event) {
     }
 }
 
-
-// --- OTHER FUNCTIONS (Unchanged from your second block) ---
 
 /**
  * Helper to reset the submit button state.

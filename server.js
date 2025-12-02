@@ -3720,13 +3720,13 @@ app.get('/api/collections/newarrivals', async (req, res) => {
     }
 });
 
-// --- NEW PUBLIC ROUTE FOR CAPS ---
 // GET /api/collections/caps (For Homepage Display)
 app.get('/api/collections/caps', async (req, res) => {
     try {
         // Fetch only ACTIVE collections (CapCollection)
+        // CRITICAL FIX: Removed 'sizes' from select as it is not needed and potentially confusing for caps
         const collections = await CapCollection.find({ isActive: true }) 
-            .select('_id name tag price variations sizes totalStock') 
+            .select('_id name tag price variations totalStock') 
             .sort({ createdAt: -1 })
             .lean(); 
 
@@ -3745,6 +3745,8 @@ app.get('/api/collections/caps', async (req, res) => {
                 name: collection.name,
                 tag: collection.tag,
                 price: collection.price, 
+                // CRITICAL FIX: Set availableSizes to an empty array so the frontend does not display a size selector
+                availableSizes: [], 
                 availableStock: collection.totalStock, 
                 variants: variants
             };

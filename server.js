@@ -2761,16 +2761,20 @@ app.get('/api/admin/wearscollections/:id', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Server error fetching collection.' });
     }
 });
-
 // POST /api/admin/wearscollections (Create New Collection) 
 app.post(
     '/api/admin/wearscollections',
     verifyToken, 
     upload.fields(uploadFields), 
     async (req, res) => {
+        // Assume 'mongoose' is globally available or imported, e.g., const mongoose = require('mongoose');
+        const session = await mongoose.startSession();
+        session.startTransaction();
+
         try {
             // A. Extract JSON Metadata
             if (!req.body.collectionData) {
+                await session.abortTransaction();
                 return res.status(400).json({ message: "Missing collection data payload." });
             }
             const collectionData = JSON.parse(req.body.collectionData);
@@ -2800,7 +2804,6 @@ app.post(
                         finalVariations.push({
                             variationIndex: variation.variationIndex,
                             colorHex: variation.colorHex,
-                            // 🔥 FIX: Include the nested sizes array for stock management
                             sizes: variation.sizes, 
                             frontImageUrl: frontImageUrl, 
                             backImageUrl: backImageUrl, 
@@ -2813,6 +2816,7 @@ app.post(
             await Promise.all(uploadPromises); // Wait for all uploads to complete
 
             if (finalVariations.length === 0) {
+                await session.abortTransaction();
                 return res.status(400).json({ message: "No valid product images and metadata were received after upload processing." });
             }
 
@@ -2821,15 +2825,17 @@ app.post(
                 name: collectionData.name,
                 tag: collectionData.tag,
                 price: collectionData.price, 
-                // --- FIX 2: Assign totalStock from client payload ---
                 totalStock: collectionData.totalStock, 
                 sizesAndStock: collectionData.sizesAndStock, 
                 isActive: collectionData.isActive, 
                 variations: finalVariations, 
             });
 
-            // D. Save to Database
-            const savedCollection = await newCollection.save();
+            // D. Save to Database using the session
+            const savedCollection = await newCollection.save({ session }); // <-- Use session for atomic save
+
+            // E. Commit the transaction
+            await session.commitTransaction();
 
             res.status(201).json({ 
                 message: 'Wears Collection created and images uploaded successfully to IDRIVE.',
@@ -2838,12 +2844,18 @@ app.post(
             });
 
         } catch (error) {
-            console.error('Error creating wear collection:', error); 
+            console.error('Error creating wear collection (Transaction Aborted):', error); 
+            // F. Abort the transaction on error
+            await session.abortTransaction();
+            
             if (error.name === 'ValidationError') {
                 const messages = Object.values(error.errors).map(err => err.message).join(', ');
                 return res.status(400).json({ message: `Validation Error: ${messages}`, errors: error.errors }); 
             }
             res.status(500).json({ message: 'Server error during collection creation or file upload.', details: error.message });
+        } finally {
+            // G. End the session
+            session.endSession();
         }
     }
 );

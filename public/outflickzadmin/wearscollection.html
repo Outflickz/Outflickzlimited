@@ -1299,23 +1299,28 @@ function resetFormSubmitButtonState(isUpdate) {
     }
 }
 
-// Initialize the page on load
+// Global state to track if the main form submit handler has been attached
+let isFormListenerAttached = false;
+
 document.addEventListener('DOMContentLoaded', () => {
     // Add the initial product section for the creation form
     if (productSectionsContainer.children.length === 0) {
         addProductSection();
     }
 
-    // --- START OF FIX: Prevent Duplicate Listener ---
+    // --- CRITICAL FIX: Ensure form listener is only attached once ---
     const form = document.getElementById('wears-collection-form');
-    if (form) {
-        // 1. Remove any existing listeners for this function (prevents duplicates)
+    if (form && !isFormListenerAttached) {
+        // 1. Remove any previous listeners just in case (for robustness)
         form.removeEventListener('submit', handleCollectionSubmit); 
         
-        // 2. Attach the handler (guaranteed to be only one now)
+        // 2. Attach the handler 
         form.addEventListener('submit', handleCollectionSubmit);
+        
+        // 3. Set the flag to prevent future attachments
+        isFormListenerAttached = true; 
+        console.log("Wears Collection Form Listener attached successfully (1 instance).");
     }
-    // --- END OF FIX ---
 
     // Toggle sidebar visibility on mobile
     sidebarToggle.addEventListener('click', () => {

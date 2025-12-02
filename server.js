@@ -569,7 +569,6 @@ userSchema.pre('save', async function(next) {
 });
 
 const User = mongoose.models.User || mongoose.model('User', userSchema);
-
 const ProductVariationSchema = new mongoose.Schema({
     variationIndex: { 
         type: Number, 
@@ -578,8 +577,7 @@ const ProductVariationSchema = new mongoose.Schema({
         max: 4 
     },
 
-    // --- FRONT IMAGE FIELDS (Permanent Key + Caching) ---
-    // frontImageUrl now stores the permanent file key/path in S3/IDrive E2
+    // --- Image Fields ---
     frontImageUrl: { 
         type: String, 
         required: [true, 'Front view image permanent key is required'],
@@ -588,8 +586,6 @@ const ProductVariationSchema = new mongoose.Schema({
     frontCachedSignedUrl: { type: String, default: null },
     frontSignedUrlExpiresAt: { type: Date, default: null },
 
-    // --- BACK IMAGE FIELDS (Permanent Key + Caching) ---
-    // backImageUrl now stores the permanent file key/path in S3/IDrive E2
     backImageUrl: { 
         type: String, 
         required: [true, 'Back view image permanent key is required'],
@@ -598,17 +594,22 @@ const ProductVariationSchema = new mongoose.Schema({
     backCachedSignedUrl: { type: String, default: null },
     backSignedUrlExpiresAt: { type: Date, default: null },
 
+    // ✅ FIX: ColorHex is now OPTIONAL to resolve the 400 error from the client.
     colorHex: { 
         type: String, 
-        required: [true, 'Color Hex code is required'], 
+        required: false, // Changed from true
         match: [/^#[0-9A-F]{6}$/i, 'Color must be a valid hex code (e.g., #RRGGBB)'] 
     },
     
-    // CRITICAL ADDITION: Stock array for per-size inventory tracking
-    sizes: [{
-        size: { type: String, required: true }, // e.g., 'S', 'M', 'L'
-        stock: { type: Number, required: true, min: 0, default: 0 } // Stock count for this specific size/variation combination
-    }]
+    // ✅ FIX: The sizes array is now OPTIONAL and defaults to [] for successful validation.
+    sizes: {
+        type: [{
+            size: { type: String, required: true },
+            stock: { type: Number, required: true, min: 0, default: 0 }
+        }],
+        required: false, // Changed from true/implicit
+        default: []
+    }
 }, { _id: false });
 
 
@@ -844,11 +845,12 @@ CapCollectionSchema.pre('findOneAndUpdate', function(next) {
 // --- Model Definition and Export ---
 const CapCollection = mongoose.models.CapCollection || mongoose.model('CapCollection', CapCollectionSchema);
 
+
 // --- 📦 UPDATED PRE-ORDER COLLECTION SCHEMA 📦 ---
 const PreOrderCollectionSchema = new mongoose.Schema({
     // General Product Information
     name: { type: String, required: [true, 'Collection name is required'], trim: true },
-    tag: { type: String, required: [true, 'Tag is required'], enum: ['Upcoming', 'Exclusive', 'Bestseller', 'Limited'] }, // Example pre-order tags
+    tag: { type: String, required: [true, 'Tag is required'], enum: ['Pre-Order', 'Coming Soon', 'Limited Drop', 'Seasonal'] }, 
     price: { type: Number, required: [true, 'Price is required'], min: [0.01, 'Price must be greater than zero'] },
     
     // Derived/Managed field: Total Stock is calculated from all variation sizes
@@ -861,8 +863,7 @@ const PreOrderCollectionSchema = new mongoose.Schema({
         required: [true, 'Available date is required'], 
     }, 
 
-    // Variations (Colors, Images, and Size/Stock tracking)
-    // 🔑 Using the robust ProductVariationSchema for complete tracking
+    // Variations 
     variations: {
         type: [ProductVariationSchema], 
         required: [true, 'At least one product variation is required'],
@@ -872,6 +873,8 @@ const PreOrderCollectionSchema = new mongoose.Schema({
         }
     }
 }, { timestamps: true });
+
+// --- UPDATED Pre-Save Middleware (PreOrderCollection) ---
 
 // --- UPDATED Pre-Save Middleware (PreOrderCollection) ---
 PreOrderCollectionSchema.pre('save', function(next) {

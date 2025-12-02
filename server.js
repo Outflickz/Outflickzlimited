@@ -3745,7 +3745,6 @@ app.get('/api/collections/caps', async (req, res) => {
                 name: collection.name,
                 tag: collection.tag,
                 price: collection.price, 
-                availableSizes: collection.sizes,
                 availableStock: collection.totalStock, 
                 variants: variants
             };

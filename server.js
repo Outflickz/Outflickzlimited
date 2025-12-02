@@ -570,6 +570,7 @@ userSchema.pre('save', async function(next) {
 
 const User = mongoose.models.User || mongoose.model('User', userSchema);
 
+
 const ProductVariationSchema = new mongoose.Schema({
     variationIndex: { 
         type: Number, 
@@ -577,34 +578,23 @@ const ProductVariationSchema = new mongoose.Schema({
         min: 1, 
         max: 4 
     },
-
-    // --- FRONT IMAGE FIELDS (Permanent Key + Caching) ---
-    // frontImageUrl now stores the permanent file key/path in S3/IDrive E2
     frontImageUrl: { 
         type: String, 
-        required: [true, 'Front view image permanent key is required'],
+        required: [true, 'Front view image URL is required'],
         trim: true 
     }, 
-    frontCachedSignedUrl: { type: String, default: null },
-    frontSignedUrlExpiresAt: { type: Date, default: null },
-
-    // --- BACK IMAGE FIELDS (Permanent Key + Caching) ---
-    // backImageUrl now stores the permanent file key/path in S3/IDrive E2
     backImageUrl: { 
         type: String, 
-        required: [true, 'Back view image permanent key is required'],
+        required: [true, 'Back view image URL is required'],
         trim: true 
     }, 
-    backCachedSignedUrl: { type: String, default: null },
-    backSignedUrlExpiresAt: { type: Date, default: null },
-
     colorHex: { 
         type: String, 
         required: [true, 'Color Hex code is required'], 
         match: [/^#[0-9A-F]{6}$/i, 'Color must be a valid hex code (e.g., #RRGGBB)'] 
     },
     
-    // CRITICAL ADDITION: Stock array for per-size inventory tracking
+    // ⚠️ CRITICAL ADDITION: Stock array for per-size inventory tracking
     sizes: [{
         size: { type: String, required: true }, // e.g., 'S', 'M', 'L'
         stock: { type: Number, required: true, min: 0, default: 0 } // Stock count for this specific size/variation combination
@@ -630,50 +620,32 @@ const WearsCollectionSchema = new mongoose.Schema({
         min: [0.01, 'Price (in NGN) must be greater than zero']
     },
     variations: {
-        type: [ProductVariationSchema], 
+        type: [ProductVariationSchema], // This field correctly holds the nested size/stock data
         required: [true, 'At least one product variation is required'],
         validate: {
             validator: function(v) { return v.length >= 1 && v.length <= 4; },
             message: 'A collection must have between 1 and 4 variations.'
         }
     },
+    // 🛑 REMOVED: The redundant 'sizes' field is removed. 
+    // All size data is now in variations[...].sizes[...]
     
-    // totalStock is now calculated automatically in the pre-save hook
     totalStock: {
         type: Number,
+        required: [true, 'Total stock number is required'],
         min: [0, 'Stock cannot be negative'],
+        default: 0
     },
     isActive: { type: Boolean, default: true },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
 
-// 🚀 CRITICAL PRODUCTION HOOK: Automatically calculates totalStock 
-// and ensures consistency with detailed variation/size stock counts.
 WearsCollectionSchema.pre('save', function(next) {
     this.updatedAt = Date.now();
     
-    // 1. Calculate the new total stock
-    let calculatedTotalStock = 0;
-    
-    if (this.variations && this.variations.length > 0) {
-        calculatedTotalStock = this.variations.reduce((totalVariationStock, variation) => {
-            // Sum all stock counts within the sizes array for this variation
-            const variationStockSum = variation.sizes.reduce((totalSizeStock, sizeEntry) => {
-                return totalSizeStock + sizeEntry.stock;
-            }, 0); 
-            
-            return totalVariationStock + variationStockSum;
-        }, 0);
-    }
-    
-    // 2. Apply business logic and set the totalStock field
     if (this.isActive === false) {
-        // If the product is deactivated, total stock is 0
         this.totalStock = 0;
-    } else {
-        // Otherwise, use the calculated sum
-        this.totalStock = calculatedTotalStock;
     }
     
     next();
@@ -1048,65 +1020,37 @@ async function getRealTimeDashboardStats() {
     }
 }
 
-const PRODUCT_MODEL_MAP = {
-    'WearsCollection': 'WearsCollection', 
-    'CapCollection': 'CapCollection',     
-    // Add other product types (e.g., 'ShoeCollection', 'AccessoryCollection') here as you create them
-};
 
 /**
- * ====================================================================================
- * HELPER FUNCTION: GET PRODUCT MODEL
- * ====================================================================================
- * Safely retrieves the Mongoose Model constructor based on the product type string.
- * This resolves the "ProductModel.findOneAndUpdate is not a function" error.
- * @param {string} productType The type identifier (e.g., 'WearsCollection').
- * @returns {mongoose.Model} The Mongoose Model constructor.
- * @throws {Error} If the model is not found in the Mongoose registry.
- */
-function getProductModel(productType) {
-    const modelName = PRODUCT_MODEL_MAP[productType];
-    
-    if (!modelName) {
-        throw new Error(`Invalid or unsupported product type: ${productType}`);
-    }
-
-    // Attempt to retrieve the model from Mongoose's registered models
-    const ProductModel = mongoose.models[modelName];
-
-    if (!ProductModel || typeof ProductModel.findOneAndUpdate !== 'function') {
-        throw new Error(`Mongoose model '${modelName}' for product type '${productType}' not found or improperly defined.`);
-    }
-
-    return ProductModel;
-}
-
-/**
- * ====================================================================================
- * HELPER FUNCTION: INVENTORY ROLLBACK (Order Status Update)
- * ====================================================================================
- * Updates the order status to indicate a stock failure after a transaction aborts.
- * This is called outside the transaction to persist the failure state immediately.
- * @param {string} orderId The ID of the order that failed.
- * @param {string} reason The error message explaining the failure.
+ * Utility function to handle rollback logic by updating the Order status.
+ * In a true atomic transaction (which processOrderCompletion uses), this function
+ * mainly handles the Order document state and logging, as stock changes are
+ * automatically undone by session.abortTransaction().
+ * @param {string} orderId The ID of the order.
+ * @param {string} reason The reason for the rollback.
  */
 async function inventoryRollback(orderId, reason) {
+    // ⚠️ CRITICAL: Ensure 'mongoose' is defined
+    if (typeof mongoose === 'undefined' || !mongoose.models) {
+        console.error('Mongoose is unavailable during rollback attempt.');
+        return;
+    }
+
+    // Attempt to get the Order model
+    const OrderModel = mongoose.models.Order || mongoose.model('Order');
+
+    // We only need to update the Order status here, outside the main transaction,
+    // in case the main transaction has already aborted or failed to start.
+    const newStatus = 'Inventory Failure (Manual Review)';
+    
     try {
-        const OrderModel = mongoose.models.Order || mongoose.model('Order');
-        
-        await OrderModel.findByIdAndUpdate(
-            orderId, 
-            { 
-                status: 'Stock Failure', // Set a clear failure status
-                failureReason: reason,
-                updatedAt: Date.now()
-            },
-            { new: true }
-        );
-        console.warn(`Order ${orderId} status set to 'Stock Failure' and reason logged. Reason: ${reason}`);
-    } catch (err) {
-        console.error(`CRITICAL: Failed to update order ${orderId} status during rollback.`, err);
-        // Do not re-throw, as the main error is already being handled.
+        await OrderModel.findByIdAndUpdate(orderId, {
+            status: newStatus,
+            $push: { notes: `Rollback triggered due to failed deduction (${reason}): ${new Date().toISOString()}` }
+        });
+        console.error('CRITICAL: Inventory Deduction failed during order processing. Inventory Rollback complete.', reason);
+    } catch (e) {
+        console.error(`Failed to update order ${orderId} status during rollback:`, e.message);
     }
 }
 
@@ -1132,36 +1076,33 @@ async function processOrderCompletion(orderId) {
         order = await OrderModel.findById(orderId).session(session);
 
         // 1.1 Initial check
-        // We only proceed with inventory deduction if the order is in the initial 'Pending' state.
-        const isReadyForInventory = order && (order.status === 'Pending');
+        const isReadyForInventory = order && (order.status === 'Processing' || order.status === 'Pending');
 
         if (!isReadyForInventory) {
             await session.abortTransaction();
-            
-            // 409 Conflict logic: If the order is already 'Processing' or 'Completed', throw an error 
-            // that the calling route can catch and send as a 409.
-            if (order?.status === 'Processing' || order?.status === 'Completed') {
-                console.warn(`Order ${orderId} is already confirmed (${order.status}). Inventory deduction skipped.`);
-                throw new Error("Order already processed or is being processed.");
-            }
-            
             console.warn(`Order ${orderId} skipped: not found or status is ${order?.status}. Inventory deduction aborted.`);
             return order; // Return the current state of the order
         }
 
         // 2. Loop through each item to deduct stock from the specific collection/variation
         for (const item of order.items) {
-            // Retrieve the correct model using the implemented helper
+            // Assume item includes productId, productType, variationIndex, size, and quantity
             const ProductModel = getProductModel(item.productType); 
             const quantityOrdered = item.quantity;
 
             // 3. ATOMIC DEDUCTION LOGIC FOR VARIATION STOCK
+            // Note: findOneAndUpdate with arrayFilters returns null if the query or arrayFilters fail to match.
             const updatedProduct = await ProductModel.findOneAndUpdate(
                 {
                     _id: item.productId,
                     
+                    // The query uses $elemMatch below, but including variationIndex in the main query
+                    // provides a good primary filter, though it's technically redundant if arrayFilters is perfect.
+                    // 'variations.variationIndex': item.variationIndex, 
+
                     // Query Step 3: Use $elemMatch to find the specific size object *AND*
                     // ensure its current stock is sufficient ($gte: quantityOrdered).
+                    // We rely on arrayFilters for the update, but the query part validates the condition.
                     'variations.sizes': {
                         $elemMatch: {
                             size: item.size, // Must match the ordered size ('S', 'M', 'L')
@@ -1195,13 +1136,13 @@ async function processOrderCompletion(orderId) {
             console.log(`Inventory deducted for Product ID: ${item.productId}, Size: ${item.size}, Qty: ${quantityOrdered}`);
         }
 
-        // 5. Update order status to Processing (after stock deduction, awaiting final shipment)
+        // 5. Update order status to completed
         order.status = 'Processing'; 
         await order.save({ session }); // Commit the save within the transaction.
 
         // 6. Finalize transaction
         await session.commitTransaction();
-        console.log(`Order ${orderId} successfully confirmed and inventory fully deducted. Status: Processing.`);
+        console.log(`Order ${orderId} successfully completed and inventory fully deducted.`);
         return order.toObject({ getters: true }); // Return a clean object
 
     } catch (error) {
@@ -1211,8 +1152,9 @@ async function processOrderCompletion(orderId) {
         }
         
         // After the transaction is aborted, update the Order status outside the session
+        // so the change is persisted immediately.
         if (order) {
-            // Use the implemented inventoryRollback function
+            // We use the original function name and pass the ID and reason
             await inventoryRollback(orderId, error.message);
         }
 
@@ -1224,6 +1166,8 @@ async function processOrderCompletion(orderId) {
 }
 
 // Module export for external usage
+// NOTE: WearsCollection, CapCollection, etc., must be imported or available in the global scope 
+// before this module is used, or replace the mongoose.models[] approach.
 module.exports = {
     processOrderCompletion,
     inventoryRollback,
@@ -1391,7 +1335,24 @@ async function mergeLocalCart(userId, localItems) {
     }
 }
 
+/**
+ * Utility function to get the correct Mongoose Model based on the productType string.
+ * This is robust for single-file environments where all models are registered.
+ * @param {string} productType The string name of the collection (e.g., 'WearsCollection').
+ */
+async function getProductModel(productType) {
+    // ⚠️ CRITICAL: Ensure 'mongoose' is defined or imported in the environment scope
+    if (typeof mongoose === 'undefined' || !mongoose.models) {
+        throw new Error("Mongoose is not available or models are not registered.");
+    }
 
+    const Model = mongoose.models[productType];
+    
+    if (!Model) {
+        throw new Error(`Model not registered for product type: ${productType}`);
+    }
+    return Model;
+}
 
 
 /**

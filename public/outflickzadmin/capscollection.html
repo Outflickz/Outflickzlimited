@@ -652,7 +652,7 @@ async function deleteCollection(collectionId) {
     }
 }
 
-// --- UPDATED: quickRestockAndActivate ---
+// --- CORRECTED: quickRestockAndActivate ---
 async function quickRestockAndActivate(collectionId, collectionName, currentPrice) {
     const token = getAuthToken();
     if (!token) return;
@@ -703,43 +703,28 @@ async function quickRestockAndActivate(collectionId, collectionName, currentPric
     }
 
     try {
-        // 1. Fetch the existing collection to get current variations
-        const fetchResponse = await fetch(`${API_BASE_URL}/${collectionId}`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        // *** START OF CORRECTION ***
+        // The previous attempt failed because it tried to send the complex 'variations' array 
+        // to a route that only expects simple top-level fields for a quick update.
 
-        if (!fetchResponse.ok) {
-            const errorData = await fetchResponse.json();
-            throw new Error(errorData.message || `HTTP error! Status: ${fetchResponse.status}`);
-        }
-        const existingCollection = await fetchResponse.json();
-
-        // 2. Create the update payload: Set the new stock on ALL variations and set isActive to true
-        const updatedVariations = existingCollection.variations.map(variation => ({
-            // Retain existing image keys, index, and color
-            variationIndex: variation.variationIndex,
-            frontImageUrl: variation.frontImageUrl,
-            backImageUrl: variation.backImageUrl,
-            colorHex: variation.colorHex,
-            // Apply the new stock value to the 'stock' field for each variation
-            stock: newStock 
-        }));
-
+        // 1. Create the simple update payload: Send the new stock as totalStock 
+        // (assuming the backend logic distributes this value across all variations).
         const updatePayload = {
             isActive: true, // Explicitly set to true on restock
-            variations: updatedVariations
+            totalStock: newStock // The key required by the backend's simple update logic
         };
 
+        // 2. Send the update request with the simple payload
         const response = await fetch(`${API_BASE_URL}/${collectionId}`, {
             method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json' // Essential for JSON body
             },
             body: JSON.stringify(updatePayload)
         });
 
+        // 3. Handle errors
         if (!response.ok) {
             const errorText = await response.text();
             try {
@@ -749,17 +734,18 @@ async function quickRestockAndActivate(collectionId, collectionName, currentPric
                 throw new Error(errorText || `HTTP error! Status: ${response.status}`);
             }
         }
-        
-        // Log the success with the correct logic: newStock is applied per variation
-        showSuccessModal(`Cap Collection <mark>**${collectionName}**</mark> successfully restocked (each variation to <mark>**${newStock}**</mark>) and activated!`);
+        
+        // 4. Success message
+        showSuccessModal(`Cap Collection <mark>**${collectionName}**</mark> successfully restocked (Total Stock set to <mark>**${newStock}**</mark>) and activated!`);
         fetchCollections(); 
+        // *** END OF CORRECTION ***
 
     } catch (error) {
         console.error('Restock failed:', error);
         showErrorModal(`Error restocking collection: <mark>${error.message}</mark>`);
     }
 }
-// --- END: UPDATED quickRestockAndActivate ---
+// --- END: CORRECTED quickRestockAndActivate ---
 
 
 // --- FORM SECTION MANAGEMENT ---
@@ -906,13 +892,18 @@ function updateColorPreview(colorValue, previewId) {
         previewElement.style.backgroundColor = colorValue;
     }
 }
-
-// --- UPDATED: handleCollectionSubmit ---
+// --- UPDATED: handleCollectionSubmit (with Double Submission Guard) ---
 /**
  * Handles the form submission (CREATE or UPDATE) - Aligned with new schema (stock per variation).
  */
 async function handleCollectionSubmit(event) {
     event.preventDefault();
+
+    // 🛑 Double Submission Guard: Exit immediately if the button is already disabled (meaning submission is in progress)
+    if (submitBtn.disabled) {
+        console.warn('Submission already in progress. Ignoring repeated click.');
+        return;
+    }
 
     const isUpdate = collectionIdToUpdate !== null;
     const method = isUpdate ? 'PUT' : 'POST';
@@ -923,6 +914,7 @@ async function handleCollectionSubmit(event) {
         return;
     }
 
+    // 1. Disable button to prevent double click
     submitBtn.disabled = true;
     submitBtn.textContent = isUpdate ? 'Updating...' : 'Submitting...';
     submitBtn.classList.remove('hover:bg-emerald-700', 'hover:bg-yellow-700', 'bg-emerald-600', 'bg-yellow-600');
@@ -938,8 +930,8 @@ async function handleCollectionSubmit(event) {
     const formData = new FormData();
     let productVariationsMetadata = [];
     let isValid = true;
-    
-    // Get the stock value from the single input field
+    
+    // Get the stock value from the single input field
     const totalStockInput = document.getElementById('available-stock');
     const stockPerVariation = parseInt(totalStockInput.value) || 0; // Use 0 if invalid
 
@@ -1061,7 +1053,7 @@ async function handleCollectionSubmit(event) {
         resetFormSubmitButtonState(isUpdate);
     }
 }
-// --- END: UPDATED handleCollectionSubmit ---
+// --- END: UPDATED handleCollectionSubmit (with Double Submission Guard) ---
 
 
 function resetFormSubmitButtonState(isUpdate) {

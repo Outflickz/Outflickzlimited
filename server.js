@@ -2203,6 +2203,7 @@ app.put('/api/admin/orders/:orderId/status', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Failed to update order status due to a server error.' });
     }
 });
+
 // GET /api/admin/capscollections - Fetch All Cap Collections (List View)
 app.get('/api/admin/capscollections', verifyToken, async (req, res) => {
     try {

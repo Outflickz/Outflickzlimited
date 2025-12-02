@@ -747,7 +747,6 @@ NewArrivalsSchema.pre('save', function(next) {
     next();
 });
 const NewArrivals = mongoose.models.NewArrivals || mongoose.model('NewArrivals', NewArrivalsSchema);
-
 // --- CapVariationSchema (Used for Caps/No-Size Items) ---
 const CapVariationSchema = new mongoose.Schema({
     variationIndex: { type: Number, required: true, min: 1, max: 4 },
@@ -787,6 +786,7 @@ const CapCollectionSchema = new mongoose.Schema({
 });
 
 // --- UPDATED Pre-Save Middleware (CapCollection) ---
+// Runs on Model.save() or Model.create()
 CapCollectionSchema.pre('save', function(next) {
     this.updatedAt = Date.now();
     
@@ -805,6 +805,59 @@ CapCollectionSchema.pre('save', function(next) {
         this.totalStock = 0;
     } else {
         this.totalStock = calculatedTotalStock;
+    }
+    
+    next();
+});
+
+// --- NEW Pre-FindOneAndUpdate Middleware (CapCollection) ---
+// Runs before Model.findOneAndUpdate() (used for PUT/Update operations)
+CapCollectionSchema.pre('findOneAndUpdate', function(next) {
+    // 'this' refers to the query object in findOneAndUpdate.
+    const update = this.getUpdate();
+    
+    // Set the updatedAt timestamp
+    this.set({ updatedAt: Date.now() });
+
+    // --- Logic for Full Form Submission (handleCollectionSubmit) ---
+    // This handles the complex update where the client sends variation data.
+    if (update.collectionData && update.collectionData.variations) {
+        const variations = update.collectionData.variations;
+        
+        let calculatedTotalStock = variations.reduce((totalStock, variation) => {
+            return totalStock + (variation.stock || 0);
+        }, 0);
+
+        // Get isActive status (default to true if not explicitly set)
+        const isActive = update.collectionData.isActive !== undefined ? update.collectionData.isActive : true; 
+        
+        // Update the totalStock value *within the data being updated*
+        if (isActive === false) {
+            update.collectionData.totalStock = 0;
+        } else {
+            update.collectionData.totalStock = calculatedTotalStock;
+        }
+    } 
+
+    // --- Logic for Simple Restock (quickRestockAndActivate) ---
+    // If the update contains a top-level totalStock field (from the fixed client restock function),
+    // we need to update the stock field for ALL sub-documents.
+    if (update.totalStock !== undefined && Array.isArray(update.variations) === false) {
+        
+        // This is a RESTOCK operation. We must update the 'stock' field 
+        // on all existing variations in the database.
+        
+        // Use $set on a nested field to update all variations' 'stock' value.
+        // We use $[] (the positional operator) to update all elements in the 'variations' array.
+        // NOTE: This assumes a simple model where all variations get the same stock amount.
+        
+        const newStockValue = update.totalStock;
+        
+        // Mongoose query operator to update all elements in an array:
+        this.updateMany({}, { $set: { "variations.$[].stock": newStockValue } }).exec();
+        
+        // totalStock is already set at the root level in the client's simple update payload, 
+        // so no need to calculate it again. We rely on the client's totalStock value here.
     }
     
     next();

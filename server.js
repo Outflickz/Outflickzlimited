@@ -2322,7 +2322,6 @@ app.get('/api/admin/capscollections/:id', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Server error fetching cap collection data.' });
     }
 });
-
 // POST /api/admin/capscollections - Create New Cap Collection
 app.post(
     '/api/admin/capscollections',
@@ -2346,7 +2345,6 @@ app.post(
                 const frontFile = files[`front-view-upload-${index}`]?.[0];
                 const backFile = files[`back-view-upload-${index}`]?.[0];
 
-                // Ensure both files are present
                 if (!frontFile || !backFile) {
                     throw new Error(`Missing BOTH front and back image files for Variation #${index}.`);
                 }
@@ -2360,6 +2358,8 @@ app.post(
                         finalVariations.push({
                             variationIndex: variation.variationIndex,
                             colorHex: variation.colorHex,
+                            // 🔑 CRITICAL FIX: Include the 'stock' field here
+                            stock: variation.stock || 0, 
                             frontImageUrl: frontImageUrl, 
                             backImageUrl: backImageUrl, 
                         });
@@ -2380,13 +2380,15 @@ app.post(
                 name: collectionData.name,
                 tag: collectionData.tag,
                 price: collectionData.price, 
-                sizes: collectionData.sizes,
-                totalStock: collectionData.totalStock,
+                // sizes: collectionData.sizes, // Removed as per schema context
+                // totalStock is intentionally omitted/set to 0. 
+                // The pre('save') middleware will calculate the correct sum from 'variations'.
                 isActive: collectionData.isActive,
                 variations: finalVariations, 
             });
 
             // D. Save to Database
+            // The pre('save') hook runs here, calculates totalStock from finalVariations, and sets it.
             const savedCollection = await newCollection.save();
 
             res.status(201).json({ 
@@ -2405,6 +2407,7 @@ app.post(
         }
     }
 );
+
 // PUT /api/admin/capscollections/:id - Update Cap Collection
 app.put(
     '/api/admin/capscollections/:id',

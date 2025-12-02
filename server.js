@@ -3846,6 +3846,7 @@ app.post('/api/users/verify', async (req, res) => {
         res.status(500).json({ message: 'Server error during verification.' });
     }
 });
+
 // =========================================================
 // 2. POST /api/users/login (Login) - MODIFIED
 // =========================================================
@@ -3921,6 +3922,7 @@ app.post('/api/users/login', async (req, res) => {
 
         res.status(200).json({ 
             message: 'Login successful',
+            token: token,
             user: user
         });
 

@@ -772,8 +772,6 @@ function createColorList(collectionId, variants) {
 
     return mapHtml + buttonsHtml;
 }
-
-// --- CORRECTED & UPDATED WEARS COLLECTION CARD JS ---
 function createCollectionCard(collection, size = 'default') {
     const currencySymbol = '₦';
     const PLACEHOLDER_URL = 'https://s3.us-west-1.idrivee2.com/outflickz/public/placeholder-image-v1.jpg';
@@ -815,16 +813,22 @@ function createCollectionCard(collection, size = 'default') {
     const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
 
 
-    const showSizeSelection = true;
+    // --- CRITICAL FRONTEND FIX START ---
+    // 1. Generate the inner HTML for size selection options.
+    const innerSizeOptions = createSizeList(collection._id, collection.availableSizes || [], isReduced);
 
-    const sizeListHtml = showSizeSelection ? `
-        <div class="flex items-center space-x-2 mt-2 mb-3">
-            <span class="text-xs font-medium text-gray-700">Size:</span>
-            <div class="flex gap-1 text-gray-700">
-                ${createSizeList(collection._id, collection.availableSizes || [], isReduced)}
+    // 2. Only generate the surrounding div/label structure if there are actual options (not an empty string).
+    const sizeListHtml = innerSizeOptions
+        ? `
+            <div class="flex items-center space-x-2 mt-2 mb-3">
+                <span class="text-xs font-medium text-gray-700">Size:</span>
+                <div class="flex gap-1 text-gray-700">
+                    ${innerSizeOptions}
+                </div>
             </div>
-        </div>
-    ` : '';
+        `
+        : ''; // If innerSizeOptions is empty (''), the entire size block is skipped.
+    // --- CRITICAL FRONTEND FIX END ---
 
     const colorListHtml = createColorList(collection._id, collection.variants); // Use 'variants'
 
@@ -973,16 +977,17 @@ function createCollectionCard(collection, size = 'default') {
 
 /**
  * Generates the HTML for the size selection options within the collection card.
- * ***FIXED: Reverted to using radio inputs for native single-selection behavior.***
+ * CRITICAL FIX: Returns an empty string if no sizes are available, preventing 'Size: N/A' text.
  */
 function createSizeList(collectionId, availableSizes, isReduced) {
     const standardSizes = ['S', 'M', 'L', 'XL']; 
 
+    // The backend provides a list of size strings for the homepage card
     const filteredSizes = (availableSizes || [])
         .filter(size => standardSizes.includes(size.toUpperCase().trim()));
 
     if (filteredSizes.length === 0) {
-        return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
+        return ''; // <-- FIX: Return empty string instead of "N/A" span
     }
 
     // Adjusted classes to match the look of the color swatches (no explicit padding, just w/h for touch targets)

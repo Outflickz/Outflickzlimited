@@ -748,6 +748,7 @@ NewArrivalsSchema.pre('save', function(next) {
     next();
 });
 const NewArrivals = mongoose.models.NewArrivals || mongoose.model('NewArrivals', NewArrivalsSchema);
+
 // --- CapVariationSchema (Used for Caps/No-Size Items) ---
 const CapVariationSchema = new mongoose.Schema({
     variationIndex: { type: Number, required: true, min: 1, max: 4 },

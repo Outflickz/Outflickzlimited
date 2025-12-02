@@ -3759,7 +3759,6 @@ app.get('/api/collections/caps', async (req, res) => {
     }
 });
 
-
 // GET /api/collections/preorder (For Homepage Display)
 app.get('/api/collections/preorder', async (req, res) => {
     try {
@@ -3781,6 +3780,14 @@ app.get('/api/collections/preorder', async (req, res) => {
                 backImageUrl: await generateSignedUrl(v.backImageUrl) || null,
             })));
 
+            // --- CRITICAL FIX: Transform the array of size objects [{size: "M", stock: 10}] 
+            //                  into an array of size strings ["M", "L"] 
+            const availableSizesStrings = collection.sizes 
+                ? collection.sizes.map(s => s.size) 
+                : [];
+            // --- END CRITICAL FIX ---
+
+
             // --- A. Extract primary image from the first variant ---
             const firstVariant = variants.length > 0 ? variants[0] : {};
             const frontImageUrl = firstVariant.frontImageUrl || null;
@@ -3791,7 +3798,10 @@ app.get('/api/collections/preorder', async (req, res) => {
                 name: collection.name,
                 tag: collection.tag,
                 price: collection.price, 
-                availableSizes: collection.sizes,
+                
+                // Use the transformed array of strings here:
+                availableSizes: availableSizesStrings, 
+                
                 availableStock: collection.totalStock, 
                 availableDate: collection.availableDate, 
                 
@@ -3799,7 +3809,7 @@ app.get('/api/collections/preorder', async (req, res) => {
                 frontImageUrl: frontImageUrl, 
                 backImageUrl: backImageUrl, 
                 
-                // C. 🚨 CRITICAL FIX: Include the full variants array for color swatches/switching
+                // C. Include the full variants array for color swatches/switching
                 variants: variants 
             };
         }));

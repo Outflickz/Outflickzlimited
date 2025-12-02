@@ -746,6 +746,7 @@ NewArrivalsSchema.pre('save', function(next) {
     
     next();
 });
+const NewArrivals = mongoose.models.NewArrivals || mongoose.model('NewArrivals', NewArrivalsSchema);
 
 // --- 🧢 NEW CAP COLLECTION SCHEMA AND MODEL 🧢 ---
 // This uses the identical ProductVariationSchema as Wears and NewArrivals.
@@ -2452,6 +2453,7 @@ app.delete('/api/admin/capscollections/:id', verifyToken, async (req, res) => {
     }
 });
 
+
 /**
  * GET /api/admin/newarrivals - Fetch All New Arrivals
  * Fetches all products, sorts them, and generates signed URLs for all variation images.
@@ -2554,6 +2556,8 @@ app.post(
                             colorHex: variation.colorHex,
                             frontImageUrl: frontImageUrl, // Permanent storage key/path
                             backImageUrl: backImageUrl, // Permanent storage key/path
+                            // CRITICAL FIX: Ensure the sizes array is copied from the incoming payload
+                            sizes: variation.sizes || [], 
                         });
                     });
                     
@@ -2567,26 +2571,21 @@ app.post(
                 return res.status(400).json({ message: "No valid product images and metadata were received." });
             }
 
-            // C. Calculate total stock from sizes and create the Final Product Object
-            // Assuming productData.sizes is an array of objects: [{size: 'S', stock: 10}, ...]
-            let calculatedTotalStock = 0;
-            if (Array.isArray(productData.sizes)) {
-                calculatedTotalStock = productData.sizes.reduce((sum, item) => sum + (item.stock || 0), 0);
-            }
-            // Override the totalStock field with the calculated value
-            productData.totalStock = calculatedTotalStock; 
-
+            // C. Create the Final Product Object
+            // The totalStock field is now calculated automatically by the Mongoose pre('save') hook, 
+            // so we don't need the manual calculation here. We can omit setting totalStock or set it to 0.
+            
             const newProduct = new NewArrivals({
                 name: productData.name,
                 tag: productData.tag,
                 price: productData.price, 
-                sizes: productData.sizes,
-                totalStock: productData.totalStock, // Use the calculated stock
+                // The sizes field was correctly removed from the main schema, 
+                // so we don't try to assign productData.sizes here.
                 isActive: productData.isActive, 
                 variations: finalVariations, 
             });
 
-            // D. Save to Database
+            // D. Save to Database (pre('save') hook calculates totalStock automatically)
             const savedProduct = await newProduct.save();
 
             res.status(201).json({ 
@@ -2637,6 +2636,9 @@ app.put(
                 }
                 
                 // Perform simple update
+                // NOTE: Setting totalStock manually bypasses the pre('save') hook logic, 
+                // which is fine for a quick-update assuming the detailed inventory update (sizes array) 
+                // is not the goal of this quick action.
                 existingProduct.totalStock = totalStock;
                 existingProduct.isActive = isActive; 
 
@@ -2696,11 +2698,12 @@ app.put(
                     throw new Error(`Back image missing for Variation #${index}.`);
                 }
                 
-                // Create a temporary object with getters that reference the outer scope's 'let' variables.
-                // These getters ensure we retrieve the final, potentially uploaded, URL after Promise.all resolves.
+                // Create a temporary object. Use the incoming sizes array.
                 updatedVariations.push({
                     variationIndex: index,
                     colorHex: incomingVariation.colorHex,
+                    // CRITICAL FIX: Ensure the sizes array is carried over from the incoming payload
+                    sizes: incomingVariation.sizes || existingPermanentVariation?.sizes || [],
                     get frontImageUrl() { return finalFrontUrl; }, 
                     get backImageUrl() { return finalBackUrl; }, 
                 });
@@ -2713,28 +2716,30 @@ app.put(
                 return res.status(400).json({ message: "No valid variations were processed for update." });
             }
 
-            // Aggregate total stock from sizes for update
-            let calculatedTotalStock = 0;
-            if (Array.isArray(productData.sizes)) {
-                calculatedTotalStock = productData.sizes.reduce((sum, item) => sum + (item.stock || 0), 0);
-            }
-            productData.totalStock = calculatedTotalStock; // Override the totalStock field
+            // Aggregate total stock calculation is now handled by the Mongoose pre('save') hook
+            // The lines below are removed:
+            // let calculatedTotalStock = 0;
+            // if (Array.isArray(productData.sizes)) { ... }
+            // productData.totalStock = calculatedTotalStock;
             
             // Update the Document Fields
             existingProduct.name = productData.name;
             existingProduct.tag = productData.tag;
             existingProduct.price = productData.price;
-            existingProduct.sizes = productData.sizes; // Update sizes field (stores per-size stock)
-            existingProduct.totalStock = productData.totalStock; // Update calculated totalStock
+            // The sizes field was correctly removed from the main schema, do not update it here.
             existingProduct.isActive = productData.isActive; // Update isActive field
             
-            // Assign the resolved variations array
+            // Assign the resolved variations array, ensuring sizes and final URLs are included
             existingProduct.variations = updatedVariations.map(v => ({
                 variationIndex: v.variationIndex,
                 colorHex: v.colorHex,
+                sizes: v.sizes, // CRITICAL: Assign the sizes array
                 frontImageUrl: v.frontImageUrl, // Accesses the getter which returns the final URL
                 backImageUrl: v.backImageUrl, 
             }));
+            
+            // The totalStock field will be automatically updated by the pre('save') hook 
+            // before the document is saved.
             
             // Save to Database
             const updatedProduct = await existingProduct.save();

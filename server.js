@@ -700,38 +700,49 @@ const NewArrivalsSchema = new mongoose.Schema({
         min: [0.01, 'Price (in NGN) must be greater than zero']
     },
     variations: {
-        type: [ProductVariationSchema],
+        type: [ProductVariationSchema], // Assuming ProductVariationSchema is defined as before
         required: [true, 'At least one product variation is required'],
         validate: {
             validator: function(v) { return v.length >= 1 && v.length <= 4; },
             message: 'A product must have between 1 and 4 variations.'
         }
     },
-    sizes: {
-        type: [String],
-        required: [true, 'Available sizes are required'],
-        validate: {
-            validator: function(v) { return Array.isArray(v) && v.length > 0; },
-            message: 'Sizes array cannot be empty.'
-        }
-    },
+    // <--- REMOVED: sizes field here, as size/stock is tracked within variations.sizes --->
     totalStock: {
         type: Number,
-        required: [true, 'Total stock number is required'],
         min: [0, 'Stock cannot be negative'],
-        default: 0
     },
     isActive: { type: Boolean, default: true },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
 
-// --- Pre-Save Middleware (NewArrivals) ---
+// 🚀 CRITICAL HOOK: Automatically calculates totalStock based on variations/sizes
 NewArrivalsSchema.pre('save', function(next) {
     this.updatedAt = Date.now();
     
-    if (this.isModified('isActive') && this.isActive === false) {
+    // 1. Calculate the new total stock (identical logic to WearsCollectionSchema)
+    let calculatedTotalStock = 0;
+    
+    if (this.variations && this.variations.length > 0) {
+        calculatedTotalStock = this.variations.reduce((totalVariationStock, variation) => {
+            // Sum all stock counts within the sizes array for this variation
+            const variationStockSum = variation.sizes.reduce((totalSizeStock, sizeEntry) => {
+                return totalSizeStock + sizeEntry.stock;
+            }, 0); 
+            
+            return totalVariationStock + variationStockSum;
+        }, 0);
+    }
+    
+    // 2. Apply business logic and set the totalStock field
+    // Check if the document is being saved/updated
+    if (this.isActive === false) {
+        // If the product is deactivated, total stock is 0, regardless of calculation
         this.totalStock = 0;
+    } else {
+        // Otherwise, use the calculated sum
+        this.totalStock = calculatedTotalStock;
     }
     
     next();
@@ -2445,9 +2456,10 @@ app.delete('/api/admin/capscollections/:id', verifyToken, async (req, res) => {
 });
 
 
-// --- NEW ARRIVALS API ROUTES (Existing) ---
-// ... (The New Arrivals CRUD routes remain here) ...
-// GET /api/admin/newarrivals - Fetch All New Arrivals
+/**
+ * GET /api/admin/newarrivals - Fetch All New Arrivals
+ * Fetches all products, sorts them, and generates signed URLs for all variation images.
+ */
 app.get('/api/admin/newarrivals', verifyToken, async (req, res) => {
     try {
         // 1. Fetch all products
@@ -2460,6 +2472,7 @@ app.get('/api/admin/newarrivals', verifyToken, async (req, res) => {
         const signedProducts = await Promise.all(products.map(async (product) => {
             const signedVariations = await Promise.all(product.variations.map(async (v) => ({
                 ...v,
+                // Generate signed URLs for image retrieval
                 frontImageUrl: await generateSignedUrl(v.frontImageUrl) || v.frontImageUrl,
                 backImageUrl: await generateSignedUrl(v.backImageUrl) || v.backImageUrl
             })));
@@ -2473,7 +2486,10 @@ app.get('/api/admin/newarrivals', verifyToken, async (req, res) => {
     }
 });
 
-// GET /api/admin/newarrivals/:id - Fetch Single New Arrival
+/**
+ * GET /api/admin/newarrivals/:id - Fetch Single New Arrival
+ * Fetches a single product by ID and generates signed URLs for its variation images.
+ */
 app.get('/api/admin/newarrivals/:id', verifyToken, async (req, res) => {
     try {
         const productId = req.params.id;
@@ -2499,7 +2515,10 @@ app.get('/api/admin/newarrivals/:id', verifyToken, async (req, res) => {
     }
 });
 
-// POST /api/admin/newarrivals - Create New Arrival
+/**
+ * POST /api/admin/newarrivals - Create New Arrival
+ * Handles multipart/form-data. Uploads front and back images for all variations concurrently.
+ */
 app.post(
     '/api/admin/newarrivals',
     verifyToken, 
@@ -2519,6 +2538,7 @@ app.post(
             
             for (const variation of productData.variations) {
                 const index = variation.variationIndex;
+                // Files are expected to be named front-view-upload-{index} and back-view-upload-{index}
                 const frontFile = files[`front-view-upload-${index}`]?.[0];
                 const backFile = files[`back-view-upload-${index}`]?.[0];
 
@@ -2526,22 +2546,25 @@ app.post(
                     throw new Error(`Missing BOTH front and back image files for Variation #${index}.`);
                 }
 
+                // Start uploads concurrently
                 const uploadFrontPromise = uploadFileToPermanentStorage(frontFile);
                 const uploadBackPromise = uploadFileToPermanentStorage(backFile);
                 
+                // Wait for uploads and create the final variation object
                 const combinedUploadPromise = Promise.all([uploadFrontPromise, uploadBackPromise])
                     .then(([frontImageUrl, backImageUrl]) => {
                         finalVariations.push({
                             variationIndex: variation.variationIndex,
                             colorHex: variation.colorHex,
-                            frontImageUrl: frontImageUrl, 
-                            backImageUrl: backImageUrl, 
+                            frontImageUrl: frontImageUrl, // Permanent storage key/path
+                            backImageUrl: backImageUrl, // Permanent storage key/path
                         });
                     });
                     
                 uploadPromises.push(combinedUploadPromise);
             }
             
+            // Wait for all image uploads to finish before saving the document
             await Promise.all(uploadPromises);
 
             if (finalVariations.length === 0) {
@@ -2549,7 +2572,7 @@ app.post(
             }
 
             // C. Create the Final Product Object
-            const newProduct = new NewArrivals({ // <-- Use NewArrivals Model
+            const newProduct = new NewArrivals({
                 name: productData.name,
                 tag: productData.tag,
                 price: productData.price, 
@@ -2563,7 +2586,7 @@ app.post(
             const savedProduct = await newProduct.save();
 
             res.status(201).json({ 
-                message: 'New Arrival created successfully and images uploaded to B2.',
+                message: 'New Arrival created successfully and images uploaded to permanent storage.',
                 productId: savedProduct._id,
                 name: savedProduct.name
             });
@@ -2579,7 +2602,12 @@ app.post(
     }
 );
 
-// PUT /api/admin/newarrivals/:id - Update New Arrival
+/**
+ * PUT /api/admin/newarrivals/:id - Update New Arrival
+ * Supports two modes:
+ * 1. Quick Restock (application/json): Updates only stock and active status.
+ * 2. Full Update (multipart/form-data): Updates all fields, including replacing images if new files are provided.
+ */
 app.put(
     '/api/admin/newarrivals/:id',
     verifyToken, 
@@ -2589,15 +2617,15 @@ app.put(
         let existingProduct;
         
         try {
-            existingProduct = await NewArrivals.findById(productId); // <-- Use NewArrivals Model
+            existingProduct = await NewArrivals.findById(productId);
             if (!existingProduct) {
                 return res.status(404).json({ message: 'New Arrival not found for update.' });
             }
 
-            const isQuickRestock = req.get('Content-Type')?.includes('application/json');
+            // A. HANDLE QUICK RESTOCK (Check if Content-Type is JSON AND productData is NOT present)
+            const isQuickRestock = req.get('Content-Type')?.includes('application/json') && !req.body.productData;
             
-            // A. HANDLE QUICK RESTOCK
-            if (isQuickRestock && !req.body.productData) {
+            if (isQuickRestock) {
                 const { totalStock, isActive } = req.body;
 
                 if (totalStock === undefined || isActive === undefined) {
@@ -2614,7 +2642,8 @@ app.put(
                     productId: updatedProduct._id
                 });
             }
-            // B. HANDLE FULL FORM SUBMISSION
+
+            // B. HANDLE FULL FORM SUBMISSION (multipart/form-data)
             if (!req.body.productData) {
                 return res.status(400).json({ message: "Missing product data payload for full update." });
             }
@@ -2629,37 +2658,42 @@ app.put(
                 const index = incomingVariation.variationIndex;
                 const existingPermanentVariation = existingProduct.variations.find(v => v.variationIndex === index);
 
+                // Initialize with existing permanent URLs
                 let finalFrontUrl = existingPermanentVariation?.frontImageUrl || null;
                 let finalBackUrl = existingPermanentVariation?.backImageUrl || null;
 
                 // Process FRONT Image
-                const frontFileKey = `front-view-upload-${index}`;
-                const newFrontFile = files[frontFileKey]?.[0];
+                const newFrontFile = files[`front-view-upload-${index}`]?.[0];
 
                 if (newFrontFile) {
                     if (existingPermanentVariation?.frontImageUrl) {
                         oldImagesToDelete.push(existingPermanentVariation.frontImageUrl);
                     }
+                    // Start upload and update finalFrontUrl when resolved
                     const frontUploadPromise = uploadFileToPermanentStorage(newFrontFile).then(url => { finalFrontUrl = url; });
                     uploadPromises.push(frontUploadPromise);
                 } else if (!finalFrontUrl) {
+                    // Fail if no existing URL and no new file provided
                     throw new Error(`Front image missing for Variation #${index}.`);
                 }
                 
                 // Process BACK Image
-                const backFileKey = `back-view-upload-${index}`;
-                const newBackFile = files[backFileKey]?.[0];
+                const newBackFile = files[`back-view-upload-${index}`]?.[0];
 
                 if (newBackFile) {
                     if (existingPermanentVariation?.backImageUrl) {
                         oldImagesToDelete.push(existingPermanentVariation.backImageUrl);
                     }
+                    // Start upload and update finalBackUrl when resolved
                     const backUploadPromise = uploadFileToPermanentStorage(newBackFile).then(url => { finalBackUrl = url; });
                     uploadPromises.push(backUploadPromise);
                 } else if (!finalBackUrl) {
+                    // Fail if no existing URL and no new file provided
                     throw new Error(`Back image missing for Variation #${index}.`);
                 }
                 
+                // Create a temporary object with getters that reference the outer scope's 'let' variables.
+                // These getters ensure we retrieve the final, potentially uploaded, URL after Promise.all resolves.
                 updatedVariations.push({
                     variationIndex: index,
                     colorHex: incomingVariation.colorHex,
@@ -2668,6 +2702,7 @@ app.put(
                 });
             }
             
+            // Wait for all uploads to complete and for finalFrontUrl/finalBackUrl to be updated
             await Promise.all(uploadPromises);
 
             if (updatedVariations.length === 0) {
@@ -2682,10 +2717,11 @@ app.put(
             existingProduct.totalStock = productData.totalStock;
             existingProduct.isActive = productData.isActive;
             
+            // Assign the resolved variations array
             existingProduct.variations = updatedVariations.map(v => ({
                 variationIndex: v.variationIndex,
                 colorHex: v.colorHex,
-                frontImageUrl: v.frontImageUrl, 
+                frontImageUrl: v.frontImageUrl, // Accesses the getter which returns the final URL
                 backImageUrl: v.backImageUrl, 
             }));
             
@@ -2712,16 +2748,20 @@ app.put(
     }
 );
 
-// DELETE /api/admin/newarrivals/:id - Delete New Arrival
+/**
+ * DELETE /api/admin/newarrivals/:id - Delete New Arrival
+ * Deletes the product and triggers background deletion of associated images from permanent storage.
+ */
 app.delete('/api/admin/newarrivals/:id', verifyToken, async (req, res) => {
     try {
         const productId = req.params.id;
-        const deletedProduct = await NewArrivals.findByIdAndDelete(productId); // <-- Use NewArrivals Model
+        const deletedProduct = await NewArrivals.findByIdAndDelete(productId);
 
         if (!deletedProduct) {
             return res.status(404).json({ message: 'New Arrival not found for deletion.' });
         }
 
+        // Trigger background image deletion
         deletedProduct.variations.forEach(v => {
             if (v.frontImageUrl) deleteFileFromPermanentStorage(v.frontImageUrl);
             if (v.backImageUrl) deleteFileFromPermanentStorage(v.backImageUrl);

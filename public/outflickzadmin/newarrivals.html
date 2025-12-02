@@ -40,19 +40,19 @@
                 Wears Collection
             </a>
 
-              <a href="capscollection.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-emerald-600 hover:bg-emerald-700 active-link">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14v12a2 2 0 01-2 2H7a2 2 0 01-2-2V9z"></path></svg>
-                    Caps Collection
-                </a>
+            <a href="capscollection.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-emerald-600 hover:bg-emerald-700 active-link">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14v12a2 2 0 01-2 2H7a2 2 0 01-2-2V9z"></path></svg>
+                Caps Collection
+            </a>
             
             <a href="newarrivals.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg active-link-page">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 New Arrivals
             </a>
-              <a href="preorders.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    Pre-Order
-                </a>
+            <a href="preorders.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                Pre-Order
+            </a>
 
 
             <a href="settings.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
@@ -78,12 +78,11 @@
         
         <div id="restock-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 justify-center items-center">
             <div class="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full">
-                <h3 class="text-lg font-bold mb-4">Quick Restock & Activate</h3>
-                <p class="text-sm text-gray-600 mb-4">Update stock for <span id="restockModalName" class="font-semibold"></span>.</p>
-                <input type="number" id="restockInput" placeholder="New Stock Quantity" min="1" class="w-full p-2 border rounded-md mb-4">
+                <h3 class="text-lg font-bold mb-4">Quick Activate Product</h3>
+                <p class="text-sm text-gray-600 mb-4">Activate **<span id="restockModalName" class="font-semibold"></span>** (Status will change to Available). You must update size-specific stock via the Edit button later if required.</p>
                 <div class="flex justify-end space-x-3">
                     <button id="restockCancelBtn" type="button" class="px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-100">Cancel</button>
-                    <button id="restockConfirmBtn" type="button" class="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700">Confirm Restock</button>
+                    <button id="restockConfirmBtn" type="button" class="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700">Confirm Activation</button>
                 </div>
             </div>
         </div>
@@ -111,11 +110,7 @@
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                            <div>
-                                <label for="available-sizes" class="block text-sm font-medium text-gray-700">Available Sizes (Comma separated: S, M, L)</label>
-                                <input type="text" id="available-sizes" placeholder="S, M, L, XL" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-                            </div>
-                            <div class="md:col-span-2 flex items-center pt-5">
+                            <div class="md:col-span-3 flex items-center">
                                 <input id="is-active" type="checkbox" checked class="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500">
                                 <label for="is-active" class="ml-2 block text-sm font-medium text-gray-700">Active / Available Online (Unchecking this sets stock to 0)</label>
                             </div>
@@ -123,9 +118,15 @@
 
                         <hr class="my-6">
                         
-                        <h3 class="text-xl font-semibold text-gray-800 mb-4">Product Variations (Colors/Views)</h3>
-                        <div id="product-sections-container" class="space-y-4 mb-6">
-                            </div>
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4">Product Variations (Colors/Views & Stock)</h3>
+                        <div class="mb-6 border-l-4 border-emerald-500 pl-4 py-2 bg-emerald-50 rounded-md">
+                            <label for="common-sizes" class="block text-sm font-bold text-emerald-800">Define Available Sizes Once (Comma separated: S, M, L)</label>
+                            <p class="text-xs text-emerald-600 mb-2">These sizes will be used to create the stock tables for every variation below.</p>
+                            <input type="text" id="common-sizes" placeholder="S, M, L, XL" value="S, M, L, XL" required class="mt-1 block w-full rounded-md border-emerald-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm">
+                        </div>
+
+                        <div id="product-sections-container" class="space-y-6 mb-6">
+                        </div>
 
                         <button type="button" id="add-section-btn" class="mb-6 px-4 py-2 border border-emerald-600 text-emerald-600 rounded-lg flex items-center transition duration-150 hover:bg-emerald-50">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
@@ -174,6 +175,8 @@
     // --- Configuration and Global Variables ---
     const API_BASE_URL = '/api/admin/newarrivals'; 
     const MAX_VARIATIONS = 4;
+    // Define standard sizes if needed, but the form uses common-sizes input
+    const DEFAULT_SIZES = ['S', 'M', 'L', 'XL'];
 
     let productIdToUpdate = null; 
     let sectionCount = 0;
@@ -187,22 +190,21 @@
     const addSectionBtn = document.getElementById('add-section-btn');
     const sidebar = document.getElementById('sidebar');
     const sidebarToggle = document.getElementById('sidebar-toggle');
+    const commonSizesInput = document.getElementById('common-sizes');
     
     // Restock Modal Elements
     const restockModal = document.getElementById('restock-modal');
     const restockModalName = document.getElementById('restockModalName');
-    const restockInput = document.getElementById('restockInput');
+    // const restockInput = document.getElementById('restockInput'); // Removed since quick restock is simplified
     const restockConfirmBtn = document.getElementById('restockConfirmBtn');
     const restockCancelBtn = document.getElementById('restockCancelBtn');
 
-    // --- Utility & Authentication Functions (Crucial Updates) ---
+    // --- Utility & Authentication Functions ---
 
     function getAuthToken() {
-        // Retrieve the token from localStorage
         const token = localStorage.getItem('adminToken');
         if (!token) {
             console.error('Authentication token not found. Redirecting to login.');
-            // In a real application, you would redirect the user here:
             // window.location.href = '/admin-login.html'; 
             return null;
         }
@@ -210,12 +212,10 @@
     }
     
     function showSuccessModal(message) {
-        // Simple console log for placeholder, replace with actual modal logic
         console.log("Success:", message.replace(/<mark>|<\/mark>/g, ''));
         alert(`Success: ${message.replace(/<mark>|<\/mark>/g, '')}`);
     }
     function showErrorModal(message) {
-        // Simple console log for placeholder, replace with actual modal logic
         console.error("Error:", message.replace(/<mark>|<\/mark>/g, ''));
         alert(`Error: ${message.replace(/<mark>|<\/mark>/g, '')}`);
     }
@@ -226,7 +226,6 @@
     
     function logoutAdmin() {
         console.log("Admin logged out and token removed.");
-        // Clear the token and redirect to the login page
         localStorage.removeItem('adminToken');
         // window.location.href = '/admin-login.html'; // Actual redirect
     }
@@ -238,10 +237,61 @@
         }
     }
     
+    function getCleanedSizes() {
+        return commonSizesInput.value
+            .split(',')
+            .map(s => s.trim().toUpperCase())
+            .filter(s => s);
+    }
+    
+    function renderStockInputs(index, existingSizes = []) {
+        const sizes = getCleanedSizes();
+        if (sizes.length === 0) {
+            return `<p class="text-sm text-red-500 mt-2">Please define available sizes above before adding stock.</p>`;
+        }
+        
+        let stockRows = '';
+        sizes.forEach(size => {
+            // Find existing stock for this size, default to 0
+            const existingStockEntry = existingSizes.find(entry => entry.size.toUpperCase() === size);
+            const initialStock = existingStockEntry ? existingStockEntry.stock : 0;
+            
+            stockRows += `
+                <tr class="hover:bg-gray-100">
+                    <td class="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">${size}</td>
+                    <td class="px-4 py-2 whitespace-nowrap">
+                        <input type="number" 
+                               min="0" 
+                               value="${initialStock}" 
+                               data-size-name="${size}" 
+                               class="stock-input-field w-20 p-1 text-sm border rounded-md focus:border-emerald-500 focus:ring-emerald-500">
+                    </td>
+                </tr>
+            `;
+        });
+
+        return `
+            <h5 class="text-sm font-semibold mt-4 mb-2">Stock per Size:</h5>
+            <div class="max-h-48 overflow-y-auto border rounded-lg">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 sticky top-0">
+                        <tr>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        ${stockRows}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+
     // --- Product Variation Section Management ---
 
     function renderImageInput(viewType, imageUrl, requiredAttr, viewLabel, index) {
-        // Function now accepts the index explicitly for consistent ID generation
         const viewId = `${viewType}-upload-${index}`;
         const existingUrlId = `existing-${viewType}-url-${index}`;
         
@@ -266,11 +316,10 @@
         `;
     }
 
-    function createProductSection(index, frontImageUrl = null, backImageUrl = null, colorHex = '#10B981') {
+    function createProductSection(index, frontImageUrl = null, backImageUrl = null, colorHex = '#10B981', sizesData = []) {
         const uniqueId = `section-${index}`;
         const sectionNumber = index + 1; 
         const isEditing = frontImageUrl !== null || backImageUrl !== null;
-        // Require a file only if we are creating a new product OR if we are editing AND no existing image URL is present.
         const fileRequiredAttribute = (productIdToUpdate === null && index === 0) || (productIdToUpdate !== null && !frontImageUrl) ? 'required' : '';
 
 
@@ -281,7 +330,7 @@
                     ${sectionNumber > 1 || isEditing ? `<button type="button" onclick="removeProductSection('${uniqueId}')" class="text-red-500 hover:text-red-700 transition duration-150 text-sm">Remove</button>` : ''}
                 </h4>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     ${renderImageInput('front-view', frontImageUrl, fileRequiredAttribute, 'Front View', index)}
                     ${renderImageInput('back-view', backImageUrl, '', 'Back View (Optional)', index)}
                     
@@ -295,6 +344,10 @@
                             <span class="ml-3 text-sm text-gray-500">Pick a color</span>
                         </div>
                     </div>
+                    
+                    <div>
+                         ${renderStockInputs(index, sizesData)}
+                    </div>
                 </div>
             </div>
         `;
@@ -303,8 +356,7 @@
     function addProductSection() {
         if (sectionCount < MAX_VARIATIONS) {
             const newSection = document.createElement('div');
-            // Use the correct function signature for initial creation
-            newSection.innerHTML = createProductSection(sectionCount, null, null, '#10B981').trim(); 
+            newSection.innerHTML = createProductSection(sectionCount).trim(); 
             productSectionsContainer.appendChild(newSection.firstChild);
             sectionCount++;
 
@@ -334,14 +386,20 @@
         sections.forEach((section, index) => {
             const newIndex = index; 
 
-            // Extract current data before replacement
+            // 1. Extract current data before replacement
             const existingFrontUrl = section.querySelector(`[id^="existing-front-view-url-"]`)?.value || null;
             const existingBackUrl = section.querySelector(`[id^="existing-back-view-url-"]`)?.value || null;
             const existingColor = section.querySelector(`[id^="color-input-"]`)?.value || '#10B981';
-
+            
+            // 2. Extract current stock data
+            const existingStockData = Array.from(section.querySelectorAll('.stock-input-field')).map(input => ({
+                size: input.dataset.sizeName,
+                stock: parseInt(input.value) || 0
+            }));
+            
             const tempDiv = document.createElement('div');
-            // Re-render the section with the new index and preserved data
-            tempDiv.innerHTML = createProductSection(newIndex, existingFrontUrl, existingBackUrl, existingColor).trim();
+            // 3. Re-render the section with the new index and preserved data
+            tempDiv.innerHTML = createProductSection(newIndex, existingFrontUrl, existingBackUrl, existingColor, existingStockData).trim();
             const newSectionElement = tempDiv.firstChild;
 
             section.replaceWith(newSectionElement);
@@ -380,6 +438,8 @@
         sectionCount = 0;
         addProductSection(); 
         updateAddSectionButtonState();
+        // Force re-render of stock inputs if common sizes were changed before reset
+        commonSizesInput.value = DEFAULT_SIZES.join(', ');
     }
 
     async function fetchProducts() { 
@@ -432,13 +492,14 @@
                     statusText = 'Inactive (Hidden)';
                     statusClass = 'bg-yellow-100 text-yellow-800';
                 }
-                // Only show restock/activate button if it's inactive/out of stock
-                restockButton = `<button onclick="quickRestockAndActivate('${product._id}', '${product.name}', ${product.price})" class="text-green-600 hover:text-green-900 transition duration-150 mr-3">Restock/Activate</button>`;
+                // Only show activate button if it's inactive
+                restockButton = `<button onclick="quickRestockAndActivate('${product._id}', '${product.name}')" class="text-green-600 hover:text-green-900 transition duration-150 mr-3">Activate</button>`;
             }
 
             // Image Preview logic - assuming the first variation's front image is used
             const firstVariation = product.variations && product.variations.length > 0 ? product.variations[0] : null;
-            const imageUrl = firstVariation ? firstVariation.frontImageUrl : 'https://placehold.co/32x32/ccc/000?text=No';
+            // Use the cached signed URL if available, otherwise fall back to the key (which might not render without a CDN/Auth)
+            const imageUrl = firstVariation ? (firstVariation.frontCachedSignedUrl || firstVariation.frontImageUrl) : 'https://placehold.co/32x32/ccc/000?text=No';
             const imagePreview = `<img src="${imageUrl}" alt="Preview" class="w-8 h-8 rounded-md inline-block mr-2 object-cover">`;
 
             const row = `
@@ -509,24 +570,28 @@
             document.getElementById('product-name').value = product.name; 
             document.getElementById('product-tag').value = product.tag; 
             document.getElementById('product-price').value = product.price; 
-            document.getElementById('available-sizes').value = product.sizes.join(', ');
             document.getElementById('is-active').checked = product.isActive;
 
-            // 3. Populate variations 
+            // 3. Populate Variations and Stock
             productSectionsContainer.innerHTML = '';
-            sectionCount = 0;
+            
+            // Infer the common list of sizes from the first variation's size data
+            const sizeList = product.variations[0]?.sizes?.map(s => s.size) || DEFAULT_SIZES;
+            commonSizesInput.value = sizeList.join(', ');
 
             product.variations.forEach((variation, index) => {
-                const frontUrl = variation.frontImageUrl || null;
-                const backUrl = variation.backImageUrl || null;
+                // Use cached URL if available for display
+                const frontUrl = variation.frontCachedSignedUrl || variation.frontImageUrl || null;
+                const backUrl = variation.backCachedSignedUrl || variation.backImageUrl || null;
                 const colorHex = variation.colorHex || '#10B981'; 
+                const sizesData = variation.sizes || [];
 
                 const newSection = document.createElement('div');
-                // Use the new signature with existing data
-                newSection.innerHTML = createProductSection(index, frontUrl, backUrl, colorHex).trim();
+                // Pass existing sizesData to createProductSection for stock population
+                newSection.innerHTML = createProductSection(index, frontUrl, backUrl, colorHex, sizesData).trim();
                 productSectionsContainer.appendChild(newSection.firstChild);
             });
-
+            
             sectionCount = product.variations.length; 
             reindexProductSections(); // Ensure consistent indexing
 
@@ -571,38 +636,29 @@
         }
     }
 
-    async function quickRestockAndActivate(productId, productName, currentPrice) { 
+    async function quickRestockAndActivate(productId, productName) { 
         const token = getAuthToken();
         if (!token) return;
         
-        const formattedPrice = `₦${(currentPrice || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
-        restockModalName.innerHTML = `**${productName}** (Price: <mark>${formattedPrice}</mark>)`;
-        restockInput.value = 100;
+        restockModalName.innerHTML = `**${productName}**`;
+        // restockInput.value = 100; // Removed stock input
         restockModal.classList.remove('hidden');
         restockModal.classList.add('flex');
 
-        const getStockPromise = new Promise((resolve, reject) => {
+        const activationPromise = new Promise((resolve, reject) => {
             
             const handleConfirm = () => {
                 restockConfirmBtn.removeEventListener('click', handleConfirm);
                 restockCancelBtn.removeEventListener('click', handleCancel); 
-
-                const newStock = parseInt(restockInput.value);
-                if (!isNaN(newStock) && newStock > 0) {
-                    resolve(newStock);
-                    restockModal.classList.remove('flex');
-                    restockModal.classList.add('hidden');
-                } else {
-                    showErrorModal("Please enter a valid number greater than 0 for the stock quantity.");
-                    restockConfirmBtn.addEventListener('click', handleConfirm);
-                    restockCancelBtn.addEventListener('click', handleCancel);
-                }
+                resolve(true); // Confirmed activation
+                restockModal.classList.remove('flex');
+                restockModal.classList.add('hidden');
             };
 
             const handleCancel = () => {
                 restockConfirmBtn.removeEventListener('click', handleConfirm);
                 restockCancelBtn.removeEventListener('click', handleCancel);
-                reject(new Error("Restock cancelled by user."));
+                reject(new Error("Activation cancelled by user."));
                 restockModal.classList.remove('flex');
                 restockModal.classList.add('hidden');
             };
@@ -611,25 +667,22 @@
             restockCancelBtn.addEventListener('click', handleCancel);
         });
         
-        let newStock;
         try {
-            newStock = await getStockPromise;
+            await activationPromise;
         } catch (error) {
-            if (error.message !== "Restock cancelled by user.") {
-                 showErrorModal(`An error occurred while getting stock input: <mark>${error.message}</mark>`);
+            if (error.message !== "Activation cancelled by user.") {
+                 showErrorModal(`An error occurred: <mark>${error.message}</mark>`);
             }
             return;
         }
 
         try {
-            // Note: This only sets the total stock and updates isActive, it assumes 
-            // the stock is distributed across variations based on server logic.
+            // Only sets isActive to true. totalStock remains calculated server-side based on existing size stock.
             const updatePayload = {
-                totalStock: newStock,
                 isActive: true, 
             };
 
-            const response = await fetch(`${API_BASE_URL}/${productId}/stock`, { // Assuming a dedicated stock update endpoint
+            const response = await fetch(`${API_BASE_URL}/${productId}/status`, { // Assuming a dedicated status update endpoint
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -648,12 +701,12 @@
                 }
             }
 
-            showSuccessModal(`New Arrival <mark>**${productName}**</mark> successfully restocked to <mark>**${newStock}**</mark> and activated!`); 
+            showSuccessModal(`New Arrival <mark>**${productName}**</mark> successfully activated!`); 
             fetchProducts(); 
 
         } catch (error) {
-            console.error('Restock failed:', error);
-            showErrorModal(`Error restocking new arrival: <mark>${error.message}</mark>`); 
+            console.error('Activation failed:', error);
+            showErrorModal(`Error activating new arrival: <mark>${error.message}</mark>`); 
         }
     }
 
@@ -668,6 +721,13 @@
             showErrorModal("Please add at least one product variation."); 
             return;
         }
+        
+        const commonSizes = getCleanedSizes();
+        if (commonSizes.length === 0) {
+            showErrorModal("Please define available sizes in the 'Define Available Sizes Once' field."); 
+            return;
+        }
+
 
         submitBtn.disabled = true;
         submitBtn.textContent = isUpdate ? 'Updating...' : 'Submitting...';
@@ -683,7 +743,6 @@
         const formData = new FormData();
         let productVariationsMetadata = [];
         let isValid = true;
-        let totalFiles = 0; // Tracking files for file uploads check
 
         Array.from(productSectionsContainer.children).forEach((section, index) => {
             if (!isValid) return; 
@@ -712,8 +771,7 @@
                 if (frontImageFile) {
                     formData.append(`front-view-upload-${displaySectionNumber}`, frontImageFile); 
                     frontUrlForMetadata = 'UPLOAD_NEW'; 
-                    totalFiles++;
-                } else if (!existingFrontUrl) { 
+                } else if (!existingFrontUrl && !isUpdate) { // Must have file on creation
                     showErrorModal(`Front View Image for Variation <mark>#${displaySectionNumber}</mark> is missing and is required.`); 
                     isValid = false;
                     return;
@@ -722,15 +780,38 @@
                 if (backImageFile) {
                     formData.append(`back-view-upload-${displaySectionNumber}`, backImageFile); 
                     backUrlForMetadata = 'UPLOAD_NEW'; 
-                    totalFiles++;
                 } 
+                
+                // --- CRITICAL STOCK DATA COLLECTION ---
+                const sizeStockInputs = section.querySelectorAll('.stock-input-field');
+                let variationSizes = [];
+                let hasStock = false;
+
+                sizeStockInputs.forEach(input => {
+                    const stockValue = parseInt(input.value) || 0;
+                    if (stockValue < 0) {
+                         showErrorModal(`Stock for size <mark>${input.dataset.sizeName}</mark> in Variation <mark>#${displaySectionNumber}</mark> cannot be negative.`);
+                         isValid = false;
+                         return;
+                    }
+                    if (stockValue > 0) hasStock = true;
+
+                    variationSizes.push({
+                        size: input.dataset.sizeName,
+                        stock: stockValue
+                    });
+                });
+                
+                if (!isValid) return;
+
 
                 productVariationsMetadata.push({
                     variationIndex: displaySectionNumber,
                     colorHex: color,
-                    // If frontImageUrl is null, it means there's a file upload (UPLOAD_NEW) or existing URL
+                    // Send the final keys/URLs/flags to the server
                     frontImageUrl: frontUrlForMetadata, 
                     backImageUrl: backUrlForMetadata,
+                    sizes: variationSizes // The full stock array
                 });
             }
         });
@@ -740,27 +821,23 @@
             return;
         }
         
-        // --- Basic Validation ---
+        // --- Basic Product Validation ---
         const productName = document.getElementById('product-name').value.trim();
         const productTag = document.getElementById('product-tag').value.trim();
         const productPrice = parseFloat(document.getElementById('product-price').value);
-        const availableSizes = document.getElementById('available-sizes').value.split(',').map(s => s.trim().toUpperCase()).filter(s => s);
+        const isActive = document.getElementById('is-active').checked;
         
-        if (!productName || !productTag || isNaN(productPrice) || productPrice <= 0 || availableSizes.length === 0) {
-            showErrorModal("Please fill in all required product details (Name, Tag, Price > 0, and Sizes).");
+        if (!productName || !productTag || isNaN(productPrice) || productPrice <= 0) {
+            showErrorModal("Please fill in all required product details (Name, Tag, Price > 0).");
             resetFormSubmitButtonState(isUpdate);
             return;
         }
-
-        const isActive = document.getElementById('is-active').checked;
-        let totalStock = isActive ? 1 : 0; 
 
         const productData = { 
             name: productName, 
             tag: productTag, 
             price: productPrice, 
-            sizes: availableSizes,
-            totalStock: isActive ? totalStock : 0, 
+            // The server calculates totalStock based on variations[].sizes and isActive status
             isActive: isActive,
             variations: productVariationsMetadata
         };
@@ -773,7 +850,6 @@
                 method: method,
                 headers: {
                     'Authorization': `Bearer ${token}`
-                    // NOTE: Do NOT set Content-Type to 'application/json' when sending FormData
                 },
                 body: formData 
             });
@@ -821,6 +897,12 @@
 
     // --- Initialization ---
     document.addEventListener('DOMContentLoaded', () => {
+        // Initial check for sizes input change to re-render stock tables
+        commonSizesInput.addEventListener('input', () => {
+            // Re-render all sections to update size inputs when the common sizes change
+            reindexProductSections();
+        });
+        
         if (productSectionsContainer.children.length === 0) {
             addProductSection();
         }

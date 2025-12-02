@@ -300,6 +300,7 @@
             </div>
         </div>
     </div>
+
     <script>
 // --- JAVASCRIPT LOGIC ---
 
@@ -502,7 +503,8 @@ function renderCollectionsTable(collections) {
         collectionsTableBody.innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">No collections found.</td></tr>';
         return;
     }
-
+    
+    // START OF PROVIDED CODE BLOCK 2
     collections.forEach(collection => {
         const tagClass = getTagClass(collection.tag);
         const isActiveAndStocked = collection.isActive && collection.totalStock > 0;
@@ -572,24 +574,18 @@ function getTagClass(tag) {
 
 /**
  * Fetches data for a specific collection and populates the form for editing.
- * *** MODIFIED: Added Available Date and removed Color from the form logic. ***
- * *** FIX: Implemented robust error handling to prevent SyntaxError when API returns non-JSON (HTML) error page. ***
+ * *** MODIFIED: Added Authorization header and robust error handling. Removed color population logic. ***
  */
-// Conceptual fix for your client-side JavaScript (preorders.html)
 async function editCollection(collectionId) {
-    // === 🛠️ FIX START ===
     const token = getAuthToken(); // 1. Get the token
     if (!token) return;           // 2. Check if token exists
-    // === 🛠️ FIX END ===
 
     try {
         const response = await fetch(`${API_BASE_URL}/${collectionId}`, { // Use API_BASE_URL constant
-            // === 🛠️ FIX START: Add Authorization Header ===
             method: 'GET',
             headers: { 
                 'Authorization': `Bearer ${token}`
             }
-            // === 🛠️ FIX END ===
         });
 
         if (!response.ok) {
@@ -624,7 +620,6 @@ async function editCollection(collectionId) {
         document.getElementById('is-active').checked = collection.isActive;
         
         // New Field: Populate Available Date
-        // Collection date is likely a MongoDB date string (e.g., "2025-11-20T00:00:00.000Z")
         if (collection.availableDate) {
             // Format to YYYY-MM-DD for the HTML date input
             const date = new Date(collection.availableDate);
@@ -641,7 +636,6 @@ async function editCollection(collectionId) {
             const sectionNumber = variation.variationIndex;
             const frontUrl = variation.frontImageUrl || null;
             const backUrl = variation.backImageUrl || null;
-            // The color property is no longer used/passed.
 
             const newSection = document.createElement('div');
             // Reusing createProductSection, which now omits color logic
@@ -649,7 +643,6 @@ async function editCollection(collectionId) {
             productSectionsContainer.appendChild(newSection.firstChild);
             sectionCount++;
 
-            // No need to populate color
         });
 
         // 4. Update the add button state
@@ -666,7 +659,7 @@ async function editCollection(collectionId) {
 
 /**
  * Sends a DELETE request to remove a collection. 
- * *** FIX: Implemented robust error handling to prevent SyntaxError when API returns non-JSON (HTML) error page. ***
+ * *** FIX: Implemented robust error handling. ***
  */
 async function deleteCollection(collectionId) {
     const token = getAuthToken();
@@ -691,8 +684,8 @@ async function deleteCollection(collectionId) {
             } catch (e) {
                 const errorText = await response.text();
                 errorMsg = errorText.startsWith('<!DOCTYPE') ? 
-                           `Server returned an unexpected HTML error page (Status: ${response.status}).` : 
-                           errorText || errorMsg;
+                            `Server returned an unexpected HTML error page (Status: ${response.status}).` : 
+                            errorText || errorMsg;
             }
             throw new Error(errorMsg);
         }
@@ -709,7 +702,7 @@ async function deleteCollection(collectionId) {
 
 /**
  * Prompts admin for new stock and updates totalStock and isActive status.
- * *** FIX: Implemented robust error handling to prevent SyntaxError when API returns non-JSON (HTML) error page. ***
+ * *** FIX: Implemented robust error handling and simplified to update totalStock via PUT request. ***
  */
 async function quickRestockAndActivate(collectionId, collectionName, currentPrice) {
     const token = getAuthToken();
@@ -728,6 +721,10 @@ async function quickRestockAndActivate(collectionId, collectionName, currentPric
         const handleConfirm = () => {
             const newStock = parseInt(restockInput.value);
             if (!isNaN(newStock) && newStock > 0) {
+                // Remove existing click handlers to prevent duplicates
+                restockConfirmBtn.removeEventListener('click', handleConfirm);
+                restockCancelBtn.removeEventListener('click', handleCancel);
+
                 resolve(newStock);
                 restockModal.classList.remove('flex');
                 restockModal.classList.add('hidden');
@@ -737,17 +734,18 @@ async function quickRestockAndActivate(collectionId, collectionName, currentPric
         };
 
         const handleCancel = () => {
+            // Remove existing click handlers to prevent duplicates
+            restockConfirmBtn.removeEventListener('click', handleConfirm);
+            restockCancelBtn.removeEventListener('click', handleCancel);
+
             reject(new Error("Restock cancelled by user."));
             restockModal.classList.remove('flex');
             restockModal.classList.add('hidden');
         };
 
-        // Ensure old listeners are removed before adding new ones
-        restockConfirmBtn.onclick = null;
-        restockCancelBtn.onclick = null;
-
-        restockConfirmBtn.addEventListener('click', handleConfirm, { once: true });
-        restockCancelBtn.addEventListener('click', handleCancel, { once: true });
+        // Attach new event listeners
+        restockConfirmBtn.addEventListener('click', handleConfirm);
+        restockCancelBtn.addEventListener('click', handleCancel);
     });
     
     let newStock;
@@ -762,7 +760,7 @@ async function quickRestockAndActivate(collectionId, collectionName, currentPric
     // ---------------------------------------------
 
     try {
-        // Prepare the payload.
+        // Prepare the payload. The backend will update totalStock and isActive
         const updatePayload = {
             totalStock: newStock,
             isActive: true, // Explicitly set to true on restock
@@ -785,8 +783,8 @@ async function quickRestockAndActivate(collectionId, collectionName, currentPric
             } catch (e) {
                 const errorText = await response.text();
                 errorMsg = errorText.startsWith('<!DOCTYPE') ? 
-                           `Server returned an unexpected HTML error page (Status: ${response.status}).` : 
-                           errorText || errorMsg;
+                            `Server returned an unexpected HTML error page (Status: ${response.status}).` : 
+                            errorText || errorMsg;
             }
             throw new Error(errorMsg);
         }
@@ -800,7 +798,7 @@ async function quickRestockAndActivate(collectionId, collectionName, currentPric
     }
 }
 
-// --- FORM SECTION MANAGEMENT (NO CHANGE) ---
+// --- FORM SECTION MANAGEMENT (MODIFIED: Removed Color Logic) ---
 /**
  * Function to create a product section HTML structure.
  * @param {number} index - The zero-based index for the section (0 to 3).
@@ -813,8 +811,8 @@ function createProductSection(index, frontImageUrl = null, backImageUrl = null) 
     const uniqueId = `section-${sectionNumber}`;
     const isEditing = frontImageUrl !== null || backImageUrl !== null;
 
-    // File inputs are only required if creating a new collection
-    const fileRequiredAttribute = isEditing ? '' : 'required';
+    // File inputs are only required if creating a new collection and no existing URL exists
+    const fileRequiredAttribute = (isEditing && (frontImageUrl || backImageUrl)) ? '' : 'required';
 
     const renderImageInput = (viewType, imageUrl, requiredAttr, viewLabel) => {
         const viewId = `${viewType}-upload-${sectionNumber}`;
@@ -897,12 +895,9 @@ function removeProductSection(id) {
  */
 function reindexProductSections() {
     Array.from(productSectionsContainer.children).forEach((section, index) => {
-        const newSectionNumber = index + 1; 
-
-        // Find the existing image URLs and color value to pass to the recreation function
+        // Find the existing image URLs to pass to the recreation function
         const existingFrontUrl = section.querySelector('[id^="existing-front-view-url-"]')?.value || null;
         const existingBackUrl = section.querySelector('[id^="existing-back-view-url-"]')?.value || null;
-        // Color is no longer relevant for re-indexing
 
         // Recreate the section's HTML with the correct new index and existing data
         const tempDiv = document.createElement('div');
@@ -939,7 +934,7 @@ function updateColorPreview(colorValue, previewId) {
 /**
  * Handles the form submission (CREATE or UPDATE).
  * *** MODIFIED: Added Available Date and removed Color from the submitted data. ***
- * *** FIX: Implemented robust error handling to prevent SyntaxError when API returns non-JSON (HTML) error page. ***
+ * *** FIX: Implemented robust error handling. ***
  */
 async function handleCollectionSubmit(event) {
     event.preventDefault();
@@ -978,16 +973,14 @@ async function handleCollectionSubmit(event) {
         // --- Get Dual Image Inputs ---
         const frontImageInput = section.querySelector(`#front-view-upload-${sectionNumber}`);
         const backImageInput = section.querySelector(`#back-view-upload-${sectionNumber}`);
-        // COLOR INPUT REMOVED: const colorInput = section.querySelector(`#color-input-${sectionNumber}`);
         
         // --- Get Existing Image URLs (for updates) ---
         const existingFrontUrlInput = section.querySelector(`#existing-front-view-url-${sectionNumber}`);
         const existingBackUrlInput = section.querySelector(`#existing-back-view-url-${sectionNumber}`);
 
-        if (frontImageInput && backImageInput) { // COLOR INPUT CHECK REMOVED
+        if (frontImageInput && backImageInput) { 
             const frontImageFile = frontImageInput.files[0];
             const backImageFile = backImageInput.files[0];
-            // const color = colorInput.value; // COLOR VALUE REMOVED
             
             const existingFrontUrl = existingFrontUrlInput ? existingFrontUrlInput.value : null;
             const existingBackUrl = existingBackUrlInput ? existingBackUrlInput.value : null;
@@ -995,22 +988,34 @@ async function handleCollectionSubmit(event) {
             let frontUrlForMetadata = existingFrontUrl;
             let backUrlForMetadata = existingBackUrl;
 
-            // Handle Front View Image (Same logic)
+            // Handle Front View Image
             if (frontImageFile) {
                 formData.append(`front-view-upload-${sectionNumber}`, frontImageFile); 
-                frontUrlForMetadata = null; 
+                frontUrlForMetadata = null; // Signal backend to use the uploaded file
             } else if (!isUpdate && !existingFrontUrl) { 
                 showErrorModal(`Front View Image for Variation <mark>#${sectionNumber}</mark> is missing.`); 
                 isValid = false;
                 return;
             }
 
-            // Handle Back View Image (Same logic)
+            // Handle Back View Image
             if (backImageFile) {
                 formData.append(`back-view-upload-${sectionNumber}`, backImageFile); 
-                backUrlForMetadata = null; 
+                backUrlForMetadata = null; // Signal backend to use the uploaded file
             } else if (!isUpdate && !existingBackUrl) {
                 showErrorModal(`Back View Image for Variation <mark>#${sectionNumber}</mark> is missing.`); 
+                isValid = false;
+                return;
+            }
+            
+            // Validation for update mode: must have either a new file or an existing URL
+            if (isUpdate && !frontImageFile && !existingFrontUrl) {
+                showErrorModal(`Front View Image for Variation <mark>#${sectionNumber}</mark> is missing (neither new file nor existing URL).`); 
+                isValid = false;
+                return;
+            }
+            if (isUpdate && !backImageFile && !existingBackUrl) {
+                showErrorModal(`Back View Image for Variation <mark>#${sectionNumber}</mark> is missing (neither new file nor existing URL).`); 
                 isValid = false;
                 return;
             }
@@ -1018,9 +1023,8 @@ async function handleCollectionSubmit(event) {
             // Store metadata for this variation
             productVariationsMetadata.push({
                 variationIndex: sectionNumber,
-                // colorHex: color, // COLOR PROPERTY REMOVED
-                frontImageUrl: frontUrlForMetadata,
-                backImageUrl: backUrlForMetadata,
+                frontImageUrl: frontUrlForMetadata, // null if a new file was uploaded, URL string otherwise
+                backImageUrl: backUrlForMetadata,  // null if a new file was uploaded, URL string otherwise
             });
         }
     });
@@ -1037,7 +1041,7 @@ async function handleCollectionSubmit(event) {
     // --- CRITICAL LOGIC: If collection is unchecked, label it Out of Stock ---
     if (!isActive) {
         totalStock = 0;
-        document.getElementById('available-stock').value = 0;
+        // Do NOT change the input value, just update the payload, to avoid confusion on the UI
     }
     // ----------------------------------------------------
 
@@ -1061,6 +1065,7 @@ async function handleCollectionSubmit(event) {
         const response = await fetch(url, {
             method: method,
             headers: {
+                // IMPORTANT: Do NOT set 'Content-Type': 'multipart/form-data'. The browser sets this automatically with the correct boundary when using FormData.
                 'Authorization': `Bearer ${token}`
             },
             body: formData 
@@ -1074,8 +1079,8 @@ async function handleCollectionSubmit(event) {
             } catch (e) {
                 const errorText = await response.text();
                 errorMsg = errorText.startsWith('<!DOCTYPE') ? 
-                           `Server returned an unexpected HTML error page (Status: ${response.status}).` : 
-                           errorText || errorMsg;
+                            `Server returned an unexpected HTML error page (Status: ${response.status}).` : 
+                            errorText || errorMsg;
             }
             throw new Error(errorMsg);
         }

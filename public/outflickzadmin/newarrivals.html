@@ -18,26 +18,6 @@
             background-color: #065F46; /* emerald-700 */
             color: white;
         }
-        /* Scrollbar styling for stock table - for better UX on desktop */
-        .stock-table-container::-webkit-scrollbar {
-            width: 8px;
-        }
-        .stock-table-container::-webkit-scrollbar-thumb {
-            background-color: #d1d5db; /* gray-300 */
-            border-radius: 4px;
-        }
-        .stock-table-container::-webkit-scrollbar-track {
-            background-color: #f3f4f6; /* gray-100 */
-        }
-        /* Fix for input fields in small screens */
-        input:not([type="checkbox"]), select, textarea {
-            padding: 0.5rem;
-            border-width: 1px;
-        }
-        /* Modal Backdrop */
-        .modal-backdrop {
-            background-color: rgba(0, 0, 0, 0.5);
-        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -89,58 +69,17 @@
         </div>
     </aside>
 
-    <div class="lg:ml-64 p-4 sm:p-8">
-        <button id="sidebar-toggle" class="lg:hidden fixed top-4 left-4 p-2 bg-white rounded-md shadow-md text-gray-700 hover:text-gray-900 z-40">☰ Menu</button>
+    <div class="md:ml-64 p-8">
+        <button id="sidebar-toggle" class="lg:hidden p-2 text-gray-500 hover:text-gray-700">☰ Menu</button>
         
-        <div id="success-modal" class="hidden fixed inset-0 modal-backdrop overflow-y-auto h-full w-full z-50 justify-center items-center">
-            <div class="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full transform transition-all">
-                <div class="flex items-center space-x-4">
-                    <div class="flex-shrink-0 bg-emerald-100 p-2 rounded-full">
-                        <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-bold text-gray-900">Success!</h3>
-                        <p id="successModalMessage" class="text-sm text-gray-600"></p>
-                    </div>
-                </div>
-                <div class="mt-4 flex justify-end">
-                    <button type="button" onclick="document.getElementById('success-modal').classList.add('hidden'); document.getElementById('success-modal').classList.remove('flex');" class="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700">Close</button>
-                </div>
-            </div>
-        </div>
+        <div id="success-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"></div>
+        <div id="error-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"></div>
+        <div id="confirmation-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"></div>
         
-        <div id="error-modal" class="hidden fixed inset-0 modal-backdrop overflow-y-auto h-full w-full z-50 justify-center items-center">
-            <div class="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full transform transition-all">
-                <div class="flex items-center space-x-4">
-                    <div class="flex-shrink-0 bg-red-100 p-2 rounded-full">
-                        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-bold text-gray-900">Error Occurred</h3>
-                        <p id="errorModalMessage" class="text-sm text-gray-600"></p>
-                    </div>
-                </div>
-                <div class="mt-4 flex justify-end">
-                    <button type="button" onclick="document.getElementById('error-modal').classList.add('hidden'); document.getElementById('error-modal').classList.remove('flex');" class="px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-100">Dismiss</button>
-                </div>
-            </div>
-        </div>
-        
-        <div id="confirmation-modal" class="hidden fixed inset-0 modal-backdrop overflow-y-auto h-full w-full z-50 justify-center items-center">
-            <div class="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full transform transition-all">
-                <h3 class="text-lg font-bold mb-4 text-gray-900">Confirm Action</h3>
-                <p id="confirmationModalMessage" class="text-sm text-gray-700 mb-6"></p>
-                <div class="flex justify-end space-x-3">
-                    <button id="confirmationCancelBtn" type="button" class="px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-100">Cancel</button>
-                    <button id="confirmationConfirmBtn" type="button" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Confirm</button>
-                </div>
-            </div>
-        </div>
-        
-        <div id="restock-modal" class="hidden fixed inset-0 modal-backdrop overflow-y-auto h-full w-full z-50 justify-center items-center">
+        <div id="restock-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 justify-center items-center">
             <div class="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full">
                 <h3 class="text-lg font-bold mb-4">Quick Activate Product</h3>
-                <p class="text-sm text-gray-600 mb-4">Activate **<span id="restockModalName" class="font-semibold"></span>** (Status will change to Available/Inactive). You must update size-specific stock via the Edit button later if required.</p>
+                <p class="text-sm text-gray-600 mb-4">Activate **<span id="restockModalName" class="font-semibold"></span>** (Status will change to Available). You must update size-specific stock via the Edit button later if required.</p>
                 <div class="flex justify-end space-x-3">
                     <button id="restockCancelBtn" type="button" class="px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-100">Cancel</button>
                     <button id="restockConfirmBtn" type="button" class="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700">Confirm Activation</button>
@@ -148,7 +87,7 @@
             </div>
         </div>
 
-        <main class="space-y-8 mt-12 lg:mt-0">
+        <main class="space-y-8">
             
             <section id="content-newarrival">
                 <div class="bg-white shadow overflow-hidden sm:rounded-lg p-6">
@@ -158,22 +97,22 @@
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                             <div>
                                 <label for="product-name" class="block text-sm font-medium text-gray-700">Product Name</label>
-                                <input type="text" id="product-name" required class="mt-1 block w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                                <input type="text" id="product-name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
                             </div>
                             <div>
                                 <label for="product-tag" class="block text-sm font-medium text-gray-700">Tag (e.g., Hot Deal, New)</label>
-                                <input type="text" id="product-tag" required class="mt-1 block w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                                <input type="text" id="product-tag" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
                             </div>
                             <div>
                                 <label for="product-price" class="block text-sm font-medium text-gray-700">Price (₦)</label>
-                                <input type="number" step="0.01" min="0" id="product-price" required class="mt-1 block w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                                <input type="number" step="0.01" min="0" id="product-price" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
                             </div>
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                             <div class="md:col-span-3 flex items-center">
                                 <input id="is-active" type="checkbox" checked class="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500">
-                                <label for="is-active" class="ml-2 block text-sm font-medium text-gray-700">Active / Available Online (Unchecking this sets stock to 0 on the server)</label>
+                                <label for="is-active" class="ml-2 block text-sm font-medium text-gray-700">Active / Available Online (Unchecking this sets stock to 0)</label>
                             </div>
                         </div>
 
@@ -183,7 +122,7 @@
                         <div class="mb-6 border-l-4 border-emerald-500 pl-4 py-2 bg-emerald-50 rounded-md">
                             <label for="common-sizes" class="block text-sm font-bold text-emerald-800">Define Available Sizes Once (Comma separated: S, M, L)</label>
                             <p class="text-xs text-emerald-600 mb-2">These sizes will be used to create the stock tables for every variation below.</p>
-                            <input type="text" id="common-sizes" placeholder="S, M, L, XL" value="S, M, L, XL" required class="mt-1 block w-full rounded-md border border-emerald-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm">
+                            <input type="text" id="common-sizes" placeholder="S, M, L, XL" value="S, M, L, XL" required class="mt-1 block w-full rounded-md border-emerald-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm">
                         </div>
 
                         <div id="product-sections-container" class="space-y-6 mb-6">
@@ -224,7 +163,7 @@
                                 </tr>
                             </thead>
                             <tbody id="products-table-body" class="bg-white divide-y divide-gray-200">
-                            </tbody>
+                                </tbody>
                         </table>
                     </div>
                 </div>
@@ -241,7 +180,6 @@
 
     let productIdToUpdate = null; 
     let sectionCount = 0;
-    let confirmationResolver = null; // Used for the custom confirmation modal
 
     // DOM Elements
     const productsTableBody = document.getElementById('products-table-body'); 
@@ -254,19 +192,10 @@
     const sidebarToggle = document.getElementById('sidebar-toggle');
     const commonSizesInput = document.getElementById('common-sizes');
     
-    // Custom Modal Elements
-    const successModal = document.getElementById('success-modal');
-    const successModalMessage = document.getElementById('successModalMessage');
-    const errorModal = document.getElementById('error-modal');
-    const errorModalMessage = document.getElementById('errorModalMessage');
-    const confirmationModal = document.getElementById('confirmation-modal');
-    const confirmationModalMessage = document.getElementById('confirmationModalMessage');
-    const confirmationConfirmBtn = document.getElementById('confirmationConfirmBtn');
-    const confirmationCancelBtn = document.getElementById('confirmationCancelBtn');
-
     // Restock Modal Elements
     const restockModal = document.getElementById('restock-modal');
     const restockModalName = document.getElementById('restockModalName');
+    // const restockInput = document.getElementById('restockInput'); // Removed since quick restock is simplified
     const restockConfirmBtn = document.getElementById('restockConfirmBtn');
     const restockCancelBtn = document.getElementById('restockCancelBtn');
 
@@ -282,52 +211,18 @@
         return token;
     }
     
-    // MODAL IMPLEMENTATION START
-    function showModal(modal, messageElement, message) {
-        // Clean up markdown markers from server messages
-        const cleanMessage = message.replace(/<\/?mark>/g, '');
-        messageElement.innerHTML = cleanMessage;
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-    }
-
     function showSuccessModal(message) {
-        showModal(successModal, successModalMessage, message);
+        console.log("Success:", message.replace(/<mark>|<\/mark>/g, ''));
+        alert(`Success: ${message.replace(/<mark>|<\/mark>/g, '')}`);
     }
-
     function showErrorModal(message) {
-        showModal(errorModal, errorModalMessage, message);
+        console.error("Error:", message.replace(/<mark>|<\/mark>/g, ''));
+        alert(`Error: ${message.replace(/<mark>|<\/mark>/g, '')}`);
     }
-    
     function showConfirmationModal(message) {
-        return new Promise(resolve => {
-            confirmationResolver = resolve;
-            showModal(confirmationModal, confirmationModalMessage, message);
-            
-            const handleConfirm = () => {
-                cleanup();
-                resolve(true);
-            };
-            
-            const handleCancel = () => {
-                cleanup();
-                resolve(false);
-            };
-            
-            const cleanup = () => {
-                confirmationConfirmBtn.removeEventListener('click', handleConfirm);
-                confirmationCancelBtn.removeEventListener('click', handleCancel);
-                confirmationModal.classList.add('hidden');
-                confirmationModal.classList.remove('flex');
-                confirmationResolver = null;
-            };
-            
-            // Attach temporary listeners
-            confirmationConfirmBtn.addEventListener('click', handleConfirm);
-            confirmationCancelBtn.addEventListener('click', handleCancel);
-        });
+        console.warn("Confirmation required:", message.replace(/<mark>|<\/mark>/g, ''));
+        return Promise.resolve(confirm(message.replace(/<mark>|<\/mark>/g, '')));
     }
-    // MODAL IMPLEMENTATION END
     
     function logoutAdmin() {
         console.log("Admin logged out and token removed.");
@@ -377,7 +272,7 @@
 
         return `
             <h5 class="text-sm font-semibold mt-4 mb-2">Stock per Size:</h5>
-            <div class="max-h-48 overflow-y-auto border rounded-lg stock-table-container">
+            <div class="max-h-48 overflow-y-auto border rounded-lg">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50 sticky top-0">
                         <tr>
@@ -425,7 +320,6 @@
         const uniqueId = `section-${index}`;
         const sectionNumber = index + 1; 
         const isEditing = frontImageUrl !== null || backImageUrl !== null;
-        // Require file if creating new product, OR if editing but this specific image is missing.
         const fileRequiredAttribute = (productIdToUpdate === null && index === 0) || (productIdToUpdate !== null && !frontImageUrl) ? 'required' : '';
 
 
@@ -452,7 +346,7 @@
                     </div>
                     
                     <div>
-                          ${renderStockInputs(index, sizesData)}
+                         ${renderStockInputs(index, sizesData)}
                     </div>
                 </div>
             </div>
@@ -507,12 +401,8 @@
             // 3. Re-render the section with the new index and preserved data
             tempDiv.innerHTML = createProductSection(newIndex, existingFrontUrl, existingBackUrl, existingColor, existingStockData).trim();
             const newSectionElement = tempDiv.firstChild;
-            
-            // If the element has a parent, replace it. If not (shouldn't happen here), just ensure the count is right.
-            if(section.parentNode) {
-                section.replaceWith(newSectionElement);
-            }
 
+            section.replaceWith(newSectionElement);
             currentSectionCount++;
         });
 
@@ -550,7 +440,6 @@
         updateAddSectionButtonState();
         // Force re-render of stock inputs if common sizes were changed before reset
         commonSizesInput.value = DEFAULT_SIZES.join(', ');
-        reindexProductSections();
     }
 
     async function fetchProducts() { 
@@ -752,6 +641,7 @@
         if (!token) return;
         
         restockModalName.innerHTML = `**${productName}**`;
+        // restockInput.value = 100; // Removed stock input
         restockModal.classList.remove('hidden');
         restockModal.classList.add('flex');
 

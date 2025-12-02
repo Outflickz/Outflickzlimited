@@ -83,6 +83,10 @@
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     Pre-Order
                 </a>
+                <a href="membership.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Membership
+                </a>
                 <a href="settings.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.526.34.813.486 1.066-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                     Settings
@@ -407,206 +411,205 @@ function logoutAdmin() {
 // --- COLLECTION MANAGEMENT (FRONTEND) ---
 
 function resetForm() {
-    document.getElementById('caps-collection-form').reset();
-    collectionIdToUpdate = null;
-    formTitle.textContent = '➕ Create New Cap Collection';
-    submitBtn.textContent = 'Submit Collection';
-    submitBtn.classList.remove('bg-yellow-600', 'hover:bg-yellow-700');
-    submitBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
-    resetFormBtn.classList.add('hidden');
+    document.getElementById('caps-collection-form').reset();
+    collectionIdToUpdate = null;
+    formTitle.textContent = '➕ Create New Cap Collection';
+    submitBtn.textContent = 'Submit Collection';
+    submitBtn.classList.remove('bg-yellow-600', 'hover:bg-yellow-700');
+    submitBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+    resetFormBtn.classList.add('hidden');
 
-    // Clear and re-initialize product sections
-    productSectionsContainer.innerHTML = '';
-    sectionCount = 0;
-    addProductSection();
+    // Clear and re-initialize product sections
+    productSectionsContainer.innerHTML = '';
+    sectionCount = 0;
+    addProductSection();
 
-    // Reset image inputs to be 'required' for new creation
-    Array.from(productSectionsContainer.querySelectorAll('input[type="file"]')).forEach(input => {
-        input.required = true;
-    });
+    // Reset image inputs to be 'required' for new creation
+    Array.from(productSectionsContainer.querySelectorAll('input[type="file"]')).forEach(input => {
+        input.required = true;
+    });
 
-    // Scroll to the form
-    document.getElementById('content-capscollection').scrollIntoView({ behavior: 'smooth' });
+    // Scroll to the form
+    document.getElementById('content-capscollection').scrollIntoView({ behavior: 'smooth' });
 }
 
 async function fetchCollections() {
-    const token = getAuthToken();
-    if (!token) return;
+    const token = getAuthToken();
+    if (!token) return;
 
-    collectionsTableBody.innerHTML = ''; 
-    loadingIndicator.classList.remove('hidden');
-    collectionsError.classList.add('hidden');
+    collectionsTableBody.innerHTML = ''; 
+    loadingIndicator.classList.remove('hidden');
+    collectionsError.classList.add('hidden');
 
-    try {
-        const response = await fetch(API_BASE_URL, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+    try {
+        const response = await fetch(API_BASE_URL, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            let errorMessage = `HTTP error! Status: ${response.status}.`;
-            try {
-                const errorData = JSON.parse(errorText);
-                errorMessage = errorData.message || errorMessage;
-            } catch (e) {
-                console.error('Raw non-JSON error response:', errorText);
-                errorMessage = `${errorMessage} The server returned an invalid response. (See console for raw data).`;
-            }
-            throw new Error(errorMessage);
-        }
+        if (!response.ok) {
+            const errorText = await response.text();
+            let errorMessage = `HTTP error! Status: ${response.status}.`;
+            try {
+                const errorData = JSON.parse(errorText);
+                errorMessage = errorData.message || errorMessage;
+            } catch (e) {
+                console.error('Raw non-JSON error response:', errorText);
+                errorMessage = `${errorMessage} The server returned an invalid response. (See console for raw data).`;
+            }
+            throw new Error(errorMessage);
+        }
 
-        const collections = await response.json();
-        renderCollectionsTable(collections);
+        const collections = await response.json();
+        renderCollectionsTable(collections);
 
-    } catch (error) {
-        console.error('Error fetching collections:', error);
-        collectionsError.textContent = `Error fetching collections: ${error.message}`;
-        collectionsError.classList.remove('hidden');
-    } finally {
-        loadingIndicator.classList.add('hidden');
-    }
+    } catch (error) {
+        console.error('Error fetching collections:', error);
+        collectionsError.textContent = `Error fetching collections: ${error.message}`;
+        collectionsError.classList.remove('hidden');
+    } finally {
+        loadingIndicator.classList.add('hidden');
+    }
 }
 
 /**
- * Renders the fetched collections data into the HTML table.
- */
+ * Renders the fetched collections data into the HTML table.
+ */
 function renderCollectionsTable(collections) {
-    collectionsTableBody.innerHTML = '';
-    if (collections.length === 0) {
-        collectionsTableBody.innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">No collections found.</td></tr>';
-        return;
-    }
+    collectionsTableBody.innerHTML = '';
+    if (collections.length === 0) {
+        collectionsTableBody.innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">No collections found.</td></tr>';
+        return;
+    }
 
-    collections.forEach(collection => {
-        const tagClass = getTagClass(collection.tag);
-        const isActiveAndStocked = collection.isActive && collection.totalStock > 0;
-        const statusClass = isActiveAndStocked ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
-        const statusText = isActiveAndStocked ? 'Active' : 'Out of Stock / Inactive';
+    collections.forEach(collection => {
+        const tagClass = getTagClass(collection.tag);
+        const isActiveAndStocked = collection.isActive && collection.totalStock > 0;
+        const statusClass = isActiveAndStocked ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+        const statusText = isActiveAndStocked ? 'Active' : 'Out of Stock / Inactive';
 
-        // CRITICAL UPDATE: Uses first variation's FRONT imageUrl
-        const imageUrl = collection.variations[0]?.frontImageUrl || 'https://via.placeholder.com/64?text=N/A';
-        const imagePreview = `<img src="${imageUrl}" alt="Preview" class="w-10 h-10 object-cover rounded-full inline mr-2 shadow-sm">`;
-        
-        const formattedPrice = `₦${(collection.price || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+        // FIXED: Use collection.mainImageUrl returned by the list endpoint
+        const imageUrl = collection.mainImageUrl || 'https://via.placeholder.com/64?text=N/A';
+        const imagePreview = `<img src="${imageUrl}" alt="Preview" class="w-10 h-10 object-cover rounded-full inline mr-2 shadow-sm">`;
+        
+        const formattedPrice = `₦${(collection.price || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 
-        const needsRestock = !isActiveAndStocked;
-        const restockButton = needsRestock
-            ? `<button onclick="quickRestockAndActivate('${collection._id}', '${collection.name.replace(/'/g, "\\'")}', ${collection.price})" class="text-emerald-600 hover:text-emerald-900 transition duration-150 mr-3 text-xs font-semibold">Restock/Activate</button>`
-            : '';
+        const needsRestock = !isActiveAndStocked;
+        const restockButton = needsRestock
+            ? `<button onclick="quickRestockAndActivate('${collection._id}', '${collection.name.replace(/'/g, "\\'")}', ${collection.price})" class="text-emerald-600 hover:text-emerald-900 transition duration-150 mr-3 text-xs font-semibold">Restock/Activate</button>`
+            : '';
 
-        const row = `
-            <tr>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${collection._id.slice(-6)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    ${imagePreview} ${collection.name}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-emerald-600">${formattedPrice}</td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${tagClass}">${collection.tag}</span>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${collection.variations.length}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${collection.totalStock}</td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
-                        ${statusText}
-                    </span>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    ${restockButton}
-                    <button onclick="editCollection('${collection._id}')" class="text-indigo-600 hover:text-indigo-900 transition duration-150 mr-3">Edit</button>
-                    <button onclick="deleteCollection('${collection._id}')" class="text-red-600 hover:text-red-900 transition duration-150">Delete</button>
-                </td>
-            </tr>
-        `;
-        collectionsTableBody.insertAdjacentHTML('beforeend', row);
-    });
+        const row = `
+            <tr>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${collection._id.slice(-6)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    ${imagePreview} ${collection.name}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-emerald-600">${formattedPrice}</td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${tagClass}">${collection.tag}</span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${collection.variationCount}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${collection.totalStock}</td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
+                        ${statusText}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    ${restockButton}
+                    <button onclick="editCollection('${collection._id}')" class="text-indigo-600 hover:text-indigo-900 transition duration-150 mr-3">Edit</button>
+                    <button onclick="deleteCollection('${collection._id}')" class="text-red-600 hover:text-red-900 transition duration-150">Delete</button>
+                </td>
+            </tr>
+        `;
+        collectionsTableBody.insertAdjacentHTML('beforeend', row);
+    });
 }
 
 function getTagClass(tag) {
-    switch (tag) {
-        case 'Top Deal': return 'bg-emerald-100 text-emerald-800';
-        case 'Hot Deal': return 'bg-red-100 text-red-800';
-        case 'New': return 'bg-blue-100 text-blue-800';
-        case 'Seasonal': return 'bg-yellow-100 text-yellow-800';
-        case 'Clearance': return 'bg-pink-100 text-pink-800';
-        default: return 'bg-gray-100 text-gray-800';
-    }
+    switch (tag) {
+        case 'Top Deal': return 'bg-emerald-100 text-emerald-800';
+        case 'Hot Deal': return 'bg-red-100 text-red-800';
+        case 'New': return 'bg-blue-100 text-blue-800';
+        case 'Seasonal': return 'bg-yellow-100 text-yellow-800';
+        case 'Clearance': return 'bg-pink-100 text-pink-800';
+        default: return 'bg-gray-100 text-gray-800';
+    }
 }
 
 // --- UPDATED: editCollection ---
 async function editCollection(collectionId) {
-    const token = getAuthToken();
-    if (!token) return;
+    const token = getAuthToken();
+    if (!token) return;
 
-    try {
-        const response = await fetch(`${API_BASE_URL}/${collectionId}`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+    try {
+        const response = await fetch(`${API_BASE_URL}/${collectionId}`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
-        }
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
+        }
 
-        const collection = await response.json();
+        const collection = await response.json();
 
-        // 1. Set form mode
-        collectionIdToUpdate = collectionId;
-        formTitle.textContent = `✏️ Edit Cap Collection: ${collection.name}`;
-        submitBtn.textContent = 'Update Collection';
-        submitBtn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
-        submitBtn.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
-        resetFormBtn.classList.remove('hidden');
+        // 1. Set form mode
+        collectionIdToUpdate = collectionId;
+        formTitle.textContent = `✏️ Edit Cap Collection: ${collection.name}`;
+        submitBtn.textContent = 'Update Collection';
+        submitBtn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
+        submitBtn.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
+        resetFormBtn.classList.remove('hidden');
 
-        // 2. Populate basic details
-        document.getElementById('collection-name').value = collection.name;
-        document.getElementById('collection-description').value = collection.tag;
-        document.getElementById('collection-price').value = collection.price; 
-        
-        // The single 'available-stock' field is now conceptually the stock for the first variation,
-        // or just the TOTAL for display/reference, as the backend aggregates it. We use the total.
-        document.getElementById('available-stock').value = collection.totalStock; 
-        document.getElementById('is-active').checked = collection.isActive;
+        // 2. Populate basic details
+        document.getElementById('collection-name').value = collection.name;
+        document.getElementById('collection-description').value = collection.tag;
+        document.getElementById('collection-price').value = collection.price; 
+        
+        // The single 'available-stock' field is now conceptually the stock for the first variation,
+        // or just the TOTAL for display/reference, as the backend aggregates it. We use the total.
+        document.getElementById('available-stock').value = collection.totalStock; 
+        document.getElementById('is-active').checked = collection.isActive;
 
-        // 3. Populate variations (REINSTATED DUAL IMAGE LOGIC)
-        productSectionsContainer.innerHTML = '';
-        sectionCount = 0;
+        // 3. Populate variations (REINSTATED DUAL IMAGE LOGIC)
+        productSectionsContainer.innerHTML = '';
+        sectionCount = 0;
 
-        collection.variations.forEach(variation => {
-            const sectionNumber = variation.variationIndex;
-            // Assumes backend provides frontImageUrl and backImageUrl fields
-            const frontUrl = variation.frontCachedSignedUrl || variation.frontImageUrl || null; // Use signed URL if available
-            const backUrl = variation.backCachedSignedUrl || variation.backImageUrl || null; // Use signed URL if available
+        collection.variations.forEach(variation => {
+            const sectionNumber = variation.variationIndex;
+            // Assumes backend provides frontImageUrl and backImageUrl fields (signed URLs are used in the detail view)
+            const frontUrl = variation.frontImageUrl || null;
+            const backUrl = variation.backImageUrl || null;
 
-            const newSection = document.createElement('div');
-            // Pass both signed image URLs
-            newSection.innerHTML = createProductSection(sectionNumber - 1, frontUrl, backUrl).trim();
-            productSectionsContainer.appendChild(newSection.firstChild);
-            sectionCount++;
+            const newSection = document.createElement('div');
+            // Pass both signed image URLs
+            newSection.innerHTML = createProductSection(sectionNumber - 1, frontUrl, backUrl).trim();
+            productSectionsContainer.appendChild(newSection.firstChild);
+            sectionCount++;
 
-            // Populate color
-            const colorInput = document.getElementById(`color-input-${sectionNumber}`);
-            if (colorInput) {
-                colorInput.value = variation.colorHex;
-                updateColorPreview(variation.colorHex, `color-preview-${sectionNumber}`);
-            }
-        });
+            // Populate color
+            const colorInput = document.getElementById(`color-input-${sectionNumber}`);
+            if (colorInput) {
+                colorInput.value = variation.colorHex;
+                updateColorPreview(variation.colorHex, `color-preview-${sectionNumber}`);
+            }
+        });
 
-        // 4. Update the add button state
-        updateAddSectionButtonState();
+        // 4. Update the add button state
+        updateAddSectionButtonState();
 
-        // 5. Scroll to the form
-        document.getElementById('content-capscollection').scrollIntoView({ behavior: 'smooth' });
+        // 5. Scroll to the form
+        document.getElementById('content-capscollection').scrollIntoView({ behavior: 'smooth' });
 
-    } catch (error) {
-        console.error('Error fetching collection for edit:', error);
-        showErrorModal(`Error fetching collection data: <mark>${error.message}</mark>`); 
-    }
+    } catch (error) {
+        console.error('Error fetching collection for edit:', error);
+        showErrorModal(`Error fetching collection data: <mark>${error.message}</mark>`); 
+    }
 }
 // --- END: UPDATED editCollection ---
-
 
 async function deleteCollection(collectionId) {
     const token = getAuthToken();

@@ -1035,7 +1035,6 @@ function getVariationSizes(section, variationIndex) {
 
     return { sizes, variationStock };
 }
-
 /**
  * Handles the form submission (CREATE or UPDATE) for the full form (including file uploads).
  */
@@ -1057,6 +1056,10 @@ async function handleCollectionSubmit(event) {
         resetFormSubmitButtonState(isUpdate);
         return;
     }
+
+    // --- FIX 1: Generate a unique ID for request idempotency ---
+    // This ID uniquely identifies this specific submission attempt.
+    const clientId = crypto.randomUUID(); 
 
     const formData = new FormData();
     let calculatedTotalStock = 0;
@@ -1174,6 +1177,8 @@ async function handleCollectionSubmit(event) {
         totalStock: isActive ? calculatedTotalStock : 0, 
         sizesAndStock: sizesAndStock,
         variations: variations, 
+        // --- FIX 2: Include the unique client ID for idempotency ---
+        clientId: clientId, 
     };
     
     console.log('Sending Collection Payload:', JSON.stringify(mainPayload, null, 2));

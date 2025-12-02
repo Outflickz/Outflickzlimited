@@ -577,14 +577,13 @@ function getTagClass(tag) {
         default: return 'bg-gray-100 text-gray-800';
     }
 }
-
 /**
  * Fetches data for a specific collection and populates the form for editing.
  * *** MODIFIED: Added Authorization header and robust error handling. Removed color population logic. ***
  */
 async function editCollection(collectionId) {
     const token = getAuthToken(); // 1. Get the token
-    if (!token) return;           // 2. Check if token exists
+    if (!token) return;           // 2. Check if token exists
 
     try {
         const response = await fetch(`${API_BASE_URL}/${collectionId}`, { // Use API_BASE_URL constant
@@ -621,7 +620,11 @@ async function editCollection(collectionId) {
         document.getElementById('collection-name').value = collection.name;
         document.getElementById('collection-description').value = collection.tag;
         document.getElementById('collection-price').value = collection.price; 
-        document.getElementById('available-sizes').value = collection.sizes.join(', ');
+        
+        // --- FIX: Use (collection.sizes || []) to handle missing or null 'sizes' property ---
+        document.getElementById('available-sizes').value = (collection.sizes || []).join(', ');
+        // -----------------------------------------------------------------------------------
+        
         document.getElementById('available-stock').value = collection.totalStock;
         document.getElementById('is-active').checked = collection.isActive;
         
@@ -940,10 +943,15 @@ function updateColorPreview(colorValue, previewId) {
 /**
  * Handles the form submission (CREATE or UPDATE).
  * *** MODIFIED: Added Available Date and removed Color from the submitted data. ***
- * *** FIX: Implemented robust error handling. ***
+ * *** FIX: Implemented robust error handling and added check to prevent duplicate submission. ***
  */
 async function handleCollectionSubmit(event) {
     event.preventDefault();
+
+    // 🛑 DEFENSIVE GUARD: Immediately exit if submission is already in progress (button is disabled)
+    if (submitBtn.disabled) {
+        return; 
+    }
 
     // Determine if this is a POST (Create) or PUT (Update) operation
     const isUpdate = collectionIdToUpdate !== null;
@@ -1030,7 +1038,7 @@ async function handleCollectionSubmit(event) {
             productVariationsMetadata.push({
                 variationIndex: sectionNumber,
                 frontImageUrl: frontUrlForMetadata, // null if a new file was uploaded, URL string otherwise
-                backImageUrl: backUrlForMetadata,  // null if a new file was uploaded, URL string otherwise
+                backImageUrl: backUrlForMetadata,  // null if a new file was uploaded, URL string otherwise
             });
         }
     });

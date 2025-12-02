@@ -810,17 +810,11 @@ CapCollectionSchema.pre('save', function(next) {
     next();
 });
 
-// --- NEW Pre-FindOneAndUpdate Middleware (CapCollection) ---
-// Runs before Model.findOneAndUpdate() (used for PUT/Update operations)
 CapCollectionSchema.pre('findOneAndUpdate', function(next) {
-    // 'this' refers to the query object in findOneAndUpdate.
     const update = this.getUpdate();
     
-    // Set the updatedAt timestamp
     this.set({ updatedAt: Date.now() });
 
-    // --- Logic for Full Form Submission (handleCollectionSubmit) ---
-    // This handles the complex update where the client sends variation data.
     if (update.collectionData && update.collectionData.variations) {
         const variations = update.collectionData.variations;
         
@@ -828,10 +822,8 @@ CapCollectionSchema.pre('findOneAndUpdate', function(next) {
             return totalStock + (variation.stock || 0);
         }, 0);
 
-        // Get isActive status (default to true if not explicitly set)
         const isActive = update.collectionData.isActive !== undefined ? update.collectionData.isActive : true; 
         
-        // Update the totalStock value *within the data being updated*
         if (isActive === false) {
             update.collectionData.totalStock = 0;
         } else {
@@ -839,25 +831,11 @@ CapCollectionSchema.pre('findOneAndUpdate', function(next) {
         }
     } 
 
-    // --- Logic for Simple Restock (quickRestockAndActivate) ---
-    // If the update contains a top-level totalStock field (from the fixed client restock function),
-    // we need to update the stock field for ALL sub-documents.
     if (update.totalStock !== undefined && Array.isArray(update.variations) === false) {
-        
-        // This is a RESTOCK operation. We must update the 'stock' field 
-        // on all existing variations in the database.
-        
-        // Use $set on a nested field to update all variations' 'stock' value.
-        // We use $[] (the positional operator) to update all elements in the 'variations' array.
-        // NOTE: This assumes a simple model where all variations get the same stock amount.
-        
+   
         const newStockValue = update.totalStock;
         
-        // Mongoose query operator to update all elements in an array:
         this.updateMany({}, { $set: { "variations.$[].stock": newStockValue } }).exec();
-        
-        // totalStock is already set at the root level in the client's simple update payload, 
-        // so no need to calculate it again. We rely on the client's totalStock value here.
     }
     
     next();
@@ -866,34 +844,71 @@ CapCollectionSchema.pre('findOneAndUpdate', function(next) {
 // --- Model Definition and Export ---
 const CapCollection = mongoose.models.CapCollection || mongoose.model('CapCollection', CapCollectionSchema);
 
+// --- 📦 UPDATED PRE-ORDER COLLECTION SCHEMA 📦 ---
 const PreOrderCollectionSchema = new mongoose.Schema({
     // General Product Information
-    name: { type: String, required: true, trim: true },
-    tag: { type: String, required: true },
-    price: { type: Number, required: true, min: 0 },
-    sizes: { type: [String], required: true }, // e.g., ['S', 'M', 'L']
-    totalStock: { type: Number, required: true, min: 0 },
+    name: { type: String, required: [true, 'Collection name is required'], trim: true },
+    tag: { type: String, required: [true, 'Tag is required'], enum: ['Upcoming', 'Exclusive', 'Bestseller', 'Limited'] }, // Example pre-order tags
+    price: { type: Number, required: [true, 'Price is required'], min: [0.01, 'Price must be greater than zero'] },
+    
+    // Derived/Managed field: Total Stock is calculated from all variation sizes
+    totalStock: { type: Number, required: [true, 'Total stock is required'], min: [0, 'Stock cannot be negative'], default: 0 },
     isActive: { type: Boolean, default: true },
 
     // New Availability Field
     availableDate: { 
         type: Date, 
-        required: true, 
-        // This is the date the pre-ordered item is expected to be available/shipped, 
-        // or the date it becomes generally available.
+        required: [true, 'Available date is required'], 
     }, 
 
-    // Variations (Colors, Images)
-    variations: [
-        {
-            variationIndex: { type: Number, required: true },
-            frontImageUrl: { type: String, required: true },
-            backImageUrl: { type: String, required: true },
+    // Variations (Colors, Images, and Size/Stock tracking)
+    // 🔑 Using the robust ProductVariationSchema for complete tracking
+    variations: {
+        type: [ProductVariationSchema], 
+        required: [true, 'At least one product variation is required'],
+        validate: {
+            validator: function(v) { return v.length >= 1 && v.length <= 4; },
+            message: 'A collection must have between 1 and 4 variations.'
         }
-    ]
+    }
 }, { timestamps: true });
 
-const PreOrderCollection = mongoose.model('PreOrderCollection', PreOrderCollectionSchema);
+// --- UPDATED Pre-Save Middleware (PreOrderCollection) ---
+PreOrderCollectionSchema.pre('save', function(next) {
+    this.updatedAt = Date.now();
+    
+    // 1. Calculate the new total stock
+    let calculatedTotalStock = 0;
+    
+    if (this.variations && this.variations.length > 0) {
+        // Iterate through all variations (e.g., colors)
+        calculatedTotalStock = this.variations.reduce((totalCollectionStock, variation) => {
+            
+            // For each variation, sum the stock of all its sizes
+            const variationStockSum = (variation.sizes || []).reduce((totalSizeStock, sizeEntry) => {
+                // Safely access size stock property, defaulting to 0
+                return totalSizeStock + (sizeEntry.stock || 0);
+            }, 0); 
+            
+            // Add this variation's total stock to the collection's grand total
+            return totalCollectionStock + variationStockSum;
+        }, 0);
+    }
+    
+    // 2. Apply business logic and set the totalStock field
+    if (this.isActive === false) {
+        // If the product is deactivated, total stock is 0
+        this.totalStock = 0;
+    } else {
+        // Otherwise, use the calculated sum
+        this.totalStock = calculatedTotalStock;
+    }
+    
+    next();
+});
+
+// --- Model Definition and Export ---
+const PreOrderCollection = mongoose.models.PreOrderCollection || mongoose.model('PreOrderCollection', PreOrderCollectionSchema);
 
 // --- 🛍️ NEW ORDER SCHEMA AND MODEL 🛍️ ---
 // We need a robust order model to track sales and manage inventory deduction.
@@ -3256,8 +3271,7 @@ app.get(
         }
     }
 );
-
-// POST /api/admin/preordercollections (Create New Pre-Order Collection) 
+// 1. POST /api/admin/preordercollections (Create New Pre-Order Collection) 
 app.post('/api/admin/preordercollections', verifyToken, upload.fields(uploadFields), async (req, res) => {
     try {
         // A. Extract JSON Metadata
@@ -3284,12 +3298,15 @@ app.post('/api/admin/preordercollections', verifyToken, upload.fields(uploadFiel
             const uploadFrontPromise = uploadFileToPermanentStorage(frontFile);
             const uploadBackPromise = uploadFileToPermanentStorage(backFile);
 
+            // Wait for uploads and then compile the final variation object
             const combinedUploadPromise = Promise.all([uploadFrontPromise, uploadBackPromise])
                 .then(([frontImageUrl, backImageUrl]) => {
                     finalVariations.push({
                         variationIndex: variation.variationIndex,
                         frontImageUrl: frontImageUrl,
                         backImageUrl: backImageUrl,
+                        colorHex: variation.colorHex, // 🔑 ADDED: Capture colorHex
+                        sizes: variation.sizes,       // 🔑 ADDED: Capture nested sizes/stock
                     });
                 });
 
@@ -3302,19 +3319,19 @@ app.post('/api/admin/preordercollections', verifyToken, upload.fields(uploadFiel
             return res.status(400).json({ message: "No valid product images and metadata were received after upload processing." });
         }
 
-        // C. Create the Final Collection Object (Using availableDate)
+        // C. Create the Final Collection Object
         const newCollection = new PreOrderCollection({
             name: collectionData.name,
             tag: collectionData.tag,
             price: collectionData.price,
-            sizes: collectionData.sizes,
-            totalStock: collectionData.totalStock,
+            // REMOVED: sizes - now nested in variations
+            // REMOVED: totalStock - calculated automatically by pre('save') middleware
             isActive: collectionData.isActive,
-            availableDate: collectionData.availableDate, // Using the new unified date field
+            availableDate: collectionData.availableDate,
             variations: finalVariations,
         });
 
-        // D. Save to Database
+        // D. Save to Database (pre('save') hook runs here to calculate totalStock)
         const savedCollection = await newCollection.save();
 
         res.status(201).json({
@@ -3335,7 +3352,7 @@ app.post('/api/admin/preordercollections', verifyToken, upload.fields(uploadFiel
 );
 
 
-// PUT /api/admin/preordercollections/:id (Update Pre-Order Collection)
+// 2. PUT /api/admin/preordercollections/:id (Update Pre-Order Collection)
 app.put(
     '/api/admin/preordercollections/:id',
     verifyToken,
@@ -3350,18 +3367,16 @@ app.put(
                 return res.status(404).json({ message: 'Pre-Order Collection not found for update.' });
             }
 
-            // Check if it's a simple update (JSON content-type and no collectionData for full form)
             const isQuickUpdate = req.get('Content-Type')?.includes('application/json') && !req.body.collectionData;
 
-            // A. HANDLE QUICK UPDATE (Stock, Active Status, Available Date)
+            // A. HANDLE QUICK UPDATE (Active Status, Available Date)
             if (isQuickUpdate) {
-                // Correctly destructure and check for the unified date field
-                const { totalStock, isActive, availableDate } = req.body;
+                // 🔑 REMOVED totalStock from destructuring and payload as it's a derived field
+                const { isActive, availableDate } = req.body; 
 
                 const updateFields = {};
-                if (totalStock !== undefined) updateFields.totalStock = totalStock;
                 if (isActive !== undefined) updateFields.isActive = isActive;
-                if (availableDate !== undefined) updateFields.availableDate = availableDate; // Corrected
+                if (availableDate !== undefined) updateFields.availableDate = availableDate;
 
                 if (Object.keys(updateFields).length === 0) {
                     return res.status(400).json({ message: "Missing update fields in simple update payload." });
@@ -3370,6 +3385,7 @@ app.put(
                 // Perform simple update
                 Object.assign(existingCollection, updateFields);
 
+                // pre('save') runs here, recalculating totalStock based on existing variation data
                 const updatedCollection = await existingCollection.save();
                 return res.status(200).json({
                     message: `Pre-Order Collection quick-updated.`,
@@ -3401,14 +3417,12 @@ app.put(
                 const newFrontFile = files[frontFileKey]?.[0];
 
                 if (newFrontFile) {
-                    // New file uploaded: Schedule old file for deletion and new file for upload
                     if (existingPermanentVariation?.frontImageUrl) {
                         oldImagesToDelete.push(existingPermanentVariation.frontImageUrl);
                     }
                     const frontUploadPromise = uploadFileToPermanentStorage(newFrontFile).then(url => { finalFrontUrl = url; });
                     uploadPromises.push(frontUploadPromise);
                 } else if (!finalFrontUrl) {
-                    // No new file and no existing URL means missing required data
                     throw new Error(`Front image missing for Variation #${index} and no existing image found.`);
                 }
 
@@ -3417,20 +3431,20 @@ app.put(
                 const newBackFile = files[backFileKey]?.[0];
 
                 if (newBackFile) {
-                    // New file uploaded: Schedule old file for deletion and new file for upload
                     if (existingPermanentVariation?.backImageUrl) {
                         oldImagesToDelete.push(existingPermanentVariation.backImageUrl);
                     }
                     const backUploadPromise = uploadFileToPermanentStorage(newBackFile).then(url => { finalBackUrl = url; });
                     uploadPromises.push(backUploadPromise);
                 } else if (!finalBackUrl) {
-                    // No new file and no existing URL means missing required data
                     throw new Error(`Back image missing for Variation #${index} and no existing image found.`);
                 }
 
                 // Push a placeholder object that will resolve once uploads complete
                 updatedVariations.push({
                     variationIndex: index,
+                    colorHex: incomingVariation.colorHex, // 🔑 ADDED: Capture colorHex
+                    sizes: incomingVariation.sizes,       // 🔑 ADDED: Capture nested sizes/stock
                     // Use functions for lazy evaluation of file URLs after uploads complete
                     get frontImageUrl() { return finalFrontUrl; },
                     get backImageUrl() { return finalBackUrl; },
@@ -3440,7 +3454,6 @@ app.put(
             await Promise.all(uploadPromises);
 
             if (updatedVariations.length === 0) {
-                // If the update payload was valid but somehow resulted in no variations, reject.
                 return res.status(400).json({ message: "No valid variations were processed for full update." });
             }
 
@@ -3448,19 +3461,20 @@ app.put(
             existingCollection.name = collectionData.name;
             existingCollection.tag = collectionData.tag;
             existingCollection.price = collectionData.price;
-            existingCollection.sizes = collectionData.sizes;
-            existingCollection.totalStock = collectionData.totalStock;
+            // REMOVED: sizes and totalStock from top-level update
             existingCollection.isActive = collectionData.isActive;
             existingCollection.availableDate = collectionData.availableDate;
 
-            // Map the placeholder objects to plain objects before saving
+            // Map the placeholder objects to plain objects before saving, including new fields
             existingCollection.variations = updatedVariations.map(v => ({
                 variationIndex: v.variationIndex,
+                colorHex: v.colorHex,             // 🔑 ADDED
+                sizes: v.sizes,                   // 🔑 ADDED
                 frontImageUrl: v.frontImageUrl,
                 backImageUrl: v.backImageUrl,
             }));
 
-            // Save to Database
+            // Save to Database (pre('save') hook runs here to calculate totalStock)
             const updatedCollection = await existingCollection.save();
 
             // Delete old images in the background (fire and forget)
@@ -3483,6 +3497,7 @@ app.put(
     }
 );
 
+
 // 3. GET /api/admin/preordercollections (Fetch All Pre-Order Collections) 
 app.get(
     '/api/admin/preordercollections',
@@ -3491,6 +3506,7 @@ app.get(
         try {
             // Fetch all collections, selecting only necessary and consistent fields
             const collections = await PreOrderCollection.find({})
+                // 🔑 UPDATED: Removed top-level 'sizes' from select list
                 .select('_id name tag price variations totalStock isActive availableDate') 
                 .sort({ createdAt: -1 })
                 .lean();
@@ -3499,6 +3515,7 @@ app.get(
             const signedCollections = await Promise.all(collections.map(async (collection) => {
                 const signedVariations = await Promise.all(collection.variations.map(async (v) => ({
                     ...v,
+                    // The 'v' object here already contains colorHex and sizes, as they were pulled from the schema
                     frontImageUrl: v.frontImageUrl ? await generateSignedUrl(v.frontImageUrl) : null, 
                     backImageUrl: v.backImageUrl ? await generateSignedUrl(v.backImageUrl) : null
                 })));
@@ -3525,7 +3542,7 @@ app.get(
         const collectionId = req.params.id;
         
         try {
-            // Find the collection by ID
+            // Find the collection by ID (already includes all fields due to .lean())
             const collection = await PreOrderCollection.findById(collectionId).lean();
 
             if (!collection) {
@@ -3535,6 +3552,7 @@ app.get(
             // Sign URLs for all variations
             const signedVariations = await Promise.all(collection.variations.map(async (v) => ({
                 ...v,
+                // The 'v' object here already contains colorHex and sizes
                 frontImageUrl: v.frontImageUrl ? await generateSignedUrl(v.frontImageUrl) : null,
                 backImageUrl: v.backImageUrl ? await generateSignedUrl(v.backImageUrl) : null
             })));
@@ -3547,7 +3565,6 @@ app.get(
             res.status(200).json(signedCollection);
 
         } catch (error) {
-            // Handle invalid ID format (e.g., Mongoose CastError)
             if (error.name === 'CastError') {
                 return res.status(400).json({ message: 'Invalid collection ID format.' });
             }
@@ -3557,10 +3574,10 @@ app.get(
     }
 );
 
-// DELETE /api/admin/preordercollections/:collectionId (Delete a Pre-Order Collection)
+// 5. DELETE /api/admin/preordercollections/:collectionId (Delete a Pre-Order Collection)
 app.delete(
     '/api/admin/preordercollections/:collectionId',
-    verifyToken, // Ensures only authorized users can delete
+    verifyToken, 
     async (req, res) => {
         const { collectionId } = req.params;
 
@@ -3568,25 +3585,22 @@ app.delete(
             // Find the collection by ID and delete it
             const deletedCollection = await PreOrderCollection.findByIdAndDelete(collectionId);
 
-            // Check if the collection was found and deleted
             if (!deletedCollection) {
                 return res.status(404).json({ message: 'Pre-order collection not found.' });
             }
 
-            // NEW: Delete associated images in the background (fire and forget)
+            // Delete associated images in the background (fire and forget)
             deletedCollection.variations.forEach(v => {
                 if (v.frontImageUrl) deleteFileFromPermanentStorage(v.frontImageUrl);
                 if (v.backImageUrl) deleteFileFromPermanentStorage(v.backImageUrl);
             });
 
-            // Successful deletion
             res.status(200).json({
                 message: 'Pre-order collection deleted successfully and associated images scheduled for removal.',
                 collectionId: collectionId
             });
 
         } catch (error) {
-            // Handle common Mongoose errors (e.g., invalid ID format)
             if (error.name === 'CastError') {
                 return res.status(400).json({ message: 'Invalid collection ID format.' });
             }

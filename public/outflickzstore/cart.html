@@ -429,9 +429,8 @@ function renderCartItems(items, isApiCart) {
                         <h3 class="text-base sm:text-lg">
                             <a href="#" class="font-semibold text-gray-900 hover:text-ash-red">${item.name}</a>
                         </h3>
-                        ${item.variation ? `<p class="mt-1 text-xs sm:text-sm text-gray-500">${item.variation}</p>` : ''}
-                        <p class="mt-1 text-xs sm:text-sm text-gray-500">Color: ${item.color}</p>
-                        <p class="text-xs sm:text-sm text-gray-500">Size: ${item.size}</p>
+                        ${item.color && item.color !== 'N/A' ? `<p class="mt-1 text-xs sm:text-sm text-gray-500">Color: ${item.color}</p>` : ''}
+                        ${item.size && item.size !== 'N/A' ? `<p class="text-xs sm:text-sm text-gray-500">Size: ${item.size}</p>` : ''}
                     </div>
 
                     <p class="mt-2 text-base font-bold text-gray-900 sm:mt-0 text-right sm:text-left">

@@ -69,6 +69,7 @@ function cleanUrlPath(url) {
     // Remove leading or trailing slashes if they appear during the cleanup
     return clean.trim().replace(/\/+$/, '');
 }
+
 /**
  * Extracts the file key (path inside the bucket) from the permanent IDrive E2 URL.
  * This is the SINGLE SOURCE OF TRUTH for key extraction.
@@ -105,6 +106,7 @@ function getFileKeyFromUrl(fileUrl) {
         return null;
     }
 }
+
 /**
  * Generates a temporary, pre-signed URL for private files in IDrive E2.
  * @param {string} fileUrl - The permanent IDrive E2 URL.
@@ -147,6 +149,55 @@ async function generateSignedUrl(fileUrl) {
         console.error(`[Signed URL] Failed to generate signed URL for ${fileUrl}:`, error);
         return `https://placehold.co/400x400/FF0000/FFFFFF?text=SIGNATURE+FAILED`;
     }
+}
+
+/**
+ * Checks the stored Signed URL expiry. If expired or near expiration, 
+ * generates a new Signed URL, updates the database, and returns the new URL.
+ * @param {Object} item - The database record holding the file data.
+ * @returns {Promise<string>} The current, valid Signed URL.
+ */
+async function getPermanentImageUrl(item) {
+    // 1. Check if the URL is expired (e.g., within 1 day of expiration)
+    const now = Date.now();
+    const expiryTime = item.signedUrlExpiresAt ? item.signedUrlExpiresAt.getTime() : 0;
+    
+    // We refresh if the URL is expired OR expires within the next 24 hours (86400000 ms)
+    const isExpired = expiryTime < (now + 86400000); 
+
+    if (!item.permanentFileKey) {
+        // Return a placeholder if no file is stored
+        return 'https://placehold.co/400x400/CCCCCC/000000?text=No+Image'; 
+    }
+
+    if (item.cachedSignedUrl && !isExpired) {
+        // 2. If valid and not near expiry, return the cached URL
+        return item.cachedSignedUrl;
+    }
+
+    // 3. The URL is expired or needs refreshment, so generate a new one.
+    // We need to reconstruct the full permanent path to use the existing generateSignedUrl helper.
+    const permanentPath = `${IDRIVE_ENDPOINT}/${IDRIVE_BUCKET_NAME}/${item.permanentFileKey}`;
+    
+    // This call uses your existing logic and returns a new 7-day URL.
+    const newSignedUrl = await generateSignedUrl(permanentPath);
+
+    // 4. Calculate the new expiration time (7 days from now)
+    const newExpiryDate = new Date(now + 604800000); // 604800 seconds * 1000 ms/s
+
+    // 5. Update the database with the new URL and expiry time
+    await YourDatabaseModel.updateOne(
+        { _id: item._id },
+        { 
+            $set: {
+                cachedSignedUrl: newSignedUrl,
+                signedUrlExpiresAt: newExpiryDate,
+            }
+        }
+    );
+
+console.log(`https://www.merriam-webster.com/dictionary/refresh Generated and cached new URL for key: ${item.permanentFileKey}`);
+    return newSignedUrl;
 }
 
 /**
@@ -457,7 +508,6 @@ const adminSchema = new mongoose.Schema({
 });
 const Admin = mongoose.models.Admin || mongoose.model('Admin', adminSchema);
 
-
 const userSchema = new mongoose.Schema({
     email: { type: String, required: [true, 'Email is required'], unique: true, trim: true, lowercase: true },
     password: { type: String, required: [true, 'Password is required'], select: false },
@@ -474,18 +524,29 @@ const userSchema = new mongoose.Schema({
         whatsapp: { type: String, trim: true }
     },
     
-    // --- 🏠 CORRECTED CONTACT ADDRESS FIELD ---
+    permanentFileKey: { 
+        type: String, 
+        default: null 
+    },
+    cachedSignedUrl: { 
+        type: String, 
+        default: null 
+    },
+    signedUrlExpiresAt: { 
+        type: Date, 
+        default: null 
+    },
+
     address: {
         type: new mongoose.Schema({
             street: { type: String, required: [true, 'Street is required'], trim: true },
             city: { type: String, required: [true, 'City is required'], trim: true },
             state: { type: String, trim: true },
-            zip: { type: String, trim: false }, // Correctly kept optional and trim: false
+            zip: { type: String, trim: false },
             country: { type: String, required: [true, 'Country is required'], trim: true }
         }),
-        required: [true, 'Address information is required'] // Ensure the whole object exists
+        required: [true, 'Address information is required']
     },
-    // -----------------------------------------
 
     status: {
         role: { type: String, default: 'user', enum: ['user', 'vip'] },
@@ -509,7 +570,6 @@ userSchema.pre('save', async function(next) {
 
 const User = mongoose.models.User || mongoose.model('User', userSchema);
 
-
 const ProductVariationSchema = new mongoose.Schema({
     variationIndex: { 
         type: Number, 
@@ -517,23 +577,34 @@ const ProductVariationSchema = new mongoose.Schema({
         min: 1, 
         max: 4 
     },
+
+    // --- FRONT IMAGE FIELDS (Permanent Key + Caching) ---
+    // frontImageUrl now stores the permanent file key/path in S3/IDrive E2
     frontImageUrl: { 
         type: String, 
-        required: [true, 'Front view image URL is required'],
+        required: [true, 'Front view image permanent key is required'],
         trim: true 
     }, 
+    frontCachedSignedUrl: { type: String, default: null },
+    frontSignedUrlExpiresAt: { type: Date, default: null },
+
+    // --- BACK IMAGE FIELDS (Permanent Key + Caching) ---
+    // backImageUrl now stores the permanent file key/path in S3/IDrive E2
     backImageUrl: { 
         type: String, 
-        required: [true, 'Back view image URL is required'],
+        required: [true, 'Back view image permanent key is required'],
         trim: true 
     }, 
+    backCachedSignedUrl: { type: String, default: null },
+    backSignedUrlExpiresAt: { type: Date, default: null },
+
     colorHex: { 
         type: String, 
         required: [true, 'Color Hex code is required'], 
         match: [/^#[0-9A-F]{6}$/i, 'Color must be a valid hex code (e.g., #RRGGBB)'] 
     },
     
-    // ⚠️ CRITICAL ADDITION: Stock array for per-size inventory tracking
+    // CRITICAL ADDITION: Stock array for per-size inventory tracking
     sizes: [{
         size: { type: String, required: true }, // e.g., 'S', 'M', 'L'
         stock: { type: Number, required: true, min: 0, default: 0 } // Stock count for this specific size/variation combination
@@ -559,32 +630,50 @@ const WearsCollectionSchema = new mongoose.Schema({
         min: [0.01, 'Price (in NGN) must be greater than zero']
     },
     variations: {
-        type: [ProductVariationSchema], // This field correctly holds the nested size/stock data
+        type: [ProductVariationSchema], 
         required: [true, 'At least one product variation is required'],
         validate: {
             validator: function(v) { return v.length >= 1 && v.length <= 4; },
             message: 'A collection must have between 1 and 4 variations.'
         }
     },
-    // 🛑 REMOVED: The redundant 'sizes' field is removed. 
-    // All size data is now in variations[...].sizes[...]
     
+    // totalStock is now calculated automatically in the pre-save hook
     totalStock: {
         type: Number,
-        required: [true, 'Total stock number is required'],
         min: [0, 'Stock cannot be negative'],
-        default: 0
     },
     isActive: { type: Boolean, default: true },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
 
+// 🚀 CRITICAL PRODUCTION HOOK: Automatically calculates totalStock 
+// and ensures consistency with detailed variation/size stock counts.
 WearsCollectionSchema.pre('save', function(next) {
     this.updatedAt = Date.now();
     
+    // 1. Calculate the new total stock
+    let calculatedTotalStock = 0;
+    
+    if (this.variations && this.variations.length > 0) {
+        calculatedTotalStock = this.variations.reduce((totalVariationStock, variation) => {
+            // Sum all stock counts within the sizes array for this variation
+            const variationStockSum = variation.sizes.reduce((totalSizeStock, sizeEntry) => {
+                return totalSizeStock + sizeEntry.stock;
+            }, 0); 
+            
+            return totalVariationStock + variationStockSum;
+        }, 0);
+    }
+    
+    // 2. Apply business logic and set the totalStock field
     if (this.isActive === false) {
+        // If the product is deactivated, total stock is 0
         this.totalStock = 0;
+    } else {
+        // Otherwise, use the calculated sum
+        this.totalStock = calculatedTotalStock;
     }
     
     next();

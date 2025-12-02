@@ -2455,7 +2455,6 @@ app.delete('/api/admin/capscollections/:id', verifyToken, async (req, res) => {
     }
 });
 
-
 /**
  * GET /api/admin/newarrivals - Fetch All New Arrivals
  * Fetches all products, sorts them, and generates signed URLs for all variation images.
@@ -2571,14 +2570,22 @@ app.post(
                 return res.status(400).json({ message: "No valid product images and metadata were received." });
             }
 
-            // C. Create the Final Product Object
+            // C. Calculate total stock from sizes and create the Final Product Object
+            // Assuming productData.sizes is an array of objects: [{size: 'S', stock: 10}, ...]
+            let calculatedTotalStock = 0;
+            if (Array.isArray(productData.sizes)) {
+                calculatedTotalStock = productData.sizes.reduce((sum, item) => sum + (item.stock || 0), 0);
+            }
+            // Override the totalStock field with the calculated value
+            productData.totalStock = calculatedTotalStock; 
+
             const newProduct = new NewArrivals({
                 name: productData.name,
                 tag: productData.tag,
                 price: productData.price, 
                 sizes: productData.sizes,
-                totalStock: productData.totalStock,
-                isActive: productData.isActive,
+                totalStock: productData.totalStock, // Use the calculated stock
+                isActive: productData.isActive, 
                 variations: finalVariations, 
             });
 
@@ -2708,14 +2715,21 @@ app.put(
             if (updatedVariations.length === 0) {
                 return res.status(400).json({ message: "No valid variations were processed for update." });
             }
+
+            // Aggregate total stock from sizes for update
+            let calculatedTotalStock = 0;
+            if (Array.isArray(productData.sizes)) {
+                calculatedTotalStock = productData.sizes.reduce((sum, item) => sum + (item.stock || 0), 0);
+            }
+            productData.totalStock = calculatedTotalStock; // Override the totalStock field
             
             // Update the Document Fields
             existingProduct.name = productData.name;
             existingProduct.tag = productData.tag;
             existingProduct.price = productData.price;
-            existingProduct.sizes = productData.sizes;
-            existingProduct.totalStock = productData.totalStock;
-            existingProduct.isActive = productData.isActive;
+            existingProduct.sizes = productData.sizes; // Update sizes field (stores per-size stock)
+            existingProduct.totalStock = productData.totalStock; // Update calculated totalStock
+            existingProduct.isActive = productData.isActive; // Update isActive field
             
             // Assign the resolved variations array
             existingProduct.variations = updatedVariations.map(v => ({

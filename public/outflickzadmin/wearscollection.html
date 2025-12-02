@@ -774,8 +774,8 @@ function addProductSection(variationData = null) {
                 <label for="color-input-${index}" class="block text-sm font-medium text-gray-700">Color/Hex Code</label>
                 <div class="flex items-center mt-1">
                     <input type="color" id="color-input-${index}" value="${colorHex}" required
-                        class="p-0 h-10 w-10 block rounded-full border-2 border-gray-300 cursor-pointer"
-                        oninput="updateColorPreview(this.value, 'color-preview-${index}')">
+                        class="p-0 h-10 w-10 block rounded-full border-2 border-gray-300 cursor-pointer"
+                        oninput="updateColorPreview(this.value, 'color-preview-${index}', 'color-hex-text-${index}')">
                     <div id="color-preview-${index}" class="color-preview ml-3" style="background-color: ${colorHex};"></div>
                     <input type="text" id="color-hex-text-${index}" name="colorHexText" value="${colorHex}" required 
                         class="block w-full ml-3 border border-gray-300 rounded-md shadow-sm p-2 text-sm focus:ring-emerald-500 focus:border-emerald-500"
@@ -970,26 +970,44 @@ function updateAddSectionButtonState() {
 }
 
 /** * Function to update the color circle preview
- * @param {string} colorValue - The hex color value.
- * @param {string} previewId - The ID of the color preview element.
- */
-function updateColorPreview(colorValue, previewId) {
-    // Check if the input is the color picker's hex value or the text field
-    const effectivePreviewId = typeof previewId === 'string' ? previewId : `color-preview-${previewId}`;
-    const previewElement = document.getElementById(effectivePreviewId);
-    
-    if (previewElement) {
-        previewElement.style.backgroundColor = colorValue;
-        
-        // Also update the corresponding text input (if the change came from the color picker)
-        const index = effectivePreviewId.split('-').pop();
-        const colorInput = document.getElementById(`color-hex-text-${index}`);
-        if (colorInput && colorInput.value !== colorValue) {
-            colorInput.value = colorValue;
-        }
-    }
-}
+ * @param {string} colorValue - The hex color value.
+ * @param {string} previewId - The ID of the color preview element (e.g., 'color-preview-1').
+* @param {string} [siblingInputId=null] - Optional ID of the sibling input to sync (color picker or text).
+ */
+function updateColorPreview(colorValue, previewId, siblingInputId = null) {
+    const previewElement = document.getElementById(previewId);
+    
+    // Ensure colorValue is a valid hex before using it
+    const validHex = /^#[0-9A-F]{6}$/i.test(colorValue) ? colorValue.toUpperCase() : '#000000';
+    
+    if (previewElement) {
+        previewElement.style.backgroundColor = validHex;
+    }
+    
+    // Sync the sibling input (the one that didn't trigger the event)
+    if (siblingInputId) {
+        const siblingInput = document.getElementById(siblingInputId);
+        if (siblingInput && siblingInput.value !== validHex) {
+            siblingInput.value = validHex;
+        }
+    }
 
+    // Special case: If the text input triggered the event, update the color picker input too
+    // The color picker ID is 'color-input-X' and the text input ID is 'color-hex-text-X'
+    const index = previewId.split('-').pop();
+    if (siblingInputId?.startsWith('color-input-')) {
+        // Event came from text, update the color picker input
+        const colorPickerInput = document.getElementById(`color-input-${index}`);
+        if (colorPickerInput) colorPickerInput.value = validHex;
+    }
+    
+    // Final sync: If the color picker triggered it, update the text input
+    if (siblingInputId?.startsWith('color-hex-text-')) {
+        // Event came from color picker, update the text input
+        const textInput = document.getElementById(`color-hex-text-${index}`);
+        if (textInput) textInput.value = validHex;
+    }
+}
 
 // Helper to safely get size/stock inputs from a variation section
 function getVariationSizes(section, variationIndex) {

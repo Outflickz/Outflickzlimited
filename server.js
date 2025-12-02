@@ -5176,6 +5176,47 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
     });
 }); 
 
+// =========================================================
+// 2. GET /api/orders/history - Retrieve Order History (Protected)
+// **Ensure this route is defined BEFORE /api/orders/:orderId**
+// =========================================================
+app.get('/api/orders/history', verifyUserToken, async (req, res) => {
+    try {
+        const userId = req.userId;
+
+        if (!userId) {
+            return res.status(401).json({ message: 'Authentication required to view order history.' });
+        }
+
+        // 1. Fetch orders from the database
+        const orders = await Order.find({ userId: userId })
+            .select('_id createdAt totalAmount status items') 
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // 2. Format the output data for the frontend
+        const formattedOrders = orders.map(order => ({
+            id: order._id, 
+            date: order.createdAt,
+            total: order.totalAmount,
+            status: order.status.charAt(0).toUpperCase() + order.status.slice(1),
+            items: order.items.length 
+        }));
+
+        // 3. Respond with the formatted order history list
+        res.status(200).json({
+            orders: formattedOrders,
+            message: 'Order history retrieved successfully.'
+        });
+
+    } catch (error) {
+        console.error('Error fetching order history:', error.message, error.stack);
+        res.status(500).json({ 
+            message: 'Failed to retrieve order details due to a server error.' 
+        });
+    }
+});
+
 // 6. GET /api/orders/:orderId (Fetch Single Order Details - Protected)
 app.get('/api/orders/:orderId', verifyUserToken, async function (req, res) {
     const orderId = req.params.orderId;
@@ -5264,56 +5305,6 @@ app.get('/api/orders/:orderId', verifyUserToken, async function (req, res) {
         console.error('Error fetching order details:', error);
         res.status(500).json({ message: 'Failed to retrieve order details due to a server error.' });
     }
-});
-// =========================================================
-// 2. GET /api/orders/history - Retrieve Order History (Protected)
-// =========================================================
-app.get('/api/orders/history', verifyUserToken, async (req, res) => {
-    try {
-        // req.userId is set by verifyUserToken middleware
-        const userId = req.userId;
-
-        if (!userId) {
-            // Should theoretically be caught by verifyUserToken, but serves as a safety check
-            return res.status(401).json({ message: 'Authentication required to view order history.' });
-        }
-
-        // 1. Fetch orders from the database
-        const orders = await Order.find({ userId: userId })
-            // ⭐ IMPORTANT: Ensure these field names match your Mongoose Order Schema exactly.
-            // If your schema uses 'total' instead of 'totalAmount', change it here.
-            .select('_id createdAt totalAmount status items') 
-            // Sort by newest order first (descending by createdAt)
-            .sort({ createdAt: -1 })
-            .lean();
-
-        // 2. Format the output data for the frontend
-        const formattedOrders = orders.map(order => ({
-            // Use MongoDB's _id as the unique identifier (Order ID)
-            id: order._id, 
-            date: order.createdAt, // The date the order was created/placed
-            total: order.totalAmount,
-            status: order.status.charAt(0).toUpperCase() + order.status.slice(1), // Capitalize status for display
-            // Count the number of distinct products/lines in the order
-            items: order.items.length 
-        }));
-
-        // 3. Respond with the formatted order history list
-        res.status(200).json({
-            orders: formattedOrders,
-            message: 'Order history retrieved successfully.'
-        });
-
-    } catch (error) {
-        // 🚨 IMPROVED ERROR HANDLING: Log the full error on the server
-        console.error('Error fetching order history:', error.message, error.stack);
-        
-        // 🚨 IMPROVED ERROR RESPONSE: Send a generic 500 message to the client 
-        // (but keep the server log detail for internal debugging)
-        res.status(500).json({ 
-            message: 'Failed to retrieve order details due to a server error.' 
-        });
-    }
 });
 
 // =========================================================

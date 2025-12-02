@@ -2405,7 +2405,6 @@ app.post(
         }
     }
 );
-
 // PUT /api/admin/capscollections/:id - Update Cap Collection
 app.put(
     '/api/admin/capscollections/:id',
@@ -2421,21 +2420,38 @@ app.put(
                 return res.status(404).json({ message: 'Cap Collection not found for update.' });
             }
 
-            const isQuickRestock = req.get('Content-Type')?.includes('application/json');
+            const isQuickRestock = req.get('Content-Type')?.includes('application/json') && !req.body.collectionData;
             
             // A. HANDLE QUICK RESTOCK (JSON only, no multipart/form-data)
-            if (isQuickRestock && !req.body.collectionData) {
+            if (isQuickRestock) {
                 const { totalStock, isActive } = req.body;
 
                 if (totalStock === undefined || isActive === undefined) {
                     return res.status(400).json({ message: "Missing 'totalStock' or 'isActive' in simple update payload." });
                 }
                 
-                // Perform simple update
-                existingCollection.totalStock = totalStock;
-                existingCollection.isActive = isActive; 
+                // ⚠️ FIX START: Update stock on all variations before saving ⚠️
+                const newStockValue = parseInt(totalStock); // Ensure it's an integer
+                
+                if (isNaN(newStockValue) || newStockValue < 0) {
+                     return res.status(400).json({ message: "Invalid 'totalStock' value for restock." });
+                }
 
+                // 1. Update the stock field on every variation sub-document
+                existingCollection.variations = existingCollection.variations.map(variation => {
+                    // This is the CRITICAL change: update the sub-document field
+                    variation.stock = newStockValue; 
+                    return variation;
+                });
+                
+                // 2. Update the root isActive field
+                existingCollection.isActive = isActive; 
+                
+                // When .save() runs, the pre('save') hook will correctly calculate 
+                // totalStock based on the sum of the newly updated variation stocks.
                 const updatedCollection = await existingCollection.save();
+                // ⚠️ FIX END ⚠️
+
                 return res.status(200).json({ 
                     message: `Cap Collection quick-updated. Stock: ${updatedCollection.totalStock}, Active: ${updatedCollection.isActive}.`,
                     collectionId: updatedCollection._id
@@ -2443,6 +2459,7 @@ app.put(
             }
             
             // B. HANDLE FULL FORM SUBMISSION (Multipart/form-data)
+            // ... (rest of the full update logic remains correct as it overwrites variations)
             if (!req.body.collectionData) {
                 return res.status(400).json({ message: "Missing collection data payload for full update." });
             }
@@ -2465,15 +2482,12 @@ app.put(
                 const newFrontFile = files[frontFileKey]?.[0];
 
                 if (newFrontFile) {
-                    // New file uploaded, queue old one for deletion
                     if (existingPermanentVariation?.frontImageUrl) {
                         oldImagesToDelete.push(existingPermanentVariation.frontImageUrl);
                     }
-                    // Upload new file and update the URL when finished
                     const frontUploadPromise = uploadFileToPermanentStorage(newFrontFile).then(url => { finalFrontUrl = url; });
                     uploadPromises.push(frontUploadPromise);
                 } else if (!finalFrontUrl) {
-                    // If no new file and no existing file, throw error
                     throw new Error(`Front image missing for Variation #${index}.`);
                 }
                 
@@ -2482,29 +2496,26 @@ app.put(
                 const newBackFile = files[backFileKey]?.[0];
 
                 if (newBackFile) {
-                    // New file uploaded, queue old one for deletion
                     if (existingPermanentVariation?.backImageUrl) {
                         oldImagesToDelete.push(existingPermanentVariation.backImageUrl);
                     }
-                    // Upload new file and update the URL when finished
                     const backUploadPromise = uploadFileToPermanentStorage(newBackFile).then(url => { finalBackUrl = url; });
                     uploadPromises.push(backUploadPromise);
                 } else if (!finalBackUrl) {
-                    // If no new file and no existing file, throw error
                     throw new Error(`Back image missing for Variation #${index}.`);
                 }
                 
-                // Add to temporary structure. We use the updated final URLs here.
                 updatedVariations.push({
                     variationIndex: index,
                     colorHex: incomingVariation.colorHex,
-                    // Use a function to capture the final URL after all promises resolve
+                    // The stock value is also needed from the incoming data for the full update
+                    stock: incomingVariation.stock, 
                     get frontImageUrl() { return finalFrontUrl; }, 
                     get backImageUrl() { return finalBackUrl; }, 
                 });
             }
             
-            await Promise.all(uploadPromises); // Wait for all uploads to complete
+            await Promise.all(uploadPromises);
 
             if (updatedVariations.length === 0) {
                 return res.status(400).json({ message: "No valid variations were processed for update." });
@@ -2514,14 +2525,15 @@ app.put(
             existingCollection.name = collectionData.name;
             existingCollection.tag = collectionData.tag;
             existingCollection.price = collectionData.price;
-            existingCollection.sizes = collectionData.sizes;
-            existingCollection.totalStock = collectionData.totalStock;
+            // existingCollection.sizes = collectionData.sizes; // Removed sizes field based on schema context
+            // totalStock is not needed here; pre('save') will calculate it
             existingCollection.isActive = collectionData.isActive;
             
-            // Map final URLs to the existing collection model
+            // Map final URLs and stock data to the existing collection model
             existingCollection.variations = updatedVariations.map(v => ({
                 variationIndex: v.variationIndex,
                 colorHex: v.colorHex,
+                stock: v.stock, // IMPORTANT: Use the stock value from the incoming data
                 frontImageUrl: v.frontImageUrl, 
                 backImageUrl: v.backImageUrl, 
             }));

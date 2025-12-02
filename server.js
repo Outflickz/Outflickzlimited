@@ -2058,8 +2058,9 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
                 // ✅ FIX: Isolate the email sending which is prone to external errors
                 await sendOrderConfirmationEmailForAdmin(customerEmail, finalOrder);
             } catch (emailError) {
-                // Log the email error but allow the order confirmation to succeed
-                console.error(`CRITICAL WARNING: Failed to send confirmation email to ${customerEmail}:`, emailError.message);
+                // Log the email error, including the customer email for debugging, but allow the order confirmation to succeed
+                // ⚠️ OPTIMIZATION: Included customerEmail in the error log for better traceability
+                console.error(`CRITICAL WARNING: Failed to send confirmation email to ${customerEmail} (Order ${orderId}):`, emailError.message);
                 // Continue execution to send the success response to the client
             }
         } else {

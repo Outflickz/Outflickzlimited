@@ -306,7 +306,7 @@
         </div>
     </div>
 
-    <script>
+ <script>
 // --- JAVASCRIPT LOGIC ---
 
 const sidebar = document.getElementById('sidebar');
@@ -319,6 +319,11 @@ const resetFormBtn = document.getElementById('reset-form-btn');
 const collectionsTableBody = document.getElementById('collections-table-body');
 const loadingIndicator = document.getElementById('loading-indicator');
 const collectionsError = document.getElementById('collections-error');
+
+// --- NEW SIZE/STOCK ELEMENTS ---
+const sizeStockContainer = document.getElementById('size-stock-container');
+const addSizeStockBtn = document.getElementById('add-size-stock-btn');
+// ---
 
 // --- Modal Elements ---
 const successModal = document.getElementById('success-modal');
@@ -339,6 +344,9 @@ const restockCancelBtn = document.getElementById('restock-cancel-btn');
 let sectionCount = 0; // Tracks the number of variations currently in the form
 let collectionIdToUpdate = null; // Stores the ID of the collection being edited (null for creation)
 let confirmationResolver = null; // Used to resolve the confirmation modal promise.
+
+// *** NEW GLOBAL FOR SIZE/STOCK MANAGEMENT ***
+let sizeStockIdCounter = 0; // Unique ID for dynamically created size/stock inputs
 
 // *** API ENDPOINT CHANGE: Adjusted to a new, hypothetical Pre-Order endpoint ***
 const API_BASE_URL = '/api/admin/preordercollections'; 
@@ -405,6 +413,7 @@ window.deleteCollection = deleteCollection;
 window.removeProductSection = removeProductSection;
 window.quickRestockAndActivate = quickRestockAndActivate;
 window.logoutAdmin = logoutAdmin;
+window.removeSizeStockInput = removeSizeStockInput; // NEW
 // ---------------------------------------------------------
 
 // --- UTILITY FUNCTIONS (Kept the same) ---
@@ -429,6 +438,49 @@ function logoutAdmin() {
 // --- COLLECTION MANAGEMENT (FRONTEND) ---
 
 /**
+ * Generates the HTML for a single Size/Stock input pair.
+ * @param {string} size - The initial size value (e.g., 'S').
+ * @param {number} stock - The initial stock value (e.g., 10).
+ * @returns {string} The HTML string.
+ */
+function createSizeStockInputHtml(size = '', stock = 0) {
+    const id = ++sizeStockIdCounter;
+    return `
+        <div id="size-stock-group-${id}" class="size-stock-group grid grid-cols-6 gap-2 items-center">
+            <input type="text" value="${size}" placeholder="Size (S, M, 32)" class="size-input col-span-3 border border-gray-300 rounded-md shadow-sm p-2 text-sm focus:ring-indigo-500 focus:border-indigo-500" required>
+            <input type="number" value="${stock}" min="0" placeholder="Stock" class="stock-input col-span-2 border border-gray-300 rounded-md shadow-sm p-2 text-sm focus:ring-indigo-500 focus:border-indigo-500" required>
+            <button type="button" onclick="removeSizeStockInput(${id})" class="col-span-1 text-red-500 hover:text-red-700 transition duration-150 p-1">
+                <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+        </div>
+    `;
+}
+
+/**
+ * Adds a new size/stock input pair to the form.
+ */
+function addSizeStockInput(size = '', stock = 0) {
+    document.getElementById('size-stock-placeholder').style.display = 'none';
+    sizeStockContainer.insertAdjacentHTML('beforeend', createSizeStockInputHtml(size, stock));
+}
+
+/**
+ * Removes a specific size/stock input pair from the form.
+ * @param {number} id - The unique ID of the input group.
+ */
+function removeSizeStockInput(id) {
+    const element = document.getElementById(`size-stock-group-${id}`);
+    if (element) {
+        element.remove();
+    }
+    // If all size/stock inputs are removed, show the placeholder again
+    if (sizeStockContainer.children.length === 0) {
+        document.getElementById('size-stock-placeholder').style.display = 'block';
+    }
+}
+
+
+/**
  * Resets the form to "Create New Collection" mode.
  */
 function resetForm() {
@@ -445,6 +497,11 @@ function resetForm() {
     sectionCount = 0;
     addProductSection();
 
+    // Clear and reset Size/Stock inputs
+    sizeStockContainer.innerHTML = `<p class="text-sm text-gray-500" id="size-stock-placeholder">Add sizes and their stock quantities below (e.g., S: 10, M: 20).</p>`;
+    sizeStockIdCounter = 0; // Reset counter for new item creation
+    addSizeStockInput('S', 100); // Add a default starting size/stock
+
     // Reset image inputs to be 'required' for new creation
     Array.from(productSectionsContainer.querySelectorAll('input[type="file"]')).forEach(input => {
         input.required = true;
@@ -453,6 +510,7 @@ function resetForm() {
     // Scroll to the form
     document.getElementById('content-preordercollection').scrollIntoView({ behavior: 'smooth' });
 }
+
 /**
  * Fetches all collections and renders them to the table.
  */

@@ -189,7 +189,7 @@
                         <div>
                             <div class="flex justify-between items-center mb-2">
                                 <h3 class="text-lg font-semibold text-gray-900">Shipping Address</h3>
-                                <button onclick="checkoutStep = 1; updateCheckoutView();" class="text-sm font-medium text-ash-red hover:text-red-700">Change</button>
+                                <button id="edit-shipping-btn" class="text-sm font-medium text-ash-red hover:text-red-700">Change</button>
                             </div>
                             <div class="text-sm text-gray-700 p-4 bg-gray-50 rounded-md border">
                                 <p id="review-address-name" class="font-medium"></p>
@@ -200,7 +200,10 @@
                         </div>
 
                         <div>
-                            <h3 class="text-lg font-semibold text-gray-900 mb-2">Items in Order</h3>
+                            <div class="flex justify-between items-center mb-2">
+                                <h3 class="text-lg font-semibold text-gray-900">Items in Order</h3>
+                                <button id="edit-order-btn" class="text-sm font-medium text-ash-red hover:text-red-700">Edit</button>
+                            </div>
                             <div id="review-items-list" class="divide-y divide-gray-100 border border-gray-200 rounded-md p-2">
                                 </div>
                         </div>
@@ -228,40 +231,41 @@
                             </div>
 
                           <div class="relative flex items-start border border-gray-300 rounded-md p-4 transition-all focus-within:ring-2 focus-within:ring-ash-red">
-    <div class="flex items-center h-5">
-        <input id="payment-bank" name="payment-method" type="radio" value="Bank Transfer" class="focus:ring-ash-red h-4 w-4 text-ash-red border-gray-300">
-    </div>
-    <div class="ml-3 text-sm flex-1">
-        <label for="payment-bank" class="font-medium text-gray-900">
-            Direct Bank Transfer (Manual)
-        </label>
-        <p id="bank-description" class="text-gray-500">View details below and complete payment manually.</p>
-        
-        <div id="bank-details-info" class="mt-3 p-3 bg-gray-100 rounded-md border border-gray-200" style="display:none;">
-            <h4 class="font-bold text-ash-dark mb-1">Outflickz Account Details:</h4>
-            <p class="text-xs">
-                **Bank Name:** Opay<br>
-                **Account Name:** Outflickz limited<br>
-                **Account Number:** 8149747864
-            </p>
-            <p class="text-xs text-ash-red mt-2">
-                **IMPORTANT:** Contact Customer Service with your payment Order ID as the payment narrative.
-            </p>
-        </div>
+                            <div class="flex items-center h-5">
+                                <input id="payment-bank" name="payment-method" type="radio" value="Bank Transfer" class="focus:ring-ash-red h-4 w-4 text-ash-red border-gray-300">
+                            </div>
+                            <div class="ml-3 text-sm flex-1">
+                                <label for="payment-bank" class="font-medium text-gray-900">
+                                    Direct Bank Transfer (Manual)
+                                </label>
+                                <p id="bank-description" class="text-gray-500">View details below and complete payment manually.</p>
+                                
+                                <div id="bank-details-info" class="mt-3 p-3 bg-gray-100 rounded-md border border-gray-200" style="display:none;">
+                                    <h4 class="font-bold text-ash-dark mb-1">Outflickz Account Details:</h4>
+                                    <p class="text-xs">
+                                        **Bank Name:** Opay<br>
+                                        **Account Name:** Outflickz limited<br>
+                                        **Account Number:** 8149747864
+                                    </p>
+                                    <p class="text-xs text-ash-red mt-2">
+                                        **IMPORTANT:** Contact Customer Service with your payment Order ID as the payment narrative.
+                                    </p>
+                                </div>
 
-        <div id="bank-transfer-receipt-upload" class="hidden mt-3">
-             <hr class="my-3 border-gray-300">
-            <h4 class="font-bold text-ash-dark mb-2">Upload Payment Receipt <span class="text-ash-red">*</span></h4>
-            <p class="text-xs text-gray-500 mb-2">Upload a screenshot/proof of payment to proceed with manual verification.</p>
-            <input type="file" id="bank-receipt-upload" accept="image/*" class="w-full text-sm text-gray-900 border border-gray-300 rounded-sm cursor-pointer bg-white file:py-2 file:px-4 file:border-0 file:bg-ash-red file:text-white hover:file:bg-red-700 transition" required>
-        </div>
-    </div>
-</div>
+                                <div id="bank-transfer-receipt-upload" class="hidden mt-3">
+                                      <hr class="my-3 border-gray-300">
+                                    <h4 class="font-bold text-ash-dark mb-2">Upload Payment Receipt <span class="text-ash-red">*</span></h4>
+                                    <p class="text-xs text-gray-500 mb-2">Upload a screenshot/proof of payment to proceed with manual verification.</p>
+                                    <input type="file" id="bank-receipt-upload" name="bank-receipt-upload" accept="image/*" class="w-full text-sm text-gray-900 border border-gray-300 rounded-sm cursor-pointer bg-white file:py-2 file:px-4 file:border-0 file:bg-ash-red file:text-white hover:file:bg-red-700 transition">
+                                </div>
+                            </div>
+                        </div>
+                        
                         
                             <div class="mt-6 border-t border-gray-200 pt-4">
                                 <div class="flex justify-between items-center">
                                     <p class="text-lg font-bold text-ash-dark">Total Due Now</p>
-                                    <p id="final-total-due" class="text-2xl font-extrabold text-ash-red" data-total-amount="0">₦<span id="summary-estimated-total-final">0.00</span></p>
+                                    <p class="text-2xl font-extrabold text-ash-red">₦<span id="summary-estimated-total-final">0.00</span></p>
                                 </div>
                                 <p class="text-xs text-gray-500 mt-1">By clicking "Confirm & Pay Now", you agree to our Terms of Use.</p>
                             </div>

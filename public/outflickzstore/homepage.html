@@ -822,6 +822,7 @@ function createColorList(collectionId, variants) {
 
     return mapHtml + buttonsHtml;
 }
+
 function createCollectionCard(collection, size = 'default') {
     const currencySymbol = '₦';
     const PLACEHOLDER_URL = 'https://s3.us-west-1.idrivee2.com/outflickz/public/placeholder-image-v1.jpg';
@@ -936,12 +937,17 @@ function createCollectionCard(collection, size = 'default') {
         </button>
     `;
 
-    const buyNowButtonHtml = `
+   const buyNowButtonHtml = `
     <button 
         ${isButtonDisabled ? 'disabled' : ''} 
         onclick="simulateBuyNow({
             productId: '${collection._id}',
             name: '${collection.name.replace(/'/g, "\\'")}',
+            
+            // ⭐ ADD THIS LINE ⭐
+            productType: '${collection.productType || collection.category}', // Adjust property name as needed (e.g., collection.type)
+            // ------------------
+            
             price: ${itemPrice},
             imageUrl: '${frontImageUrl}'
         })"

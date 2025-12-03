@@ -825,9 +825,44 @@
             console.error('Network error while sending admin notification:', error);
         }
     }
-    
+
+    // -----------------------------------------------------------------
+    // ⭐ PAYMENT PROCESSING FUNCTIONS (UPDATED FOR WEBHOOK) ⭐
+    // -----------------------------------------------------------------
+
     /**
-     * ⭐ NEW: Centralized function to finalize the order on the server, clear local data, and redirect.
+     * ⭐ NEW: Handles client-side cleanup and redirect after a successful Paystack payment.
+     * The server-side finalization (status update, cart clear, email) is handled by the webhook.
+     * @param {string} orderRef - The Paystack transaction reference.
+     */
+    function handlePaystackSuccessRedirect(orderRef) {
+        // 1. Clear local storage items (cleanup)
+        localStorage.removeItem(LOCAL_CART_KEY);
+        localStorage.setItem(CART_STORAGE_KEY, '0');
+        localStorage.removeItem('outflickzOrderTotal');
+        localStorage.removeItem('outflickzOrderItems'); 
+        localStorage.removeItem('outflickzOrderSubtotal');
+        localStorage.removeItem('outflickzOrderShipping');
+        localStorage.removeItem('outflickzOrderTax');
+        
+        // Clear Buy Now flag from sessionStorage
+        sessionStorage.removeItem(BUY_NOW_KEY); 
+
+        updateCartBadge();
+        
+        // 2. Display message and redirect
+        displayMessage('Payment successful! Your order is being confirmed. Redirecting...');
+        
+        setTimeout(() => {
+            // Redirect using the transaction reference for Paystack
+            window.location.href = `orderconfirmation.html?ref=${orderRef}&method=paystack`;
+        }, 2000);
+    }
+
+    /**
+     * ⭐ UPDATED: Centralized function to finalize the order.
+     * ONLY used by Bank Transfer to perform client-side cleanup and notification.
+     * It explicitly PREVENTS Paystack orders from using the client-initiated finalize API.
      * @param {object} payload - The order and payment details.
      * @param {string} orderType - 'paystack' or 'banktransfer'.
      */
@@ -838,50 +873,44 @@
         try {
             payBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Completing Order...';
 
-            // Send full order details to the server for final creation/verification
-            // This is the single, crucial server endpoint for order finalization.
-            const response = await fetch(`/api/orders/place/finalize`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ...payload,
-                    isBuyNow: isBuyNow // Server can use this to know whether to clear cart or not
-                })
-            });
-
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data.message || 'Failed to finalize order on server.');
+            // CRITICAL FIX: Paystack/Card orders MUST be finalized by the server-side webhook.
+            if (orderType === 'paystack') {
+                console.error('CRITICAL ERROR: Paystack order should be finalized by webhook, not by client-side call to finalizeOrderOnServer.');
+                throw new Error('Payment finalization error. Please contact support.');
             }
 
-            // --- Server Finalization Success ---
-            
-            // 🎯 STEP 1: Send Admin Notification (Order ID comes from server response)
-            sendAdminOrderNotification(
-                data.orderId || payload.orderRef, // Use server ID or client ref
-                payload.paymentMethod, 
-                payload.receiptUrl // Only present for bank transfer
-            );
+            // --- Logic for Bank Transfer (server work already done by /pending) ---
+            if (orderType === 'banktransfer') {
+                console.log('Bank Transfer: Skipping server finalization call. Performing client cleanup and redirect.');
+                
+                // 🎯 STEP 1: Send Admin Notification (using server-provided orderId)
+                sendAdminOrderNotification(
+                    payload.orderId || payload.orderRef, 
+                    payload.paymentMethod, 
+                    payload.receiptUrl
+                );
 
-            // STEP 2: Clear local storage items only if the server confirmed successful order
-            localStorage.removeItem(LOCAL_CART_KEY);
-            localStorage.setItem(CART_STORAGE_KEY, '0');
-            localStorage.removeItem('outflickzOrderTotal');
-            localStorage.removeItem('outflickzOrderItems'); 
-            localStorage.removeItem('outflickzOrderSubtotal');
-            localStorage.removeItem('outflickzOrderShipping');
-            localStorage.removeItem('outflickzOrderTax');
-            
-            // ⭐ Clear Buy Now flag from sessionStorage
-            sessionStorage.removeItem(BUY_NOW_KEY); 
+                // STEP 2: Clear local storage items (cleanup)
+                localStorage.removeItem(LOCAL_CART_KEY);
+                localStorage.setItem(CART_STORAGE_KEY, '0');
+                localStorage.removeItem('outflickzOrderTotal');
+                localStorage.removeItem('outflickzOrderItems'); 
+                localStorage.removeItem('outflickzOrderSubtotal');
+                localStorage.removeItem('outflickzOrderShipping');
+                localStorage.removeItem('outflickzOrderTax');
+                sessionStorage.removeItem(BUY_NOW_KEY); 
 
-            updateCartBadge();
-            displayMessage('Order placed successfully! Redirecting to confirmation...');
+                updateCartBadge();
+                displayMessage('Pending order placed successfully! Awaiting verification...');
 
-            setTimeout(() => {
-                const queryParam = orderType === 'paystack' ? `ref=${payload.orderRef}` : `id=${data.orderId}`;
-                window.location.href = `orderconfirmation.html?${queryParam}&method=${orderType}`;
-            }, 2000);
+                // STEP 3: Redirect
+                setTimeout(() => {
+                    const queryParam = `id=${payload.orderId}`; 
+                    window.location.href = `orderconfirmation.html?${queryParam}&method=${orderType}`;
+                }, 2000);
+                
+                return; // Terminate function execution for Bank Transfer
+            }
 
         } catch (error) {
             console.error('Order Finalization Error:', error);
@@ -892,7 +921,7 @@
     }
 
     /**
-     * ⭐ NEW: Handles Paystack Payment Flow.
+     * ⭐ UPDATED: Handles Paystack Payment Flow.
      */
     function processPaystackPayment(totalAmount, email) {
         const payBtn = document.getElementById('checkout-next-btn');
@@ -914,23 +943,9 @@
             currency: CURRENCY_CODE,
             
             callback: function(response){
-                // Payment was successful on Paystack's side. Now finalize the order on the server.
-                const shippingAddress = JSON.parse(localStorage.getItem('outflickzShippingData'));
-
-                const payload = {
-                    shippingAddress: shippingAddress,
-                    orderItems: JSON.parse(localStorage.getItem('outflickzOrderItems') || '[]'),
-                    paymentMethod: paymentMethod,
-                    subtotal: localStorage.getItem('outflickzOrderSubtotal'),
-                    shippingFee: localStorage.getItem('outflickzOrderShipping'),
-                    tax: localStorage.getItem('outflickzOrderTax'),
-                    totalAmount: totalAmount.toFixed(2),
-                    orderRef: response.reference, // Paystack reference
-                    paystackData: response // Send full response to server for verification
-                };
-                
-                // Use the centralized finalizer
-                finalizeOrderOnServer(payload, 'paystack');
+                // ⭐ CRITICAL FIX: DO NOT call finalizeOrderOnServer for Paystack.
+                // The webhook at /api/paystack/webhook will handle server finalization.
+                handlePaystackSuccessRedirect(response.reference);
             },
             
             onClose: function(){
@@ -943,102 +958,80 @@
         handler.openIframe();
     }
 
-/**
-    * ⭐ CORRECTED: Handles Bank Transfer Receipt Upload and Pending Order Creation.
-    * Combines data and receipt into a single FormData POST to /api/orders/place/pending.
-    */
-   async function processBankTransferOrder(totalAmount, shippingAddress) {
-        const payBtn = document.getElementById('checkout-next-btn');
-        const paymentMethod = 'Bank Transfer';
-        const receiptInput = document.getElementById('bank-receipt-upload');
-        const isBuyNow = sessionStorage.getItem(BUY_NOW_KEY) !== null; // Check Buy Now flag
+    /**
+     * ⭐ CORRECTED: Handles Bank Transfer Receipt Upload and Pending Order Creation.
+     * Combines data and receipt into a single FormData POST to /api/orders/place/pending.
+     */
+    async function processBankTransferOrder(totalAmount, shippingAddress) {
+        const payBtn = document.getElementById('checkout-next-btn');
+        const paymentMethod = 'Bank Transfer';
+        const receiptInput = document.getElementById('bank-receipt-upload');
+        const isBuyNow = sessionStorage.getItem(BUY_NOW_KEY) !== null; // Check Buy Now flag
 
-        if (!receiptInput || !receiptInput.files || receiptInput.files.length === 0) {
-            displayMessage('Please upload the payment receipt image to complete the bank transfer order.');
-            payBtn.disabled = false;
-            payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
-            if (receiptInput) receiptInput.focus();
-            return;
-        }
-        
-        payBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Uploading & Placing Pending Order...';
-        
-        // --- Create a single FormData object for the unified API ---
-        const orderItems = localStorage.getItem('outflickzOrderItems');
-        
-        const orderFormData = new FormData();
-        orderFormData.append('receipt', receiptInput.files[0]); // The file itself
-        
-        // Append all order details as form fields (as the backend expects strings for JSON/float parsing)
-        orderFormData.append('shippingAddress', JSON.stringify(shippingAddress));
-        orderFormData.append('paymentMethod', paymentMethod);
-        orderFormData.append('totalAmount', totalAmount.toFixed(2));
-        orderFormData.append('subtotal', localStorage.getItem('outflickzOrderSubtotal'));
-        orderFormData.append('shippingFee', localStorage.getItem('outflickzOrderShipping'));
-        orderFormData.append('tax', localStorage.getItem('outflickzOrderTax'));
-        
-        // IMPORTANT: For 'Buy Now' flow, the orderItems must be included in the body
-        if (isBuyNow) {
-            orderFormData.append('orderItems', orderItems);
-        }
-        // --- End FormData setup ---
+        if (!receiptInput || !receiptInput.files || receiptInput.files.length === 0) {
+            displayMessage('Please upload the payment receipt image to complete the bank transfer order.');
+            payBtn.disabled = false;
+            payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
+            if (receiptInput) receiptInput.focus();
+            return;
+        }
+        
+        payBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Uploading & Placing Pending Order...';
+        
+        // --- Create a single FormData object for the unified API ---
+        const orderItems = localStorage.getItem('outflickzOrderItems');
+        
+        const orderFormData = new FormData();
+        orderFormData.append('receipt', receiptInput.files[0]); // The file itself
+        
+        // Append all order details as form fields (as the backend expects strings for JSON/float parsing)
+        orderFormData.append('shippingAddress', JSON.stringify(shippingAddress));
+        orderFormData.append('paymentMethod', paymentMethod);
+        orderFormData.append('totalAmount', totalAmount.toFixed(2));
+        orderFormData.append('subtotal', localStorage.getItem('outflickzOrderSubtotal'));
+        orderFormData.append('shippingFee', localStorage.getItem('outflickzOrderShipping'));
+        orderFormData.append('tax', localStorage.getItem('outflickzOrderTax'));
+        
+        if (isBuyNow) {
+            orderFormData.append('orderItems', orderItems);
+        }
+        // --- End FormData setup ---
 
-        let pendingOrderRef = `bank_${Date.now()}`; // Client-side reference
+        let pendingOrderRef = `bank_${Date.now()}`; // Client-side reference
 
-        try {
-            // ⭐ Fetch against the new unified backend endpoint
-            const response = await fetch(`${API_BASE_URL}/api/orders/place/pending`, {
-                method: 'POST',
-                // The browser sets the Content-Type header correctly for FormData (multipart/form-data)
-                body: orderFormData 
-            });
+        try {
+            // ⭐ Fetch against the new unified backend endpoint to place the PENDING order
+            const response = await fetch(`${API_BASE_URL}/api/orders/place/pending`, {
+                method: 'POST',
+                // The browser sets the Content-Type header correctly for FormData (multipart/form-data)
+                body: orderFormData 
+            });
 
-            const data = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(data.message || 'Failed to place pending bank transfer order.');
-            }
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to place pending bank transfer order.');
+            }
+            
+            // Prepare payload for the centralized finalizer to handle notification & cleanup
+            const payload = {
+                paymentMethod: paymentMethod,
+                orderRef: pendingOrderRef, 
+                receiptUrl: data.ReceiptUrl, // Get the permanent URL back from the server
+                orderId: data.orderId // Use the actual server-created Order ID
+            };
 
-            // --- Pending Order Placement Success (No need for a separate finalize step) ---
-            
-            // ⭐ FIX: Parse the order items and map the price field for client-side use
-            const rawOrderItems = JSON.parse(orderItems || '[]');
-            const mappedOrderItems = rawOrderItems.map(item => ({
-                ...item,
-                // Ensure the price field is correctly named for Admin Notification
-                priceAtTimeOfPurchase: item.price || item.priceAtTimeOfPurchase 
-            }));
+            // Use the centralized finalizer. The 'banktransfer' flag ensures it only does client cleanup/redirect.
+            await finalizeOrderOnServer(payload, 'banktransfer');
 
-            // Prepare payload for the centralized finalizer to handle notification & cleanup
-            // Note: We don't call the finalization API endpoint, we just use the finalizer
-            // for client-side cleanup and redirection.
-            const payload = {
-                shippingAddress: shippingAddress,
-                orderItems: mappedOrderItems, // Use the CORRECTLY MAPPED items
-                paymentMethod: paymentMethod,
-                subtotal: localStorage.getItem('outflickzOrderSubtotal'),
-                shippingFee: localStorage.getItem('outflickzOrderShipping'),
-                tax: localStorage.getItem('outflickzOrderTax'),
-                totalAmount: totalAmount.toFixed(2),
-                orderRef: pendingOrderRef, // Client ref
-                receiptUrl: data.ReceiptUrl, // Get the permanent URL back from the server
-                // Use the actual server-created Order ID for cleanup and the confirmation page
-                orderId: data.orderId 
-            };
-
-            // Use the centralized finalizer to handle notification, local cleanup, and redirection
-            // Note: We pass the 'banktransfer' flag, which means the finalizeOrderOnServer will 
-            // NOT make a further server call, but only do client-side cleanup and redirect.
-            await finalizeOrderOnServer(payload, 'banktransfer');
-
-        } catch (error) {
-            console.error('Bank Transfer Order Error:', error);
-            displayMessage(error.message || 'Error placing bank transfer order. Please try again.');
-            payBtn.disabled = false;
-            payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
-            return;
-        }
-    }
+        } catch (error) {
+            console.error('Bank Transfer Order Error:', error);
+            displayMessage(error.message || 'Error placing bank transfer order. Please try again.');
+            payBtn.disabled = false;
+            payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
+            return;
+        }
+    }
 
     /**
      * Handles the final step: Payment confirmation and order creation (Router).
@@ -1079,41 +1072,67 @@
 
     // --- Main Initialization (Unchanged) ---
     document.addEventListener('DOMContentLoaded', () => {
-        // Initial checks and data loading
-        updateCartBadge();
-        fetchInitialCartData(); 
-        updateCheckoutView(); 
-        fetchUserData(); 
-
-        // Attach the hideMessageModal function to the close button
-        const closeButton = document.getElementById('message-modal-close-btn');
-        if (closeButton) {
-            closeButton.addEventListener('click', hideMessageModal);
+        if (!isUserLoggedIn()) {
+            redirectToProfileOrLogin();
+            return;
         }
+        
+        updateCartBadge();
+        fetchUserData(); // Pre-fills form
+        fetchInitialCartData(); // Loads order summary
+        updateCheckoutView(); // Renders step 1
+        
+        // Attach event listener to the main button
+        const nextBtn = document.getElementById('checkout-next-btn');
+        if (nextBtn) {
+            nextBtn.onclick = validateAndProceedToReview; // Starts the flow at step 1
+        }
+        
+        // Attach event listeners to Edit buttons in Review step (Step 2)
+        document.getElementById('edit-shipping-btn').onclick = () => {
+            checkoutStep = 1;
+            updateCheckoutView();
+            window.scrollTo(0, 0); 
+        };
+        
+        document.getElementById('edit-order-btn').onclick = () => {
+            // This should take the user to the cart page to edit items
+            window.location.href = 'cart.html';
+        };
 
-        // --- Bank Details Toggle Initialization (Unchanged) ---
+        // Attach event listener to payment radio buttons for bank details visibility
         const bankRadio = document.getElementById('payment-bank');
         const paystackRadio = document.getElementById('payment-paystack');
-        const bankDetails = document.getElementById('bank-details-info');
-        const receiptUpload = document.getElementById('bank-receipt-upload');
+        const bankDetailsInfo = document.getElementById('bank-details-info');
+        const receiptUploadSection = document.getElementById('bank-transfer-receipt-upload');
+        const receiptInput = document.getElementById('bank-receipt-upload');
 
         function toggleBankDetails() {
-            if (bankDetails && receiptUpload) {
-                const isBankChecked = bankRadio && bankRadio.checked;
-                bankDetails.style.display = isBankChecked ? 'block' : 'none';
+            const isBankChecked = bankRadio && bankRadio.checked;
+            
+            if (bankDetailsInfo) bankDetailsInfo.style.display = isBankChecked ? 'block' : 'none';
+            if (receiptUploadSection) receiptUploadSection.classList.toggle('hidden', !isBankChecked);
 
+            // Set required attribute dynamically
+            if (receiptInput) {
                 if (isBankChecked) {
-                    receiptUpload.setAttribute('required', 'required');
+                    receiptInput.setAttribute('required', 'required');
                 } else {
-                    receiptUpload.removeAttribute('required');
+                    receiptInput.removeAttribute('required');
                 }
             }
         }
 
         if (bankRadio) bankRadio.addEventListener('change', toggleBankDetails);
         if (paystackRadio) paystackRadio.addEventListener('change', toggleBankDetails);
-
-        toggleBankDetails(); 
+        
+        toggleBankDetails(); // Initial call
+        
+        // Attach the hideMessageModal function to the close button
+        const closeButton = document.getElementById('message-modal-close-btn');
+        if (closeButton) {
+            closeButton.addEventListener('click', hideMessageModal);
+        }
     });
 </script>
 </body>

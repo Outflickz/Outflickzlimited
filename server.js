@@ -1142,6 +1142,7 @@ async function getRealTimeDashboardStats() {
         throw new Error('Database aggregation failed for dashboard stats.');
     }
 }
+
 const PRODUCT_MODEL_MAP = {
     'WearsCollection': 'WearsCollection', 
     'CapCollection': 'CapCollection',     
@@ -2066,110 +2067,127 @@ app.get('/api/admin/orders/:orderId', verifyToken, async (req, res) => {
     }
 });
 
-// =========================================================
 // 9. PUT /api/admin/orders/:orderId/confirm - Confirm an Order (Admin Protected)
 // *** FINAL IMPLEMENTATION WITH EMAIL NOTIFICATION ***
+// 🌟 ENHANCED with explicit console logs for failure/skip reasons 🌟
 // =========================================================
 app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
-    const orderId = req.params.orderId;
-    const adminId = req.adminId;
+    const orderId = req.params.orderId;
+    const adminId = req.adminId;
 
-    if (!orderId) {
-        return res.status(400).json({ message: 'Order ID is required for confirmation.' });
-    }
+    if (!orderId) {
+        return res.status(400).json({ message: 'Order ID is required for confirmation.' });
+    }
 
-    try {
-        // 1. Initial status change from 'Pending' to 'Processing'
-        // We use findOneAndUpdate to ensure atomic update and retrieve the document. This is the "CLAIM" step.
-        const updatedOrder = await Order.findOneAndUpdate(
-            { _id: orderId, status: 'Pending' }, 
-            { 
-                $set: { 
-                    status: 'Processing', // Claim the order for this worker thread
-                    confirmedAt: new Date(), 
-                    confirmedBy: adminId 
-                } 
-            },
-            // Crucial: Select userId to fetch email later
-            { new: true, select: 'userId status totalAmount items' } 
-        ).lean();
+    try {
+        // 1. Initial status change from 'Pending' to 'Processing'
+        // This is the "CLAIM" step.
+        const updatedOrder = await Order.findOneAndUpdate(
+            { _id: orderId, status: 'Pending' }, 
+            { 
+                $set: { 
+                    status: 'Processing', // Claim the order for this worker thread
+                    confirmedAt: new Date(), 
+                    confirmedBy: adminId 
+                } 
+            },
+            // Crucial: Select userId to fetch email later
+            { new: true, select: 'userId status totalAmount items' } 
+        ).lean();
 
-        // 💡 CRITICAL FIX: Check if the order was successfully found and updated.
-        if (!updatedOrder) {
-            console.warn(`Order ${orderId} skipped: not found or status is not pending.`);
-            // Use 409 Conflict to indicate that the request could not be completed due to the resource's state.
-            return res.status(409).json({ message: 'Order not found or is already processed.' });
-        }
-        
-        // 2. CRITICAL STEP: Deduct Inventory and finalize status to 'Completed' atomically
-        let finalOrder;
-        try {
-            // Call helper. It now knows to check for 'Processing' status as well.
-            finalOrder = await processOrderCompletion(orderId, adminId); 
-            // If this succeeds, the order status is now 'Completed'
-        } catch (inventoryError) {
-            
-            // --- Handle Business Logic Conflict Separately (Race Condition) ---
-            if (inventoryError.isRaceCondition) {
-                console.warn(`Race condition detected: Order ${orderId} confirmed by concurrent request. Returning 200.`);
-                
-                // Fetch the now-confirmed order to return a successful response to the admin UI
-                const confirmedOrder = await Order.findById(orderId).lean();
-                
-                // Return success (200 OK) to the admin UI
-                return res.status(200).json({ 
-                    message: `Order ${orderId} was confirmed by a concurrent request. Status: ${confirmedOrder.status}.`,
-                    order: confirmedOrder 
-                });
-            }
-            
-            // Rollback status if inventory fails (This is for genuine stock insufficient errors)
-            console.error('Inventory deduction failed during Admin confirmation:', inventoryError.message);
-            
-            // The rollback function (called by processOrderCompletion's catch) has already set the status.
-            // We only add an extra note here.
-            await Order.findByIdAndUpdate(orderId, { 
-                $push: { notes: `Inventory deduction failed on ${new Date().toISOString()}: ${inventoryError.message}` }
-            });
-            
-            // ✅ Return 409 Conflict for known business logic failure (Insufficient Stock).
-            return res.status(409).json({ 
-                message: 'Payment confirmed, but inventory deduction failed. Order status flagged for manual review.',
-                error: inventoryError.message
-            });
-        }
-        
-        // 3. GET CUSTOMER EMAIL & SEND NOTIFICATION (The User's Request) 📧
-        
-        // Fetch user email using the userId
-        // We use the userId from the original updatedOrder since it's cleaner than digging into finalOrder
-        const user = await User.findById(updatedOrder.userId).select('email').lean();
-        const customerEmail = user ? user.email : null;
+        // 💡 CRITICAL FIX: Check if the order was successfully found and updated.
+        if (!updatedOrder) {
+            console.warn(`Order ${orderId} skipped: not found or status is not pending.`);
+            // ✅ ADDED LOG: Reason for not proceeding to inventory deduction.
+            const checkOrder = await Order.findById(orderId).select('status').lean();
+            if (checkOrder) {
+                console.warn(`[Inventory Skip Reason] Order ${orderId} is currently in status: ${checkOrder.status}.`);
+            } else {
+                console.warn(`[Inventory Skip Reason] Order ${orderId} does not exist.`);
+            }
+            
+            // Use 409 Conflict to indicate that the request could not be completed due to the resource's state.
+            return res.status(409).json({ message: 'Order not found or is already processed.' });
+        }
+        
+        // 2. CRITICAL STEP: Deduct Inventory and finalize status to 'Completed' atomically
+        let finalOrder;
+        try {
+            // Call helper. It now knows to check for 'Processing' status as well.
+            console.log(`[Inventory] Attempting atomic inventory deduction for Order ${orderId}.`);
+            finalOrder = await processOrderCompletion(orderId, adminId); 
+            console.log(`[Inventory Success] Inventory deduction completed successfully for Order ${orderId}. Final status: ${finalOrder.status}.`);
+            // If this succeeds, the order status is now 'Completed'
+        } catch (inventoryError) {
+            
+            // --- Handle Business Logic Conflict Separately (Race Condition) ---
+            if (inventoryError.isRaceCondition) {
+                console.warn(`Race condition detected: Order ${orderId} confirmed by concurrent request. Returning 200.`);
+                
+                // Fetch the now-confirmed order to return a successful response to the admin UI
+                const confirmedOrder = await Order.findById(orderId).lean();
+                
+                // ✅ ADDED LOG: Reason why inventory deduction logic was not executed by THIS worker.
+                console.warn(`[Inventory Race Skip] Inventory deduction was skipped because the order was finalized by a concurrent process. Current status: ${confirmedOrder.status}.`);
 
-        if (customerEmail) {
-            try {
-                // ✅ Email is only sent if the inventory transaction (step 2) succeeded
-                await sendOrderConfirmationEmailForAdmin(customerEmail, finalOrder);
-            } catch (emailError) {
-                console.error(`CRITICAL WARNING: Failed to send confirmation email to ${customerEmail} (Order ${orderId}):`, emailError.message);
-                // Continue execution to send the success response to the client
-            }
-        } else {
-            console.warn(`Could not find email for user ID: ${updatedOrder.userId}. Skipping email notification.`);
-        }
-        
-        // 4. Success Response
-        res.status(200).json({ 
-            message: `Order ${orderId} confirmed, inventory deducted, and customer notified. Status: ${finalOrder.status}.`,
-            order: finalOrder 
-        });
+                // Return success (200 OK) to the admin UI
+                return res.status(200).json({ 
+                    message: `Order ${orderId} was confirmed by a concurrent request. Status: ${confirmedOrder.status}.`,
+                    order: confirmedOrder 
+                });
+            }
+            
+            // Rollback status if inventory fails (This is for genuine stock insufficient errors)
+            console.error('Inventory deduction failed during Admin confirmation:', inventoryError.message);
+            
+            // The rollback function (called by processOrderCompletion's catch) has already set the status.
+            // We only add an extra note here.
+            await Order.findByIdAndUpdate(orderId, { 
+                $push: { notes: `Inventory deduction failed on ${new Date().toISOString()}: ${inventoryError.message}` }
+            });
+            
+            // ✅ Return 409 Conflict for known business logic failure (Insufficient Stock).
+            return res.status(409).json({ 
+                message: 'Payment confirmed, but inventory deduction failed. Order status flagged for manual review.',
+                error: inventoryError.message
+            });
+        }
+        
+        // 3. GET CUSTOMER EMAIL & SEND NOTIFICATION (The User's Request) 📧
+        
+        // Fetch user email using the userId
+        const user = await User.findById(updatedOrder.userId).select('email').lean();
+        const customerEmail = user ? user.email : null;
 
-    } catch (error) {
-        // This catch block handles the final crash and returns the 500 error
-        console.error(`Error confirming order ${orderId}:`, error);
-        res.status(500).json({ message: 'Failed to confirm order due to a server error.' });
-    }
+        if (customerEmail) {
+            try {
+                // ✅ Email is only sent if the inventory transaction (step 2) succeeded
+                console.log(`[Email] Sending confirmation email to: ${customerEmail} for order ${orderId}.`);
+                await sendOrderConfirmationEmailForAdmin(customerEmail, finalOrder);
+                console.log(`[Email Success] Confirmation email sent to ${customerEmail}.`);
+            } catch (emailError) {
+                // ✅ ADDED LOG: Explicit reason for email *failure*.
+                console.error(`[Email Failure Reason] CRITICAL WARNING: Failed to send confirmation email to ${customerEmail} (Order ${orderId}):`, emailError.message);
+                // Continue execution to send the success response to the client
+            }
+        } else {
+            // ✅ ADDED LOG: Explicit reason for email *skip*.
+            console.warn(`[Email Skip Reason] Could not find email for user ID: ${updatedOrder.userId}. Skipping email notification.`);
+        }
+        
+        // 4. Success Response
+        res.status(200).json({ 
+            message: `Order ${orderId} confirmed, inventory deducted, and customer notified. Status: ${finalOrder.status}.`,
+            order: finalOrder 
+        });
+
+    } catch (error) {
+        // This catch block handles the final crash and returns the 500 error
+        console.error(`Error confirming order ${orderId}:`, error);
+        res.status(500).json({ message: 'Failed to confirm order due to a server error.' });
+    }
 });
+
 // =========================================================
 // 10. PUT /api/admin/orders/:orderId/status - Update Fulfillment Status
 // =========================================================

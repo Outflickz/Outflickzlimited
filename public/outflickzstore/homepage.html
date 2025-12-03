@@ -319,7 +319,7 @@ function simulateBuyNow(itemDetails) {
     const quantityInput = document.getElementById(`quantity-input-${itemDetails.productId}`);
     const selectedQuantity = parseInt(quantityInput.value) || 1;
     
-    // 2. Gather Size (will be '' or 'OS' if no radios exist/are checked)
+    // 2. Gather Size
     let selectedSize = '';
     const sizeRadios = document.getElementsByName(`size-${itemDetails.productId}`);
     for (const radio of sizeRadios) {
@@ -329,7 +329,7 @@ function simulateBuyNow(itemDetails) {
         }
     }
 
-    // 3. Gather Color (will be '' or a hex/name if no radios exist/are checked)
+    // 3. Gather Color
     let selectedColor = '';
     const colorRadios = document.getElementsByName(`color-${itemDetails.productId}`);
     for (const radio of colorRadios) {
@@ -340,7 +340,7 @@ function simulateBuyNow(itemDetails) {
     }
 
    // 4. Determine variationIndex and Image (ENHANCED LOGIC)
-    let variationIndex = 0;
+    let variationIndex = 1; // 🌟 CHANGE 1: Default to 1 instead of 0 for server compatibility
     let selectedImageUrl = itemDetails.imageUrl; // Default
     
     // Locate the card to find the hidden color map data
@@ -358,7 +358,10 @@ function simulateBuyNow(itemDetails) {
                 const inferredIndex = colorMapKeys.indexOf(colorHex);
                 
                 if (inferredIndex !== -1) {
-                    variationIndex = inferredIndex;
+                    // ⭐ CRITICAL FIX: Convert 0-based client index to 1-based server index! ⭐
+                    variationIndex = inferredIndex + 1; 
+                    // --------------------------------------------------------------------------
+                    
                     const newImageUrls = colorMap[colorHex];
                     if (newImageUrls && newImageUrls.frontImageUrl) {
                         selectedImageUrl = newImageUrls.frontImageUrl;
@@ -366,16 +369,18 @@ function simulateBuyNow(itemDetails) {
                 }
             } catch (e) {
                 console.error("Error parsing color map data:", e);
-                // variationIndex remains 0, which is handled below.
+                // If parsing fails, variationIndex remains 1 (default)
             }
         }
     }
+    // If no color is selected, variationIndex remains 1 (assuming the first variant is the default)
 
-    // ⭐ CRITICAL FIX START: Ensure productType is not the string "undefined" ⭐
+
+    // ⭐ CRITICAL FIX: Ensure productType is not the string "undefined" ⭐
     const safeProductType = (itemDetails.productType && itemDetails.productType !== 'undefined')
                             ? itemDetails.productType
                             : 'WearsCollection';
-    // ⭐ CRITICAL FIX END ⭐
+    // ----------------------------------------------------------------------
 
     const itemToCheckout = {
         productId: itemDetails.productId, 
@@ -392,7 +397,7 @@ function simulateBuyNow(itemDetails) {
         size: selectedSize || 'N/A', 
         color: selectedColor || 'N/A',
 
-        // UPDATE: Use the dynamically calculated index
+        // UPDATE: Use the 1-based index
         variationIndex: variationIndex, 
         
         checkout: true 
@@ -410,7 +415,6 @@ function simulateBuyNow(itemDetails) {
     // Redirect the user to the checkout page
     window.location.href = 'checkout.html';
 }
-
 /**
  * Reads the current cart item count from Local Storage. (Keep this one)
  * @returns {number} The total number of items in the cart.

@@ -5142,35 +5142,43 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
             }
 
             // ⭐ 4. REFACORING: Retrieve Order Items (PRIORITIZE Buy Now Items)
-            let finalOrderItems = [];
-            let isBuyNowOrder = false;
+           let finalOrderItems = [];
+            let isBuyNowOrder = false;
 
-            if (orderItemsString && orderItemsString.trim() !== '') {
-                // Scenario 1: Buy Now Checkout (items passed directly in body)
-                finalOrderItems = JSON.parse(orderItemsString);
-                isBuyNowOrder = true;
+            if (orderItemsString && orderItemsString.trim() !== '') {
+                // Scenario 1: Buy Now Checkout (items passed directly in body)
+                
+                const rawItems = JSON.parse(orderItemsString);
+                isBuyNowOrder = true;
+                
+                // ⭐ CRITICAL FIX: Map the client's 'price' field to the required 'priceAtTimeOfPurchase'
+                finalOrderItems = rawItems.map(item => ({
+                    ...item,
+                    // Ensure the Mongoose schema requirement is met
+                    priceAtTimeOfPurchase: item.price 
+                }));
 
-            } else {
-                // Scenario 2: Standard Cart Checkout (pull items from user's Cart document)
-                const cart = await Cart.findOne({ userId }).lean();
+            } else {
+                // Scenario 2: Standard Cart Checkout (pull items from user's Cart document)
+                const cart = await Cart.findOne({ userId }).lean();
 
-                if (!cart || cart.items.length === 0) {
-                    return res.status(400).json({ message: 'Cannot place order: Shopping bag is empty.' });
-                }
-                // Map cart items to OrderItemSchema structure
-                finalOrderItems = cart.items.map(item => ({
-                    productId: item.productId,
-                    name: item.name, 
-                    imageUrl: item.imageUrl,
-                    productType: item.productType,
-                    quantity: item.quantity,
-                    priceAtTimeOfPurchase: item.price,
-                    variationIndex: item.variationIndex,
-                    size: item.size,
-                    variation: item.variation,
-                    color: item.color,
-                }));
-            }
+                if (!cart || cart.items.length === 0) {
+                    return res.status(400).json({ message: 'Cannot place order: Shopping bag is empty.' });
+                }
+                // Map cart items to OrderItemSchema structure
+                finalOrderItems = cart.items.map(item => ({
+                    productId: item.productId,
+                    name: item.name, 
+                    imageUrl: item.imageUrl,
+                    productType: item.productType,
+                    quantity: item.quantity,
+                    priceAtTimeOfPurchase: item.price, // Already correct for Cart items
+                    variationIndex: item.variationIndex,
+                    size: item.size,
+                    variation: item.variation,
+                    color: item.color,
+                }));
+            }
             
             if (finalOrderItems.length === 0) {
                 return res.status(400).json({ message: 'Order item list is empty.' });

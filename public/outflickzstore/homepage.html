@@ -340,40 +340,57 @@ function simulateBuyNow(itemDetails) {
         }
     }
 
-    // 4. Determine variationIndex (CRITICAL ADDITION)
-    // We default this to 0. If this item has multiple variants and the checkout fails
-    // to distinguish them, the full color-map lookup logic from simulateAddToCart must be added here.
-    // However, 0 is the minimum fix to pass the backend validation check: variationIndex !== undefined && variationIndex !== null.
+   // 4. Determine variationIndex and Image (ENHANCED LOGIC)
     let variationIndex = 0;
+    let selectedImageUrl = itemDetails.imageUrl; // Default
+    
+    // Locate the card to find the hidden color map data
+    const card = document.querySelector(`.collection-card[data-collection-id="${itemDetails.productId}"]`);
+    
+    if (card && selectedColor) {
+        const colorMapContainer = card.querySelector(`#color-map-${itemDetails.productId}`);
+        
+        if (colorMapContainer) {
+            const colorMap = JSON.parse(colorMapContainer.getAttribute('data-color-map'));
+            const colorHex = selectedColor; // Assuming selectedColor holds the hex key
+            
+            const colorMapKeys = Object.keys(colorMap);
+            const inferredIndex = colorMapKeys.indexOf(colorHex);
+            
+            if (inferredIndex !== -1) {
+                variationIndex = inferredIndex;
+                const newImageUrls = colorMap[colorHex];
+                if (newImageUrls && newImageUrls.frontImageUrl) {
+                    selectedImageUrl = newImageUrls.frontImageUrl;
+                }
+            }
+        }
+    }
 
     const itemToCheckout = {
-        productId: itemDetails.productId, // Renamed from 'id' for consistency with CartItemSchema
+        productId: itemDetails.productId, 
         name: itemDetails.name,
         
-        // ⭐ FIX 1: Add a fallback for productType and ensure a value is always sent.
         productType: itemDetails.productType || 'WearsCollection', 
         
         price: itemDetails.price,
-        imageUrl: itemDetails.imageUrl,
+        // ⭐ UPDATE: Use the dynamically selected image URL
+        imageUrl: selectedImageUrl, 
         quantity: selectedQuantity,
         
-        // ⭐ FIX 2: Ensure size and color have a default value to satisfy backend validation
         size: selectedSize || 'N/A', 
         color: selectedColor || 'N/A',
 
-        // ⭐ FIX 3: Add the required variationIndex
-        variationIndex: variationIndex,
+        // ⭐ UPDATE: Use the dynamically calculated index
+        variationIndex: variationIndex, 
         
-        // This is a flag for the checkout page to know it should process a single Buy Now item
         checkout: true 
     };
 
     console.log("Preparing for Buy Now Checkout:", itemToCheckout);
     
-    // 🎯 CRITICAL STEP: Store the single item in Session Storage for checkout.html to retrieve
     sessionStorage.setItem('buyNowItem', JSON.stringify(itemToCheckout));
     
-    // Redirect the user to the checkout page
     window.location.href = 'checkout.html';
 }
 

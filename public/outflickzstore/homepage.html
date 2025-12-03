@@ -308,7 +308,9 @@ document.addEventListener('DOMContentLoaded', () => {
     updateSlider();
     setInterval(updateSlider, slideInterval);
 });
+
 // --- END HERO SLIDER JS ---
+
 /**
  * Handles the logic for a "Buy Now" action.
  * It bypasses the cart and immediately redirects to checkout with the selected item.
@@ -972,6 +974,7 @@ function createCollectionCard(collection, size = 'default') {
 
     // *** Define Buttons/Labels based on Stock Status ***
     const isButtonDisabled = isOutOfStock && !isPreorder;
+    const safeProductTypeInHtml = collection.productType || 'WearsCollection';
 
     // Get current quantity value for the button click
     const quantityGetter = `document.getElementById('quantity-input-${collection._id}').value`;
@@ -993,23 +996,22 @@ function createCollectionCard(collection, size = 'default') {
     `;
 
 const buyNowButtonHtml = `
-    <button 
-        ${isButtonDisabled ? 'disabled' : ''} 
-        onclick="simulateBuyNow({
-            productId: '${collection._id}',
-            name: '${collection.name.replace(/'/g, "\\'")}',
-            
-            // ⭐ CRITICAL FIX: Ensure 'undefined' is not passed as a string. ⭐
-            // If collection.productType is null/undefined, use collection.category. If that's also null/undefined, use 'WearsCollection'.
-            productType: '${(collection.productType || collection.category || 'WearsCollection')}',
-            // ------------------
-            
-            price: ${itemPrice},
-            imageUrl: '${frontImageUrl}'
-        })"
-        class="${buttonFlexClasses} ${controlTextSize} ${buyNowButtonClasses} ${controlHeight} rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center">
-        ${buyNowButtonText}
-    </button>
+    <button 
+        ${isButtonDisabled ? 'disabled' : ''} 
+        onclick="simulateBuyNow({
+            productId: '${collection._id}',
+            name: '${collection.name.replace(/'/g, "\\'")}',
+            
+            // ⭐ FIX 1: Explicitly pass a safe productType
+            productType: '${safeProductTypeInHtml}', 
+            
+            price: ${itemPrice},
+            quantity: parseInt(${quantityGetter}), // <-- Ensure comma is present here
+            imageUrl: '${frontImageUrl}' // <-- Ensure imageUrl is the last one
+        })"
+        class="${buttonFlexClasses} ${controlTextSize} ${buyNowButtonClasses} ${controlHeight} rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center">
+        ${buyNowButtonText}
+    </button>
 `;
 
     // Quantity control (TIGHTER FOR MOBILE)

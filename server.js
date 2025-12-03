@@ -2080,12 +2080,12 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
 
     try {
         // 1. Initial status change from 'Pending' to 'Processing'
-        // We use findOneAndUpdate to ensure atomic update and retrieve the document.
+        // We use findOneAndUpdate to ensure atomic update and retrieve the document. This is the "CLAIM" step.
         const updatedOrder = await Order.findOneAndUpdate(
             { _id: orderId, status: 'Pending' }, 
             { 
                 $set: { 
-                    status: 'Processing', // Transition step before inventory
+                    status: 'Processing', // Claim the order for this worker thread
                     confirmedAt: new Date(), 
                     confirmedBy: adminId 
                 } 
@@ -2098,24 +2098,19 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
         if (!updatedOrder) {
             console.warn(`Order ${orderId} skipped: not found or status is not pending.`);
             // Use 409 Conflict to indicate that the request could not be completed due to the resource's state.
-            // This catches the second request if the first one succeeded AND immediately set status to 'Completed'.
             return res.status(409).json({ message: 'Order not found or is already processed.' });
         }
         
         // 2. CRITICAL STEP: Deduct Inventory and finalize status to 'Completed' atomically
         let finalOrder;
         try {
-            // 🌟 FIX: Pass the adminId to the helper function for atomic status update 🌟
+            // Call helper. It now knows to check for 'Processing' status as well.
             finalOrder = await processOrderCompletion(orderId, adminId); 
-            // If this succeeds, the order status is now 'Processing' (with inventory deducted)
+            // If this succeeds, the order status is now 'Completed'
         } catch (inventoryError) {
             
-            // --- 🎯 FIX START: Handle Business Logic Conflict Separately (Race Condition) ---
-            // 🌟 FIX: Check for the custom property instead of the string message 🌟
+            // --- Handle Business Logic Conflict Separately (Race Condition) ---
             if (inventoryError.isRaceCondition) {
-                // This block executes if another request already started or finished the process
-                // and aborted the transaction cleanly.
-                
                 console.warn(`Race condition detected: Order ${orderId} confirmed by concurrent request. Returning 200.`);
                 
                 // Fetch the now-confirmed order to return a successful response to the admin UI
@@ -2127,13 +2122,12 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
                     order: confirmedOrder 
                 });
             }
-            // --- FIX END ---
             
             // Rollback status if inventory fails (This is for genuine stock insufficient errors)
             console.error('Inventory deduction failed during Admin confirmation:', inventoryError.message);
             
-            // ⭐ The inventoryRollback function (called by processOrderCompletion's catch) 
-            // has already set the status. We just need to update the notes here for extra logging.
+            // The rollback function (called by processOrderCompletion's catch) has already set the status.
+            // We only add an extra note here.
             await Order.findByIdAndUpdate(orderId, { 
                 $push: { notes: `Inventory deduction failed on ${new Date().toISOString()}: ${inventoryError.message}` }
             });
@@ -2148,16 +2142,15 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
         // 3. GET CUSTOMER EMAIL & SEND NOTIFICATION (The User's Request) 📧
         
         // Fetch user email using the userId
+        // We use the userId from the original updatedOrder since it's cleaner than digging into finalOrder
         const user = await User.findById(updatedOrder.userId).select('email').lean();
         const customerEmail = user ? user.email : null;
 
         if (customerEmail) {
             try {
-                // ✅ FIX: Isolate the email sending which is prone to external errors
+                // ✅ Email is only sent if the inventory transaction (step 2) succeeded
                 await sendOrderConfirmationEmailForAdmin(customerEmail, finalOrder);
             } catch (emailError) {
-                // Log the email error, including the customer email for debugging, but allow the order confirmation to succeed
-                // ⚠️ OPTIMIZATION: Included customerEmail in the error log for better traceability
                 console.error(`CRITICAL WARNING: Failed to send confirmation email to ${customerEmail} (Order ${orderId}):`, emailError.message);
                 // Continue execution to send the success response to the client
             }

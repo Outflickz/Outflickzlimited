@@ -914,7 +914,6 @@ PreOrderCollectionSchema.pre('save', function(next) {
 // --- Model Definition and Export ---
 const PreOrderCollection = mongoose.models.PreOrderCollection || mongoose.model('PreOrderCollection', PreOrderCollectionSchema);
 
-// --- 🛍️ NEW ORDER SCHEMA AND MODEL 🛍️ ---
 // We need a robust order model to track sales and manage inventory deduction.
 const OrderItemSchema = new mongoose.Schema({
     productId: { 
@@ -1143,189 +1142,193 @@ async function getRealTimeDashboardStats() {
         throw new Error('Database aggregation failed for dashboard stats.');
     }
 }
-
 const PRODUCT_MODEL_MAP = {
-    'WearsCollection': 'WearsCollection', 
-    'CapCollection': 'CapCollection',     
-    // Add other product types (e.g., 'ShoeCollection', 'AccessoryCollection') here as you create them
+    'WearsCollection': 'WearsCollection', 
+    'CapCollection': 'CapCollection',     
+    // Add other product types (e.g., 'ShoeCollection', 'AccessoryCollection') here as you create them
 };
 
 /**
- * ====================================================================================
- * HELPER FUNCTION: GET PRODUCT MODEL
- * ====================================================================================
- * Safely retrieves the Mongoose Model constructor based on the product type string.
- * This resolves the "ProductModel.findOneAndUpdate is not a function" error.
- * @param {string} productType The type identifier (e.g., 'WearsCollection').
- * @returns {mongoose.Model} The Mongoose Model constructor.
- * @throws {Error} If the model is not found in the Mongoose registry.
- */
+ * ====================================================================================
+ * HELPER FUNCTION: GET PRODUCT MODEL
+ * ====================================================================================
+ * Safely retrieves the Mongoose Model constructor based on the product type string.
+ * @param {string} productType The type identifier (e.g., 'WearsCollection').
+ * @returns {mongoose.Model} The Mongoose Model constructor.
+ * @throws {Error} If the model is not found in the Mongoose registry.
+ */
 function getProductModel(productType) {
-    const modelName = PRODUCT_MODEL_MAP[productType];
-    
-    if (!modelName) {
-        throw new Error(`Invalid or unsupported product type: ${productType}`);
-    }
+    const modelName = PRODUCT_MODEL_MAP[productType];
+    
+    if (!modelName) {
+        throw new Error(`Invalid or unsupported product type: ${productType}`);
+    }
 
-    // Attempt to retrieve the model from Mongoose's registered models
-    const ProductModel = mongoose.models[modelName];
+    // Attempt to retrieve the model from Mongoose's registered models
+    const ProductModel = mongoose.models[modelName];
 
-    if (!ProductModel || typeof ProductModel.findOneAndUpdate !== 'function') {
-        throw new Error(`Mongoose model '${modelName}' for product type '${productType}' not found or improperly defined.`);
-    }
+    if (!ProductModel || typeof ProductModel.findOneAndUpdate !== 'function') {
+        throw new Error(`Mongoose model '${modelName}' for product type '${productType}' not found or improperly defined.`);
+    }
 
-    return ProductModel;
+    return ProductModel;
 }
 
 /**
- * ====================================================================================
- * HELPER FUNCTION: INVENTORY ROLLBACK (Order Status Update)
- * ====================================================================================
- * Updates the order status to indicate a stock failure after a transaction aborts.
- * This is called outside the transaction to persist the failure state immediately.
- * @param {string} orderId The ID of the order that failed.
- * @param {string} reason The error message explaining the failure.
- */
-// HELPER FUNCTION: INVENTORY ROLLBACK (Order Status Update)
+ * ====================================================================================
+ * HELPER FUNCTION: INVENTORY ROLLBACK (Order Status Update)
+ * ====================================================================================
+ * Updates the order status to indicate a stock failure after a transaction aborts.
+ * This is called outside the transaction to persist the failure state immediately.
+ * @param {string} orderId The ID of the order that failed.
+ * @param {string} reason The error message explaining the failure.
+ */
 async function inventoryRollback(orderId, reason) {
-    try {
-        const OrderModel = mongoose.models.Order || mongoose.model('Order');
+    try {
+        const OrderModel = mongoose.models.Order || mongoose.model('Order');
 
-        await OrderModel.findByIdAndUpdate(
-            orderId,
-            {
-                // 🛑 FIX HERE: Use the status defined in the schema
-                status: 'Inventory Failure (Manual Review)', 
-                notes: [reason], // Add the reason to the notes array for better logging
-                updatedAt: Date.now()
-            },
-            { new: true }
-        );
-        console.warn(`Order ${orderId} status set to 'Inventory Failure (Manual Review)' and reason logged. Reason: ${reason}`);
-    } catch (err) {
-        console.error(`CRITICAL: Failed to update order ${orderId} status during rollback.`, err);
-        // Do not re-throw, as the main error is already being handled.
-    }
+        await OrderModel.findByIdAndUpdate(
+            orderId,
+            {
+                status: 'Inventory Failure (Manual Review)', 
+                notes: [reason], // Add the reason to the notes array for better logging
+                updatedAt: Date.now()
+            },
+            { new: true }
+        );
+        console.warn(`Order ${orderId} status set to 'Inventory Failure (Manual Review)' and reason logged. Reason: ${reason}`);
+    } catch (err) {
+        console.error(`CRITICAL: Failed to update order ${orderId} status during rollback.`, err);
+        // Do not re-throw, as the main error is already being handled.
+    }
 }
 
 /**
- * ====================================================================================
- * INVENTORY PROCESSING FUNCTION (ATOMIC & TRANSACTIONAL)
- * ====================================================================================
- * Handles inventory deduction and finalizes order status using Mongoose transactions.
- * @param {string} orderId The ID of the order to process.
- * @returns {Promise<Order | null>} The finalized order document, or null if aborted early.
- */
-async function processOrderCompletion(orderId) {
-    // 1. Start a Mongoose session for atomicity (crucial for inventory)
-    const session = await mongoose.startSession();
-    session.startTransaction();
-    let order = null; 
-    let OrderModel;
+ * ====================================================================================
+ * INVENTORY PROCESSING FUNCTION (ATOMIC & TRANSACTIONAL)
+ * ====================================================================================
+ * Handles inventory deduction and finalizes order status using Mongoose transactions.
+ * 🌟 FIX: Added adminId to function signature for atomic status update 🌟
+ * @param {string} orderId The ID of the order to process.
+ * @param {string} adminId The ID of the admin confirming the order.
+ * @returns {Promise<Order | null>} The finalized order document, or null if aborted early.
+ */
+async function processOrderCompletion(orderId, adminId) { // 👈 Updated signature
+    // 1. Start a Mongoose session for atomicity (crucial for inventory)
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    let order = null; 
+    let OrderModel;
 
-    try {
-        // Fetch the order within the transaction
-        OrderModel = mongoose.models.Order || mongoose.model('Order'); 
-        order = await OrderModel.findById(orderId).session(session);
+    try {
+        // Fetch the order within the transaction
+        OrderModel = mongoose.models.Order || mongoose.model('Order'); 
+        order = await OrderModel.findById(orderId).session(session);
 
-        // 1.1 Initial check
-        // We only proceed with inventory deduction if the order is in the initial 'Pending' state.
-        const isReadyForInventory = order && (order.status === 'Pending');
+        // 1.1 Initial check
+        // We only proceed with inventory deduction if the order is in the initial 'Pending' state.
+        const isReadyForInventory = order && (order.status === 'Pending');
 
-        if (!isReadyForInventory) {
-            await session.abortTransaction();
-            
-            // 409 Conflict logic: If the order is already 'Processing' or 'Completed', throw an error 
-            // that the calling route can catch and send as a 409.
-            if (order?.status === 'Processing' || order?.status === 'Completed') {
-                console.warn(`Order ${orderId} is already confirmed (${order.status}). Inventory deduction skipped.`);
-                throw new Error("Order already processed or is being processed.");
-            }
-            
-            console.warn(`Order ${orderId} skipped: not found or status is ${order?.status}. Inventory deduction aborted.`);
-            return order; // Return the current state of the order
-        }
+        if (!isReadyForInventory) {
+            await session.abortTransaction();
+            
+            // 409 Conflict logic: If the order is already 'Processing' or 'Completed', throw an error 
+            // that the calling route can catch and send as a 409.
+            if (order?.status === 'Processing' || order?.status === 'Completed') {
+                console.warn(`Order ${orderId} is already confirmed (${order.status}). Inventory deduction skipped.`);
+                // 🌟 FIX: Throw custom error for race condition handling 🌟
+                const raceError = new Error("Order already processed or is being processed.");
+                raceError.isRaceCondition = true;
+                throw raceError; 
+            }
+            
+            console.warn(`Order ${orderId} skipped: not found or status is ${order?.status}. Inventory deduction aborted.`);
+            return order; // Return the current state of the order
+        }
 
-        // 2. Loop through each item to deduct stock from the specific collection/variation
-        for (const item of order.items) {
-            // Retrieve the correct model using the implemented helper
-            const ProductModel = getProductModel(item.productType); 
-            const quantityOrdered = item.quantity;
+        // 2. Loop through each item to deduct stock from the specific collection/variation
+        for (const item of order.items) {
+            // Retrieve the correct model using the implemented helper
+            const ProductModel = getProductModel(item.productType); 
+            const quantityOrdered = item.quantity;
 
-            // 3. ATOMIC DEDUCTION LOGIC FOR VARIATION STOCK
-            const updatedProduct = await ProductModel.findOneAndUpdate(
-                {
-                    _id: item.productId,
-                    
-                    // Query Step 3: Use $elemMatch to find the specific size object *AND*
-                    // ensure its current stock is sufficient ($gte: quantityOrdered).
-                    'variations.sizes': {
-                        $elemMatch: {
-                            size: item.size, // Must match the ordered size ('S', 'M', 'L')
-                            stock: { $gte: quantityOrdered } // Must have sufficient stock
-                        }
-                    }
-                },
-                {
-                    // Update Step 1 & 2: Decrement the stock in the nested array and totalStock.
-                    $inc: {
-                        'variations.$[var].sizes.$[size].stock': -quantityOrdered, 
-                        'totalStock': -quantityOrdered 
-                    }
-                },
-                {
-                    new: true,
-                    session: session, // MUST execute within the transaction
-                    // Define which array elements the positional operators should target (arrayFilters)
-                    arrayFilters: [
-                        { 'var.variationIndex': item.variationIndex }, // Match the correct variation object (using 'var')
-                        { 'size.size': item.size } // Match the correct size object within the variation (using 'size')
-                    ]
-                }
-            );
+            // 3. ATOMIC DEDUCTION LOGIC FOR VARIATION STOCK (Remains the same)
+            const updatedProduct = await ProductModel.findOneAndUpdate(
+                {
+                    _id: item.productId,
+                    'variations.sizes': {
+                        $elemMatch: {
+                            size: item.size, 
+                            stock: { $gte: quantityOrdered } 
+                        }
+                    }
+                },
+                {
+                    $inc: {
+                        'variations.$[var].sizes.$[size].stock': -quantityOrdered, 
+                        'totalStock': -quantityOrdered 
+                    }
+                },
+                {
+                    new: true,
+                    session: session, // MUST execute within the transaction
+                    arrayFilters: [
+                        { 'var.variationIndex': item.variationIndex }, 
+                        { 'size.size': item.size } 
+                    ]
+                }
+            );
 
-            // 4. Stock check failure (findOneAndUpdate returns null if the query conditions failed)
-            if (!updatedProduct) {
-                const errorMsg = `Insufficient stock or product data mismatch for item: ${item.size} of product ${item.productId} in ${item.productType}. Transaction aborted.`;
-                throw new Error(errorMsg);
-            }
-            console.log(`Inventory deducted for Product ID: ${item.productId}, Size: ${item.size}, Qty: ${quantityOrdered}`);
-        }
+            // 4. Stock check failure (Remains the same)
+            if (!updatedProduct) {
+                const errorMsg = `Insufficient stock or product data mismatch for item: ${item.size} of product ${item.productId} in ${item.productType}. Transaction aborted.`;
+                throw new Error(errorMsg);
+            }
+            console.log(`Inventory deducted for Product ID: ${item.productId}, Size: ${item.size}, Qty: ${quantityOrdered}`);
+        }
 
-        // 5. Update order status to Processing (after stock deduction, awaiting final shipment)
-        order.status = 'Processing'; 
-        await order.save({ session }); // Commit the save within the transaction.
+        // 5. Update order status and confirmation details atomically
+        order.status = 'Processing'; 
+        // 🌟 FIX: Ensure confirmedAt and confirmedBy are set atomically within the transaction 🌟
+        order.confirmedAt = new Date(); 
+        order.confirmedBy = adminId; 
+        await order.save({ session }); // Commit the save within the transaction.
 
-        // 6. Finalize transaction
-        await session.commitTransaction();
-        console.log(`Order ${orderId} successfully confirmed and inventory fully deducted. Status: Processing.`);
-        return order.toObject({ getters: true }); // Return a clean object
+        // 6. Finalize transaction
+        await session.commitTransaction();
+        console.log(`Order ${orderId} successfully confirmed and inventory fully deducted. Status: Processing.`);
+        return order.toObject({ getters: true }); // Return a clean object
 
-    } catch (error) {
-        // Rollback on any failure
-        if (session.inTransaction()) {
-            await session.abortTransaction();
-        }
-        
-        // After the transaction is aborted, update the Order status outside the session
-        if (order) {
-            // Use the implemented inventoryRollback function
-            await inventoryRollback(orderId, error.message);
-        }
+    } catch (error) {
+        // Rollback on any failure
+        if (session.inTransaction()) {
+            await session.abortTransaction();
+        }
+        
+        // 🌟 FIX: Only call inventoryRollback if it's a genuine failure, not a race condition 🌟
+        if (error.isRaceCondition) {
+            console.warn(`Race condition handled for order ${orderId}. No rollback status update needed.`);
+        }
+        // After the transaction is aborted, update the Order status outside the session for genuine errors
+        else if (order) { 
+            // Use the implemented inventoryRollback function
+            await inventoryRollback(orderId, error.message);
+        }
 
-        // Re-throw the error so the parent route can catch it
-        throw error;
-    } finally {
-        session.endSession();
-    }
+        // Re-throw the error so the parent route can catch it
+        throw error;
+    } finally {
+        session.endSession();
+    }
 }
 
 // Module export for external usage
 module.exports = {
-    processOrderCompletion,
-    inventoryRollback,
-    getProductModel
+    processOrderCompletion,
+    inventoryRollback,
+    getProductModel
 };
+
 
 /**
  * ====================================================================================
@@ -1960,107 +1963,107 @@ app.get('/api/admin/users/:userId/orders', verifyToken, async (req, res) => {
 // 8. GET /api/admin/orders/pending - Fetch All Pending Orders (Admin Protected)
 // =========================================================
 app.get('/api/admin/orders/pending', verifyToken, async (req, res) => {
-    try {
-        // Find all orders where the status is 'Pending'
-        const pendingOrders = await Order.find({ status: 'Pending' })
-            .select('_id userId totalAmount createdAt status paymentMethod paymentReceiptUrl subtotal shippingFee tax')
-            .sort({ createdAt: 1 })
-            .lean();
+    try {
+        // Find all orders where the status is 'Pending'
+        const pendingOrders = await Order.find({ status: 'Pending' })
+            .select('_id userId totalAmount createdAt status paymentMethod paymentReceiptUrl subtotal shippingFee tax')
+            .sort({ createdAt: 1 })
+            .lean();
 
-        // 1. Get User Details for each pending order (for 'Customer' column)
-        const populatedOrders = await Promise.all(
-            pendingOrders.map(async (order) => {
-                const user = await User.findById(order.userId)
-                    // ✅ FIX 1: Select nested fields from the 'profile' subdocument
-                    .select('profile.firstName profile.lastName email') 
-                    .lean();
+        // 1. Get User Details for each pending order (for 'Customer' column)
+        const populatedOrders = await Promise.all(
+            pendingOrders.map(async (order) => {
+                const user = await User.findById(order.userId)
+                    // ✅ FIX 1: Select nested fields from the 'profile' subdocument
+                    .select('profile.firstName profile.lastName email') 
+                    .lean();
 
-                // ✅ FIX 2: Access nested fields safely
-                const firstName = user?.profile?.firstName;
-                const lastName = user?.profile?.lastName;
-                
-                // Construct userName: Use full name if both exist, otherwise fall back to email
-                const userName = (firstName && lastName) 
-                    ? `${firstName} ${lastName}` 
-                    : user?.email || 'N/A'; // Final fallback to email or 'N/A'
-                
-                const email = user ? user.email : 'Unknown User';
-                
-                return {
-                    ...order,
-                    userName: userName, // Added for the Admin table
-                    email: email,       // Added for the Admin table
-                };
-            })
-        );
+                // ✅ FIX 2: Access nested fields safely
+                const firstName = user?.profile?.firstName;
+                const lastName = user?.profile?.lastName;
+                
+                // Construct userName: Use full name if both exist, otherwise fall back to email
+                const userName = (firstName && lastName) 
+                    ? `${firstName} ${lastName}` 
+                    : user?.email || 'N/A'; // Final fallback to email or 'N/A'
+                
+                const email = user ? user.email : 'Unknown User';
+                
+                return {
+                    ...order,
+                    userName: userName, // Added for the Admin table
+                    email: email,       // Added for the Admin table
+                };
+            })
+        );
 
-        // Send the complete list of pending orders
-        res.status(200).json(populatedOrders);
+        // Send the complete list of pending orders
+        res.status(200).json(populatedOrders);
 
-    } catch (error) {
-        console.error('Error fetching pending orders:', error);
-        res.status(500).json({ message: 'Failed to retrieve pending orders.' });
-    }
+    } catch (error) {
+        console.error('Error fetching pending orders:', error);
+        res.status(500).json({ message: 'Failed to retrieve pending orders.' });
+    }
 });
 
 // =========================================================
 // 8b. GET /api/admin/orders/:orderId - Fetch Single Detailed Order (Admin Protected)
 // =========================================================
 app.get('/api/admin/orders/:orderId', verifyToken, async (req, res) => {
-    try {
-        const orderId = req.params.orderId;
+    try {
+        const orderId = req.params.orderId;
 
-        // 1. Fetch the single order
-        const order = await Order.findById(orderId).lean();
+        // 1. Fetch the single order
+        const order = await Order.findById(orderId).lean();
 
-        if (!order) {
-            return res.status(404).json({ message: 'Order not found.' });
-        }
-        
-        // 2. Augment order items with product details (name, imageUrl)
-        const detailedOrders = await augmentOrdersWithProductDetails([order]);
-        let detailedOrder = detailedOrders[0];
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found.' });
+        }
+        
+        // 2. Augment order items with product details (name, imageUrl)
+        const detailedOrders = await augmentOrdersWithProductDetails([order]);
+        let detailedOrder = detailedOrders[0];
 
-        // 🚨 FIX: Generate Signed URL for the Payment Receipt
-        if (detailedOrder.paymentReceiptUrl) {
-            detailedOrder.paymentReceiptUrl = await generateSignedUrl(detailedOrder.paymentReceiptUrl);
-        }
+        // 🚨 FIX: Generate Signed URL for the Payment Receipt
+        if (detailedOrder.paymentReceiptUrl) {
+            detailedOrder.paymentReceiptUrl = await generateSignedUrl(detailedOrder.paymentReceiptUrl);
+        }
 
-        // 3. Get User Details (Name and Email)
-        const user = await User.findById(detailedOrder.userId)
-            .select('profile.firstName profile.lastName email') 
-            .lean();
+        // 3. Get User Details (Name and Email)
+        const user = await User.findById(detailedOrder.userId)
+            .select('profile.firstName profile.lastName email') 
+            .lean();
 
-        const firstName = user?.profile?.firstName;
-        const lastName = user?.profile?.lastName;
+        const firstName = user?.profile?.firstName;
+        const lastName = user?.profile?.lastName;
 
-        // Construct userName: Use full name if both exist, otherwise fall back to email
-        const userName = (firstName && lastName) 
-            ? `${firstName} ${lastName}` 
-            : user?.email || 'N/A';
-            
-        const email = user ? user.email : 'Unknown User';
-        
-        // 4. Combine all details
-        const finalDetailedOrder = {
-            ...detailedOrder,
-            // Ensure customerName is explicitly set, as the frontend uses order.customerName
-            customerName: userName, 
-            email: email
-        };
+        // Construct userName: Use full name if both exist, otherwise fall back to email
+        const userName = (firstName && lastName) 
+            ? `${firstName} ${lastName}` 
+            : user?.email || 'N/A';
+            
+        const email = user ? user.email : 'Unknown User';
+        
+        // 4. Combine all details
+        const finalDetailedOrder = {
+            ...detailedOrder,
+            // Ensure customerName is explicitly set, as the frontend uses order.customerName
+            customerName: userName, 
+            email: email
+        };
 
-        // 🚀 FIX APPLIED HERE: Wrap the finalDetailedOrder object in a parent object with the 'order' key.
-        return res.status(200).json({ 
-            order: finalDetailedOrder 
-        });
+        // 🚀 FIX APPLIED HERE: Wrap the finalDetailedOrder object in a parent object with the 'order' key.
+        return res.status(200).json({ 
+            order: finalDetailedOrder 
+        });
 
-    } catch (error) {
-        console.error(`Error fetching order details for ${req.params.orderId}:`, error);
-        if (error.name === 'CastError' || error.kind === 'ObjectId') {
-             return res.status(400).json({ message: 'Invalid Order ID format.' });
-        }
-        return res.status(500).json({ message: 'Server error: Failed to retrieve order details.' });
-    }
+    } catch (error) {
+        console.error(`Error fetching order details for ${req.params.orderId}:`, error);
+        if (error.name === 'CastError' || error.kind === 'ObjectId') {
+             return res.status(400).json({ message: 'Invalid Order ID format.' });
+        }
+        return res.status(500).json({ message: 'Server error: Failed to retrieve order details.' });
+    }
 });
 
 // =========================================================
@@ -2068,115 +2071,112 @@ app.get('/api/admin/orders/:orderId', verifyToken, async (req, res) => {
 // *** FINAL IMPLEMENTATION WITH EMAIL NOTIFICATION ***
 // =========================================================
 app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
-    const orderId = req.params.orderId;
-    const adminId = req.adminId;
+    const orderId = req.params.orderId;
+    const adminId = req.adminId;
 
-    if (!orderId) {
-        return res.status(400).json({ message: 'Order ID is required for confirmation.' });
-    }
+    if (!orderId) {
+        return res.status(400).json({ message: 'Order ID is required for confirmation.' });
+    }
 
-    try {
-        // 1. Initial status change from 'Pending' to 'Processing'
-        // We use findOneAndUpdate to ensure atomic update and retrieve the document.
-        const updatedOrder = await Order.findOneAndUpdate(
-            { _id: orderId, status: 'Pending' }, 
-            { 
-                $set: { 
-                    status: 'Processing', // Transition step before inventory
-                    confirmedAt: new Date(), 
-                    confirmedBy: adminId 
-                } 
-            },
-            // Crucial: Select userId to fetch email later
-            { new: true, select: 'userId status totalAmount items' } 
-        ).lean();
+    try {
+        // 1. Initial status change from 'Pending' to 'Processing'
+        // We use findOneAndUpdate to ensure atomic update and retrieve the document.
+        const updatedOrder = await Order.findOneAndUpdate(
+            { _id: orderId, status: 'Pending' }, 
+            { 
+                $set: { 
+                    status: 'Processing', // Transition step before inventory
+                    confirmedAt: new Date(), 
+                    confirmedBy: adminId 
+                } 
+            },
+            // Crucial: Select userId to fetch email later
+            { new: true, select: 'userId status totalAmount items' } 
+        ).lean();
 
-        // 💡 CRITICAL FIX: Check if the order was successfully found and updated.
-        if (!updatedOrder) {
-            console.warn(`Order ${orderId} skipped: not found or status is not pending.`);
-            // Use 409 Conflict to indicate that the request could not be completed due to the resource's state.
-            // This catches the second request if the first one succeeded AND immediately set status to 'Completed'.
-            return res.status(409).json({ message: 'Order not found or is already processed.' });
-        }
-        
-        // 2. CRITICAL STEP: Deduct Inventory and finalize status to 'Completed' atomically
-        let finalOrder;
-        try {
-            // Assume processOrderCompletion handles the full inventory deduction and final status update to 'Completed'
-            finalOrder = await processOrderCompletion(orderId);
-            // If this succeeds, the order status is now 'Completed'
-        } catch (inventoryError) {
-            
-            // --- 🎯 FIX START: Handle Business Logic Conflict Separately (Race Condition) ---
-            const conflictMsg = "Order already processed or is being processed.";
-            
-            if (inventoryError.message === conflictMsg) {
-                // This block executes if the second request runs right after the first one set the status to 'Processing' 
-                // but before the inventory deduction finished, or after the deduction finished.
-                
-                console.warn(`Race condition detected: Order ${orderId} status already confirmed/processing by concurrent request. Returning 200.`);
-                
-                // Fetch the now-confirmed order to return a successful response to the admin UI
-                const confirmedOrder = await Order.findById(orderId).lean();
-                
-                // Return success (200 OK) to the admin UI, preventing the front-end error
-                return res.status(200).json({ 
-                    message: `Order ${orderId} was confirmed by a concurrent request. Status: ${confirmedOrder.status}.`,
-                    order: confirmedOrder 
-                });
-            }
-            // --- FIX END ---
-            
-            // Rollback status if inventory fails (This is for genuine stock insufficient errors)
-            console.error('Inventory deduction failed during Admin confirmation:', inventoryError.message);
-            
-            // ⭐ FIX APPLIED HERE: The status must be 'Inventory Failure (Manual Review)' 
-            // to align with the processOrderCompletion function and schema enum.
-            await Order.findByIdAndUpdate(orderId, { 
-                status: 'Inventory Failure (Manual Review)', 
-                $push: { notes: `Inventory deduction failed on ${new Date().toISOString()}: ${inventoryError.message}` }
-            });
-            
-            // ✅ FIX: Changed status code from 500 to 409 Conflict for known business logic failure (Insufficient Stock).
-            return res.status(409).json({ 
-                message: 'Payment confirmed, but inventory deduction failed. Order status flagged for manual review.',
-                error: inventoryError.message
-            });
-        }
-        
-        // 3. GET CUSTOMER EMAIL & SEND NOTIFICATION (The User's Request) 📧
-        
-        // Fetch user email using the userId
-        const user = await User.findById(updatedOrder.userId).select('email').lean();
-        const customerEmail = user ? user.email : null;
+        // 💡 CRITICAL FIX: Check if the order was successfully found and updated.
+        if (!updatedOrder) {
+            console.warn(`Order ${orderId} skipped: not found or status is not pending.`);
+            // Use 409 Conflict to indicate that the request could not be completed due to the resource's state.
+            // This catches the second request if the first one succeeded AND immediately set status to 'Completed'.
+            return res.status(409).json({ message: 'Order not found or is already processed.' });
+        }
+        
+        // 2. CRITICAL STEP: Deduct Inventory and finalize status to 'Completed' atomically
+        let finalOrder;
+        try {
+            // 🌟 FIX: Pass the adminId to the helper function for atomic status update 🌟
+            finalOrder = await processOrderCompletion(orderId, adminId); 
+            // If this succeeds, the order status is now 'Processing' (with inventory deducted)
+        } catch (inventoryError) {
+            
+            // --- 🎯 FIX START: Handle Business Logic Conflict Separately (Race Condition) ---
+            // 🌟 FIX: Check for the custom property instead of the string message 🌟
+            if (inventoryError.isRaceCondition) {
+                // This block executes if another request already started or finished the process
+                // and aborted the transaction cleanly.
+                
+                console.warn(`Race condition detected: Order ${orderId} confirmed by concurrent request. Returning 200.`);
+                
+                // Fetch the now-confirmed order to return a successful response to the admin UI
+                const confirmedOrder = await Order.findById(orderId).lean();
+                
+                // Return success (200 OK) to the admin UI
+                return res.status(200).json({ 
+                    message: `Order ${orderId} was confirmed by a concurrent request. Status: ${confirmedOrder.status}.`,
+                    order: confirmedOrder 
+                });
+            }
+            // --- FIX END ---
+            
+            // Rollback status if inventory fails (This is for genuine stock insufficient errors)
+            console.error('Inventory deduction failed during Admin confirmation:', inventoryError.message);
+            
+            // ⭐ The inventoryRollback function (called by processOrderCompletion's catch) 
+            // has already set the status. We just need to update the notes here for extra logging.
+            await Order.findByIdAndUpdate(orderId, { 
+                $push: { notes: `Inventory deduction failed on ${new Date().toISOString()}: ${inventoryError.message}` }
+            });
+            
+            // ✅ Return 409 Conflict for known business logic failure (Insufficient Stock).
+            return res.status(409).json({ 
+                message: 'Payment confirmed, but inventory deduction failed. Order status flagged for manual review.',
+                error: inventoryError.message
+            });
+        }
+        
+        // 3. GET CUSTOMER EMAIL & SEND NOTIFICATION (The User's Request) 📧
+        
+        // Fetch user email using the userId
+        const user = await User.findById(updatedOrder.userId).select('email').lean();
+        const customerEmail = user ? user.email : null;
 
-        if (customerEmail) {
-            try {
-                // ✅ FIX: Isolate the email sending which is prone to external errors
-                await sendOrderConfirmationEmailForAdmin(customerEmail, finalOrder);
-            } catch (emailError) {
-                // Log the email error, including the customer email for debugging, but allow the order confirmation to succeed
-                // ⚠️ OPTIMIZATION: Included customerEmail in the error log for better traceability
-                console.error(`CRITICAL WARNING: Failed to send confirmation email to ${customerEmail} (Order ${orderId}):`, emailError.message);
-                // Continue execution to send the success response to the client
-            }
-        } else {
-            console.warn(`Could not find email for user ID: ${updatedOrder.userId}. Skipping email notification.`);
-        }
-        
-        // 4. Success Response
-        res.status(200).json({ 
-            message: `Order ${orderId} confirmed, inventory deducted, and customer notified. Status: ${finalOrder.status}.`,
-            order: finalOrder 
-        });
+        if (customerEmail) {
+            try {
+                // ✅ FIX: Isolate the email sending which is prone to external errors
+                await sendOrderConfirmationEmailForAdmin(customerEmail, finalOrder);
+            } catch (emailError) {
+                // Log the email error, including the customer email for debugging, but allow the order confirmation to succeed
+                // ⚠️ OPTIMIZATION: Included customerEmail in the error log for better traceability
+                console.error(`CRITICAL WARNING: Failed to send confirmation email to ${customerEmail} (Order ${orderId}):`, emailError.message);
+                // Continue execution to send the success response to the client
+            }
+        } else {
+            console.warn(`Could not find email for user ID: ${updatedOrder.userId}. Skipping email notification.`);
+        }
+        
+        // 4. Success Response
+        res.status(200).json({ 
+            message: `Order ${orderId} confirmed, inventory deducted, and customer notified. Status: ${finalOrder.status}.`,
+            order: finalOrder 
+        });
 
-    } catch (error) {
-        // This catch block handles the final crash and returns the 500 error
-        console.error(`Error confirming order ${orderId}:`, error);
-        res.status(500).json({ message: 'Failed to confirm order due to a server error.' });
-    }
+    } catch (error) {
+        // This catch block handles the final crash and returns the 500 error
+        console.error(`Error confirming order ${orderId}:`, error);
+        res.status(500).json({ message: 'Failed to confirm order due to a server error.' });
+    }
 });
-
 // =========================================================
 // 10. PUT /api/admin/orders/:orderId/status - Update Fulfillment Status
 // =========================================================

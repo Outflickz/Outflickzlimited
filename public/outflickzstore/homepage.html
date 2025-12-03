@@ -311,53 +311,55 @@ document.addEventListener('DOMContentLoaded', () => {
 // --- END HERO SLIDER JS ---
 
 /**
-     * Handles the logic for a "Buy Now" action.
-     * It bypasses the cart and immediately redirects to checkout with the selected item.
-     * @param {object} itemDetails - The product object passed from the button's onclick.
-     */
-    function simulateBuyNow(itemDetails) {
-        const selectedQuantity = parseInt(document.getElementById(`quantity-input-${itemDetails.productId}`).value);
-        
-        // Attempt to get selected size
-        let selectedSize = '';
-        const sizeRadios = document.getElementsByName(`size-${itemDetails.productId}`);
-        for (const radio of sizeRadios) {
-            if (radio.checked) {
-                selectedSize = radio.value;
-                break;
-            }
+ * Handles the logic for a "Buy Now" action.
+ * It bypasses the cart and immediately redirects to checkout with the selected item.
+ * @param {object} itemDetails - The product object passed from the button's onclick.
+ */
+function simulateBuyNow(itemDetails) {
+    const selectedQuantity = parseInt(document.getElementById(`quantity-input-${itemDetails.productId}`).value);
+    
+
+    let selectedSize = '';
+    const sizeRadios = document.getElementsByName(`size-${itemDetails.productId}`);
+    for (const radio of sizeRadios) {
+        if (radio.checked) {
+            selectedSize = radio.value;
+            break;
         }
-
-        // Attempt to get selected color 
-        let selectedColor = '';
-        const colorRadios = document.getElementsByName(`color-${itemDetails.productId}`);
-        for (const radio of colorRadios) {
-            if (radio.checked) {
-                selectedColor = radio.value;
-                break;
-            }
-        }
-
-        const itemToCheckout = {
-            id: itemDetails.productId,
-            name: itemDetails.name,
-            price: itemDetails.price,
-            imageUrl: itemDetails.imageUrl,
-            quantity: selectedQuantity,
-            size: selectedSize,
-            color: selectedColor,
-            // The buy now flow generally takes the user directly to checkout
-            checkout: true 
-        };
-
-        console.log("Preparing for Buy Now Checkout:", itemToCheckout);
-        
-        // 🎯 CRITICAL STEP: Store the single item in Session Storage for checkout.html to retrieve
-        sessionStorage.setItem('buyNowItem', JSON.stringify(itemToCheckout));
-        
-        // Redirect the user to the checkout page
-        window.location.href = 'checkout.html';
     }
+
+    let selectedColor = '';
+    const colorRadios = document.getElementsByName(`color-${itemDetails.productId}`);
+    for (const radio of colorRadios) {
+        if (radio.checked) {
+            selectedColor = radio.value;
+            break;
+        }
+    }
+
+    const itemToCheckout = {
+        id: itemDetails.productId,
+        name: itemDetails.name,
+        // ⭐ ADD productType HERE ⭐
+        productType: itemDetails.productType, // Assuming productType is passed in itemDetails
+        // -----------------------
+        price: itemDetails.price,
+        imageUrl: itemDetails.imageUrl,
+        quantity: selectedQuantity,
+        size: selectedSize,
+        color: selectedColor,
+        // The buy now flow generally takes the user directly to checkout
+        checkout: true
+    };
+
+    console.log("Preparing for Buy Now Checkout:", itemToCheckout);
+    
+    // 🎯 CRITICAL STEP: Store the single item in Session Storage for checkout.html to retrieve
+    sessionStorage.setItem('buyNowItem', JSON.stringify(itemToCheckout));
+    
+    // Redirect the user to the checkout page
+    window.location.href = 'checkout.html';
+}
 
 /**
  * Reads the current cart item count from Local Storage. (Keep this one)

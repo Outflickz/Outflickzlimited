@@ -389,647 +389,653 @@
     </a>
 
  <script>
-    // Customizing Tailwind colors to match the theme
-    tailwind.config = {
-        theme: {
-            extend: {
-                colors: {
-                    'ash-dark': '#111111',
-                    'ash-red': '#a80000',
-                    'color-white': '#FFFFFF',
-                    'color-black': '#000000',
-                    'racing-grey': '#333333',
-                    'racing-silver': '#AAAAAA',
-                }
-            }
-        }
-    }
-
-    // Global Constants
-    const CART_STORAGE_KEY = 'outflickzCartCount';
-    const LOCAL_CART_KEY = 'outflickzLocalCart';
-    const BUY_NOW_KEY = 'buyNowItem'; // <<< NEW CONSTANT for clarity
-    const API_BASE_URL = 'https://outflickz.netlify.app'; 
-    const DEFAULT_ADMIN_EMAIL = "outflickzlimited@gmail.com"; 
-
-    // --- PAYSTACK CONSTANTS ---
-    const PAYSTACK_PUBLIC_KEY = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; // <<< REPLACE THIS WITH YOUR ACTUAL PUBLIC KEY!
-    const CURRENCY_CODE = 'NGN'; 
-    const CURRENCY_SYMBOL = '₦'; // Used for displaying currency
-
-    // --- MESSAGE & MODAL DISPLAY FUNCTION (Reused) ---
-    function displayMessage(message) {
-        const modalContainer = document.getElementById('message-modal-container');
-        const modalText = document.getElementById('message-modal-text');
-
-        if (modalContainer && modalText) {
-            modalText.textContent = message;
-            modalContainer.classList.remove('hidden');
-
-            modalContainer.onclick = (e) => {
-                if (e.target === modalContainer) {
-                    hideMessageModal();
-                }
-            };
-
-            setTimeout(hideMessageModal, 4000);
-        } else {
-            console.warn("Modal elements not found. Message:", message);
-        }
-    }
-
-    function hideMessageModal() {
-        const modalContainer = document.getElementById('message-modal-container');
-        if (modalContainer) {
-            modalContainer.classList.add('hidden');
-            modalContainer.onclick = null;
-        }
-    }
-
-    // --- USER AUTHENTICATION & REDIRECTION FUNCTIONS (Reused) ---
-    function isUserLoggedIn() {
-        return localStorage.getItem('outflickzAuthStatus') === 'loggedIn';
-    }
-
-    function redirectToProfileOrLogin() {
-        if (isUserLoggedIn()) {
-            window.location.href = 'userprofile.html';
-        } else {
-            window.location.href = 'useraccount.html';
-        }
-    }
-    
-    function updateCartBadge() {
-        const badge = document.getElementById('cart-badge');
-        if (!badge) return;
-        const count = parseInt(localStorage.getItem(CART_STORAGE_KEY) || '0');
-        
-        if (count > 0) {
-            badge.textContent = count;
-            badge.classList.remove('hidden');
-        } else {
-            badge.classList.add('hidden');
-        }
-    }
-
-    // --- NEW: FETCH USER DATA TO PRE-FILL FORM ---
-    async function fetchUserData() {
-        if (!isUserLoggedIn()) {
-            return;
-        }
-
-        try {
-            const response = await fetch('/api/users/account', {
-                method: 'GET',
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch user data. Please log in again.');
-            }
-
-            const userData = await response.json();
-            const userProfile = userData.profile || {};
-            const userAddress = userData.address || {};
-
-            // Pre-fill Contact Info
-            document.getElementById('email').value = userData.email || '';
-
-            // Pre-fill Shipping Info
-            const firstNameEl = document.getElementById('first-name');
-            const lastNameEl = document.getElementById('last-name');
-
-            if (userProfile.firstName) firstNameEl.value = userProfile.firstName;
-            if (userProfile.lastName) lastNameEl.value = userProfile.lastName;
-
-            if (userData.address) {
-                if (userAddress.street) document.getElementById('address-line-1').value = userAddress.street;
-                if (userAddress.city) document.getElementById('city').value = userAddress.city;
-                if (userAddress.state) document.getElementById('state').value = userAddress.state;
-                if (userAddress.zipCode) document.getElementById('zip-code').value = userAddress.zipCode;
-                if (userAddress.country) document.getElementById('country').value = userAddress.country;
-            }
-
-            // Save to local storage for use in the review step (Step 2)
-            localStorage.setItem('outflickzShippingData', JSON.stringify({
-                firstName: userProfile.firstName, 
-                lastName: userProfile.lastName, 
-                email: userData.email,
-                street: userAddress.street,
-                city: userAddress.city,
-                state: userAddress.state,
-                zipCode: userAddress.zipCode,
-                country: userAddress.country
-            }));
-
-        } catch (error) {
-            console.error('Error fetching user data:', error);
-            displayMessage('Could not load saved address. Please enter manually.');
-        }
-    }
-
-    // ---------------------------------------------------
-    // --- CHECKOUT LOGIC ---
-    // ---------------------------------------------------
-
-    let checkoutStep = 1; // 1: Info, 2: Review, 3: Payment
-    const STEPS = [
-        { id: 1, name: 'Shipping Info', sectionId: 'shipping-info-section' },
-        { id: 2, name: 'Review Order', sectionId: 'review-order-section' },
-        { id: 3, name: 'Payment', sectionId: 'payment-section' }
-    ];
-
-    /**
-     * Renders the correct step content and updates the step indicators.
-     */
-    function updateCheckoutView() {
-        // 1. Update Step Indicators
-        STEPS.forEach(step => {
-            const indicator = document.getElementById(`step-indicator-${step.id}`);
-            const section = document.getElementById(step.sectionId);
-            
-            section.classList.add('hidden'); // Hide all sections initially
-
-            if (step.id < checkoutStep) {
-                indicator.className = 'step-indicator step-complete';
-                indicator.innerHTML = '<i class="fas fa-check"></i>';
-            } else if (step.id === checkoutStep) {
-                indicator.className = 'step-indicator step-active';
-                indicator.textContent = step.id;
-                section.classList.remove('hidden'); // Show current section
-            } else {
-                indicator.className = 'step-indicator step-inactive';
-                indicator.textContent = step.id;
-            }
-        });
-        
-        // 2. Update button text/action based on the step
-        const nextBtn = document.getElementById('checkout-next-btn');
-        const btnText = document.getElementById('checkout-btn-text');
-        
-        if (checkoutStep === 1) {
-            btnText.textContent = 'Continue to Review';
-            nextBtn.onclick = validateAndProceedToReview;
-        } else if (checkoutStep === 2) {
-            btnText.textContent = 'Proceed to Payment';
-            nextBtn.onclick = proceedToPayment;
-        } else if (checkoutStep === 3) {
-            btnText.textContent = 'Confirm & Pay Now';
-            nextBtn.onclick = handleFinalOrderPlacement;
-        }
-    }
-
-    /**
-    * Validates shipping form data and moves to Step 2 (Review).
-    */
-    function validateAndProceedToReview() {
-        const form = document.getElementById('shipping-form');
-        
-        // --- Logic to handle optional ZIP code validation remains the same ---
-        const zipCodeEl = document.getElementById('zip-code');
-        const isZipRequired = zipCodeEl.hasAttribute('required');
-        if (isZipRequired) zipCodeEl.removeAttribute('required');
-
-        if (!form.checkValidity()) {
-            if (isZipRequired) zipCodeEl.setAttribute('required', '');
-            form.reportValidity();
-            displayMessage('Please fill out all required shipping fields.');
-            return;
-        }
-        if (isZipRequired) zipCodeEl.setAttribute('required', '');
-        // --- End ZIP code logic ---
-
-
-        // Capture the data
-        const shippingData = {
-            firstName: document.getElementById('first-name').value,
-            lastName: document.getElementById('last-name').value,
-            email: document.getElementById('email').value,
-            street: document.getElementById('address-line-1').value,
-            city: document.getElementById('city').value,
-            state: document.getElementById('state').value,
-            zipCode: document.getElementById('zip-code').value, 
-            country: document.getElementById('country').value,
-        };
-        localStorage.setItem('outflickzShippingData', JSON.stringify(shippingData));
-
-        // Update the review section with the data
-        document.getElementById('review-address-name').textContent = `${shippingData.firstName} ${shippingData.lastName}`;
-        document.getElementById('review-address-line1').textContent = shippingData.street;
-        
-        const reviewZipCode = shippingData.zipCode ? `, ${shippingData.zipCode}` : '';
-        document.getElementById('review-address-line2').textContent = `${shippingData.city}, ${shippingData.state}${reviewZipCode}, ${shippingData.country}`;
-        
-        document.getElementById('review-contact-info').textContent = `${shippingData.email}`;
-
-        checkoutStep = 2;
-        updateCheckoutView();
-        window.scrollTo(0, 0); 
-    }
-
-    /**
-     * Moves to Step 3 (Payment).
-     */
-    function proceedToPayment() {
-        checkoutStep = 3;
-        updateCheckoutView();
-        window.scrollTo(0, 0); 
-    }
-
-    // --- NEW HELPER FUNCTION TO RENDER CART DATA ---
-    function renderCartData(cartData, paymentBtn) {
-        const subtotalEl = document.getElementById('summary-subtotal');
-        const shippingCostEl = document.getElementById('summary-shipping-cost');
-        const taxEstimateEl = document.getElementById('summary-tax-estimate');
-        const estimatedTotalEl = document.getElementById('summary-estimated-total');
-        const finalTotalEl = document.getElementById('summary-estimated-total-final');
-        const itemsListEl = document.getElementById('review-items-list');
-
-        // Render Summary
-        const subtotal = cartData.subtotal || 0;
-        const shipping = cartData.shipping || 0;
-        const tax = cartData.tax || 0;
-        const total = cartData.estimatedTotal || (subtotal + shipping + tax);
-
-        const formatCurrency = (amount) => `${CURRENCY_SYMBOL}${amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-        
-        subtotalEl.textContent = formatCurrency(subtotal);
-        shippingCostEl.textContent = formatCurrency(shipping);
-        taxEstimateEl.textContent = formatCurrency(tax);
-        estimatedTotalEl.textContent = formatCurrency(total);
-        finalTotalEl.textContent = total.toLocaleString(undefined, { minimumFractionDigits: 2 }); // For Step 3
-
-        // Render Review Items List
-        itemsListEl.innerHTML = cartData.items.map(item => `
-            <div class="flex justify-between items-start py-2">
-                <div class="flex items-center">
-                    <img src="${item.imageUrl}" alt="${item.name}" class="w-10 h-10 rounded-md border mr-3">
-                    <div class="text-sm">
-                        <p class="font-medium text-gray-900">${item.name}</p>
-                        <p class="text-xs text-gray-500">${item.size} / ${item.color} (Qty: ${item.quantity})</p>
-                    </div>
-                </div>
-                <span class="text-sm font-semibold text-gray-900">${formatCurrency(item.price * item.quantity)}</span>
-            </div>
-        `).join('');
-        
-        // Store cart items and total for server-side processing later
-        localStorage.setItem('outflickzOrderItems', JSON.stringify(cartData.items));
-        localStorage.setItem('outflickzOrderTotal', total.toFixed(2));
-        localStorage.setItem('outflickzOrderSubtotal', subtotal.toFixed(2));
-        localStorage.setItem('outflickzOrderShipping', shipping.toFixed(2));
-        localStorage.setItem('outflickzOrderTax', tax.toFixed(2));
-
-        // Enable button
-        paymentBtn.disabled = false;
-    }
-
-
-    /**
-     * Fetches the initial cart data, CHECKING FOR A 'BUY NOW' ITEM FIRST.
-     */
-    async function fetchInitialCartData() {
-        const subtotalEl = document.getElementById('summary-subtotal');
-        const shippingCostEl = document.getElementById('summary-shipping-cost');
-        const taxEstimateEl = document.getElementById('summary-tax-estimate');
-        const estimatedTotalEl = document.getElementById('summary-estimated-total');
-        const finalTotalEl = document.getElementById('summary-estimated-total-final');
-        const itemsListEl = document.getElementById('review-items-list');
-        const paymentBtn = document.getElementById('checkout-next-btn');
-        
-        // Set loading state
-        subtotalEl.textContent = '...';
-        shippingCostEl.textContent = '...';
-        taxEstimateEl.textContent = '...';
-        estimatedTotalEl.textContent = '...';
-        finalTotalEl.textContent = '...';
-        itemsListEl.innerHTML = '<div class="text-center py-6 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Loading order details...</div>';
-        paymentBtn.disabled = true;
-
-        let cartData;
-
-        // =========================================================================
-        // 🎯 BUY NOW / PRE-ORDER LOGIC START: CALLING NEW API
-        // =========================================================================
-        const buyNowItemJSON = sessionStorage.getItem(BUY_NOW_KEY);
-
-        if (buyNowItemJSON) {
-            console.log("Processing Buy Now flow...");
-            
-            const item = JSON.parse(buyNowItemJSON);
-            sessionStorage.removeItem(BUY_NOW_KEY); // Clear immediately after retrieval
-
-            try {
-                // Fetch the calculated totals from the new dedicated API endpoint
-                const response = await fetch(`${API_BASE_URL}/api/orders/calculate-buy-now`, {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        // Assuming verifyUserToken expects an Authorization header
-                        'Authorization': `Bearer ${localStorage.getItem('userToken')}` 
-                    },
-                    body: JSON.stringify(item) // Send the item object directly
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || 'Failed to calculate Buy Now totals from API.');
-                }
-
-                cartData = await response.json(); // cartData will contain { items: [...], subtotal, shipping, tax, estimatedTotal }
-
-                // Go straight to rendering the server-calculated data
-                renderCartData(cartData, paymentBtn);
-                return; // EXIT: Buy Now flow complete
-
-            } catch (error) {
-                console.error('Error fetching Buy Now totals:', error);
-                itemsListEl.innerHTML = '<div class="text-center py-6 text-red-500">Error calculating totals. Please try again.</div>';
-                displayMessage(error.message || 'A critical error occurred. Cannot proceed to checkout.');
-                return;
-            }
-        }
-        // =========================================================================
-
-        // --- STANDARD CART LOGIC START (Unmodified) ---
-        
-        // Check for empty local cart if user is NOT logged in (API is assumed to handle authenticated empty cart)
-        if (!isUserLoggedIn()) {
-            const localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
-            if (localCart.length === 0) {
-                displayMessage('Your cart is empty. Redirecting to home.');
-                setTimeout(() => window.location.href = 'homepage.html', 1500);
-                return;
-            } 
-        }
-
-        try {
-            // === REAL API CALL FOR STANDARD CART ===
-            const response = await fetch('/api/users/cart', {
-                method: 'GET',
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to fetch cart data from API.');
-            }
-
-            cartData = await response.json();
-
-            if (cartData.items.length === 0) {
-                displayMessage('Your cart is empty. Redirecting to home.');
-                setTimeout(() => window.location.href = 'homepage.html', 1500);
-                return;
-            }
-            
-            // Render the data received from the API
-            renderCartData(cartData, paymentBtn);
-            
-        } catch (error) {
-            console.error('Error fetching cart data for checkout:', error);
-            itemsListEl.innerHTML = '<div class="text-center py-6 text-red-500">Error loading cart. Please go back to cart.</div>';
-            displayMessage(error.message || 'An error occurred loading your cart. Please try again.');
-            paymentBtn.disabled = true;
-        }
-    }
-
-
-    /**
-     * Helper function to notify admin of a new order.
-     * NOTE: Signature does not match your usage (missing 3rd arg data.ReceiptUrl in Bank Transfer case)
-     * For Bank Transfer, you MUST update the call site in handleFinalOrderPlacement.
-     */
-    async function sendAdminOrderNotification(orderId, paymentMethod, receiptUrl = null) {
-        const orderTotal = localStorage.getItem('outflickzOrderTotal');
-        const shippingData = localStorage.getItem('outflickzShippingData');
-        const orderItems = localStorage.getItem('outflickzOrderItems');
-
-       const notificationPayload = {
-        orderId: orderId,
-        totalAmount: orderTotal,
-        paymentMethod: paymentMethod,
-        shippingDetails: JSON.parse(shippingData || '{}'),
-        items: JSON.parse(orderItems || '[]'),
-        adminEmail: DEFAULT_ADMIN_EMAIL,
-        paymentReceiptUrl: receiptUrl // Pass the receipt URL if available
-    };
-
-        try {
-            const response = await fetch('/api/notifications/admin-order-email', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(notificationPayload)
-            });
-
-            if (!response.ok) {
-                console.error('Failed to send admin notification email:', response.status);
-            }
-        } catch (error) {
-            console.error('Network error while sending admin notification:', error);
-        }
-    }
-
-
-    /**
-     * Handles the final step: Payment confirmation and order creation (Updated for Paystack/Bank Transfer).
-     */
-    async function handleFinalOrderPlacement() {
-        const paymentMethod = document.querySelector('input[name="payment-method"]:checked');
-        if (!paymentMethod) {
-            displayMessage('Please select a payment method.');
-            return;
-        }
-
-        const totalAmount = parseFloat(localStorage.getItem('outflickzOrderTotal') || 0);
-        const shippingAddress = JSON.parse(localStorage.getItem('outflickzShippingData'));
-        const email = shippingAddress?.email;
-
-        if (totalAmount <= 0 || !shippingAddress || !email) {
-            displayMessage('Order or contact data missing. Please refresh and try again.');
-            return;
-        }
-
-        // Disable button to prevent double submission
-        const payBtn = document.getElementById('checkout-next-btn');
-        payBtn.disabled = true;
-        payBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Initializing Payment...';
-
-        if (paymentMethod.value === 'Paystack/Card') {
-            // --- PAYSTACK INITIATION (Logic remains the same) ---
-            
-            const reference = `outflickz_${Date.now()}`;
-            
-            if (typeof PaystackPop === 'undefined') {
-                displayMessage('Paystack script not loaded. Please check your internet connection and page HTML.');
-                payBtn.disabled = false;
-                payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
-                return;
-            }
-
-            const handler = PaystackPop.setup({
-                key: PAYSTACK_PUBLIC_KEY,
-                email: email,
-                amount: totalAmount * 100, // Paystack expects amount in Kobo
-                ref: reference,
-                currency: CURRENCY_CODE,
-                
-                callback: function(response){
-                    // 🎯 STEP 1: Send Admin Notification (using the Paystack reference as the Order ID)
-                    sendAdminOrderNotification(response.reference, paymentMethod.value);
-
-                    // STEP 2: Handle Redirection
-                    displayMessage('Payment successful! Finalizing order on the server...');
-                    // Clear cart data (assuming successful payment means a successful order)
-                    localStorage.removeItem(LOCAL_CART_KEY);
-                    localStorage.setItem(CART_STORAGE_KEY, '0');
-                    // Clear total and components
-                    localStorage.removeItem('outflickzOrderTotal');
-                    localStorage.removeItem('outflickzOrderItems');
-                    localStorage.removeItem('outflickzOrderSubtotal');
-                    localStorage.removeItem('outflickzOrderShipping');
-                    localStorage.removeItem('outflickzOrderTax');
-
-                    updateCartBadge();
-                    window.location.href = `orderconfirmation.html?ref=${response.reference}&method=paystack`;
-                },
-                
-                onClose: function(){
-                    displayMessage('Payment cancelled or abandoned. Please try again.');
-                    payBtn.disabled = false;
-                    payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
-                }
-            });
-            
-            handler.openIframe();
-            
-            return; 
-
-        } else if (paymentMethod.value === 'Bank Transfer') {
-            
-            // --- VALIDATE RECEIPT UPLOAD (Logic remains the same) ---
-            const receiptInput = document.getElementById('bank-receipt-upload');
-            
-            if (!receiptInput || !receiptInput.files || receiptInput.files.length === 0) {
-                displayMessage('Please upload the payment receipt image to complete the bank transfer order.');
-                payBtn.disabled = false;
-                payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
-                if (receiptInput) receiptInput.focus();
-                return;
-            }
-            
-            payBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Placing Order...';
-            
-            // --- BANK TRANSFER (PENDING ORDER) INITIATION (Logic remains the same) ---
-            const formData = new FormData();
-            
-            const subtotal = localStorage.getItem('outflickzOrderSubtotal');
-            const shipping = localStorage.getItem('outflickzOrderShipping');
-            const tax = localStorage.getItem('outflickzOrderTax');
-
-            formData.append('shippingAddress', JSON.stringify(shippingAddress));
-            formData.append('orderItems', localStorage.getItem('outflickzOrderItems')); 
-            formData.append('paymentMethod', paymentMethod.value);
-            
-            if (subtotal) formData.append('subtotal', subtotal);
-            if (shipping) formData.append('shippingFee', shipping); 
-            if (tax) formData.append('tax', tax);
-            
-            formData.append('totalAmount', totalAmount.toFixed(2)); 
-            formData.append('receipt', receiptInput.files[0]); 
-
-
-            try {
-                const response = await fetch('/api/orders/place/pending', {
-                    method: 'POST',
-                    body: formData 
-                });
-
-                const data = await response.json();
-                const isSuccess = response.ok; 
-
-                if (isSuccess && data.orderId) {
-                    
-                    // 🎯 STEP 1: Send Admin Notification - CORRECTED CALL with receiptUrl
-                    sendAdminOrderNotification(
-                        data.orderId, 
-                        paymentMethod.value, 
-                        data.ReceiptUrl // <<< PASSING THE RECEIPT URL
-                    );
-                    
-                    // STEP 2: Handle Redirection
-                    displayMessage(`Pending Order #${data.orderId} created! Redirecting to confirmation page.`);
-                    
-                    // Clear local storage items only if the order was successfully created on the server
-                    localStorage.removeItem(LOCAL_CART_KEY);
-                    localStorage.setItem(CART_STORAGE_KEY, '0');
-                    localStorage.removeItem('outflickzOrderTotal');
-                    localStorage.removeItem('outflickzOrderItems'); 
-                    localStorage.removeItem('outflickzOrderSubtotal');
-                    localStorage.removeItem('outflickzOrderShipping');
-                    localStorage.removeItem('outflickzOrderTax');
-                    
-                    updateCartBadge();
-
-                    setTimeout(() => {
-                        window.location.href = `orderconfirmation.html?id=${data.orderId}&method=banktransfer`;
-                    }, 3000);
-
-                } else {
-                    throw new Error(data.message || 'Failed to create pending order. Please check server response.');
-                }
-
-            } catch (error) {
-                console.error('Pending order placement error:', error);
-                displayMessage(error.message || 'A network error occurred. Please try again.');
-                payBtn.disabled = false;
-                payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
-            }
-            
-        } else {
-            // Fallback for other payment methods if needed
-            displayMessage(`Payment method ${paymentMethod.value} selected, but not yet implemented.`);
-            payBtn.disabled = false;
-            payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
-        }
-    }
-
-    // --- Main Initialization ---
-    document.addEventListener('DOMContentLoaded', () => {
-        // Initial checks and data loading
-        updateCartBadge();
-        fetchInitialCartData(); // <<< This now handles the Buy Now check
-        updateCheckoutView(); // Initialize step 1 view
-        fetchUserData(); 
-
-        // Attach the hideMessageModal function to the close button
-        const closeButton = document.getElementById('message-modal-close-btn');
-        if (closeButton) {
-            closeButton.addEventListener('click', hideMessageModal);
-        }
-
-        // --- Bank Details Toggle Initialization ---
-        const bankRadio = document.getElementById('payment-bank');
-        const paystackRadio = document.getElementById('payment-paystack');
-        const bankDetails = document.getElementById('bank-details-info');
-        const receiptUpload = document.getElementById('bank-receipt-upload');
-
-        function toggleBankDetails() {
-            if (bankDetails && receiptUpload) {
-                const isBankChecked = bankRadio && bankRadio.checked;
-                bankDetails.style.display = isBankChecked ? 'block' : 'none';
-
-                if (isBankChecked) {
-                    receiptUpload.setAttribute('required', 'required');
-                } else {
-                    receiptUpload.removeAttribute('required');
-                }
-            }
-        }
-
-        if (bankRadio) bankRadio.addEventListener('change', toggleBankDetails);
-        if (paystackRadio) paystackRadio.addEventListener('change', toggleBankDetails);
-
-        toggleBankDetails(); 
-    });
+    // Customizing Tailwind colors to match the theme
+    tailwind.config = {
+        theme: {
+            extend: {
+                colors: {
+                    'ash-dark': '#111111',
+                    'ash-red': '#a80000',
+                    'color-white': '#FFFFFF',
+                    'color-black': '#000000',
+                    'racing-grey': '#333333',
+                    'racing-silver': '#AAAAAA',
+                }
+            }
+        }
+    }
+
+    // Global Constants
+    const CART_STORAGE_KEY = 'outflickzCartCount';
+    const LOCAL_CART_KEY = 'outflickzLocalCart';
+    const BUY_NOW_KEY = 'buyNowItem'; // <<< NEW CONSTANT for clarity
+    const API_BASE_URL = 'https://outflickz.netlify.app'; 
+    const DEFAULT_ADMIN_EMAIL = "outflickzlimited@gmail.com"; 
+
+    // --- PAYSTACK CONSTANTS ---
+    const PAYSTACK_PUBLIC_KEY = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; // <<< REPLACE THIS WITH YOUR ACTUAL PUBLIC KEY!
+    const CURRENCY_CODE = 'NGN'; 
+    const CURRENCY_SYMBOL = '₦'; // Used for displaying currency
+
+    // --- MESSAGE & MODAL DISPLAY FUNCTION (Reused) ---
+    function displayMessage(message) {
+        const modalContainer = document.getElementById('message-modal-container');
+        const modalText = document.getElementById('message-modal-text');
+
+        if (modalContainer && modalText) {
+            modalText.textContent = message;
+            modalContainer.classList.remove('hidden');
+
+            modalContainer.onclick = (e) => {
+                if (e.target === modalContainer) {
+                    hideMessageModal();
+                }
+            };
+
+            setTimeout(hideMessageModal, 4000);
+        } else {
+            console.warn("Modal elements not found. Message:", message);
+        }
+    }
+
+    function hideMessageModal() {
+        const modalContainer = document.getElementById('message-modal-container');
+        if (modalContainer) {
+            modalContainer.classList.add('hidden');
+            modalContainer.onclick = null;
+        }
+    }
+
+    // --- USER AUTHENTICATION & REDIRECTION FUNCTIONS (Reused) ---
+    function isUserLoggedIn() {
+        return localStorage.getItem('outflickzAuthStatus') === 'loggedIn';
+    }
+
+    function redirectToProfileOrLogin() {
+        if (isUserLoggedIn()) {
+            window.location.href = 'userprofile.html';
+        } else {
+            window.location.href = 'useraccount.html';
+        }
+    }
+    
+    function updateCartBadge() {
+        const badge = document.getElementById('cart-badge');
+        if (!badge) return;
+        const count = parseInt(localStorage.getItem(CART_STORAGE_KEY) || '0');
+        
+        if (count > 0) {
+            badge.textContent = count;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+
+    // --- NEW: FETCH USER DATA TO PRE-FILL FORM ---
+    async function fetchUserData() {
+        if (!isUserLoggedIn()) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/users/account', {
+                method: 'GET',
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch user data. Please log in again.');
+            }
+
+            const userData = await response.json();
+            const userProfile = userData.profile || {};
+            const userAddress = userData.address || {};
+
+            // Pre-fill Contact Info
+            document.getElementById('email').value = userData.email || '';
+
+            // Pre-fill Shipping Info
+            const firstNameEl = document.getElementById('first-name');
+            const lastNameEl = document.getElementById('last-name');
+
+            if (userProfile.firstName) firstNameEl.value = userProfile.firstName;
+            if (userProfile.lastName) lastNameEl.value = userProfile.lastName;
+
+            if (userData.address) {
+                if (userAddress.street) document.getElementById('address-line-1').value = userAddress.street;
+                if (userAddress.city) document.getElementById('city').value = userAddress.city;
+                if (userAddress.state) document.getElementById('state').value = userAddress.state;
+                if (userAddress.zipCode) document.getElementById('zip-code').value = userAddress.zipCode;
+                if (userAddress.country) document.getElementById('country').value = userAddress.country;
+            }
+
+            // Save to local storage for use in the review step (Step 2)
+            localStorage.setItem('outflickzShippingData', JSON.stringify({
+                firstName: userProfile.firstName, 
+                lastName: userProfile.lastName, 
+                email: userData.email,
+                street: userAddress.street,
+                city: userAddress.city,
+                state: userAddress.state,
+                zipCode: userAddress.zipCode,
+                country: userAddress.country
+            }));
+
+        } catch (error) {
+            console.error('Error fetching user data:', error);
+            displayMessage('Could not load saved address. Please enter manually.');
+        }
+    }
+
+    // ---------------------------------------------------
+    // --- CHECKOUT LOGIC ---
+    // ---------------------------------------------------
+
+    let checkoutStep = 1; // 1: Info, 2: Review, 3: Payment
+    const STEPS = [
+        { id: 1, name: 'Shipping Info', sectionId: 'shipping-info-section' },
+        { id: 2, name: 'Review Order', sectionId: 'review-order-section' },
+        { id: 3, name: 'Payment', sectionId: 'payment-section' }
+    ];
+
+    /**
+     * Renders the correct step content and updates the step indicators.
+     */
+    function updateCheckoutView() {
+        // 1. Update Step Indicators
+        STEPS.forEach(step => {
+            const indicator = document.getElementById(`step-indicator-${step.id}`);
+            const section = document.getElementById(step.sectionId);
+            
+            section.classList.add('hidden'); // Hide all sections initially
+
+            if (step.id < checkoutStep) {
+                indicator.className = 'step-indicator step-complete';
+                indicator.innerHTML = '<i class="fas fa-check"></i>';
+            } else if (step.id === checkoutStep) {
+                indicator.className = 'step-indicator step-active';
+                indicator.textContent = step.id;
+                section.classList.remove('hidden'); // Show current section
+            } else {
+                indicator.className = 'step-indicator step-inactive';
+                indicator.textContent = step.id;
+            }
+        });
+        
+        // 2. Update button text/action based on the step
+        const nextBtn = document.getElementById('checkout-next-btn');
+        const btnText = document.getElementById('checkout-btn-text');
+        
+        if (checkoutStep === 1) {
+            btnText.textContent = 'Continue to Review';
+            nextBtn.onclick = validateAndProceedToReview;
+        } else if (checkoutStep === 2) {
+            btnText.textContent = 'Proceed to Payment';
+            nextBtn.onclick = proceedToPayment;
+        } else if (checkoutStep === 3) {
+            btnText.textContent = 'Confirm & Pay Now';
+            nextBtn.onclick = handleFinalOrderPlacement;
+        }
+    }
+
+    /**
+    * Validates shipping form data and moves to Step 2 (Review).
+    */
+    function validateAndProceedToReview() {
+        const form = document.getElementById('shipping-form');
+        
+        // --- Logic to handle optional ZIP code validation remains the same ---
+        const zipCodeEl = document.getElementById('zip-code');
+        const isZipRequired = zipCodeEl.hasAttribute('required');
+        if (isZipRequired) zipCodeEl.removeAttribute('required');
+
+        if (!form.checkValidity()) {
+            if (isZipRequired) zipCodeEl.setAttribute('required', '');
+            form.reportValidity();
+            displayMessage('Please fill out all required shipping fields.');
+            return;
+        }
+        if (isZipRequired) zipCodeEl.setAttribute('required', '');
+        // --- End ZIP code logic ---
+
+
+        // Capture the data
+        const shippingData = {
+            firstName: document.getElementById('first-name').value,
+            lastName: document.getElementById('last-name').value,
+            email: document.getElementById('email').value,
+            street: document.getElementById('address-line-1').value,
+            city: document.getElementById('city').value,
+            state: document.getElementById('state').value,
+            zipCode: document.getElementById('zip-code').value, 
+            country: document.getElementById('country').value,
+        };
+        localStorage.setItem('outflickzShippingData', JSON.stringify(shippingData));
+
+        // Update the review section with the data
+        document.getElementById('review-address-name').textContent = `${shippingData.firstName} ${shippingData.lastName}`;
+        document.getElementById('review-address-line1').textContent = shippingData.street;
+        
+        const reviewZipCode = shippingData.zipCode ? `, ${shippingData.zipCode}` : '';
+        document.getElementById('review-address-line2').textContent = `${shippingData.city}, ${shippingData.state}${reviewZipCode}, ${shippingData.country}`;
+        
+        document.getElementById('review-contact-info').textContent = `${shippingData.email}`;
+
+        checkoutStep = 2;
+        updateCheckoutView();
+        window.scrollTo(0, 0); 
+    }
+
+    /**
+     * Moves to Step 3 (Payment).
+     */
+    function proceedToPayment() {
+        checkoutStep = 3;
+        updateCheckoutView();
+        window.scrollTo(0, 0); 
+    }
+
+    // --- NEW HELPER FUNCTION TO RENDER CART DATA ---
+    function renderCartData(cartData, paymentBtn) {
+        const subtotalEl = document.getElementById('summary-subtotal');
+        const shippingCostEl = document.getElementById('summary-shipping-cost');
+        const taxEstimateEl = document.getElementById('summary-tax-estimate');
+        const estimatedTotalEl = document.getElementById('summary-estimated-total');
+        const finalTotalEl = document.getElementById('summary-estimated-total-final');
+        const itemsListEl = document.getElementById('review-items-list');
+
+        // Render Summary
+        const subtotal = cartData.subtotal || 0;
+        const shipping = cartData.shipping || 0;
+        const tax = cartData.tax || 0;
+        const total = cartData.estimatedTotal || (subtotal + shipping + tax);
+
+        const formatCurrency = (amount) => `${CURRENCY_SYMBOL}${amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+        
+        subtotalEl.textContent = formatCurrency(subtotal);
+        shippingCostEl.textContent = formatCurrency(shipping);
+        taxEstimateEl.textContent = formatCurrency(tax);
+        estimatedTotalEl.textContent = formatCurrency(total);
+        finalTotalEl.textContent = total.toLocaleString(undefined, { minimumFractionDigits: 2 }); // For Step 3
+
+        // Render Review Items List
+        itemsListEl.innerHTML = cartData.items.map(item => `
+            <div class="flex justify-between items-start py-2">
+                <div class="flex items-center">
+                    <img src="${item.imageUrl}" alt="${item.name}" class="w-10 h-10 rounded-md border mr-3">
+                    <div class="text-sm">
+                        <p class="font-medium text-gray-900">${item.name}</p>
+                        <p class="text-xs text-gray-500">${item.size} / ${item.color} (Qty: ${item.quantity})</p>
+                    </div>
+                </div>
+                <span class="text-sm font-semibold text-gray-900">${formatCurrency(item.price * item.quantity)}</span>
+            </div>
+        `).join('');
+        
+        // Store cart items and total for server-side processing later
+        localStorage.setItem('outflickzOrderItems', JSON.stringify(cartData.items));
+        localStorage.setItem('outflickzOrderTotal', total.toFixed(2));
+        localStorage.setItem('outflickzOrderSubtotal', subtotal.toFixed(2));
+        localStorage.setItem('outflickzOrderShipping', shipping.toFixed(2));
+        localStorage.setItem('outflickzOrderTax', tax.toFixed(2));
+
+        // Enable button
+        paymentBtn.disabled = false;
+    }
+
+
+    /**
+     * Fetches the initial cart data, CHECKING FOR A 'BUY NOW' ITEM FIRST.
+     */
+    async function fetchInitialCartData() {
+        const subtotalEl = document.getElementById('summary-subtotal');
+        const shippingCostEl = document.getElementById('summary-shipping-cost');
+        const taxEstimateEl = document.getElementById('summary-tax-estimate');
+        const estimatedTotalEl = document.getElementById('summary-estimated-total');
+        const finalTotalEl = document.getElementById('summary-estimated-total-final');
+        const itemsListEl = document.getElementById('review-items-list');
+        const paymentBtn = document.getElementById('checkout-next-btn');
+        
+        // Set loading state
+        subtotalEl.textContent = '...';
+        shippingCostEl.textContent = '...';
+        taxEstimateEl.textContent = '...';
+        estimatedTotalEl.textContent = '...';
+        finalTotalEl.textContent = '...';
+        itemsListEl.innerHTML = '<div class="text-center py-6 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Loading order details...</div>';
+        paymentBtn.disabled = true;
+
+        let cartData;
+
+        // =========================================================================
+        // 🎯 BUY NOW / PRE-ORDER LOGIC START: CALLING NEW API
+        // =========================================================================
+        const buyNowItemJSON = sessionStorage.getItem(BUY_NOW_KEY);
+
+        if (buyNowItemJSON) {
+            console.log("Processing Buy Now flow...");
+            
+            const item = JSON.parse(buyNowItemJSON);
+            // sessionStorage.removeItem(BUY_NOW_KEY); // <-- REMOVED: Item is now cleared upon successful order completion
+
+            try {
+                // Fetch the calculated totals from the new dedicated API endpoint
+                const response = await fetch(`${API_BASE_URL}/api/orders/calculate-buy-now`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        // Assuming verifyUserToken expects an Authorization header
+                        'Authorization': `Bearer ${localStorage.getItem('userToken')}` 
+                    },
+                    body: JSON.stringify(item) // Send the item object directly
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to calculate Buy Now totals from API.');
+                }
+
+                cartData = await response.json(); // cartData will contain { items: [...], subtotal, shipping, tax, estimatedTotal }
+
+                // Go straight to rendering the server-calculated data
+                renderCartData(cartData, paymentBtn);
+                return; // EXIT: Buy Now flow complete
+
+            } catch (error) {
+                console.error('Error fetching Buy Now totals:', error);
+                itemsListEl.innerHTML = '<div class="text-center py-6 text-red-500">Error calculating totals. Please try again.</div>';
+                displayMessage(error.message || 'A critical error occurred. Cannot proceed to checkout.');
+                return;
+            }
+        }
+        // =========================================================================
+
+        // --- STANDARD CART LOGIC START (Unmodified) ---
+        
+        // Check for empty local cart if user is NOT logged in (API is assumed to handle authenticated empty cart)
+        if (!isUserLoggedIn()) {
+            const localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
+            if (localCart.length === 0) {
+                displayMessage('Your cart is empty. Redirecting to home.');
+                setTimeout(() => window.location.href = 'homepage.html', 1500);
+                return;
+            } 
+        }
+
+        try {
+            // === REAL API CALL FOR STANDARD CART ===
+            const response = await fetch('/api/users/cart', {
+                method: 'GET',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to fetch cart data from API.');
+            }
+
+            cartData = await response.json();
+
+            if (cartData.items.length === 0) {
+                displayMessage('Your cart is empty. Redirecting to home.');
+                setTimeout(() => window.location.href = 'homepage.html', 1500);
+                return;
+            }
+            
+            // Render the data received from the API
+            renderCartData(cartData, paymentBtn);
+            
+        } catch (error) {
+            console.error('Error fetching cart data for checkout:', error);
+            itemsListEl.innerHTML = '<div class="text-center py-6 text-red-500">Error loading cart. Please go back to cart.</div>';
+            displayMessage(error.message || 'An error occurred loading your cart. Please try again.');
+            paymentBtn.disabled = true;
+        }
+    }
+
+
+    /**
+     * Helper function to notify admin of a new order.
+     * NOTE: Signature does not match your usage (missing 3rd arg data.ReceiptUrl in Bank Transfer case)
+     * For Bank Transfer, you MUST update the call site in handleFinalOrderPlacement.
+     */
+    async function sendAdminOrderNotification(orderId, paymentMethod, receiptUrl = null) {
+        const orderTotal = localStorage.getItem('outflickzOrderTotal');
+        const shippingData = localStorage.getItem('outflickzShippingData');
+        const orderItems = localStorage.getItem('outflickzOrderItems');
+
+       const notificationPayload = {
+        orderId: orderId,
+        totalAmount: orderTotal,
+        paymentMethod: paymentMethod,
+        shippingDetails: JSON.parse(shippingData || '{}'),
+        items: JSON.parse(orderItems || '[]'),
+        adminEmail: DEFAULT_ADMIN_EMAIL,
+        paymentReceiptUrl: receiptUrl // Pass the receipt URL if available
+    };
+
+        try {
+            const response = await fetch('/api/notifications/admin-order-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(notificationPayload)
+            });
+
+            if (!response.ok) {
+                console.error('Failed to send admin notification email:', response.status);
+            }
+        } catch (error) {
+            console.error('Network error while sending admin notification:', error);
+        }
+    }
+
+
+    /**
+     * Handles the final step: Payment confirmation and order creation (Updated for Paystack/Bank Transfer).
+     */
+    async function handleFinalOrderPlacement() {
+        const paymentMethod = document.querySelector('input[name="payment-method"]:checked');
+        if (!paymentMethod) {
+            displayMessage('Please select a payment method.');
+            return;
+        }
+
+        const totalAmount = parseFloat(localStorage.getItem('outflickzOrderTotal') || 0);
+        const shippingAddress = JSON.parse(localStorage.getItem('outflickzShippingData'));
+        const email = shippingAddress?.email;
+
+        if (totalAmount <= 0 || !shippingAddress || !email) {
+            displayMessage('Order or contact data missing. Please refresh and try again.');
+            return;
+        }
+
+        // Disable button to prevent double submission
+        const payBtn = document.getElementById('checkout-next-btn');
+        payBtn.disabled = true;
+        payBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Initializing Payment...';
+
+        if (paymentMethod.value === 'Paystack/Card') {
+            // --- PAYSTACK INITIATION (Logic remains the same) ---
+            
+            const reference = `outflickz_${Date.now()}`;
+            
+            if (typeof PaystackPop === 'undefined') {
+                displayMessage('Paystack script not loaded. Please check your internet connection and page HTML.');
+                payBtn.disabled = false;
+                payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
+                return;
+            }
+
+            const handler = PaystackPop.setup({
+                key: PAYSTACK_PUBLIC_KEY,
+                email: email,
+                amount: totalAmount * 100, // Paystack expects amount in Kobo
+                ref: reference,
+                currency: CURRENCY_CODE,
+                
+                callback: function(response){
+                    // 🎯 STEP 1: Send Admin Notification (using the Paystack reference as the Order ID)
+                    sendAdminOrderNotification(response.reference, paymentMethod.value);
+
+                    // STEP 2: Handle Redirection
+                    displayMessage('Payment successful! Finalizing order on the server...');
+                    // Clear cart data (assuming successful payment means a successful order)
+                    localStorage.removeItem(LOCAL_CART_KEY);
+                    localStorage.setItem(CART_STORAGE_KEY, '0');
+                    // Clear total and components
+                    localStorage.removeItem('outflickzOrderTotal');
+                    localStorage.removeItem('outflickzOrderItems');
+                    localStorage.removeItem('outflickzOrderSubtotal');
+                    localStorage.removeItem('outflickzOrderShipping');
+                    localStorage.removeItem('outflickzOrderTax');
+                    
+                    // ⭐ NEW: Clear Buy Now flag from sessionStorage on successful payment
+                    sessionStorage.removeItem(BUY_NOW_KEY); 
+
+                    updateCartBadge();
+                    window.location.href = `orderconfirmation.html?ref=${response.reference}&method=paystack`;
+                },
+                
+                onClose: function(){
+                    displayMessage('Payment cancelled or abandoned. Please try again.');
+                    payBtn.disabled = false;
+                    payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
+                }
+            });
+            
+            handler.openIframe();
+            
+            return; 
+
+        } else if (paymentMethod.value === 'Bank Transfer') {
+            
+            // --- VALIDATE RECEIPT UPLOAD (Logic remains the same) ---
+            const receiptInput = document.getElementById('bank-receipt-upload');
+            
+            if (!receiptInput || !receiptInput.files || receiptInput.files.length === 0) {
+                displayMessage('Please upload the payment receipt image to complete the bank transfer order.');
+                payBtn.disabled = false;
+                payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
+                if (receiptInput) receiptInput.focus();
+                return;
+            }
+            
+            payBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Placing Order...';
+            
+            // --- BANK TRANSFER (PENDING ORDER) INITIATION (Logic remains the same) ---
+            const formData = new FormData();
+            
+            const subtotal = localStorage.getItem('outflickzOrderSubtotal');
+            const shipping = localStorage.getItem('outflickzOrderShipping');
+            const tax = localStorage.getItem('outflickzOrderTax');
+
+            formData.append('shippingAddress', JSON.stringify(shippingAddress));
+            formData.append('orderItems', localStorage.getItem('outflickzOrderItems')); 
+            formData.append('paymentMethod', paymentMethod.value);
+            
+            if (subtotal) formData.append('subtotal', subtotal);
+            if (shipping) formData.append('shippingFee', shipping); 
+            if (tax) formData.append('tax', tax);
+            
+            formData.append('totalAmount', totalAmount.toFixed(2)); 
+            formData.append('receipt', receiptInput.files[0]); 
+
+
+            try {
+                const response = await fetch('/api/orders/place/pending', {
+                    method: 'POST',
+                    body: formData 
+                });
+
+                const data = await response.json();
+                const isSuccess = response.ok; 
+
+                if (isSuccess && data.orderId) {
+                    
+                    // 🎯 STEP 1: Send Admin Notification - CORRECTED CALL with receiptUrl
+                    sendAdminOrderNotification(
+                        data.orderId, 
+                        paymentMethod.value, 
+                        data.ReceiptUrl // <<< PASSING THE RECEIPT URL
+                    );
+                    
+                    // STEP 2: Handle Redirection
+                    displayMessage(`Pending Order #${data.orderId} created! Redirecting to confirmation page.`);
+                    
+                    // Clear local storage items only if the order was successfully created on the server
+                    localStorage.removeItem(LOCAL_CART_KEY);
+                    localStorage.setItem(CART_STORAGE_KEY, '0');
+                    localStorage.removeItem('outflickzOrderTotal');
+                    localStorage.removeItem('outflickzOrderItems'); 
+                    localStorage.removeItem('outflickzOrderSubtotal');
+                    localStorage.removeItem('outflickzOrderShipping');
+                    localStorage.removeItem('outflickzOrderTax');
+                    
+                    // ⭐ NEW: Clear Buy Now flag from sessionStorage on successful order creation
+                    sessionStorage.removeItem(BUY_NOW_KEY); 
+
+                    updateCartBadge();
+
+                    setTimeout(() => {
+                        window.location.href = `orderconfirmation.html?id=${data.orderId}&method=banktransfer`;
+                    }, 3000);
+
+                } else {
+                    throw new Error(data.message || 'Failed to create pending order. Please check server response.');
+                }
+
+            } catch (error) {
+                console.error('Pending order placement error:', error);
+                displayMessage(error.message || 'A network error occurred. Please try again.');
+                payBtn.disabled = false;
+                payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
+            }
+            
+        } else {
+            // Fallback for other payment methods if needed
+            displayMessage(`Payment method ${paymentMethod.value} selected, but not yet implemented.`);
+            payBtn.disabled = false;
+            payBtn.innerHTML = '<span id="checkout-btn-text">Confirm & Pay Now</span>';
+        }
+    }
+
+    // --- Main Initialization ---
+    document.addEventListener('DOMContentLoaded', () => {
+        // Initial checks and data loading
+        updateCartBadge();
+        fetchInitialCartData(); // <<< This now handles the Buy Now check
+        updateCheckoutView(); // Initialize step 1 view
+        fetchUserData(); 
+
+        // Attach the hideMessageModal function to the close button
+        const closeButton = document.getElementById('message-modal-close-btn');
+        if (closeButton) {
+            closeButton.addEventListener('click', hideMessageModal);
+        }
+
+        // --- Bank Details Toggle Initialization ---
+        const bankRadio = document.getElementById('payment-bank');
+        const paystackRadio = document.getElementById('payment-paystack');
+        const bankDetails = document.getElementById('bank-details-info');
+        const receiptUpload = document.getElementById('bank-receipt-upload');
+
+        function toggleBankDetails() {
+            if (bankDetails && receiptUpload) {
+                const isBankChecked = bankRadio && bankRadio.checked;
+                bankDetails.style.display = isBankChecked ? 'block' : 'none';
+
+                if (isBankChecked) {
+                    receiptUpload.setAttribute('required', 'required');
+                } else {
+                    receiptUpload.removeAttribute('required');
+                }
+            }
+        }
+
+        if (bankRadio) bankRadio.addEventListener('change', toggleBankDetails);
+        if (paystackRadio) paystackRadio.addEventListener('change', toggleBankDetails);
+
+        toggleBankDetails(); 
+    });
 </script>
 </body>
 </html>

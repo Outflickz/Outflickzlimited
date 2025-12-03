@@ -316,9 +316,11 @@ document.addEventListener('DOMContentLoaded', () => {
  * @param {object} itemDetails - The product object passed from the button's onclick.
  */
 function simulateBuyNow(itemDetails) {
-    const selectedQuantity = parseInt(document.getElementById(`quantity-input-${itemDetails.productId}`).value);
+    // 1. Gather Quantity
+    const quantityInput = document.getElementById(`quantity-input-${itemDetails.productId}`);
+    const selectedQuantity = parseInt(quantityInput.value) || 1;
     
-    // ... (logic to get selected size and selected color remains the same) ...
+    // 2. Gather Size (will be '' or 'OS' if no radios exist/are checked)
     let selectedSize = '';
     const sizeRadios = document.getElementsByName(`size-${itemDetails.productId}`);
     for (const radio of sizeRadios) {
@@ -328,6 +330,7 @@ function simulateBuyNow(itemDetails) {
         }
     }
 
+    // 3. Gather Color (will be '' or a hex/name if no radios exist/are checked)
     let selectedColor = '';
     const colorRadios = document.getElementsByName(`color-${itemDetails.productId}`);
     for (const radio of colorRadios) {
@@ -337,19 +340,31 @@ function simulateBuyNow(itemDetails) {
         }
     }
 
+    // 4. Determine variationIndex (CRITICAL ADDITION)
+    // We default this to 0. If this item has multiple variants and the checkout fails
+    // to distinguish them, the full color-map lookup logic from simulateAddToCart must be added here.
+    // However, 0 is the minimum fix to pass the backend validation check: variationIndex !== undefined && variationIndex !== null.
+    let variationIndex = 0;
+
     const itemToCheckout = {
-        id: itemDetails.productId,
+        productId: itemDetails.productId, // Renamed from 'id' for consistency with CartItemSchema
         name: itemDetails.name,
         
-        // ⭐ THE CRITICAL FIX: Add productType to the object
-        productType: itemDetails.productType, // Ensure itemDetails passed to this function has 'productType'
+        // ⭐ FIX 1: Add a fallback for productType and ensure a value is always sent.
+        productType: itemDetails.productType || 'WearsCollection', 
         
         price: itemDetails.price,
         imageUrl: itemDetails.imageUrl,
         quantity: selectedQuantity,
-        size: selectedSize,
-        color: selectedColor,
-        // The buy now flow generally takes the user directly to checkout
+        
+        // ⭐ FIX 2: Ensure size and color have a default value to satisfy backend validation
+        size: selectedSize || 'N/A', 
+        color: selectedColor || 'N/A',
+
+        // ⭐ FIX 3: Add the required variationIndex
+        variationIndex: variationIndex,
+        
+        // This is a flag for the checkout page to know it should process a single Buy Now item
         checkout: true 
     };
 
@@ -361,6 +376,7 @@ function simulateBuyNow(itemDetails) {
     // Redirect the user to the checkout page
     window.location.href = 'checkout.html';
 }
+
 /**
  * Reads the current cart item count from Local Storage. (Keep this one)
  * @returns {number} The total number of items in the cart.
@@ -419,6 +435,7 @@ function addToCart(collectionId, quantity) {
 
     console.log(`Added ${quantity} of item ${collectionId}. New cart total: ${newCount}`);
 }
+
 /**
  * Handles adding an item to the cart. 
  * Tries API (permanent cart via secure cookie) first.

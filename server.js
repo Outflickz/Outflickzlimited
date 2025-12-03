@@ -957,7 +957,6 @@ const OrderSchema = new mongoose.Schema({
             'Processing',           // ✅ CRITICAL ADDITION: Intermediate status set by PUT /confirm
             'Shipped',              // Fulfillment statuses
             'Delivered',
-            'Delivered',            // Final success status
             'Cancelled',
             'Refunded',
             'Verification Failed', 
@@ -1183,26 +1182,27 @@ function getProductModel(productType) {
  * @param {string} orderId The ID of the order that failed.
  * @param {string} reason The error message explaining the failure.
  */
+// HELPER FUNCTION: INVENTORY ROLLBACK (Order Status Update)
 async function inventoryRollback(orderId, reason) {
     try {
         const OrderModel = mongoose.models.Order || mongoose.model('Order');
-        
+
         await OrderModel.findByIdAndUpdate(
-            orderId, 
-            { 
-                status: 'Stock Failure', // Set a clear failure status
-                failureReason: reason,
+            orderId,
+            {
+                // 🛑 FIX HERE: Use the status defined in the schema
+                status: 'Inventory Failure (Manual Review)', 
+                notes: [reason], // Add the reason to the notes array for better logging
                 updatedAt: Date.now()
             },
             { new: true }
         );
-        console.warn(`Order ${orderId} status set to 'Stock Failure' and reason logged. Reason: ${reason}`);
+        console.warn(`Order ${orderId} status set to 'Inventory Failure (Manual Review)' and reason logged. Reason: ${reason}`);
     } catch (err) {
         console.error(`CRITICAL: Failed to update order ${orderId} status during rollback.`, err);
         // Do not re-throw, as the main error is already being handled.
     }
 }
-
 
 /**
  * ====================================================================================

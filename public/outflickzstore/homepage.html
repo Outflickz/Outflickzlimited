@@ -937,22 +937,22 @@ function createCollectionCard(collection, size = 'default') {
         </button>
     `;
 
-   const buyNowButtonHtml = `
+ const buyNowButtonHtml = `
     <button 
         ${isButtonDisabled ? 'disabled' : ''} 
         onclick="simulateBuyNow({
             productId: '${collection._id}',
             name: '${collection.name.replace(/'/g, "\\'")}',
             
-            // ⭐ ADD THIS LINE ⭐
-            productType: '${collection.productType || collection.category}', // Adjust property name as needed (e.g., collection.type)
-            // ------------------
+            // ⭐ CHANGE THIS LINE ⭐
+            productType: '${collection.productType}', // <--- ASSUMING 'productType' IS THE CORRECT PROPERTY
+            // If the correct property is 'category', use: productType: '${collection.category}',
+            // If the correct property is 'type', use: productType: '${collection.type}',
             
             price: ${itemPrice},
             imageUrl: '${frontImageUrl}'
         })"
-        class="${buttonFlexClasses} ${controlTextSize} ${buyNowButtonClasses} ${controlHeight} rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center">
-        ${buyNowButtonText}
+        // ... rest of button HTML ...
     </button>
 `;
 

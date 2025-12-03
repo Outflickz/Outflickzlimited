@@ -405,16 +405,17 @@
         }
     }
 
-    // Global Constants (Reused from cart.html)
+    // Global Constants
     const CART_STORAGE_KEY = 'outflickzCartCount';
     const LOCAL_CART_KEY = 'outflickzLocalCart';
-    const API_BASE_URL = 'https://outflickz.netlify.app'; // Assuming this is your base path
-    // --- NEW CONSTANT FOR ADMIN EMAIL ---
+    const BUY_NOW_KEY = 'buyNowItem'; // <<< NEW CONSTANT for clarity
+    const API_BASE_URL = 'https://outflickz.netlify.app'; 
     const DEFAULT_ADMIN_EMAIL = "outflickzlimited@gmail.com"; 
 
     // --- PAYSTACK CONSTANTS ---
     const PAYSTACK_PUBLIC_KEY = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; // <<< REPLACE THIS WITH YOUR ACTUAL PUBLIC KEY!
-    const CURRENCY_CODE = 'NGN'; // Nigerian Naira
+    const CURRENCY_CODE = 'NGN'; 
+    const CURRENCY_SYMBOL = '₦'; // Used for displaying currency
 
     // --- MESSAGE & MODAL DISPLAY FUNCTION (Reused) ---
     function displayMessage(message) {
@@ -472,69 +473,59 @@
     }
 
     // --- NEW: FETCH USER DATA TO PRE-FILL FORM ---
-async function fetchUserData() {
-    if (!isUserLoggedIn()) {
-        // If not logged in, rely on user input
-        return;
-    }
-
-    try {
-        // Assuming your backend has an endpoint to get the logged-in user's profile/address
-        const response = await fetch('/api/users/account', {
-            method: 'GET',
-            // Include Authorization header if needed by your API
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to fetch user data. Please log in again.');
+    async function fetchUserData() {
+        if (!isUserLoggedIn()) {
+            return;
         }
 
-        const userData = await response.json();
-        /* Expected userData structure: 
-         * { email, profile: { firstName, lastName, phone, whatsapp }, address: { street, city, state, zipCode, country } } 
-         * NOTE: firstName and lastName are nested under 'profile' based on your backend logic.
-         */
+        try {
+            const response = await fetch('/api/users/account', {
+                method: 'GET',
+            });
 
-        const userProfile = userData.profile || {};
-        const userAddress = userData.address || {};
+            if (!response.ok) {
+                throw new Error('Failed to fetch user data. Please log in again.');
+            }
 
-        // Pre-fill Contact Info
-        document.getElementById('email').value = userData.email || '';
+            const userData = await response.json();
+            const userProfile = userData.profile || {};
+            const userAddress = userData.address || {};
 
-        // Pre-fill Shipping Info (if available)
-        // --- FIX APPLIED HERE: Use the nested profile object ---
-        const firstNameEl = document.getElementById('first-name');
-        const lastNameEl = document.getElementById('last-name');
+            // Pre-fill Contact Info
+            document.getElementById('email').value = userData.email || '';
 
-        if (userProfile.firstName) firstNameEl.value = userProfile.firstName;
-        if (userProfile.lastName) lastNameEl.value = userProfile.lastName;
+            // Pre-fill Shipping Info
+            const firstNameEl = document.getElementById('first-name');
+            const lastNameEl = document.getElementById('last-name');
 
-        if (userData.address) {
-            if (userAddress.street) document.getElementById('address-line-1').value = userAddress.street;
-            if (userAddress.city) document.getElementById('city').value = userAddress.city;
-            if (userAddress.state) document.getElementById('state').value = userAddress.state;
-            if (userAddress.zipCode) document.getElementById('zip-code').value = userAddress.zipCode;
-            if (userAddress.country) document.getElementById('country').value = userAddress.country;
+            if (userProfile.firstName) firstNameEl.value = userProfile.firstName;
+            if (userProfile.lastName) lastNameEl.value = userProfile.lastName;
+
+            if (userData.address) {
+                if (userAddress.street) document.getElementById('address-line-1').value = userAddress.street;
+                if (userAddress.city) document.getElementById('city').value = userAddress.city;
+                if (userAddress.state) document.getElementById('state').value = userAddress.state;
+                if (userAddress.zipCode) document.getElementById('zip-code').value = userAddress.zipCode;
+                if (userAddress.country) document.getElementById('country').value = userAddress.country;
+            }
+
+            // Save to local storage for use in the review step (Step 2)
+            localStorage.setItem('outflickzShippingData', JSON.stringify({
+                firstName: userProfile.firstName, 
+                lastName: userProfile.lastName, 
+                email: userData.email,
+                street: userAddress.street,
+                city: userAddress.city,
+                state: userAddress.state,
+                zipCode: userAddress.zipCode,
+                country: userAddress.country
+            }));
+
+        } catch (error) {
+            console.error('Error fetching user data:', error);
+            displayMessage('Could not load saved address. Please enter manually.');
         }
-
-        // Save to local storage for use in the review step (Step 2)
-        localStorage.setItem('outflickzShippingData', JSON.stringify({
-            // --- FIX APPLIED HERE: Use the nested profile object ---
-            firstName: userProfile.firstName, 
-            lastName: userProfile.lastName, 
-            email: userData.email,
-            street: userAddress.street,
-            city: userAddress.city,
-            state: userAddress.state,
-            zipCode: userAddress.zipCode,
-            country: userAddress.country
-        }));
-
-    } catch (error) {
-        console.error('Error fetching user data:', error);
-        displayMessage('Could not load saved address. Please enter manually.');
     }
-}
 
     // ---------------------------------------------------
     // --- CHECKOUT LOGIC ---
@@ -593,27 +584,19 @@ async function fetchUserData() {
     function validateAndProceedToReview() {
         const form = document.getElementById('shipping-form');
         
-        // --- MODIFICATION 3: Make ZIP Code optional by manually checking required fields ---
-        // Instead of using form.checkValidity(), which depends on 'required' attribute in HTML, 
-        // we'll rely on the browser's native checkValidity for all *other* fields.
-        // NOTE: You must also remove the 'required' attribute from the 'zip-code' HTML input.
-        
-        // Temporarily remove 'required' from 'zip-code' if it exists for this check
+        // --- Logic to handle optional ZIP code validation remains the same ---
         const zipCodeEl = document.getElementById('zip-code');
         const isZipRequired = zipCodeEl.hasAttribute('required');
         if (isZipRequired) zipCodeEl.removeAttribute('required');
 
         if (!form.checkValidity()) {
-            // Re-add 'required' if we removed it before showing the error
             if (isZipRequired) zipCodeEl.setAttribute('required', '');
-            
             form.reportValidity();
             displayMessage('Please fill out all required shipping fields.');
             return;
         }
-        
-        // Re-add 'required' if we removed it, now that validation has passed
         if (isZipRequired) zipCodeEl.setAttribute('required', '');
+        // --- End ZIP code logic ---
 
 
         // Capture the data
@@ -624,7 +607,7 @@ async function fetchUserData() {
             street: document.getElementById('address-line-1').value,
             city: document.getElementById('city').value,
             state: document.getElementById('state').value,
-            zipCode: document.getElementById('zip-code').value, // Optional data is still captured
+            zipCode: document.getElementById('zip-code').value, 
             country: document.getElementById('country').value,
         };
         localStorage.setItem('outflickzShippingData', JSON.stringify(shippingData));
@@ -633,7 +616,6 @@ async function fetchUserData() {
         document.getElementById('review-address-name').textContent = `${shippingData.firstName} ${shippingData.lastName}`;
         document.getElementById('review-address-line1').textContent = shippingData.street;
         
-        // Use optional chaining/nullish coalescing for zipCode in case it's empty
         const reviewZipCode = shippingData.zipCode ? `, ${shippingData.zipCode}` : '';
         document.getElementById('review-address-line2').textContent = `${shippingData.city}, ${shippingData.state}${reviewZipCode}, ${shippingData.country}`;
         
@@ -641,7 +623,7 @@ async function fetchUserData() {
 
         checkoutStep = 2;
         updateCheckoutView();
-        window.scrollTo(0, 0); // Scroll to top for new section
+        window.scrollTo(0, 0); 
     }
 
     /**
@@ -650,19 +632,67 @@ async function fetchUserData() {
     function proceedToPayment() {
         checkoutStep = 3;
         updateCheckoutView();
-        window.scrollTo(0, 0); // Scroll to top for new section
+        window.scrollTo(0, 0); 
     }
 
-    /**
-     * Fetches the initial cart data from the backend API.
-     */
-    async function fetchInitialCartData() {
-        const currencySymbol = '₦'; // Assuming '₦' is the correct currency symbol
+    // --- NEW HELPER FUNCTION TO RENDER CART DATA ---
+    function renderCartData(cartData, paymentBtn) {
         const subtotalEl = document.getElementById('summary-subtotal');
         const shippingCostEl = document.getElementById('summary-shipping-cost');
         const taxEstimateEl = document.getElementById('summary-tax-estimate');
         const estimatedTotalEl = document.getElementById('summary-estimated-total');
-        const finalTotalEl = document.getElementById('summary-estimated-total-final'); // Added for step 3
+        const finalTotalEl = document.getElementById('summary-estimated-total-final');
+        const itemsListEl = document.getElementById('review-items-list');
+
+        // Render Summary
+        const subtotal = cartData.subtotal || 0;
+        const shipping = cartData.shipping || 0;
+        const tax = cartData.tax || 0;
+        const total = cartData.estimatedTotal || (subtotal + shipping + tax);
+
+        const formatCurrency = (amount) => `${CURRENCY_SYMBOL}${amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+        
+        subtotalEl.textContent = formatCurrency(subtotal);
+        shippingCostEl.textContent = formatCurrency(shipping);
+        taxEstimateEl.textContent = formatCurrency(tax);
+        estimatedTotalEl.textContent = formatCurrency(total);
+        finalTotalEl.textContent = total.toLocaleString(undefined, { minimumFractionDigits: 2 }); // For Step 3
+
+        // Render Review Items List
+        itemsListEl.innerHTML = cartData.items.map(item => `
+            <div class="flex justify-between items-start py-2">
+                <div class="flex items-center">
+                    <img src="${item.imageUrl}" alt="${item.name}" class="w-10 h-10 rounded-md border mr-3">
+                    <div class="text-sm">
+                        <p class="font-medium text-gray-900">${item.name}</p>
+                        <p class="text-xs text-gray-500">${item.size} / ${item.color} (Qty: ${item.quantity})</p>
+                    </div>
+                </div>
+                <span class="text-sm font-semibold text-gray-900">${formatCurrency(item.price * item.quantity)}</span>
+            </div>
+        `).join('');
+        
+        // Store cart items and total for server-side processing later
+        localStorage.setItem('outflickzOrderItems', JSON.stringify(cartData.items));
+        localStorage.setItem('outflickzOrderTotal', total.toFixed(2));
+        localStorage.setItem('outflickzOrderSubtotal', subtotal.toFixed(2));
+        localStorage.setItem('outflickzOrderShipping', shipping.toFixed(2));
+        localStorage.setItem('outflickzOrderTax', tax.toFixed(2));
+
+        // Enable button
+        paymentBtn.disabled = false;
+    }
+
+
+    /**
+     * Fetches the initial cart data, CHECKING FOR A 'BUY NOW' ITEM FIRST.
+     */
+    async function fetchInitialCartData() {
+        const subtotalEl = document.getElementById('summary-subtotal');
+        const shippingCostEl = document.getElementById('summary-shipping-cost');
+        const taxEstimateEl = document.getElementById('summary-tax-estimate');
+        const estimatedTotalEl = document.getElementById('summary-estimated-total');
+        const finalTotalEl = document.getElementById('summary-estimated-total-final');
         const itemsListEl = document.getElementById('review-items-list');
         const paymentBtn = document.getElementById('checkout-next-btn');
         
@@ -671,11 +701,58 @@ async function fetchUserData() {
         shippingCostEl.textContent = '...';
         taxEstimateEl.textContent = '...';
         estimatedTotalEl.textContent = '...';
-        finalTotalEl.textContent = '...'; // Added for step 3
-        itemsListEl.innerHTML = '<div class="text-center py-6 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Loading cart data...</div>';
+        finalTotalEl.textContent = '...';
+        itemsListEl.innerHTML = '<div class="text-center py-6 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Loading order details...</div>';
         paymentBtn.disabled = true;
 
-        // Redirect unauthenticated user
+        let cartData;
+
+        // =========================================================================
+        // 🎯 BUY NOW / PRE-ORDER LOGIC START: CALLING NEW API
+        // =========================================================================
+        const buyNowItemJSON = sessionStorage.getItem(BUY_NOW_KEY);
+
+        if (buyNowItemJSON) {
+            console.log("Processing Buy Now flow...");
+            
+            const item = JSON.parse(buyNowItemJSON);
+            sessionStorage.removeItem(BUY_NOW_KEY); // Clear immediately after retrieval
+
+            try {
+                // Fetch the calculated totals from the new dedicated API endpoint
+                const response = await fetch(`${API_BASE_URL}/api/orders/calculate-buy-now`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        // Assuming verifyUserToken expects an Authorization header
+                        'Authorization': `Bearer ${localStorage.getItem('userToken')}` 
+                    },
+                    body: JSON.stringify(item) // Send the item object directly
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to calculate Buy Now totals from API.');
+                }
+
+                cartData = await response.json(); // cartData will contain { items: [...], subtotal, shipping, tax, estimatedTotal }
+
+                // Go straight to rendering the server-calculated data
+                renderCartData(cartData, paymentBtn);
+                return; // EXIT: Buy Now flow complete
+
+            } catch (error) {
+                console.error('Error fetching Buy Now totals:', error);
+                itemsListEl.innerHTML = '<div class="text-center py-6 text-red-500">Error calculating totals. Please try again.</div>';
+                displayMessage(error.message || 'A critical error occurred. Cannot proceed to checkout.');
+                return;
+            }
+        }
+        // =========================================================================
+
+        // --- STANDARD CART LOGIC START (Unmodified) ---
+        
+        // Check for empty local cart if user is NOT logged in (API is assumed to handle authenticated empty cart)
         if (!isUserLoggedIn()) {
             const localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
             if (localCart.length === 0) {
@@ -683,35 +760,20 @@ async function fetchUserData() {
                 setTimeout(() => window.location.href = 'homepage.html', 1500);
                 return;
             } 
-            // NOTE: We don't redirect here, we let the user fill in the details manually.
         }
 
-
         try {
-            // === REAL API CALL START ===
-            // This is a placeholder for your actual server-side cart calculation endpoint.
+            // === REAL API CALL FOR STANDARD CART ===
             const response = await fetch('/api/users/cart', {
                 method: 'GET',
-                // Add any necessary headers like Authorization/CORS if needed by your API
             });
 
             if (!response.ok) {
-                // If the response is not 2xx, throw an error
                 const errorData = await response.json();
                 throw new Error(errorData.message || 'Failed to fetch cart data from API.');
             }
 
-            const cartData = await response.json();
-            /* cartData structure is expected to be:
-             * { 
-             * items: [{name, size, color, quantity, price, imageUrl}], 
-             * subtotal: 32000.00, 
-             * shipping: 2500.00, 
-             * tax: 1725.00, 
-             * estimatedTotal: 36225.00 
-             * } */
-            // === REAL API CALL END ===
-
+            cartData = await response.json();
 
             if (cartData.items.length === 0) {
                 displayMessage('Your cart is empty. Redirecting to home.');
@@ -719,44 +781,8 @@ async function fetchUserData() {
                 return;
             }
             
-            // Render Summary
-            const subtotal = cartData.subtotal || 0;
-            const shipping = cartData.shipping || 0;
-            const tax = cartData.tax || 0;
-            const total = cartData.estimatedTotal || (subtotal + shipping + tax);
-
-            subtotalEl.textContent = `${currencySymbol}${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-            shippingCostEl.textContent = `${currencySymbol}${shipping.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-            taxEstimateEl.textContent = `${currencySymbol}${tax.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-            estimatedTotalEl.textContent = `${currencySymbol}${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-            finalTotalEl.textContent = total.toLocaleString(undefined, { minimumFractionDigits: 2 }); // For Step 3
-
-            // Render Review Items List
-            itemsListEl.innerHTML = cartData.items.map(item => `
-                <div class="flex justify-between items-start py-2">
-                    <div class="flex items-center">
-                        <img src="${item.imageUrl}" alt="${item.name}" class="w-10 h-10 rounded-md border mr-3">
-                        <div class="text-sm">
-                            <p class="font-medium text-gray-900">${item.name}</p>
-                            <p class="text-xs text-gray-500">${item.size} / ${item.color} (Qty: ${item.quantity})</p>
-                        </div>
-                    </div>
-                    <span class="text-sm font-semibold text-gray-900">${currencySymbol}${(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                </div>
-            `).join('');
-            
-            // Store cart items and total for server-side processing later
-            localStorage.setItem('outflickzOrderItems', JSON.stringify(cartData.items));
-            localStorage.setItem('outflickzOrderTotal', total.toFixed(2));
-
-            // <<< START: NEW LINES to store the components >>>
-            localStorage.setItem('outflickzOrderSubtotal', subtotal.toFixed(2));
-            localStorage.setItem('outflickzOrderShipping', shipping.toFixed(2));
-            localStorage.setItem('outflickzOrderTax', tax.toFixed(2));
-            // <<< END: NEW LINES >>>
-
-            // Enable button
-            paymentBtn.disabled = false;
+            // Render the data received from the API
+            renderCartData(cartData, paymentBtn);
             
         } catch (error) {
             console.error('Error fetching cart data for checkout:', error);
@@ -769,10 +795,10 @@ async function fetchUserData() {
 
     /**
      * Helper function to notify admin of a new order.
-     * @param {string} orderId - The unique ID of the order.
-     * @param {string} paymentMethod - The payment method used.
+     * NOTE: Signature does not match your usage (missing 3rd arg data.ReceiptUrl in Bank Transfer case)
+     * For Bank Transfer, you MUST update the call site in handleFinalOrderPlacement.
      */
-    async function sendAdminOrderNotification(orderId, paymentMethod) {
+    async function sendAdminOrderNotification(orderId, paymentMethod, receiptUrl = null) {
         const orderTotal = localStorage.getItem('outflickzOrderTotal');
         const shippingData = localStorage.getItem('outflickzShippingData');
         const orderItems = localStorage.getItem('outflickzOrderItems');
@@ -784,10 +810,10 @@ async function fetchUserData() {
         shippingDetails: JSON.parse(shippingData || '{}'),
         items: JSON.parse(orderItems || '[]'),
         adminEmail: DEFAULT_ADMIN_EMAIL,
+        paymentReceiptUrl: receiptUrl // Pass the receipt URL if available
     };
 
         try {
-            // Replace with your actual server endpoint for sending admin emails
             const response = await fetch('/api/notifications/admin-order-email', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -795,11 +821,8 @@ async function fetchUserData() {
             });
 
             if (!response.ok) {
-                // Log failure but don't stop the user redirection
                 console.error('Failed to send admin notification email:', response.status);
             }
-            // Do NOT wait for email response to redirect the user.
-
         } catch (error) {
             console.error('Network error while sending admin notification:', error);
         }
@@ -831,7 +854,7 @@ async function fetchUserData() {
         payBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Initializing Payment...';
 
         if (paymentMethod.value === 'Paystack/Card') {
-            // --- PAYSTACK INITIATION ---
+            // --- PAYSTACK INITIATION (Logic remains the same) ---
             
             const reference = `outflickz_${Date.now()}`;
             
@@ -849,15 +872,23 @@ async function fetchUserData() {
                 ref: reference,
                 currency: CURRENCY_CODE,
                 
-                // Callback runs when user completes the payment process in the modal
                 callback: function(response){
-                    // Payment is confirmed by Paystack modal. Assume successful order creation here
-                    // NOTE: In a real system, the webhook handles final order creation. We simulate success here.
-
                     // 🎯 STEP 1: Send Admin Notification (using the Paystack reference as the Order ID)
                     sendAdminOrderNotification(response.reference, paymentMethod.value);
 
+                    // STEP 2: Handle Redirection
                     displayMessage('Payment successful! Finalizing order on the server...');
+                    // Clear cart data (assuming successful payment means a successful order)
+                    localStorage.removeItem(LOCAL_CART_KEY);
+                    localStorage.setItem(CART_STORAGE_KEY, '0');
+                    // Clear total and components
+                    localStorage.removeItem('outflickzOrderTotal');
+                    localStorage.removeItem('outflickzOrderItems');
+                    localStorage.removeItem('outflickzOrderSubtotal');
+                    localStorage.removeItem('outflickzOrderShipping');
+                    localStorage.removeItem('outflickzOrderTax');
+
+                    updateCartBadge();
                     window.location.href = `orderconfirmation.html?ref=${response.reference}&method=paystack`;
                 },
                 
@@ -868,14 +899,13 @@ async function fetchUserData() {
                 }
             });
             
-            // Open the payment modal
             handler.openIframe();
             
             return; 
 
         } else if (paymentMethod.value === 'Bank Transfer') {
             
-            // --- VALIDATE RECEIPT UPLOAD ---
+            // --- VALIDATE RECEIPT UPLOAD (Logic remains the same) ---
             const receiptInput = document.getElementById('bank-receipt-upload');
             
             if (!receiptInput || !receiptInput.files || receiptInput.files.length === 0) {
@@ -888,72 +918,64 @@ async function fetchUserData() {
             
             payBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Placing Order...';
             
-            // --- BANK TRANSFER (PENDING ORDER) INITIATION ---
-            
+            // --- BANK TRANSFER (PENDING ORDER) INITIATION (Logic remains the same) ---
             const formData = new FormData();
             
-            // <<< START: Retrieve and append component values from localStorage >>>
             const subtotal = localStorage.getItem('outflickzOrderSubtotal');
             const shipping = localStorage.getItem('outflickzOrderShipping');
             const tax = localStorage.getItem('outflickzOrderTax');
 
-            // Append data required by the server (including the missing components)
             formData.append('shippingAddress', JSON.stringify(shippingAddress));
-            formData.append('orderItems', localStorage.getItem('outflickzOrderItems')); // Include items for server to process
+            formData.append('orderItems', localStorage.getItem('outflickzOrderItems')); 
             formData.append('paymentMethod', paymentMethod.value);
             
             if (subtotal) formData.append('subtotal', subtotal);
-            if (shipping) formData.append('shippingFee', shipping); // Use backend's expected field name
+            if (shipping) formData.append('shippingFee', shipping); 
             if (tax) formData.append('tax', tax);
             
             formData.append('totalAmount', totalAmount.toFixed(2)); 
             formData.append('receipt', receiptInput.files[0]); 
-            // <<< END: Append component values >>>
 
 
             try {
-                // REAL FETCH: Create a pending order on the server
                 const response = await fetch('/api/orders/place/pending', {
                     method: 'POST',
-                    body: formData // Pass the FormData object directly
+                    body: formData 
                 });
 
                 const data = await response.json();
                 const isSuccess = response.ok; 
 
-if (isSuccess && data.orderId) {
-    
-    // 🎯 STEP 1: Send Admin Notification
-    // **MODIFICATION:** Pass the paymentReceiptUrl (data.ReceiptUrl) 
-    // received from the server's response.
-    sendAdminOrderNotification(
-        data.orderId, 
-        paymentMethod.value, 
-        data.ReceiptUrl // <<< CORRECT: Pass the receipt URL here
-    );
-    
-    // STEP 2: Handle Redirection
-    displayMessage(`Pending Order #${data.orderId} created! Redirecting to confirmation page.`);
-    
-    // Clear local storage items only if the order was successfully created on the server
-    localStorage.removeItem(LOCAL_CART_KEY);
-    localStorage.setItem(CART_STORAGE_KEY, '0');
-    localStorage.removeItem('outflickzOrderTotal');
-    localStorage.removeItem('outflickzOrderItems'); // Clear items
-    // Clear the new component items
-    localStorage.removeItem('outflickzOrderSubtotal');
-    localStorage.removeItem('outflickzOrderShipping');
-    localStorage.removeItem('outflickzOrderTax');
-    
-    updateCartBadge();
+                if (isSuccess && data.orderId) {
+                    
+                    // 🎯 STEP 1: Send Admin Notification - CORRECTED CALL with receiptUrl
+                    sendAdminOrderNotification(
+                        data.orderId, 
+                        paymentMethod.value, 
+                        data.ReceiptUrl // <<< PASSING THE RECEIPT URL
+                    );
+                    
+                    // STEP 2: Handle Redirection
+                    displayMessage(`Pending Order #${data.orderId} created! Redirecting to confirmation page.`);
+                    
+                    // Clear local storage items only if the order was successfully created on the server
+                    localStorage.removeItem(LOCAL_CART_KEY);
+                    localStorage.setItem(CART_STORAGE_KEY, '0');
+                    localStorage.removeItem('outflickzOrderTotal');
+                    localStorage.removeItem('outflickzOrderItems'); 
+                    localStorage.removeItem('outflickzOrderSubtotal');
+                    localStorage.removeItem('outflickzOrderShipping');
+                    localStorage.removeItem('outflickzOrderTax');
+                    
+                    updateCartBadge();
 
-    setTimeout(() => {
-        window.location.href = `orderconfirmation.html?id=${data.orderId}&method=banktransfer`;
-    }, 3000);
+                    setTimeout(() => {
+                        window.location.href = `orderconfirmation.html?id=${data.orderId}&method=banktransfer`;
+                    }, 3000);
 
-} else {
-    throw new Error(data.message || 'Failed to create pending order. Please check server response.');
-}
+                } else {
+                    throw new Error(data.message || 'Failed to create pending order. Please check server response.');
+                }
 
             } catch (error) {
                 console.error('Pending order placement error:', error);
@@ -974,9 +996,9 @@ if (isSuccess && data.orderId) {
     document.addEventListener('DOMContentLoaded', () => {
         // Initial checks and data loading
         updateCartBadge();
-        fetchInitialCartData();
+        fetchInitialCartData(); // <<< This now handles the Buy Now check
         updateCheckoutView(); // Initialize step 1 view
-        fetchUserData(); // NEW: Pre-fill user data if logged in
+        fetchUserData(); 
 
         // Attach the hideMessageModal function to the close button
         const closeButton = document.getElementById('message-modal-close-btn');
@@ -988,16 +1010,13 @@ if (isSuccess && data.orderId) {
         const bankRadio = document.getElementById('payment-bank');
         const paystackRadio = document.getElementById('payment-paystack');
         const bankDetails = document.getElementById('bank-details-info');
-        // NEW: Get the receipt upload element
         const receiptUpload = document.getElementById('bank-receipt-upload');
 
         function toggleBankDetails() {
             if (bankDetails && receiptUpload) {
-                // Check if the bank radio button exists and is checked
                 const isBankChecked = bankRadio && bankRadio.checked;
                 bankDetails.style.display = isBankChecked ? 'block' : 'none';
 
-                // Set the required attribute dynamically
                 if (isBankChecked) {
                     receiptUpload.setAttribute('required', 'required');
                 } else {
@@ -1009,7 +1028,6 @@ if (isSuccess && data.orderId) {
         if (bankRadio) bankRadio.addEventListener('change', toggleBankDetails);
         if (paystackRadio) paystackRadio.addEventListener('change', toggleBankDetails);
 
-        // Initial check in case bank transfer is the default selected option
         toggleBankDetails(); 
     });
 </script>

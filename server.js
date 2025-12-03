@@ -4402,6 +4402,53 @@ app.get('/api/auth/status', verifyUserToken, (req, res) => {
 });
 
 // =========================================================
+// NEW: POST /api/orders/calculate-buy-now - Calculate Totals for Single Item (Buy Now/Pre-Order)
+// =========================================================
+app.post('/api/orders/calculate-buy-now', verifyUserToken, async (req, res) => {
+    // This endpoint calculates totals for a single item passed in the request body, 
+    // simulating a checkout from the product page (Buy Now).
+
+    // ⭐ CRITICAL FIX: Ensure productType is included as it is required by the OrderItemSchema
+    const { productId, name, productType, size, color, price, quantity, imageUrl, variationIndex, variation } = req.body;
+
+    // 1. Basic Input Validation
+    if (!productId || !name || !productType || !size || !price || !quantity || price <= 0 || quantity < 1 || variationIndex === undefined || variationIndex === null) {
+        return res.status(400).json({ message: 'Missing or invalid item details, including required productType or variation information, for calculation.' });
+    }
+
+    // 2. Construct the temporary cart item array, ensuring all necessary fields are present
+    const temporaryItem = {
+        productId,
+        name,
+        productType, // Required for order tracking
+        size,
+        color: color || 'N/A',
+        price, // This price acts as 'priceAtTimeOfPurchase' for the calculation
+        quantity,
+        imageUrl,
+        variationIndex,
+        // Use provided variation string, or construct one if only color/index is available
+        variation: variation || (color ? `Color: ${color}` : `Var Index: ${variationIndex}`),
+    };
+
+    try {
+        // 3. Calculate totals using the existing function (which handles shipping/tax rules)
+        // Since this is for Buy Now, we pass only the single item in an array.
+        const totals = calculateCartTotals([temporaryItem]); 
+
+        // 4. Respond with the single item (in an array) and the calculated totals
+        res.status(200).json({
+            items: [temporaryItem], // Return the item in an array structure consistent with the cart API
+            ...totals,
+        });
+
+    } catch (error) {
+        console.error('Error calculating Buy Now totals:', error);
+        res.status(500).json({ message: 'Failed to calculate order totals.' });
+    }
+});
+
+// =========================================================
 // 5. POST /api/users/cart - Add Item to Cart (Protected)
 // =========================================================
 app.post('/api/users/cart', verifyUserToken, async (req, res) => {
@@ -5022,70 +5069,65 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
 
 // =========================================================
 // 7. POST /api/orders/place/pending - Create a Pending Order (Protected)
-// This route is used for manual Bank Transfer payments.
+// NOW SUPPORTS: 1. Cart Checkout (Default) 2. Buy Now Checkout (Temporary Items in req.body)
 // =========================================================
 app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
     
     // 1. Run the Multer middleware to process the form data and file
     singleReceiptUpload(req, res, async (err) => {
-        
-        // Handle Multer errors (e.g., file size limit)
+        // ... (Multer Error Handling remains the same) ...
         if (err instanceof multer.MulterError) {
-            return res.status(400).json({ message: `File upload failed: ${err.message}` });
+             return res.status(400).json({ message: `File upload failed: ${err.message}` });
         } else if (err) {
-            console.error('Unknown Multer Error:', err);
-            return res.status(500).json({ message: 'Error processing file upload.' });
+             console.error('Unknown Multer Error:', err);
+             return res.status(500).json({ message: 'Error processing file upload.' });
         }
-        
+
         const userId = req.userId;
         
-        // Form fields are now in req.body. Note: all amounts will be strings.
+        // Extract Form fields (now including potential orderItems for Buy Now)
         const { 
             shippingAddress: shippingAddressString, 
             paymentMethod, 
             totalAmount: totalAmountString, 
-            // ⭐ ADDED: Subtotal, Shipping Fee, and Tax fields must be extracted
             subtotal: subtotalString,
             shippingFee: shippingFeeString,
-            tax: taxString 
+            tax: taxString,
+            // ⭐ NEW: Extract orderItemsString for the 'Buy Now' flow
+            orderItems: orderItemsString 
         } = req.body;
         
-        const receiptFile = req.file; // The uploaded file buffer is here
+        const receiptFile = req.file; 
         
-        // Convert string fields back to their proper type
+        // Convert string fields
         const totalAmount = parseFloat(totalAmountString);
-        // ⭐ UPDATED: Financial breakdown conversion
         const subtotal = parseFloat(subtotalString || '0');
         const shippingFee = parseFloat(shippingFeeString || '0');
         const tax = parseFloat(taxString || '0');
 
         let shippingAddress;
 
-        // --- START: UPDATED ROBUST PARSING LOGIC ---
+        // --- UPDATED ROBUST PARSING LOGIC ---
         try {
-            // Check if the string is empty or null BEFORE attempting JSON.parse.
-            if (!shippingAddressString || shippingAddressString.trim() === '') {
-                // Set to null so the subsequent validation block can catch it.
-                shippingAddress = null; 
-            } else {
-                shippingAddress = JSON.parse(shippingAddressString);
-            }
+             if (!shippingAddressString || shippingAddressString.trim() === '') {
+                 shippingAddress = null; 
+             } else {
+                 shippingAddress = JSON.parse(shippingAddressString);
+             }
         } catch (e) {
-            // This now strictly catches malformed JSON strings (e.g., missing double quotes on keys).
-            return res.status(400).json({ message: 'Invalid shipping address format. Ensure the address object is stringified correctly.' });
+             return res.status(400).json({ message: 'Invalid shipping address format. Ensure the address object is stringified correctly.' });
         }
         // --- END: UPDATED ROBUST PARSING LOGIC ---
         
         // 2. Critical Input Validation
         if (!shippingAddress || totalAmount <= 0 || isNaN(totalAmount)) {
-            // The `shippingAddress` will be null if the string was empty/missing, triggering this message.
-            return res.status(400).json({ message: 'Missing shipping address or invalid total amount.' });
+             return res.status(400).json({ message: 'Missing shipping address or invalid total amount.' });
         }
 
         let paymentReceiptUrl = null;
         
         try {
-            // NEW VALIDATION: Ensure the receipt file is provided for a Bank Transfer
+            // ... (Bank Transfer Receipt Upload Logic remains the same) ...
             if (paymentMethod === 'Bank Transfer') {
                 if (!receiptFile) {
                     return res.status(400).json({ message: 'Bank payment receipt image is required for a Bank Transfer order.' });
@@ -5098,59 +5140,80 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
                 }
             }
 
-            // 4. Retrieve the user's current cart items
-            const cart = await Cart.findOne({ userId }).lean();
+            // ⭐ 4. REFACORING: Retrieve Order Items (PRIORITIZE Buy Now Items)
+            let finalOrderItems = [];
+            let isBuyNowOrder = false;
 
-            if (!cart || cart.items.length === 0) {
-                return res.status(400).json({ message: 'Cannot place order: Shopping bag is empty.' });
+            if (orderItemsString && orderItemsString.trim() !== '') {
+                // Scenario 1: Buy Now Checkout (items passed directly in body)
+                finalOrderItems = JSON.parse(orderItemsString);
+                isBuyNowOrder = true;
+
+            } else {
+                // Scenario 2: Standard Cart Checkout (pull items from user's Cart document)
+                const cart = await Cart.findOne({ userId }).lean();
+
+                if (!cart || cart.items.length === 0) {
+                    return res.status(400).json({ message: 'Cannot place order: Shopping bag is empty.' });
+                }
+                // Map cart items to OrderItemSchema structure
+                finalOrderItems = cart.items.map(item => ({
+                    productId: item.productId,
+                    name: item.name, 
+                    imageUrl: item.imageUrl,
+                    productType: item.productType,
+                    quantity: item.quantity,
+                    priceAtTimeOfPurchase: item.price,
+                    variationIndex: item.variationIndex,
+                    size: item.size,
+                    variation: item.variation,
+                    color: item.color,
+                }));
             }
-
-            // 5. Create a new Order document with status 'Pending'
-          const orderItems = cart.items.map(item => ({
-            productId: item.productId,
-            name: item.name, 
-            imageUrl: item.imageUrl, // Mapped new field
-            productType: item.productType,
-            quantity: item.quantity,
-            priceAtTimeOfPurchase: item.price, // Store the price explicitly
-            variationIndex: item.variationIndex, // Mapped new field
-            size: item.size,
-            variation: item.variation,
-            color: item.color,
-          }));
             
-            // **CRITICAL: Generate a reference for bank transfer orders**
-            const orderRef = `-${Date.now()}-${userId.substring(0, 5)}`; 
+            if (finalOrderItems.length === 0) {
+                return res.status(400).json({ message: 'Order item list is empty.' });
+            }
+            
+            // ⭐ CRITICAL SECURITY STEP: Server-Side Price/Total Validation 🔒
+            // Re-calculate the totals on the server using the finalOrderItems and compare them
+            // to the totals sent by the client (totalAmount, subtotal, etc.).
+            // If the client's totals are off by more than a minimal floating-point error, 
+            // you must reject the order (e.g., return res.status(400) with a validation error). 
+            // This is vital to prevent users from manipulating the final price.
+            
+            // 5. Create a new Order document with status 'Pending'
+            const orderRef = `REF-${Date.now()}-${userId.substring(0, 5)}`; 
 
             const newOrder = await Order.create({
                 userId: userId,
-                items: orderItems,
+                // Use the items retrieved from either the cart or the request body
+                items: finalOrderItems, 
                 shippingAddress: shippingAddress,
                 totalAmount: totalAmount,
-                // ⭐ ADDED: Store the financial breakdown for record accuracy
                 subtotal: subtotal,
                 shippingFee: shippingFee,
                 tax: tax,
-                status: 'Pending', // Use capitalized status from schema enum
+                status: 'Pending', 
                 paymentMethod: paymentMethod,
                 orderReference: orderRef, 
                 amountPaidKobo: Math.round(totalAmount * 100),
-                paymentTxnId: orderRef, // Use the order reference as the txn ID for now
-                paymentReceiptUrl: paymentReceiptUrl, // Store the B2 permanent URL here
+                paymentTxnId: orderRef, 
+                paymentReceiptUrl: paymentReceiptUrl,
             });
 
-            // 6. Clear the user's cart after successful order creation
-            await Cart.findOneAndUpdate(
-                { userId },
-                { items: [], updatedAt: Date.now() }
-            );
+            // 6. Clear the user's permanent cart ONLY IF it was a standard cart checkout
+            if (!isBuyNowOrder) {
+                await Cart.findOneAndUpdate(
+                    { userId },
+                    { items: [], updatedAt: Date.now() }
+                );
+            }
             
-            console.log(`Pending Order created: ${newOrder._id}. Receipt URL: ${paymentReceiptUrl}`);
+            console.log(`Pending Order created: ${newOrder._id}. Source: ${isBuyNowOrder ? 'Buy Now' : 'Cart'}`);
             
-            // Extract first and last name from the parsed shipping address
+            // ... (Success Response remains the same) ...
             const { firstName, lastName } = shippingAddress;
-
-            // Success response for the client-side JavaScript
             res.status(201).json({
                 message: 'Pending order placed successfully. Awaiting payment verification.',
                 orderId: newOrder._id,
@@ -5165,7 +5228,7 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
             res.status(500).json({ message: 'Failed to create pending order due to a server error.' });
         }
     });
-}); 
+});
 
 // =========================================================
 // 2. GET /api/orders/history - Retrieve Order History (Protected)

@@ -350,18 +350,23 @@ function simulateBuyNow(itemDetails) {
         const colorMapContainer = card.querySelector(`#color-map-${itemDetails.productId}`);
         
         if (colorMapContainer) {
-            const colorMap = JSON.parse(colorMapContainer.getAttribute('data-color-map'));
-            const colorHex = selectedColor; 
-            
-            const colorMapKeys = Object.keys(colorMap);
-            const inferredIndex = colorMapKeys.indexOf(colorHex);
-            
-            if (inferredIndex !== -1) {
-                variationIndex = inferredIndex;
-                const newImageUrls = colorMap[colorHex];
-                if (newImageUrls && newImageUrls.frontImageUrl) {
-                    selectedImageUrl = newImageUrls.frontImageUrl;
+            try {
+                const colorMap = JSON.parse(colorMapContainer.getAttribute('data-color-map'));
+                const colorHex = selectedColor; 
+                
+                const colorMapKeys = Object.keys(colorMap);
+                const inferredIndex = colorMapKeys.indexOf(colorHex);
+                
+                if (inferredIndex !== -1) {
+                    variationIndex = inferredIndex;
+                    const newImageUrls = colorMap[colorHex];
+                    if (newImageUrls && newImageUrls.frontImageUrl) {
+                        selectedImageUrl = newImageUrls.frontImageUrl;
+                    }
                 }
+            } catch (e) {
+                console.error("Error parsing color map data:", e);
+                // variationIndex remains 0, which is handled below.
             }
         }
     }
@@ -393,7 +398,11 @@ function simulateBuyNow(itemDetails) {
         checkout: true 
     };
 
+    // 🌟 Console Log 1 (The original log)
     console.log("Preparing for Buy Now Checkout:", itemToCheckout);
+    
+    // 🌟 Console Log 2 (Detailed diagnostic log for the 400 error)
+    console.log(`[BUY NOW DIAGNOSTIC] Product: ${itemToCheckout.name} | Type: ${itemToCheckout.productType} | Variation Index: ${itemToCheckout.variationIndex} | Color: ${itemToCheckout.color}`);
     
     // 🎯 CRITICAL STEP: Store the single item in Session Storage for checkout.html to retrieve
     sessionStorage.setItem('buyNowItem', JSON.stringify(itemToCheckout));

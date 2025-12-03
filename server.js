@@ -974,6 +974,9 @@ const OrderSchema = new mongoose.Schema({
     paymentTxnId: { type: String, sparse: true },
     paidAt: { type: Date },
     paymentReceiptUrl: { type: String, sparse: true }, // Bank transfer receipt
+
+    shippedAt: { type: Date, sparse: true }, 
+    deliveredAt: { type: Date, sparse: true },
     
     // --- Admin Confirmation Details ---
     confirmedAt: { type: Date, sparse: true },
@@ -2178,17 +2181,14 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
 // =========================================================
 app.put('/api/admin/orders/:orderId/status', verifyToken, async (req, res) => {
     const { orderId } = req.params;
-    // Keep trackingNumber and shippingCompany available in case the admin enters them,
-    // but remove the requirement check.
-    const { newStatus, trackingNumber, shippingCompany } = req.body; 
+    // 🗑️ REMOVED trackingNumber and shippingCompany from destructuring
+    const { newStatus } = req.body; 
     
-    // Define valid transitions for the fulfillment workflow
     const validTransitions = {
         'Processing': 'Shipped',
         'Shipped': 'Delivered'
     };
     
-    // Status to update (Final update object)
     let updateFields = { status: newStatus };
     let finalOrder = null;
 
@@ -2213,19 +2213,11 @@ app.put('/api/admin/orders/:orderId/status', verifyToken, async (req, res) => {
             });
         }
 
-        // 2. Handle 'Shipped' transition (REMOVED TRACKING NUMBER REQUIREMENT)
+        // 2. Handle 'Shipped' transition (No tracking number/company)
         if (newStatus === 'Shipped') {
-            // ⭐ REMOVED THE FOLLOWING CHECK:
-            // if (!trackingNumber) {
-            //     return res.status(400).json({ message: 'Tracking number is required when changing status to Shipped.' });
-            // }
-            
-            // Add shipping details if provided (they are now optional)
             updateFields = { 
                 ...updateFields, 
-                // Only set if they exist in the request body
-                ...(trackingNumber && { trackingNumber }), 
-                ...(shippingCompany && { shippingCompany }),
+                // Only setting the timestamp
                 shippedAt: new Date()
             };
         }
@@ -2245,15 +2237,14 @@ app.put('/api/admin/orders/:orderId/status', verifyToken, async (req, res) => {
             { new: true }
         ).lean();
 
-        // 5. Send Email Notification
+        // 5. Send Email Notification (Logic remains, but emails should be simpler)
         const user = await User.findById(finalOrder.userId).select('email').lean();
         const customerEmail = user ? user.email : null;
 
         if (customerEmail) {
             try {
-                // Assume sendShippingUpdateEmail and sendDeliveredEmail are implemented
                 if (newStatus === 'Shipped') {
-                    // NOTE: sendShippingUpdateEmail should be updated to handle a missing tracking number
+                    // NOTE: sendShippingUpdateEmail should be updated to not include tracking info
                     await sendShippingUpdateEmail(customerEmail, finalOrder); 
                 } else if (newStatus === 'Delivered') {
                     await sendDeliveredEmail(customerEmail, finalOrder);

@@ -318,7 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function simulateBuyNow(itemDetails) {
     const selectedQuantity = parseInt(document.getElementById(`quantity-input-${itemDetails.productId}`).value);
     
-
+    // ... (logic to get selected size and selected color remains the same) ...
     let selectedSize = '';
     const sizeRadios = document.getElementsByName(`size-${itemDetails.productId}`);
     for (const radio of sizeRadios) {
@@ -340,16 +340,17 @@ function simulateBuyNow(itemDetails) {
     const itemToCheckout = {
         id: itemDetails.productId,
         name: itemDetails.name,
-        // ⭐ ADD productType HERE ⭐
-        productType: itemDetails.productType, // Assuming productType is passed in itemDetails
-        // -----------------------
+        
+        // ⭐ THE CRITICAL FIX: Add productType to the object
+        productType: itemDetails.productType, // Ensure itemDetails passed to this function has 'productType'
+        
         price: itemDetails.price,
         imageUrl: itemDetails.imageUrl,
         quantity: selectedQuantity,
         size: selectedSize,
         color: selectedColor,
         // The buy now flow generally takes the user directly to checkout
-        checkout: true
+        checkout: true 
     };
 
     console.log("Preparing for Buy Now Checkout:", itemToCheckout);
@@ -360,7 +361,6 @@ function simulateBuyNow(itemDetails) {
     // Redirect the user to the checkout page
     window.location.href = 'checkout.html';
 }
-
 /**
  * Reads the current cart item count from Local Storage. (Keep this one)
  * @returns {number} The total number of items in the cart.

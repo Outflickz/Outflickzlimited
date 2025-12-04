@@ -717,23 +717,31 @@
         // 🎯 BUY NOW / PRE-ORDER LOGIC START: CALLING NEW API
         // =========================================================================
         const buyNowItemJSON = sessionStorage.getItem(BUY_NOW_KEY);
+        
+if (buyNowItemJSON) {
+    console.log("Processing Buy Now flow...");
+    
+    let item = JSON.parse(buyNowItemJSON);
 
-        if (buyNowItemJSON) {
-            console.log("Processing Buy Now flow...");
-            
-            const item = JSON.parse(buyNowItemJSON);
+    // ⭐ CRITICAL FIX TO PREVENT VARIATIONINDEX: 0 VALIDATION ERROR ⭐
+    // If the index is 0 (which often represents the first item in a 0-based array)
+    // and the server schema expects >= 1, we must adjust it.
+    if (item.variationIndex === 0) {
+        item.variationIndex = 1; 
+        console.warn("Fixed 0-based variationIndex to 1 for Buy Now item.");
+    }
+    // End Fix
 
-            try {
-                // Fetch the calculated totals from the new dedicated API endpoint
-                const response = await fetch(`${API_BASE_URL}/api/orders/calculate-buy-now`, {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('userToken')}` 
-                    },
-                    body: JSON.stringify(item) // Send the item object directly
-                });
-
+    try {
+        // Fetch the calculated totals from the new dedicated API endpoint
+        const response = await fetch(`${API_BASE_URL}/api/orders/calculate-buy-now`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('userToken')}` 
+            },
+            body: JSON.stringify(item) // Send the corrected item object
+        });
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.message || 'Failed to calculate Buy Now totals from API.');

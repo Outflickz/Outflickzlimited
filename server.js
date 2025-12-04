@@ -5255,56 +5255,66 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
             }
 
             // ⭐ 4. REFACORING: Retrieve Order Items (PRIORITIZE Buy Now Items)
-           let finalOrderItems = [];
-            let isBuyNowOrder = false;
+           // ⭐ 4. REFACORING: Retrieve Order Items (PRIORITIZE Buy Now Items)
+            let finalOrderItems = [];
+            let isBuyNowOrder = false;
 
-            if (orderItemsString && orderItemsString.trim() !== '') {
-                // Scenario 1: Buy Now Checkout (items passed directly in body)
-                
-                const rawItems = JSON.parse(orderItemsString);
-                isBuyNowOrder = true;
-                
-                // ⭐ CRITICAL FIX: Map the client's 'price' field to the required 'priceAtTimeOfPurchase'
-                finalOrderItems = rawItems.map(item => ({
-                    ...item,
-                    // Ensure the Mongoose schema requirement is met
-                    priceAtTimeOfPurchase: item.price 
-                }));
+            if (orderItemsString && orderItemsString.trim() !== '') {
+                // Scenario 1: Buy Now Checkout (items passed directly in body)
+                
+                let rawItems;
+                try {
+                    rawItems = JSON.parse(orderItemsString);
+                } catch (e) {
+                    return res.status(400).json({ message: 'Invalid order item list format. Ensure orderItems is stringified correctly.' });
+                }
+                
+                isBuyNowOrder = true;
+                
+                finalOrderItems = rawItems.map(item => {
+                    // CRITICAL VALIDATION: Ensure required fields for inventory are present
+                    if (!item.productType || !item.variationIndex) {
+                        throw new Error(`Order item for product ${item.productId} is missing required field: productType or variationIndex.`); 
+                    }
 
-            } else {
-                // Scenario 2: Standard Cart Checkout (pull items from user's Cart document)
-                const cart = await Cart.findOne({ userId }).lean();
+                    return {
+                        // Spread existing fields (e.g., productId, name, imageUrl, size, quantity)
+                        ...item, 
+                        
+                        // Explicitly set the required fields to ensure no ambiguity
+                        priceAtTimeOfPurchase: item.price, 
+                        productType: item.productType, 
+                        variationIndex: item.variationIndex
+                    };
+                });
 
-                if (!cart || cart.items.length === 0) {
-                    return res.status(400).json({ message: 'Cannot place order: Shopping bag is empty.' });
-                }
-                // Map cart items to OrderItemSchema structure
-                finalOrderItems = cart.items.map(item => ({
-                    productId: item.productId,
-                    name: item.name, 
-                    imageUrl: item.imageUrl,
-                    productType: item.productType,
-                    quantity: item.quantity,
-                    priceAtTimeOfPurchase: item.price, // Already correct for Cart items
-                    variationIndex: item.variationIndex,
-                    size: item.size,
-                    variation: item.variation,
-                    color: item.color,
-                }));
-            }
+            } else {
+                // Scenario 2: Standard Cart Checkout (pull items from user's Cart document)
+                const cart = await Cart.findOne({ userId }).lean();
+
+                if (!cart || cart.items.length === 0) {
+                    return res.status(400).json({ message: 'Cannot place order: Shopping bag is empty.' });
+                }
+                
+                // Map cart items to OrderItemSchema structure
+                finalOrderItems = cart.items.map(item => ({
+                    productId: item.productId,
+                    name: item.name, 
+                    imageUrl: item.imageUrl,
+                    productType: item.productType,
+                    quantity: item.quantity,
+                    priceAtTimeOfPurchase: item.price, 
+                    variationIndex: item.variationIndex,
+                    size: item.size,
+                    variation: item.variation,
+                    color: item.color,
+                }));
+            }
             
             if (finalOrderItems.length === 0) {
                 return res.status(400).json({ message: 'Order item list is empty.' });
             }
             
-            // ⭐ CRITICAL SECURITY STEP: Server-Side Price/Total Validation 🔒
-            // Re-calculate the totals on the server using the finalOrderItems and compare them
-            // to the totals sent by the client (totalAmount, subtotal, etc.).
-            // If the client's totals are off by more than a minimal floating-point error, 
-            // you must reject the order (e.g., return res.status(400) with a validation error). 
-            // This is vital to prevent users from manipulating the final price.
-            
-            // 5. Create a new Order document with status 'Pending'
             const orderRef = `REF-${Date.now()}-${userId.substring(0, 5)}`; 
 
             const newOrder = await Order.create({

@@ -376,14 +376,9 @@ function simulateBuyNow(itemDetails) {
         }
     }
 
-   // 🌟 FIX FOR ReferenceError: variation is not defined (Line 539) 🌟
-    // Construct a descriptive variation name using the selected size and color.
-    const variation = (color !== 'N/A' && size !== 'N/A')
-        ? `${color} / ${size}`
-        : (color !== 'N/A' ? color : (size !== 'N/A' ? size : 'Default Variant'));
-    
-
-    // ----------------------------------------------------------------------
+ const variation = (selectedColor !== '' && selectedSize !== '')
+    ? `${selectedColor} / ${selectedSize}`
+    : (selectedColor !== '' ? selectedColor : (selectedSize !== '' ? selectedSize : 'Default Variant'));
 
     const itemToCheckout = {
         productId: itemDetails.productId, 

@@ -379,9 +379,8 @@ function simulateBuyNow(itemDetails) {
 
    
     // ⭐ CRITICAL FIX: Standardize fallback to 'Uncategorized' ⭐
-    const safeProductType = (itemDetails.productType && itemDetails.productType !== 'undefined')
-                            ? itemDetails.productType
-                            : 'Uncategorized'; // Standardized generic fallback
+      const safeProductType = itemDetails.productType; 
+
     // ----------------------------------------------------------------------
 
     const itemToCheckout = {

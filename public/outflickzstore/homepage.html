@@ -375,18 +375,20 @@ function simulateBuyNow(itemDetails) {
             }
         }
     }
-    // If no color is selected, variationIndex remains 1 (assuming the first variant is the default)
 
-   
-    // ⭐ CRITICAL FIX: Standardize fallback to 'Uncategorized' ⭐
-      const safeProductType = itemDetails.productType; 
+   // 🌟 FIX FOR ReferenceError: variation is not defined (Line 539) 🌟
+    // Construct a descriptive variation name using the selected size and color.
+    const variation = (color !== 'N/A' && size !== 'N/A')
+        ? `${color} / ${size}`
+        : (color !== 'N/A' ? color : (size !== 'N/A' ? size : 'Default Variant'));
+    
 
     // ----------------------------------------------------------------------
 
     const itemToCheckout = {
         productId: itemDetails.productId, 
         name: itemDetails.name,
-        productType: safeProductType, 
+        productType: productDetails.productType || productDetails.name,
         price: itemDetails.price,
         imageUrl: selectedImageUrl, 
         quantity: selectedQuantity,

@@ -4570,6 +4570,15 @@ app.post('/api/users/cart', verifyUserToken, async (req, res) => {
     const { productId, name, productType, size, color, price, quantity, imageUrl, variationIndex, variation } = req.body;
     const userId = req.userId;
 
+    // 🚩 TEMPORARY DEBUG LOGIC 🚩
+    if (!productId) console.log('Validation failed: Missing productId');
+    if (!name) console.log('Validation failed: Missing name');
+    if (!productType) console.log('Validation failed: Missing productType'); // LIKELY CULPRIT
+    if (!size) console.log('Validation failed: Missing size'); // LIKELY CULPRIT
+    if (!price || price <= 0) console.log('Validation failed: Invalid price');
+    if (!quantity || quantity < 1) console.log('Validation failed: Invalid quantity');
+    if (variationIndex === undefined || variationIndex === null) console.log('Validation failed: Missing variationIndex');
+
     // Basic Input Validation
     if (!productId || !name || !productType || !size || !price || !quantity || price <= 0 || quantity < 1 || variationIndex === undefined || variationIndex === null) {
         return res.status(400).json({ message: 'Missing or invalid item details, including variation information.' });
@@ -4580,7 +4589,7 @@ app.post('/api/users/cart', verifyUserToken, async (req, res) => {
         name,
         productType,
         size,
-        color: color || 'N/A',
+        color: color,
         price,
         quantity,
         imageUrl,

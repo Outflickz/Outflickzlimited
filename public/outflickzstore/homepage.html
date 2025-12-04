@@ -530,7 +530,7 @@ async function simulateAddToCart(productDetails) {
         productId: productDetails.productId,
         name: productDetails.name, 
         size: size,
-        color: color,
+        color: color || 'N/A',
         price: productDetails.price,
         productType: productDetails.productType,
         imageUrl: selectedImageUrl, 
@@ -552,6 +552,7 @@ async function simulateAddToCart(productDetails) {
         // 🚀 CRITICAL FIX 4: Add variationIndex to the API payload! (This solves the 400 error)
         variationIndex: requiredDetails.variationIndex
     };
+    
     
     // --- 2. Local Cart Fallback Helper Function (Updated for variationIndex) ---
     const handleLocalCartFallback = (details) => {
@@ -590,6 +591,8 @@ async function simulateAddToCart(productDetails) {
             }, 3000);
         }
     };
+    
+    console.log('Sending API Payload:', itemDataForAPI);
     
     // --- 3. Attempt Authenticated API Call ---
     try {

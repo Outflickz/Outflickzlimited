@@ -532,7 +532,7 @@ async function simulateAddToCart(productDetails) {
         size: size,
         color: color || 'N/A',
         price: productDetails.price,
-        productType: productDetails.productType,
+        productType: productDetails.productType || 'Uncategorized',     
         imageUrl: selectedImageUrl, 
         quantity: productDetails.quantity || 1,
         variationIndex: variationIndex 
@@ -591,7 +591,7 @@ async function simulateAddToCart(productDetails) {
             }, 3000);
         }
     };
-    
+
     console.log('Sending API Payload:', itemDataForAPI);
     
     // --- 3. Attempt Authenticated API Call ---

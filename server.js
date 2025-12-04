@@ -5216,7 +5216,6 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
             subtotal: subtotalString,
             shippingFee: shippingFeeString,
             tax: taxString,
-            // ⭐ NEW: Extract orderItemsString for the 'Buy Now' flow
             orderItems: orderItemsString 
         } = req.body;
         

@@ -387,21 +387,13 @@ function simulateBuyNow(itemDetails) {
     const itemToCheckout = {
         productId: itemDetails.productId, 
         name: itemDetails.name,
-        
-        // Use the validated product type
         productType: safeProductType, 
-        
         price: itemDetails.price,
-        // UPDATE: Use the dynamically selected image URL
         imageUrl: selectedImageUrl, 
         quantity: selectedQuantity,
-        
         size: selectedSize, 
         color: selectedColor,
-
-        // UPDATE: Use the 1-based index
         variationIndex: variationIndex, 
-        
         checkout: true 
     };
 
@@ -475,7 +467,6 @@ function addToCart(collectionId, quantity) {
 
     console.log(`Added ${quantity} of item ${collectionId}. New cart total: ${newCount}`);
 }
-
 /**
  * Handles adding an item to the cart. 
  * Tries API (permanent cart via secure cookie) first.
@@ -494,7 +485,7 @@ async function simulateAddToCart(productDetails) {
     const size = selectedSizeInput ? selectedSizeInput.value : 'N/A';
     const color = selectedColorInput ? selectedColorInput.value : 'N/A';
     
-    // 🚀 CRITICAL FIX 1: Initialize variationIndex. Default to 0 if no explicit selection logic is available.
+    // 🚀 CRITICAL FIX 1: Initialize variationIndex. Default to 1 (server compatibility).
     let variationIndex = 1; 
     
     // ⭐️ CRITICAL FIX: Determine the selected image URL based on the chosen color
@@ -513,30 +504,36 @@ async function simulateAddToCart(productDetails) {
                 selectedImageUrl = newImageUrls.frontImageUrl; 
                 
                 // 🚀 CRITICAL FIX 2: Attempt to determine the index based on color selection.
-                // Since the color map is an object, we must find the index of the key in the ordered list of keys.
                 const colorMapKeys = Object.keys(colorMap);
+                // Convert 0-based client index to 1-based server index
                 const inferredIndex = colorMapKeys.indexOf(colorHex);
                 
-                // If found, update the index. If not found, it remains 0 (default).
                 if (inferredIndex !== -1) {
-                    variationIndex = inferredIndex;
+                    variationIndex = inferredIndex + 1; // Use 1-based index for server
                 }
             }
         }
     }
 
+    // 🌟 FIX FOR ReferenceError: variation is not defined (Line 539) 🌟
+    // Construct a descriptive variation name using the selected size and color.
+    const variation = (color !== 'N/A' && size !== 'N/A')
+        ? `${color} / ${size}`
+        : (color !== 'N/A' ? color : (size !== 'N/A' ? size : 'Default Variant'));
+    
     // Unified item data structure for both API (minimal fields) and Local Cart (all fields)
     const requiredDetails = {
         productId: productDetails.productId,
         name: productDetails.name, 
         size: size,
-        color: color || 'N/A',
+        color: color, // The color can be 'N/A' but is defined
         price: productDetails.price,
-        productType: productDetails.productType || 'Uncategorized',     
+        // 🚀 CRITICAL FIX 6: Standardize fallback to 'Uncategorized' for consistency
+        productType: productDetails.productType || 'Uncategorized', 	
         imageUrl: selectedImageUrl, 
         quantity: productDetails.quantity || 1,
-        variationIndex: variationIndex,
-        variation: variation 
+        variationIndex: variationIndex, // Now 1-based
+        variation: variation // Now defined
     };
     
     // Construct minimal data for API call 
@@ -550,7 +547,7 @@ async function simulateAddToCart(productDetails) {
         color: requiredDetails.color,
         imageUrl: requiredDetails.imageUrl,
         variationIndex: requiredDetails.variationIndex,
-        variation: requiredDetails.variation
+        variation: requiredDetails.variation // Now defined
     };
     
     
@@ -616,7 +613,6 @@ async function simulateAddToCart(productDetails) {
             data = await response.json();
         } catch (e) {
             // This catch block handles the SyntaxError when the body is not JSON (e.g., 503 HTML)
-            // If response is not OK, this non-JSON parsing attempt is common.
             console.warn(`Could not parse JSON response for status ${response.status}. Assuming non-JSON body.`);
             data = { 
                 message: `Server Error (${response.status}) received. Item added to local cart.`,

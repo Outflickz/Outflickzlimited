@@ -967,6 +967,50 @@ PreOrderCollectionSchema.pre('save', function(next) {
 // --- Model Definition and Export ---
 const PreOrderCollection = mongoose.models.PreOrderCollection || mongoose.model('PreOrderCollection', PreOrderCollectionSchema);
 
+const cartItemSchema = new mongoose.Schema({
+    // Item ID / Product Ref
+    productId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    name: { type: String, required: true },
+    productType: { 
+        type: String, 
+        required: true, 
+        enum: ['WearsCollection', 'CapCollection', 'NewArrivals', 'PreOrderCollection'] 
+    },
+    
+    // Variant Details
+    size: { type: String, required: true },
+    color: { type: String }, 
+    variationIndex: { type: Number, required: true, min: 0 },
+    
+    // 🌟 FIX: Added 'variation' field to store user-friendly name for Order mapping 🌟
+    variation: { type: String },
+    
+    // Pricing & Quantity
+    price: { type: Number, required: true, min: 0.01 },
+    quantity: { type: Number, required: true, min: 1, default: 1 },
+    
+    // Media
+    imageUrl: { type: String } 
+}, { _id: true });
+
+const cartSchema = new mongoose.Schema({
+    userId: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'User', 
+        required: true, 
+        unique: true 
+    },
+    items: {
+        type: [cartItemSchema],
+        default: []
+    },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+
+const Cart = mongoose.models.Cart || mongoose.model('Cart', cartSchema);
+
+
 // We need a robust order model to track sales and manage inventory deduction.
 const OrderItemSchema = new mongoose.Schema({
     productId: { 
@@ -1042,50 +1086,6 @@ const OrderSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 const Order = mongoose.models.Order || mongoose.model('Order', OrderSchema);
-
-const cartItemSchema = new mongoose.Schema({
-    // Item ID / Product Ref
-    productId: { type: mongoose.Schema.Types.ObjectId, required: true },
-    name: { type: String, required: true },
-    productType: { 
-        type: String, 
-        required: true, 
-        enum: ['WearsCollection', 'CapCollection', 'NewArrivals', 'PreOrderCollection'] 
-    },
-    
-    // Variant Details
-    size: { type: String, required: true },
-    color: { type: String }, 
-    variationIndex: { type: Number, required: true, min: 0 },
-    
-    // 🌟 FIX: Added 'variation' field to store user-friendly name for Order mapping 🌟
-    variation: { type: String },
-    
-    // Pricing & Quantity
-    price: { type: Number, required: true, min: 0.01 },
-    quantity: { type: Number, required: true, min: 1, default: 1 },
-    
-    // Media
-    imageUrl: { type: String } 
-}, { _id: true });
-
-const cartSchema = new mongoose.Schema({
-    userId: { 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'User', 
-        required: true, 
-        unique: true 
-    },
-    items: {
-        type: [cartItemSchema],
-        default: []
-    },
-    createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now }
-});
-
-const Cart = mongoose.models.Cart || mongoose.model('Cart', cartSchema);
-module.exports = Cart;
 
 
 const ActivityLogSchema = new mongoose.Schema({

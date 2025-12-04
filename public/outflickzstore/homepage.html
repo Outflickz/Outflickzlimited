@@ -466,6 +466,7 @@ function addToCart(collectionId, quantity) {
 
     console.log(`Added ${quantity} of item ${collectionId}. New cart total: ${newCount}`);
 }
+
 /**
  * Handles adding an item to the cart. 
  * Tries API (permanent cart via secure cookie) first.
@@ -527,8 +528,7 @@ async function simulateAddToCart(productDetails) {
         size: size,
         color: color, // The color can be 'N/A' but is defined
         price: productDetails.price,
-        // 🚀 CRITICAL FIX 6: Standardize fallback to 'Uncategorized' for consistency
-        productType: productDetails.productType, 	
+        productType: productDetails.productType || productDetails.name,
         imageUrl: selectedImageUrl, 
         quantity: productDetails.quantity || 1,
         variationIndex: variationIndex, // Now 1-based

@@ -249,7 +249,7 @@ async function simulateAddToCart(productDetails) {
         size: size, // Now guaranteed to be the selected value
         color: color || 'N/A',
         price: productDetails.price,
-        productType: productDetails.productType,     
+        productType: productDetails.productType || productDetails.name,    
         imageUrl: productDetails.imageUrl,
         quantity: productDetails.quantity || 1,
         variationIndex: variationIndex,

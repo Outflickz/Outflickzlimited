@@ -2059,103 +2059,117 @@ app.get('/api/admin/orders/:orderId', verifyToken, async (req, res) => {
     }
 });
 
+// 9. PUT /api/admin/orders/:orderId/confirm - Confirm an Order (Admin Protected)
 // =========================================================
-// 10. PUT /api/admin/orders/:orderId/status - Update Fulfillment Status
-// =========================================================
-app.put('/api/admin/orders/:orderId/status', verifyToken, async (req, res) => {
-    const { orderId } = req.params;
-    const { newStatus } = req.body; 
-    
-    // 🎯 CRITICAL FIX: The next valid status MUST start from 'Confirmed'
-    // If the inventory deduction fails, the status is 'Inventory Failure (Manual Review)', 
-    // which is NOT in this list, thus preventing the admin from moving to 'Shipped'.
-    const validTransitions = {
-        'Confirmed': 'Shipped', 
-        'Shipped': 'Delivered'
-    };
-    
-    let updateFields = { status: newStatus };
-    let finalOrder = null;
+app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
+    const orderId = req.params.orderId;
+    const adminId = req.adminId;
 
-    if (!orderId || !newStatus) {
-        return res.status(400).json({ message: 'Order ID and a new status are required.' });
+    if (!orderId) {
+        return res.status(400).json({ message: 'Order ID is required for confirmation.' });
     }
 
     try {
-        // Fetch the order. We fetch the full order to pass to email helpers.
-        const order = await Order.findById(orderId).lean();
-
-        if (!order) {
-            return res.status(404).json({ message: 'Order not found.' });
-        }
-
-        const currentStatus = order.status;
-        const expectedNextStatus = validTransitions[currentStatus];
-
-        // 1. Validate Status Transition: This is the guardrail.
-        if (newStatus !== expectedNextStatus) {
-            // This is the CRITICAL CHECK that prevents non-Confirmed orders from being shipped.
-            // e.g., if status is 'Inventory Failure (Manual Review)', expectedNextStatus is undefined, 
-            // and the transition fails.
-            console.warn(`[Status Guardrail Fail] Admin attempted invalid transition for Order ${orderId} from ${currentStatus} to ${newStatus}.`);
-            return res.status(400).json({ 
-                message: `Invalid status transition from ${currentStatus} to ${newStatus}. Order must be in status '${expectedNextStatus}' or 'Confirmed' to proceed.` 
-            });
-        }
-
-        // 2. Handle 'Shipped' transition 
-        if (newStatus === 'Shipped') {
-            updateFields = { 
-                ...updateFields, 
-                shippedAt: new Date()
-            };
-        }
-        
-        // 3. Handle 'Delivered' transition
-        if (newStatus === 'Delivered') {
-             updateFields = { 
-                ...updateFields, 
-                deliveredAt: new Date()
-            };
-        }
-
-        // 4. Perform the atomic status update
-        finalOrder = await Order.findByIdAndUpdate(
-            orderId, 
-            { $set: updateFields },
-            { new: true }
+        // 1. Initial status change from 'Pending' to 'Processing' (The "CLAIM" step.)
+        const updatedOrder = await Order.findOneAndUpdate(
+            { _id: orderId, status: 'Pending' }, 
+            { 
+                $set: { 
+                    status: 'Processing', // Claim the order for this worker thread
+                    confirmedAt: new Date(), 
+                    confirmedBy: adminId 
+                } 
+            },
+            { new: true, select: 'userId status totalAmount items' } 
         ).lean();
 
-        // 5. Send Email Notification
-        const user = await User.findById(finalOrder.userId).select('email').lean();
+        // Check if the order was successfully found and updated.
+        if (!updatedOrder) {
+            console.warn(`Order ${orderId} skipped: not found or status is not pending.`);
+            const checkOrder = await Order.findById(orderId).select('status').lean();
+            if (checkOrder) {
+                console.warn(`[Inventory Skip Reason] Order ${orderId} is currently in status: ${checkOrder.status}.`);
+            } else {
+                console.warn(`[Inventory Skip Reason] Order ${orderId} does not exist.`);
+            }
+            
+            // Use 409 Conflict to indicate that the request could not be completed due to the resource's state.
+            return res.status(409).json({ message: 'Order not found or is already processed.' });
+        }
+        
+        // 2. CRITICAL STEP: Deduct Inventory and finalize status to 'Confirmed' atomically
+        let finalOrder;
+        try {
+            console.log(`[Inventory] Attempting atomic inventory deduction for Order ${orderId}.`);
+            // The helper now handles the final transition to 'Confirmed'
+            finalOrder = await processOrderCompletion(orderId, adminId); 
+            // 🎯 UPDATED LOG: Reflects the final 'Confirmed' status set by the helper
+            console.log(`[Inventory Success] Inventory deduction completed successfully for Order ${orderId}. Final status: ${finalOrder.status}.`);
+            
+        } catch (inventoryError) {
+            
+            // --- Handle Business Logic Conflict Separately (Race Condition) ---
+            if (inventoryError.isRaceCondition) {
+                console.warn(`Race condition detected: Order ${orderId} confirmed by concurrent request. Returning 200.`);
+                
+                // Fetch the now-confirmed order to return a successful response to the admin UI
+                const confirmedOrder = await Order.findById(orderId).lean();
+                
+                // Log and return 200 OK for concurrent confirmation
+                console.warn(`[Inventory Race Skip] Inventory deduction was skipped because the order was finalized by a concurrent process. Current status: ${confirmedOrder.status}.`);
+
+                return res.status(200).json({ 
+                    // 🎯 UPDATED MESSAGE: Use the confirmedOrder's current status (likely 'Confirmed')
+                    message: `Order ${orderId} was confirmed by a concurrent request. Status: ${confirmedOrder.status}.`,
+                    order: confirmedOrder 
+                });
+            }
+            
+            // Rollback status if inventory fails (Genuine stock insufficient errors)
+            console.error('Inventory deduction failed during Admin confirmation:', inventoryError.message);
+            
+            // The rollback function (called by processOrderCompletion's catch) has already set the status 
+            // to 'Inventory Failure (Manual Review)'. We only add an extra note here.
+            await Order.findByIdAndUpdate(orderId, { 
+                $push: { notes: `Inventory deduction failed on ${new Date().toISOString()}: ${inventoryError.message}` }
+            });
+            
+            // Return 409 Conflict for known business logic failure (Insufficient Stock).
+            return res.status(409).json({ 
+                message: 'Payment confirmed, but inventory deduction failed. Order status flagged for manual review.',
+                error: inventoryError.message
+            });
+        }
+        
+        // 3. GET CUSTOMER EMAIL & SEND NOTIFICATION 📧
+        const user = await User.findById(updatedOrder.userId).select('email').lean();
         const customerEmail = user ? user.email : null;
 
         if (customerEmail) {
             try {
-                if (newStatus === 'Shipped') {
-                    await sendShippingUpdateEmail(customerEmail, finalOrder); 
-                    console.log(`[Email Success] Shipping Update Email sent for order ${orderId}.`);
-                } else if (newStatus === 'Delivered') {
-                    await sendDeliveredEmail(customerEmail, finalOrder);
-                    console.log(`[Email Success] Delivered Email sent for order ${orderId}.`);
-                }
+                // Email is only sent if the inventory transaction (step 2) succeeded
+                console.log(`[Email] Sending confirmation email to: ${customerEmail} for order ${orderId}.`);
+                await sendOrderConfirmationEmailForAdmin(customerEmail, finalOrder);
+                console.log(`[Email Success] Confirmation email sent to ${customerEmail}.`);
             } catch (emailError) {
-                // Log but do not block the admin update, as the status change is more important.
-                console.error(`[Email Fail Reason] WARNING: Failed to send ${newStatus} email to ${customerEmail}:`, emailError.message);
+                console.error(`[Email Failure Reason] CRITICAL WARNING: Failed to send confirmation email to ${customerEmail} (Order ${orderId}):`, emailError.message);
+                // Continue execution to send the success response to the client
             }
         } else {
-             console.warn(`[Email Skip Reason] Could not find email for user ID: ${finalOrder.userId} on status update. Skipping email notification.`);
+            console.warn(`[Email Skip Reason] Could not find email for user ID: ${updatedOrder.userId}. Skipping email notification.`);
         }
         
-        // 6. Success Response
+        // 4. Success Response
         res.status(200).json({ 
-            message: `Order ${orderId} status successfully updated to ${newStatus}.`,
+            // 🎯 UPDATED MESSAGE: The final status will now be 'Confirmed'
+            message: `Order ${orderId} confirmed, inventory deducted, and customer notified. Status: ${finalOrder.status}.`,
             order: finalOrder 
         });
 
     } catch (error) {
-        console.error(`Error updating order status ${orderId}:`, error);
-        res.status(500).json({ message: 'Failed to update order status due to a server error.' });
+        // This catch block handles the final crash and returns the 500 error
+        console.error(`Error confirming order ${orderId}:`, error);
+        res.status(500).json({ message: 'Failed to confirm order due to a server error.' });
     }
 });
 

@@ -459,7 +459,7 @@ async function sendShippingUpdateEmail(customerEmail, orderDetails) {
         <div style="background-color: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 5px solid #2196f3;">
             <h3 style="color: #1976d2; margin-top: 0;">📦 Shipment Update!</h3>
             <p>Your order has officially been **shipped** and is on its way to your delivery address.</p>
-            <p>We'll notify you again when your order is out for final delivery.</p>
+            <p>We'll notify you again when your order is delivered to your address.</p>
         </div>
     `;
 
@@ -487,6 +487,59 @@ async function sendShippingUpdateEmail(customerEmail, orderDetails) {
     } catch (error) {
         // Log the email failure
         console.error(`ERROR sending shipping update email for order ${orderDetails._id}:`, error);
+    }
+}
+
+/**
+ * Sends an email notification to the customer when their order status is updated to 'Delivered'.
+ * This notifies the customer that the fulfillment process is complete.
+ * @param {string} customerEmail - The verified email of the customer.
+ * @param {Object} orderDetails - The updated Mongoose order document (status: 'Delivered').
+ */
+async function sendDeliveredEmail(customerEmail, orderDetails) {
+    
+    // Use a short version of the Order ID for the subject line
+    const orderIdShort = orderDetails._id.toString().substring(0, 8);
+    
+    // Subject line reflects the final status
+    const subject = `✅ Your Order #${orderIdShort} Has Been Delivered!`;
+
+    // 1. Determine Notification Content
+    const notificationHtml = `
+        <div style="background-color: #e8f5e9; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 5px solid #4caf50;">
+            <h3 style="color: #2e7d32; margin-top: 0;">🎉 Delivery Confirmation!</h3>
+            <p>Your order has been successfully **delivered** to your specified address.</p>
+            <p>Please check your package and enjoy your items!</p>
+        </div>
+    `;
+
+    // 2. Generate the full HTML content
+    const htmlContent = `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <h2 style="color: #4caf50;">Hello Customer,</h2>
+            <p>Great news! The shipping journey for your order is complete.</p>
+            <p><strong>Order ID:</strong> #${orderIdShort}</p>
+            <p><strong>Date Delivered:</strong> ${new Date().toLocaleDateString('en-US')}</p>
+            
+            ${notificationHtml}
+            
+            <p>We hope you love your new products! If you need any assistance, please don't hesitate to reach out.</p>
+            
+            <p style="font-weight: bold; color: #2e7d32;">Thank you for your continued patronage!</p>
+            
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+            <p style="font-size: 0.9em; color: #777;">If you have any questions or did not receive your order, please contact our support team immediately.</p>
+        </div>
+    `;
+
+    // 3. Send the Email
+    try {
+        // Assume sendMail is a pre-defined utility function (like from Nodemailer)
+        const info = await sendMail(customerEmail, subject, htmlContent);
+        console.log(`Delivered Email sent: ${info.messageId} to ${customerEmail}`);
+    } catch (error) {
+        // Log the email failure
+        console.error(`ERROR sending delivered email for order ${orderDetails._id}:`, error);
     }
 }
 
@@ -1145,9 +1198,10 @@ async function getRealTimeDashboardStats() {
 }
 
 const PRODUCT_MODEL_MAP = {
-    'WearsCollection': 'WearsCollection', 
-    'CapCollection': 'CapCollection',     
-    // Add other product types (e.g., 'ShoeCollection', 'AccessoryCollection') here as you create them
+    'WearsCollection': WearsCollectionModel, 
+    'CapCollection': CapCollectionModel,    
+    'NewArrivals': NewArrivalsModel,         
+    'PreOrderCollection': PreOrderCollectionModel
 };
 
 /**
@@ -2266,6 +2320,7 @@ app.put('/api/admin/orders/:orderId/status', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Failed to update order status due to a server error.' });
     }
 });
+
 // GET /api/admin/capscollections - Fetch All Cap Collections (List View)
 app.get('/api/admin/capscollections', verifyToken, async (req, res) => {
     try {

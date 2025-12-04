@@ -377,14 +377,14 @@ function simulateBuyNow(itemDetails) {
     }
 
    
-      const ProductType = productDetails.productType; 
+    // ⭐ CRITICAL FIX: Standardize fallback to 'Uncategorized' ⭐
+      const safeProductType = itemDetails.productType; 
 
-    // ----------------------------------------------------------------------
 
     const itemToCheckout = {
         productId: itemDetails.productId, 
         name: itemDetails.name,
-        productType: productDetails.productType || productDetails.name,
+        productType: safeProductType, 
         price: itemDetails.price,
         imageUrl: selectedImageUrl, 
         quantity: selectedQuantity,

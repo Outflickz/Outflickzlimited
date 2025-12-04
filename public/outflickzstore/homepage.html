@@ -529,7 +529,7 @@ async function simulateAddToCart(productDetails) {
         color: color, // The color can be 'N/A' but is defined
         price: productDetails.price,
         // 🚀 CRITICAL FIX 6: Standardize fallback to 'Uncategorized' for consistency
-        productType: productDetails.productType || 'Uncategorized', 	
+        productType: productDetails.productType, 	
         imageUrl: selectedImageUrl, 
         quantity: productDetails.quantity || 1,
         variationIndex: variationIndex, // Now 1-based

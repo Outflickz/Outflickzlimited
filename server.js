@@ -1518,86 +1518,97 @@ function calculateLocalTotals(items) {
         estimatedTotal: estimatedTotal
     };
 }
+
 /**
- * Merges unauthenticated local cart items into the user's permanent database cart.
- * The product details are verified against the Mongoose schema before saving.
+ * Merges unauthenticated local cart items into the user's permanent database cart,
+ * automatically correcting missing/invalid 'productType' fields via database lookup.
  * @param {ObjectId} userId - The authenticated user's ID.
  * @param {Array<Object>} localItems - Items from the client's local storage.
  */
 async function mergeLocalCart(userId, localItems) {
-    // Import Cart model and Mongoose at the top of your file
-    // const Cart = require('./path/to/CartModel'); 
-
+    // We assume productCollectionMap is defined globally or available here
+    
     try {
         let cart = await Cart.findOne({ userId });
+        const mergedItems = [];
 
-        // Iterate through each item from the frontend's local storage
-        localItems.forEach(localItem => {
-            // A. Define the unique identifier for the item variant: productId, size, and color
-            const matchKey = {
-                productId: localItem.productId,
-                size: localItem.size,
-                color: localItem.color || 'N/A'
-            };
+        // Helper function to find the actual product type
+        const findProductType = async (productId) => {
+            for (const type of Object.keys(productCollectionMap)) {
+                const CollectionModel = productCollectionMap[type];
+                const productExists = await CollectionModel.exists({ _id: productId });
+                if (productExists) {
+                    return type; // Return the correct, validated productType
+                }
+            }
+            // If the product ID is completely invalid, log an error and return null
+            console.error(`Product ID ${productId} not found in any collection.`);
+            return null; 
+        };
 
-            // B. Prepare the item structure to ensure it matches the Mongoose schema
+        // --- Step A: Process and Validate each local item ---
+        for (const localItem of localItems) {
+            let actualProductType = localItem.productType;
+
+            // Check if productType is missing or invalid (if validation is needed here)
+            if (!actualProductType || !productCollectionMap[actualProductType]) {
+                // If missing/invalid, perform a database lookup
+                actualProductType = await findProductType(localItem.productId);
+            }
+
+            // CRITICAL: If type is still null, skip the item or throw an error
+            if (!actualProductType) {
+                // Skip the corrupted item instead of causing a downstream validation error
+                continue; 
+            }
+
+            // B. Prepare the item structure with the CORRECTED type
             const itemData = {
-                ...matchKey,
-                name: localItem.name,
-                productType: localItem.productType || 'Uncategorized', // Ensure a valid enum value
-                price: localItem.price,
-                quantity: localItem.quantity || 1,
-                imageUrl: localItem.imageUrl,
-            };
-
-            if (!cart) {
-                // If cart doesn't exist, we'll create it with all local items later
-                return;
-            }
-
-            // C. Check if the item variant already exists in the permanent cart
-            const existingItemIndex = cart.items.findIndex(dbItem =>
-                dbItem.productId.equals(itemData.productId) && // Use .equals for ObjectIds
-                dbItem.size === itemData.size &&
-                dbItem.color === itemData.color
-            );
-
-            if (existingItemIndex > -1) {
-                // Item exists: Add the local quantity to the database quantity
-                cart.items[existingItemIndex].quantity += itemData.quantity;
-            } else {
-                // Item does not exist: Push the new item data
-                cart.items.push(itemData);
-            }
-        });
-
-        if (!cart) {
-            // Case 1: No cart existed, and we have items to add.
-            // Create the new cart with the processed items.
-            const initialItems = localItems.map(localItem => ({
                 productId: localItem.productId,
                 name: localItem.name,
-                productType: localItem.productType || 'Uncategorized',
+                // ⭐ NOW USES THE CORRECTED TYPE 
+                productType: actualProductType, 
                 size: localItem.size,
                 color: localItem.color || 'N/A',
                 price: localItem.price,
                 quantity: localItem.quantity || 1,
                 imageUrl: localItem.imageUrl,
-            }));
-            await Cart.create({ userId, items: initialItems });
-        } else {
+                variationIndex: localItem.variationIndex, // Ensure this field is present!
+                variation: localItem.variation,
+            };
+
+            // C. Merge item into existing cart or prepare for new cart creation
+            if (cart) {
+                const existingItemIndex = cart.items.findIndex(dbItem =>
+                    dbItem.productId.equals(itemData.productId) &&
+                    dbItem.size === itemData.size &&
+                    dbItem.color === itemData.color
+                );
+                
+                if (existingItemIndex > -1) {
+                    cart.items[existingItemIndex].quantity += itemData.quantity;
+                } else {
+                    cart.items.push(itemData);
+                }
+            } else {
+                mergedItems.push(itemData); // Add to a temporary array for new cart creation
+            }
+        }
+        
+        // --- Step B: Final Save/Create ---
+        if (!cart && mergedItems.length > 0) {
+            // Case 1: No cart existed, create a new one with the now-validated items
+            await Cart.create({ userId, items: mergedItems });
+        } else if (cart) {
             // Case 2: Cart existed. Save the merged/updated cart.
             cart.updatedAt = Date.now();
             await cart.save();
         }
         
     } catch (error) {
-        console.error('CRITICAL: Error during cart merge process:', error);
-        // The login succeeded, so we log the error but allow the login response to proceed.
+        console.error('CRITICAL: Error during robust cart merge process:', error);
     }
-}
-
-
+}  
 
 
 /**
@@ -5192,7 +5203,6 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
 
 // =========================================================
 // 7. POST /api/orders/place/pending - Create a Pending Order (Protected)
-// NOW SUPPORTS: 1. Cart Checkout (Default) 2. Buy Now Checkout (Temporary Items in req.body)
 // =========================================================
 app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
     
@@ -5208,7 +5218,7 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
 
         const userId = req.userId;
         
-        // Extract Form fields (now including potential orderItems for Buy Now)
+        // Extract Form fields 
         const { 
             shippingAddress: shippingAddressString, 
             paymentMethod, 
@@ -5262,14 +5272,12 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
                 }
             }
 
-            // ⭐ 4. REFACORING: Retrieve Order Items (PRIORITIZE Buy Now Items)
-           // ⭐ 4. REFACORING: Retrieve Order Items (PRIORITIZE Buy Now Items)
+            // ⭐ 4. RETRIEVE ORDER ITEMS (PRIORITIZE Buy Now Items)
             let finalOrderItems = [];
             let isBuyNowOrder = false;
-
+            
             if (orderItemsString && orderItemsString.trim() !== '') {
-                // Scenario 1: Buy Now Checkout (items passed directly in body)
-                
+                // Scenario 1: Buy Now Checkout
                 let rawItems;
                 try {
                     rawItems = JSON.parse(orderItemsString);
@@ -5280,16 +5288,12 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
                 isBuyNowOrder = true;
                 
                 finalOrderItems = rawItems.map(item => {
-                    // CRITICAL VALIDATION: Ensure required fields for inventory are present
                     if (!item.productType || !item.variationIndex) {
                         throw new Error(`Order item for product ${item.productId} is missing required field: productType or variationIndex.`); 
                     }
 
                     return {
-                        // Spread existing fields (e.g., productId, name, imageUrl, size, quantity)
                         ...item, 
-                        
-                        // Explicitly set the required fields to ensure no ambiguity
                         priceAtTimeOfPurchase: item.price, 
                         productType: item.productType, 
                         variationIndex: item.variationIndex
@@ -5297,7 +5301,7 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
                 });
 
             } else {
-                // Scenario 2: Standard Cart Checkout (pull items from user's Cart document)
+                // Scenario 2: Standard Cart Checkout
                 const cart = await Cart.findOne({ userId }).lean();
 
                 if (!cart || cart.items.length === 0) {
@@ -5309,7 +5313,7 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
                     productId: item.productId,
                     name: item.name, 
                     imageUrl: item.imageUrl,
-                    productType: item.productType,
+                    productType: item.productType, // Contains the bad data (e.g., 'Uncategorized')
                     quantity: item.quantity,
                     priceAtTimeOfPurchase: item.price, 
                     variationIndex: item.variationIndex,
@@ -5323,11 +5327,60 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
                 return res.status(400).json({ message: 'Order item list is empty.' });
             }
             
+            // -------------------------------------------------------------
+            // ⭐ CRITICAL FIX: VALIDATE AND CORRECT productType (Using getProductModel)
+            // This logic is ONLY executed for items from the permanent Cart (Scenario 2).
+            // -------------------------------------------------------------
+            if (!isBuyNowOrder) {
+                for (let item of finalOrderItems) {
+                    let isTypeValid = !!PRODUCT_MODEL_MAP[item.productType];
+
+                    if (!isTypeValid) { 
+                        console.log(`Attempting to correct invalid productType: ${item.productType} for ${item.productId}`);
+                        
+                        let correctedType = null;
+                        
+                        // Iterate through all valid product types from the map
+                        for (const type of Object.keys(PRODUCT_MODEL_MAP)) {
+                            try {
+                                const CollectionModel = getProductModel(type); // Safely get the model
+                                
+                                // Check if the product ID exists in this collection
+                                const productExists = await CollectionModel.exists({ _id: item.productId });
+                                
+                                if (productExists) {
+                                    correctedType = type;
+                                    break;
+                                }
+                            } catch (error) {
+                                // If getProductModel throws (e.g., Model not defined), log but continue to next type
+                                console.warn(`Model check failed for type ${type}: ${error.message}`);
+                            }
+                        }
+
+                        if (!correctedType) {
+                             // CRITICAL: Product ID not found in any valid collection
+                             throw new Error(`Product ID ${item.productId} (Type: ${item.productType}) not found in any collection. Cannot place order.`);
+                        }
+                        
+                        // 1. Update the final order item with the correct type
+                        item.productType = correctedType;
+                        
+                        // 2. Fix the permanent cart data for future checkouts (Optional but recommended)
+                        await Cart.findOneAndUpdate(
+                            { userId, 'items.productId': item.productId },
+                            { '$set': { 'items.$.productType': correctedType } }
+                        );
+                    }
+                }
+            }
+            // -------------------------------------------------------------
+
             const orderRef = `REF-${Date.now()}-${userId.substring(0, 5)}`; 
 
             const newOrder = await Order.create({
                 userId: userId,
-                // Use the items retrieved from either the cart or the request body
+                // Use the items with the now-corrected productType
                 items: finalOrderItems, 
                 shippingAddress: shippingAddress,
                 totalAmount: totalAmount,
@@ -5365,7 +5418,12 @@ app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
 
         } catch (error) {
             console.error('Error placing pending order:', error);
-            res.status(500).json({ message: 'Failed to create pending order due to a server error.' });
+            // Send the specific validation message back to the client if possible
+            const userMessage = error.message.includes('validation failed') 
+                                ? error.message.split(':').slice(-1)[0].trim() 
+                                : 'Failed to create pending order due to a server error.';
+
+            res.status(500).json({ message: userMessage });
         }
     });
 });

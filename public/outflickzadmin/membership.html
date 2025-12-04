@@ -271,10 +271,6 @@
                         </div>
                        <div class="space-y-2">
     <select id="new-order-status" name="new-order-status" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm rounded-md">
-        <option value="Processing">Processing</option>
-        <option value="Shipped">Shipped</option>
-        <option value="Delivered">Delivered</option>
-        <option value="Cancelled">Cancelled</option>
     </select>
 </div>
 
@@ -313,7 +309,7 @@
             </div>
         </div>
     </div>
-    <script>
+   <script>
     // --- JAVASCRIPT LOGIC ---
     
     const sidebar = document.getElementById('sidebar');
@@ -362,6 +358,7 @@
     const newOrderStatusSelect = document.getElementById('new-order-status');
     const orderItemsList = document.getElementById('order-items-list');
     const orderUpdateMessage = document.getElementById('order-update-message');
+    const updateStatusButton = document.getElementById('updateStatusButton'); // ⭐ FIX: Get button reference here
 
     let currentViewingUserId = null; // To store the User ID when viewing details
     let currentViewingOrderId = null; // To store the Order ID when viewing order details
@@ -415,9 +412,11 @@
                 className = 'bg-blue-100 text-blue-800';
                 break;
             case 'Processing':
+            case 'Confirmed': // Added Confirmed for UI consistency
                 className = 'bg-yellow-100 text-yellow-800';
                 break;
             case 'Cancelled':
+            case 'Inventory Failure (Manual Review)':
                 className = 'bg-red-100 text-red-800';
                 break;
             default:
@@ -830,14 +829,15 @@
             orderDetailCustomerName.textContent = order.customerName || 'N/A';
             orderDetailDate.textContent = formatDate(order.createdAt);
             
-            const currentStatus = order.status || 'Processing';
+            const currentStatus = order.status || 'Pending'; // Default to Pending if status is missing
             orderDetailCurrentStatus.textContent = currentStatus;
             
-            // ⭐ LOGIC FIX: Populate the dropdown with the current status and the NEXT valid status
+            // ⭐ CRITICAL FIX: The next status transition must follow the server's logic:
+            // Confirmed -> Shipped -> Delivered
             newOrderStatusSelect.innerHTML = ''; // Clear existing options
             
             let nextStatus = null;
-            if (currentStatus === 'Processing') {
+            if (currentStatus === 'Confirmed') { // Check for 'Confirmed' status
                 nextStatus = 'Shipped';
             } else if (currentStatus === 'Shipped') {
                 nextStatus = 'Delivered';
@@ -853,11 +853,11 @@
                 const nextOption = new Option(`Change to: ${nextStatus}`, nextStatus);
                 newOrderStatusSelect.add(nextOption);
                 newOrderStatusSelect.disabled = false;
-                document.getElementById('updateStatusButton').disabled = false;
+                updateStatusButton.disabled = false; // Use the globally defined button variable
             } else {
-                // Order is Delivered or Cancelled - no further status updates
+                // Order is Delivered, Cancelled, Pending, Processing, or Manual Review - no update possible via this form
                 newOrderStatusSelect.disabled = true;
-                document.getElementById('updateStatusButton').disabled = true;
+                updateStatusButton.disabled = true;
             }
             // End LOGIC FIX
             
@@ -890,15 +890,15 @@
      */
     async function handleStatusUpdate() {
         const newStatus = newOrderStatusSelect.value;
-        const updateButton = document.getElementById('updateStatusButton'); // Assume you have a button with this ID
         
         if (!currentViewingOrderId) {
             alert("Error: No order selected for update.");
             return;
         }
         
-        // Prevent submission if the user hasn't selected a valid transition (i.e., only current status is selected)
-        if (newStatus === orderDetailCurrentStatus.textContent || updateButton.disabled) {
+        // Prevent submission if the user hasn't selected a valid transition 
+        // (i.e., only current status is selected, which is disabled/defaulted)
+        if (newStatus === orderDetailCurrentStatus.textContent || updateStatusButton.disabled) {
              orderUpdateMessage.classList.remove('hidden');
              orderUpdateMessage.className = 'p-3 rounded-lg text-white bg-yellow-500 font-medium';
              orderUpdateMessage.textContent = 'Status is already at this stage or cannot be updated further.';
@@ -908,9 +908,9 @@
 
         if (confirm(`Are you sure you want to change the status of Order ${currentViewingOrderId} to ${newStatus}?`)) {
             // Show a brief loading state on the button/message area
-            updateButton.disabled = true;
-            const originalButtonText = updateButton.textContent;
-            updateButton.textContent = 'Updating...';
+            updateStatusButton.disabled = true;
+            const originalButtonText = updateStatusButton.textContent;
+            updateStatusButton.textContent = 'Updating...';
 
             orderUpdateMessage.classList.remove('hidden');
             orderUpdateMessage.className = 'p-3 rounded-lg text-white bg-blue-500 font-medium';
@@ -918,18 +918,17 @@
             
             const result = await updateOrderStatus(currentViewingOrderId, newStatus);
             
-            updateButton.textContent = originalButtonText; // Reset button text
+            updateStatusButton.textContent = originalButtonText; // Reset button text
 
             if (result.success) {
                 // Re-fetch the entire order details to fully refresh the form, including the dropdown options
-                // (This is better than manually manipulating the status display/dropdown)
                 await viewOrderDetails(currentViewingOrderId, currentViewingUserId); 
 
                 orderUpdateMessage.className = 'p-3 rounded-lg text-white bg-green-500 font-medium';
                 orderUpdateMessage.textContent = result.message;
                 
             } else {
-                updateButton.disabled = false; // Re-enable button on failure
+                updateStatusButton.disabled = false; // Re-enable button on failure
                 orderUpdateMessage.className = 'p-3 rounded-lg text-white bg-red-500 font-medium';
                 orderUpdateMessage.textContent = result.message;
             }

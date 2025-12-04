@@ -2177,92 +2177,95 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
 // 10. PUT /api/admin/orders/:orderId/status - Update Fulfillment Status
 // =========================================================
 app.put('/api/admin/orders/:orderId/status', verifyToken, async (req, res) => {
-    const { orderId } = req.params;
-    // 🗑️ REMOVED trackingNumber and shippingCompany from destructuring
-    const { newStatus } = req.body; 
-    
-    const validTransitions = {
-        'Processing': 'Shipped',
-        'Shipped': 'Delivered'
-    };
-    
-    let updateFields = { status: newStatus };
-    let finalOrder = null;
+    const { orderId } = req.params;
+    const { newStatus } = req.body; 
+    
+    // 🎯 CRITICAL FIX: Fulfillment MUST start from 'Confirmed'.
+    // This prevents an admin from shipping an order that failed inventory (status: Processing)
+    const validTransitions = {
+        'Confirmed': 'Shipped',
+        'Shipped': 'Delivered'
+    };
+    
+    let updateFields = { status: newStatus };
+    let finalOrder = null;
 
-    if (!orderId || !newStatus) {
-        return res.status(400).json({ message: 'Order ID and a new status are required.' });
-    }
+    if (!orderId || !newStatus) {
+        return res.status(400).json({ message: 'Order ID and a new status are required.' });
+    }
 
-    try {
-        const order = await Order.findById(orderId).select('userId status');
+    try {
+        // Fetch the full order for context and email
+        const order = await Order.findById(orderId).lean();
 
-        if (!order) {
-            return res.status(404).json({ message: 'Order not found.' });
-        }
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found.' });
+        }
 
-        const currentStatus = order.status;
-        const expectedNextStatus = validTransitions[currentStatus];
+        const currentStatus = order.status;
+        const expectedNextStatus = validTransitions[currentStatus];
 
-        // 1. Validate Status Transition
-        if (newStatus !== expectedNextStatus) {
-            return res.status(400).json({ 
-                message: `Invalid status transition from ${currentStatus} to ${newStatus}. Expected: ${expectedNextStatus || 'A final status like Delivered.'}` 
-            });
-        }
-
-        // 2. Handle 'Shipped' transition (No tracking number/company)
-        if (newStatus === 'Shipped') {
-            updateFields = { 
-                ...updateFields, 
-                // Only setting the timestamp
-                shippedAt: new Date()
-            };
-        }
+        // 1. Validate Status Transition - The Guardrail
+        if (newStatus !== expectedNextStatus) {
+            console.warn(`[Fulfillment Guardrail Fail] Invalid transition from ${currentStatus} to ${newStatus}. Must be 'Confirmed' to ship.`);
+            return res.status(400).json({ 
+                message: `Invalid status transition from ${currentStatus} to ${newStatus}. Order must be Confirmed to move to Shipped.` 
+            });
+        }
         
-        // 3. Handle 'Delivered' transition
-        if (newStatus === 'Delivered') {
-              updateFields = { 
-                ...updateFields, 
-                deliveredAt: new Date()
-            };
-        }
+        // ... (Remaining logic for Shipped/Delivered handling is correct) ...
 
-        // 4. Perform the atomic status update
-        finalOrder = await Order.findByIdAndUpdate(
-            orderId, 
-            { $set: updateFields },
-            { new: true }
-        ).lean();
+        // 2. Handle 'Shipped' transition (No tracking number/company)
+        if (newStatus === 'Shipped') {
+            updateFields = { 
+                ...updateFields, 
+                // Only setting the timestamp
+                shippedAt: new Date()
+            };
+        }
+        
+        // 3. Handle 'Delivered' transition
+        if (newStatus === 'Delivered') {
+              updateFields = { 
+                ...updateFields, 
+                deliveredAt: new Date()
+            };
+        }
 
-        // 5. Send Email Notification (Logic remains, but emails should be simpler)
-        const user = await User.findById(finalOrder.userId).select('email').lean();
-        const customerEmail = user ? user.email : null;
+        // 4. Perform the atomic status update
+        finalOrder = await Order.findByIdAndUpdate(
+            orderId, 
+            { $set: updateFields },
+            { new: true }
+        ).lean();
 
-        if (customerEmail) {
-            try {
-                if (newStatus === 'Shipped') {
-                    // NOTE: sendShippingUpdateEmail should be updated to not include tracking info
-                    await sendShippingUpdateEmail(customerEmail, finalOrder); 
-                } else if (newStatus === 'Delivered') {
-                    await sendDeliveredEmail(customerEmail, finalOrder);
-                }
-            } catch (emailError) {
-                console.error(`WARNING: Failed to send ${newStatus} email to ${customerEmail}:`, emailError.message);
-            }
-        }
-        
-        // 6. Success Response
-        res.status(200).json({ 
-            message: `Order ${orderId} status successfully updated to ${newStatus}.`,
-            order: finalOrder 
-        });
+        // 5. Send Email Notification (Logic remains, but emails should be simpler)
+        const user = await User.findById(finalOrder.userId).select('email').lean();
+        const customerEmail = user ? user.email : null;
 
-    } catch (error) {
-        console.error(`Error updating order status ${orderId}:`, error);
-        res.status(500).json({ message: 'Failed to update order status due to a server error.' });
-    }
+        if (customerEmail) {
+            try {
+                if (newStatus === 'Shipped') {
+                    await sendShippingUpdateEmail(customerEmail, finalOrder); 
+                } else if (newStatus === 'Delivered') {
+                    await sendDeliveredEmail(customerEmail, finalOrder);
+                }
+            } catch (emailError) {
+                console.error(`WARNING: Failed to send ${newStatus} email to ${customerEmail}:`, emailError.message);
+            }
+        }
+        
+        // 6. Success Response
+        res.status(200).json({ 
+            message: `Order ${orderId} status successfully updated to ${newStatus}.`,
+            order: finalOrder 
+        });
+
+    } catch (error) {
+        console.error(`Error updating order status ${orderId}:`, error);
+        res.status(500).json({ message: 'Failed to update order status due to a server error.' });
+    }
 });
-
 // GET /api/admin/capscollections - Fetch All Cap Collections (List View)
 app.get('/api/admin/capscollections', verifyToken, async (req, res) => {
     try {

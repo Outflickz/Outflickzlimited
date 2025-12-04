@@ -1544,7 +1544,7 @@ async function mergeLocalCart(userId, localItems) {
             const itemData = {
                 ...matchKey,
                 name: localItem.name,
-                productType: localItem.productType || 'WearsCollection', // Ensure a valid enum value
+                productType: localItem.productType || 'Uncategorized', // Ensure a valid enum value
                 price: localItem.price,
                 quantity: localItem.quantity || 1,
                 imageUrl: localItem.imageUrl,
@@ -1577,7 +1577,7 @@ async function mergeLocalCart(userId, localItems) {
             const initialItems = localItems.map(localItem => ({
                 productId: localItem.productId,
                 name: localItem.name,
-                productType: localItem.productType || 'WearsCollection',
+                productType: localItem.productType || 'Uncategorized',
                 size: localItem.size,
                 color: localItem.color || 'N/A',
                 price: localItem.price,

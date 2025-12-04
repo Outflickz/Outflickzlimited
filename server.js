@@ -1325,31 +1325,29 @@ async function processOrderCompletion(orderId, adminId) {
                     throw new Error(errorMsg);
                 }
 
-                updatedProduct = await ProductModel.findOneAndUpdate(
-                    {
-                        _id: item.productId,
-                        'variations.sizes': {
-                            $elemMatch: {
-                                size: item.size, 
-                                stock: { $gte: quantityOrdered } 
-                            }
-                        }
-                    },
-                    {
-                        $inc: {
-                            'variations.$[var].sizes.$[size].stock': -quantityOrdered, 
-                            'totalStock': -quantityOrdered 
-                        }
-                    },
-                    {
-                        new: true,
-                        session: session, 
-                        arrayFilters: [
-                            { 'var.variationIndex': item.variationIndex }, 
-                            { 'size.size': item.size } 
-                        ]
-                    }
-                );
+               updatedProduct = await ProductModel.findOneAndUpdate(
+        {
+            _id: item.productId,
+            // Find the correct Variation (Outer Array) that contains the required size
+            'variations.variationIndex': item.variationIndex,
+            'variations.sizes.size': item.size // Simple existence check for the size
+        },
+        {
+            $inc: {
+                'variations.$[var].sizes.$[size].stock': -quantityOrdered, 
+                'totalStock': -quantityOrdered 
+            }
+        },
+        {
+            new: true,
+            session: session, 
+            arrayFilters: [
+                { 'var.variationIndex': item.variationIndex }, 
+                // CRITICAL ATOMIC CHECK: Only update if stock for 'size' is >= required quantity
+                { 'size.size': item.size, 'size.stock': { $gte: quantityOrdered } } 
+            ]
+        }
+    );
             
             // --- Group 2: Items with direct 'stock' on variation (CapCollection) ---
             } else if (item.productType === 'CapCollection') {

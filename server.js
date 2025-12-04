@@ -1198,10 +1198,10 @@ async function getRealTimeDashboardStats() {
 }
 
 const PRODUCT_MODEL_MAP = {
-    'WearsCollection': WearsCollectionModel, 
-    'CapCollection': CapCollectionModel,    
-    'NewArrivals': NewArrivalsModel,         
-    'PreOrderCollection': PreOrderCollectionModel
+    'WearsCollection': 'WearsCollection', 
+    'CapCollection': 'CapCollection', 
+    'NewArrivals': 'NewArrivals',         
+    'PreOrderCollection': 'PreOrderCollection'     
 };
 
 /**

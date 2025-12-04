@@ -247,9 +247,9 @@ async function simulateAddToCart(productDetails) {
         productId: productDetails.productId,
         name: productDetails.name, 
         size: size, // Now guaranteed to be the selected value
-        color: color,
+        color: color || 'N/A',
         price: productDetails.price,
-        productType: productDetails.productType || 'WearsCollection',
+        productType: productDetails.productType || 'Uncategorized',     
         imageUrl: productDetails.imageUrl,
         quantity: productDetails.quantity || 1,
         variationIndex: variationIndex,
@@ -277,7 +277,8 @@ async function simulateAddToCart(productDetails) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(itemDataForAPI)
+            body: JSON.stringify(itemDataForAPI),
+            credentials: 'include'
         });
 
         const data = await response.json();

@@ -377,11 +377,11 @@ function simulateBuyNow(itemDetails) {
     }
     // If no color is selected, variationIndex remains 1 (assuming the first variant is the default)
 
-
-    // ⭐ CRITICAL FIX: Ensure productType is not the string "undefined" ⭐
+   
+    // ⭐ CRITICAL FIX: Standardize fallback to 'Uncategorized' ⭐
     const safeProductType = (itemDetails.productType && itemDetails.productType !== 'undefined')
                             ? itemDetails.productType
-                            : 'WearsCollection';'NewArrivals';
+                            : 'Uncategorized'; // Standardized generic fallback
     // ----------------------------------------------------------------------
 
     const itemToCheckout = {
@@ -535,7 +535,8 @@ async function simulateAddToCart(productDetails) {
         productType: productDetails.productType || 'Uncategorized',     
         imageUrl: selectedImageUrl, 
         quantity: productDetails.quantity || 1,
-        variationIndex: variationIndex 
+        variationIndex: variationIndex,
+        variation: variation 
     };
     
     // Construct minimal data for API call 
@@ -547,10 +548,9 @@ async function simulateAddToCart(productDetails) {
         quantity: requiredDetails.quantity,
         size: requiredDetails.size,
         color: requiredDetails.color,
-        // ⭐️ NOW passing the correct image URL to the API
         imageUrl: requiredDetails.imageUrl,
-        // 🚀 CRITICAL FIX 4: Add variationIndex to the API payload! (This solves the 400 error)
-        variationIndex: requiredDetails.variationIndex
+        variationIndex: requiredDetails.variationIndex,
+        variation: requiredDetails.variation
     };
     
     

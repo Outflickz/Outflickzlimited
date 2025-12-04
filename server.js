@@ -984,8 +984,11 @@ const OrderItemSchema = new mongoose.Schema({
     // *************************************************************
     quantity: { type: Number, required: true, min: 1 },
     priceAtTimeOfPurchase: { type: Number, required: true, min: 0.01 },
-    variationIndex: { type: Number },
-    size: { type: String },
+    variationIndex: { 
+        type: Number, 
+        required: [true, 'Variation index is required for inventory deduction.'],
+        min: 1 
+    },    size: { type: String },
     
     // 🌟 FIX: Added 'variation' field to store user-friendly name for Admin UI 🌟
     variation: { type: String } 

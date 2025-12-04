@@ -381,7 +381,7 @@ function simulateBuyNow(itemDetails) {
     // ⭐ CRITICAL FIX: Ensure productType is not the string "undefined" ⭐
     const safeProductType = (itemDetails.productType && itemDetails.productType !== 'undefined')
                             ? itemDetails.productType
-                            : 'WearsCollection';
+                            : 'WearsCollection';'NewArrivals';
     // ----------------------------------------------------------------------
 
     const itemToCheckout = {
@@ -396,8 +396,8 @@ function simulateBuyNow(itemDetails) {
         imageUrl: selectedImageUrl, 
         quantity: selectedQuantity,
         
-        size: selectedSize || 'N/A', 
-        color: selectedColor || 'N/A',
+        size: selectedSize, 
+        color: selectedColor,
 
         // UPDATE: Use the 1-based index
         variationIndex: variationIndex, 
@@ -495,7 +495,7 @@ async function simulateAddToCart(productDetails) {
     const color = selectedColorInput ? selectedColorInput.value : 'N/A';
     
     // 🚀 CRITICAL FIX 1: Initialize variationIndex. Default to 0 if no explicit selection logic is available.
-    let variationIndex = 0; 
+    let variationIndex = 1; 
     
     // ⭐️ CRITICAL FIX: Determine the selected image URL based on the chosen color
     let selectedImageUrl = productDetails.imageUrl; // Default to the initial URL passed
@@ -532,7 +532,7 @@ async function simulateAddToCart(productDetails) {
         size: size,
         color: color,
         price: productDetails.price,
-        productType: productDetails.productType || 'WearsCollection',
+        productType: productDetails.productType,
         imageUrl: selectedImageUrl, 
         quantity: productDetails.quantity || 1,
         variationIndex: variationIndex 

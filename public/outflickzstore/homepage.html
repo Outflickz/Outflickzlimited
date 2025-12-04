@@ -376,9 +376,10 @@ function simulateBuyNow(itemDetails) {
         }
     }
 
- const variation = (selectedColor !== '' && selectedSize !== '')
-    ? `${selectedColor} / ${selectedSize}`
-    : (selectedColor !== '' ? selectedColor : (selectedSize !== '' ? selectedSize : 'Default Variant'));
+   
+      const ProductType = productDetails.productType; 
+
+    // ----------------------------------------------------------------------
 
     const itemToCheckout = {
         productId: itemDetails.productId, 

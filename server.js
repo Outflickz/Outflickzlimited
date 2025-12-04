@@ -958,6 +958,7 @@ const OrderSchema = new mongoose.Schema({
             'Shipped',              // Fulfillment statuses
             'Delivered',
             'Cancelled',
+            'Confirmed',
             'Refunded',
             'Verification Failed', 
             'Amount Mismatch (Manual Review)',
@@ -1205,122 +1206,113 @@ async function inventoryRollback(orderId, reason) {
 }
 
 /**
- * ====================================================================================
- * INVENTORY PROCESSING FUNCTION (ATOMIC & TRANSACTIONAL)
- * ====================================================================================
- * Handles inventory deduction and finalizes order status using Mongoose transactions.
- * 🌟 FIX: Added adminId to function signature for atomic status update 🌟
- * @param {string} orderId The ID of the order to process.
- * @param {string} adminId The ID of the admin confirming the order.
- * @returns {Promise<Order | null>} The finalized order document, or null if aborted early.
- */
-async function processOrderCompletion(orderId, adminId) { // 👈 Updated signature
-    // 1. Start a Mongoose session for atomicity (crucial for inventory)
-    const session = await mongoose.startSession();
-    session.startTransaction();
-    let order = null; 
-    let OrderModel;
+ * ====================================================================================
+ * INVENTORY PROCESSING FUNCTION (ATOMIC & TRANSACTIONAL)
+ * ====================================================================================
+ */
+async function processOrderCompletion(orderId, adminId) {
+    // 1. Start a Mongoose session for atomicity (crucial for inventory)
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    let order = null;
+    let OrderModel;
 
-    try {
-        // Fetch the order within the transaction
-        OrderModel = mongoose.models.Order || mongoose.model('Order'); 
-        order = await OrderModel.findById(orderId).session(session);
+    try {
+        // Fetch the order within the transaction
+        OrderModel = mongoose.models.Order || mongoose.model('Order');
+        order = await OrderModel.findById(orderId).session(session);
 
-        // 1.1 Initial check
-        // We only proceed with inventory deduction if the order is in the initial 'Pending' state.
-        const isReadyForInventory = order && (order.status === 'Pending');
+        // 1.1 Initial check
+        // The process should run if the order is 'Pending' (claim failed) 
+        // OR 'Processing' (claim succeeded in the API route).
+        const isReadyForInventory = order && 
+            (order.status === 'Pending' || order.status === 'Processing'); // 🎯 FIX 1: Allow 'Processing'
 
-        if (!isReadyForInventory) {
-            await session.abortTransaction();
-            
-            // 409 Conflict logic: If the order is already 'Processing' or 'Completed', throw an error 
-            // that the calling route can catch and send as a 409.
-            if (order?.status === 'Processing' || order?.status === 'Completed') {
-                console.warn(`Order ${orderId} is already confirmed (${order.status}). Inventory deduction skipped.`);
-                // 🌟 FIX: Throw custom error for race condition handling 🌟
-                const raceError = new Error("Order already processed or is being processed.");
-                raceError.isRaceCondition = true;
-                throw raceError; 
-            }
-            
-            console.warn(`Order ${orderId} skipped: not found or status is ${order?.status}. Inventory deduction aborted.`);
-            return order; // Return the current state of the order
-        }
+        if (!isReadyForInventory) {
+            await session.abortTransaction();
+            
+            // 409 Conflict logic: If the order is already in a confirmed state, throw the race error.
+            if (order?.status === 'Confirmed' || order?.status === 'Completed') { // 🎯 FIX 2: Check for 'Confirmed'
+                console.warn(`Order ${orderId} is already confirmed (${order.status}). Inventory deduction skipped.`);
+                // Throw custom error for race condition handling
+                const raceError = new Error("Order already processed or is being processed.");
+                raceError.isRaceCondition = true;
+                throw raceError; 
+            }
+            
+            console.warn(`Order ${orderId} skipped: not found or status is ${order?.status}. Inventory deduction aborted.`);
+            return order; // Return the current state of the order
+        }
 
-        // 2. Loop through each item to deduct stock from the specific collection/variation
-        for (const item of order.items) {
-            // Retrieve the correct model using the implemented helper
-            const ProductModel = getProductModel(item.productType); 
-            const quantityOrdered = item.quantity;
+        // 2. Loop through each item to deduct stock...
+        for (const item of order.items) {
+            // ... (Steps 2, 3, 4: ATOMIC DEDUCTION LOGIC remains the same)
+            const ProductModel = getProductModel(item.productType); 
+            const quantityOrdered = item.quantity;
 
-            // 3. ATOMIC DEDUCTION LOGIC FOR VARIATION STOCK (Remains the same)
-            const updatedProduct = await ProductModel.findOneAndUpdate(
-                {
-                    _id: item.productId,
-                    'variations.sizes': {
-                        $elemMatch: {
-                            size: item.size, 
-                            stock: { $gte: quantityOrdered } 
-                        }
-                    }
-                },
-                {
-                    $inc: {
-                        'variations.$[var].sizes.$[size].stock': -quantityOrdered, 
-                        'totalStock': -quantityOrdered 
-                    }
-                },
-                {
-                    new: true,
-                    session: session, // MUST execute within the transaction
-                    arrayFilters: [
-                        { 'var.variationIndex': item.variationIndex }, 
-                        { 'size.size': item.size } 
-                    ]
-                }
-            );
+            const updatedProduct = await ProductModel.findOneAndUpdate(
+                {
+                    _id: item.productId,
+                    'variations.sizes': {
+                        $elemMatch: {
+                            size: item.size, 
+                            stock: { $gte: quantityOrdered } 
+                        }
+                    }
+                },
+                {
+                    $inc: {
+                        'variations.$[var].sizes.$[size].stock': -quantityOrdered, 
+                        'totalStock': -quantityOrdered 
+                    }
+                },
+                {
+                    new: true,
+                    session: session, 
+                    arrayFilters: [
+                        { 'var.variationIndex': item.variationIndex }, 
+                        { 'size.size': item.size } 
+                    ]
+                }
+            );
 
-            // 4. Stock check failure (Remains the same)
-            if (!updatedProduct) {
-                const errorMsg = `Insufficient stock or product data mismatch for item: ${item.size} of product ${item.productId} in ${item.productType}. Transaction aborted.`;
-                throw new Error(errorMsg);
-            }
-            console.log(`Inventory deducted for Product ID: ${item.productId}, Size: ${item.size}, Qty: ${quantityOrdered}`);
-        }
+            if (!updatedProduct) {
+                const errorMsg = `Insufficient stock or product data mismatch for item: ${item.size} of product ${item.productId} in ${item.productType}. Transaction aborted.`;
+                throw new Error(errorMsg);
+            }
+            console.log(`Inventory deducted for Product ID: ${item.productId}, Size: ${item.size}, Qty: ${quantityOrdered}`);
+        }
 
-        // 5. Update order status and confirmation details atomically
-        order.status = 'Processing'; 
-        // 🌟 FIX: Ensure confirmedAt and confirmedBy are set atomically within the transaction 🌟
-        order.confirmedAt = new Date(); 
-        order.confirmedBy = adminId; 
-        await order.save({ session }); // Commit the save within the transaction.
+        // 5. Update order status and confirmation details atomically
+        // This is the true final state for payment/inventory confirmation
+        order.status = 'Confirmed'; // 🎯 FIX 3: Set final status to 'Confirmed'
+        order.confirmedAt = new Date(); 
+        order.confirmedBy = adminId; 
+        await order.save({ session }); // Commit the save within the transaction.
 
-        // 6. Finalize transaction
-        await session.commitTransaction();
-        console.log(`Order ${orderId} successfully confirmed and inventory fully deducted. Status: Processing.`);
-        return order.toObject({ getters: true }); // Return a clean object
+        // 6. Finalize transaction
+        await session.commitTransaction();
+        console.log(`Order ${orderId} successfully confirmed and inventory fully deducted. Status: Confirmed.`); // 🎯 UPDATED LOG
+        return order.toObject({ getters: true });
 
-    } catch (error) {
-        // Rollback on any failure
-        if (session.inTransaction()) {
-            await session.abortTransaction();
-        }
-        
-        // 🌟 FIX: Only call inventoryRollback if it's a genuine failure, not a race condition 🌟
-        if (error.isRaceCondition) {
-            console.warn(`Race condition handled for order ${orderId}. No rollback status update needed.`);
-        }
-        // After the transaction is aborted, update the Order status outside the session for genuine errors
-        else if (order) { 
-            // Use the implemented inventoryRollback function
-            await inventoryRollback(orderId, error.message);
-        }
+    } catch (error) {
+        // Rollback on any failure
+        if (session.inTransaction()) {
+            await session.abortTransaction();
+        }
+        
+        if (error.isRaceCondition) {
+            console.warn(`Race condition handled for order ${orderId}. No rollback status update needed.`);
+        }
+        else if (order) { 
+            // Call inventoryRollback for genuine failures (like Insufficient Stock)
+            await inventoryRollback(orderId, error.message);
+        }
 
-        // Re-throw the error so the parent route can catch it
-        throw error;
-    } finally {
-        session.endSession();
-    }
+        throw error;
+    } finally {
+        session.endSession();
+    }
 }
 
 // Module export for external usage
@@ -2068,8 +2060,6 @@ app.get('/api/admin/orders/:orderId', verifyToken, async (req, res) => {
 });
 
 // 9. PUT /api/admin/orders/:orderId/confirm - Confirm an Order (Admin Protected)
-// *** FINAL IMPLEMENTATION WITH EMAIL NOTIFICATION ***
-// 🌟 ENHANCED with explicit console logs for failure/skip reasons 🌟
 // =========================================================
 app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
     const orderId = req.params.orderId;
@@ -2080,8 +2070,7 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
     }
 
     try {
-        // 1. Initial status change from 'Pending' to 'Processing'
-        // This is the "CLAIM" step.
+        // 1. Initial status change from 'Pending' to 'Processing' (The "CLAIM" step.)
         const updatedOrder = await Order.findOneAndUpdate(
             { _id: orderId, status: 'Pending' }, 
             { 
@@ -2091,14 +2080,12 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
                     confirmedBy: adminId 
                 } 
             },
-            // Crucial: Select userId to fetch email later
             { new: true, select: 'userId status totalAmount items' } 
         ).lean();
 
-        // 💡 CRITICAL FIX: Check if the order was successfully found and updated.
+        // Check if the order was successfully found and updated.
         if (!updatedOrder) {
             console.warn(`Order ${orderId} skipped: not found or status is not pending.`);
-            // ✅ ADDED LOG: Reason for not proceeding to inventory deduction.
             const checkOrder = await Order.findById(orderId).select('status').lean();
             if (checkOrder) {
                 console.warn(`[Inventory Skip Reason] Order ${orderId} is currently in status: ${checkOrder.status}.`);
@@ -2110,14 +2097,15 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
             return res.status(409).json({ message: 'Order not found or is already processed.' });
         }
         
-        // 2. CRITICAL STEP: Deduct Inventory and finalize status to 'Completed' atomically
+        // 2. CRITICAL STEP: Deduct Inventory and finalize status to 'Confirmed' atomically
         let finalOrder;
         try {
-            // Call helper. It now knows to check for 'Processing' status as well.
             console.log(`[Inventory] Attempting atomic inventory deduction for Order ${orderId}.`);
+            // The helper now handles the final transition to 'Confirmed'
             finalOrder = await processOrderCompletion(orderId, adminId); 
+            // 🎯 UPDATED LOG: Reflects the final 'Confirmed' status set by the helper
             console.log(`[Inventory Success] Inventory deduction completed successfully for Order ${orderId}. Final status: ${finalOrder.status}.`);
-            // If this succeeds, the order status is now 'Completed'
+            
         } catch (inventoryError) {
             
             // --- Handle Business Logic Conflict Separately (Race Condition) ---
@@ -2127,56 +2115,53 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
                 // Fetch the now-confirmed order to return a successful response to the admin UI
                 const confirmedOrder = await Order.findById(orderId).lean();
                 
-                // ✅ ADDED LOG: Reason why inventory deduction logic was not executed by THIS worker.
+                // Log and return 200 OK for concurrent confirmation
                 console.warn(`[Inventory Race Skip] Inventory deduction was skipped because the order was finalized by a concurrent process. Current status: ${confirmedOrder.status}.`);
 
-                // Return success (200 OK) to the admin UI
                 return res.status(200).json({ 
+                    // 🎯 UPDATED MESSAGE: Use the confirmedOrder's current status (likely 'Confirmed')
                     message: `Order ${orderId} was confirmed by a concurrent request. Status: ${confirmedOrder.status}.`,
                     order: confirmedOrder 
                 });
             }
             
-            // Rollback status if inventory fails (This is for genuine stock insufficient errors)
+            // Rollback status if inventory fails (Genuine stock insufficient errors)
             console.error('Inventory deduction failed during Admin confirmation:', inventoryError.message);
             
-            // The rollback function (called by processOrderCompletion's catch) has already set the status.
-            // We only add an extra note here.
+            // The rollback function (called by processOrderCompletion's catch) has already set the status 
+            // to 'Inventory Failure (Manual Review)'. We only add an extra note here.
             await Order.findByIdAndUpdate(orderId, { 
                 $push: { notes: `Inventory deduction failed on ${new Date().toISOString()}: ${inventoryError.message}` }
             });
             
-            // ✅ Return 409 Conflict for known business logic failure (Insufficient Stock).
+            // Return 409 Conflict for known business logic failure (Insufficient Stock).
             return res.status(409).json({ 
                 message: 'Payment confirmed, but inventory deduction failed. Order status flagged for manual review.',
                 error: inventoryError.message
             });
         }
         
-        // 3. GET CUSTOMER EMAIL & SEND NOTIFICATION (The User's Request) 📧
-        
-        // Fetch user email using the userId
+        // 3. GET CUSTOMER EMAIL & SEND NOTIFICATION 📧
         const user = await User.findById(updatedOrder.userId).select('email').lean();
         const customerEmail = user ? user.email : null;
 
         if (customerEmail) {
             try {
-                // ✅ Email is only sent if the inventory transaction (step 2) succeeded
+                // Email is only sent if the inventory transaction (step 2) succeeded
                 console.log(`[Email] Sending confirmation email to: ${customerEmail} for order ${orderId}.`);
                 await sendOrderConfirmationEmailForAdmin(customerEmail, finalOrder);
                 console.log(`[Email Success] Confirmation email sent to ${customerEmail}.`);
             } catch (emailError) {
-                // ✅ ADDED LOG: Explicit reason for email *failure*.
                 console.error(`[Email Failure Reason] CRITICAL WARNING: Failed to send confirmation email to ${customerEmail} (Order ${orderId}):`, emailError.message);
                 // Continue execution to send the success response to the client
             }
         } else {
-            // ✅ ADDED LOG: Explicit reason for email *skip*.
             console.warn(`[Email Skip Reason] Could not find email for user ID: ${updatedOrder.userId}. Skipping email notification.`);
         }
         
         // 4. Success Response
         res.status(200).json({ 
+            // 🎯 UPDATED MESSAGE: The final status will now be 'Confirmed'
             message: `Order ${orderId} confirmed, inventory deducted, and customer notified. Status: ${finalOrder.status}.`,
             order: finalOrder 
         });

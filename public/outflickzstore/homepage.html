@@ -310,45 +310,38 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // --- END HERO SLIDER JS ---
-
 /**
  * Handles the logic for a "Buy Now" action.
  * It bypasses the cart and immediately redirects to checkout with the selected item.
  * @param {object} itemDetails - The product object passed from the button's onclick.
  */
 function simulateBuyNow(itemDetails) {
-    // 1. Gather Quantity
-    const quantityInput = document.getElementById(`quantity-input-${itemDetails.productId}`);
-    const selectedQuantity = parseInt(quantityInput.value) || 1;
     
-    // 2. Gather Size
-    let selectedSize = '';
-    const sizeRadios = document.getElementsByName(`size-${itemDetails.productId}`);
-    for (const radio of sizeRadios) {
-        if (radio.checked) {
-            selectedSize = radio.value;
-            break;
-        }
-    }
-
-    // 3. Gather Color
-    let selectedColor = '';
-    const colorRadios = document.getElementsByName(`color-${itemDetails.productId}`);
-    for (const radio of colorRadios) {
-        if (radio.checked) {
-            selectedColor = radio.value;
-            break;
-        }
-    }
-
-   // 4. Determine variationIndex and Image (ENHANCED LOGIC)
-    let variationIndex = 1; // 🌟 CHANGE 1: Default to 1 instead of 0 for server compatibility
-    let selectedImageUrl = itemDetails.imageUrl; // Default
-    
-    // Locate the card to find the hidden color map data
+    // Locate the card to find the input elements
     const card = document.querySelector(`.collection-card[data-collection-id="${itemDetails.productId}"]`);
+    if (!card) return; // Exit if product card not found
+
+    // --- 1. Gather Quantity ---
+    // Use a unified approach to get the quantity input
+    const quantityInput = card.querySelector(`#quantity-input-${itemDetails.productId}`);
+    const selectedQuantity = parseInt(quantityInput?.value) || 1; // Use optional chaining for safety
+
+    // --- 2. Gather Size & Color (Standardized Approach) ---
+    // Use the reliable selectors from simulateAddToCart
+    const selectedSizeInput = card.querySelector(`input[name="size-${itemDetails.productId}"]:checked`);
+    const selectedColorInput = card.querySelector(`input[name="color-${itemDetails.productId}"]:checked`);
     
-    if (card && selectedColor) {
+    // Assign the values
+    const selectedSize = selectedSizeInput ? selectedSizeInput.value : '';
+    const selectedColor = selectedColorInput ? selectedColorInput.value : '';
+
+
+    // --- 3. Determine variationIndex and Image (ENHANCED LOGIC) ---
+    let variationIndex = 1; 
+    let selectedImageUrl = itemDetails.imageUrl;
+    
+    // The logic to find colorMapContainer using `card` is now available here:
+    if (selectedColor) { 
         const colorMapContainer = card.querySelector(`#color-map-${itemDetails.productId}`);
         
         if (colorMapContainer) {
@@ -362,7 +355,6 @@ function simulateBuyNow(itemDetails) {
                 if (inferredIndex !== -1) {
                     // ⭐ CRITICAL FIX: Convert 0-based client index to 1-based server index! ⭐
                     variationIndex = inferredIndex + 1; 
-                    // --------------------------------------------------------------------------
                     
                     const newImageUrls = colorMap[colorHex];
                     if (newImageUrls && newImageUrls.frontImageUrl) {
@@ -371,15 +363,15 @@ function simulateBuyNow(itemDetails) {
                 }
             } catch (e) {
                 console.error("Error parsing color map data:", e);
-                // If parsing fails, variationIndex remains 1 (default)
             }
         }
     }
 
-   
-    // ⭐ CRITICAL FIX: Standardize fallback to 'Uncategorized' ⭐
+    
+    // ⭐ CRITICAL FIX: Standardize fallback to 'Uncategorized' or product name ⭐
     const safeProductType = itemDetails.productType || itemDetails.name;
 
+    // --- CONSTRUCT THE FINAL CHECKOUT ITEM ---
     const itemToCheckout = {
         productId: itemDetails.productId, 
         name: itemDetails.name,
@@ -388,9 +380,12 @@ function simulateBuyNow(itemDetails) {
         imageUrl: selectedImageUrl, 
         quantity: selectedQuantity,
         size: selectedSize, 
-        color: selectedColor,
-        variationIndex: variationIndex, 
-        checkout: true 
+        color: selectedColor, 
+        variationIndex: variationIndex,
+        variation: (selectedColor !== '' && selectedSize !== '') 
+            ? `${selectedColor} / ${selectedSize}`
+            : (selectedColor !== '' ? selectedColor : (selectedSize !== '' ? selectedSize : 'Default Variant')),
+        checkout: true // Flag to indicate this is a "Buy Now" item for the checkout page
     };
 
     // 🌟 Console Log 1 (The original log)
@@ -405,6 +400,7 @@ function simulateBuyNow(itemDetails) {
     // Redirect the user to the checkout page
     window.location.href = 'checkout.html';
 }
+
 /**
  * Reads the current cart item count from Local Storage. (Keep this one)
  * @returns {number} The total number of items in the cart.

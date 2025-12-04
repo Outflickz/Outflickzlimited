@@ -1263,6 +1263,12 @@ async function inventoryRollback(orderId, reason) {
  * ====================================================================================
  * INVENTORY PROCESSING FUNCTION (ATOMIC & TRANSACTIONAL)
  * ====================================================================================
+ * Processes an order confirmation by atomically deducting stock for all items
+ * across different product collections (Wears, Caps, NewArrivals, PreOrder).
+ * @param {string} orderId The ID of the order to confirm.
+ * @param {string} adminId The ID of the admin confirming the order.
+ * @returns {Promise<Object>} The confirmed order object.
+ * @throws {Error} Throws an error if stock is insufficient or a race condition is detected.
  */
 async function processOrderCompletion(orderId, adminId) {
     // 1. Start a Mongoose session for atomicity (crucial for inventory)
@@ -1277,18 +1283,15 @@ async function processOrderCompletion(orderId, adminId) {
         order = await OrderModel.findById(orderId).session(session);
 
         // 1.1 Initial check
-        // The process should run if the order is 'Pending' (claim failed) 
-        // OR 'Processing' (claim succeeded in the API route).
         const isReadyForInventory = order && 
-            (order.status === 'Pending' || order.status === 'Processing'); // 🎯 FIX 1: Allow 'Processing'
+            (order.status === 'Pending' || order.status === 'Processing');
 
         if (!isReadyForInventory) {
             await session.abortTransaction();
             
             // 409 Conflict logic: If the order is already in a confirmed state, throw the race error.
-            if (order?.status === 'Confirmed' || order?.status === 'Completed') { // 🎯 FIX 2: Check for 'Confirmed'
+            if (order?.status === 'Confirmed' || order?.status === 'Completed') {
                 console.warn(`Order ${orderId} is already confirmed (${order.status}). Inventory deduction skipped.`);
-                // Throw custom error for race condition handling
                 const raceError = new Error("Order already processed or is being processed.");
                 raceError.isRaceCondition = true;
                 throw raceError; 
@@ -1300,53 +1303,107 @@ async function processOrderCompletion(orderId, adminId) {
 
         // 2. Loop through each item to deduct stock...
         for (const item of order.items) {
-            // ... (Steps 2, 3, 4: ATOMIC DEDUCTION LOGIC remains the same)
             const ProductModel = getProductModel(item.productType); 
             const quantityOrdered = item.quantity;
+            let updatedProduct;
+            let errorMsg;
 
-            const updatedProduct = await ProductModel.findOneAndUpdate(
-                {
-                    _id: item.productId,
-                    'variations.sizes': {
-                        $elemMatch: {
-                            size: item.size, 
-                            stock: { $gte: quantityOrdered } 
-                        }
-                    }
-                },
-                {
-                    $inc: {
-                        'variations.$[var].sizes.$[size].stock': -quantityOrdered, 
-                        'totalStock': -quantityOrdered 
-                    }
-                },
-                {
-                    new: true,
-                    session: session, 
-                    arrayFilters: [
-                        { 'var.variationIndex': item.variationIndex }, 
-                        { 'size.size': item.size } 
-                    ]
+            // =============================================================================
+            // ⭐ CORE FIX: CONDITIONAL INVENTORY DEDUCTION LOGIC ⭐
+            // =============================================================================
+            
+            // --- Group 1: Items with nested 'sizes' array (Wears, NewArrivals, PreOrder) ---
+            if (item.productType === 'WearsCollection' || 
+                item.productType === 'NewArrivals' || 
+                item.productType === 'PreOrderCollection') {
+                
+                if (!item.size) { // Add a check for size-required products
+                    errorMsg = `Missing size information for size-based product ${item.productId} in ${item.productType}.`;
+                    throw new Error(errorMsg);
                 }
-            );
 
-            if (!updatedProduct) {
-                const errorMsg = `Insufficient stock or product data mismatch for item: ${item.size} of product ${item.productId} in ${item.productType}. Transaction aborted.`;
+                updatedProduct = await ProductModel.findOneAndUpdate(
+                    {
+                        _id: item.productId,
+                        'variations.sizes': {
+                            $elemMatch: {
+                                size: item.size, 
+                                stock: { $gte: quantityOrdered } 
+                            }
+                        }
+                    },
+                    {
+                        $inc: {
+                            'variations.$[var].sizes.$[size].stock': -quantityOrdered, 
+                            'totalStock': -quantityOrdered 
+                        }
+                    },
+                    {
+                        new: true,
+                        session: session, 
+                        arrayFilters: [
+                            { 'var.variationIndex': item.variationIndex }, 
+                            { 'size.size': item.size } 
+                        ]
+                    }
+                );
+            
+            // --- Group 2: Items with direct 'stock' on variation (CapCollection) ---
+            } else if (item.productType === 'CapCollection') {
+                
+                updatedProduct = await ProductModel.findOneAndUpdate(
+                    {
+                        _id: item.productId,
+                        'variations': {
+                            $elemMatch: {
+                                variationIndex: item.variationIndex, // Find the correct variation
+                                stock: { $gte: quantityOrdered }     // Check stock directly on variation
+                            }
+                        }
+                    },
+                    {
+                        $inc: {
+                            'variations.$[var].stock': -quantityOrdered, // Decrement stock directly on variation
+                            'totalStock': -quantityOrdered 
+                        }
+                    },
+                    {
+                        new: true,
+                        session: session, 
+                        arrayFilters: [
+                            { 'var.variationIndex': item.variationIndex } // Filter by variation index
+                        ]
+                    }
+                );
+            
+            // --- Fallback for unsupported types ---
+            } else {
+                errorMsg = `Unsupported product type found: ${item.productType}. Inventory deduction aborted.`;
                 throw new Error(errorMsg);
             }
-            console.log(`Inventory deducted for Product ID: ${item.productId}, Size: ${item.size}, Qty: ${quantityOrdered}`);
+            // =============================================================================
+            
+            // Check if the update was successful (product found and stock condition met)
+            if (!updatedProduct) {
+                // Determine the size label for the error message
+                const sizeLabel = item.productType === 'CapCollection' ? 'N/A (Direct Stock)' : item.size;
+                
+                const finalErrorMsg = `Insufficient stock or product data mismatch for item: ${sizeLabel} of product ${item.productId} in ${item.productType}. Transaction aborted.`;
+                throw new Error(finalErrorMsg);
+            }
+            
+            console.log(`Inventory deducted for Product ID: ${item.productId}, Type: ${item.productType}, Qty: ${quantityOrdered}`);
         }
 
         // 5. Update order status and confirmation details atomically
-        // This is the true final state for payment/inventory confirmation
-        order.status = 'Confirmed'; // 🎯 FIX 3: Set final status to 'Confirmed'
+        order.status = 'Confirmed';
         order.confirmedAt = new Date(); 
         order.confirmedBy = adminId; 
-        await order.save({ session }); // Commit the save within the transaction.
+        await order.save({ session });
 
         // 6. Finalize transaction
         await session.commitTransaction();
-        console.log(`Order ${orderId} successfully confirmed and inventory fully deducted. Status: Confirmed.`); // 🎯 UPDATED LOG
+        console.log(`Order ${orderId} successfully confirmed and inventory fully deducted. Status: Confirmed.`);
         return order.toObject({ getters: true });
 
     } catch (error) {
@@ -1371,11 +1428,10 @@ async function processOrderCompletion(orderId, adminId) {
 
 // Module export for external usage
 module.exports = {
-    processOrderCompletion,
-    inventoryRollback,
-    getProductModel
+    processOrderCompletion,
+    inventoryRollback,
+    getProductModel
 };
-
 
 /**
  * ====================================================================================
@@ -1859,7 +1915,7 @@ app.post('/api/admin/login', async (req, res) => {
         const token = jwt.sign(
             { id: adminUser.id, email: adminUser.email, role: 'admin' }, 
             JWT_SECRET, 
-            { expiresIn: '2h' }
+            { expiresIn: '5h' }
         );
         
         res.status(200).json({ token, message: 'Login successful' });
@@ -4188,7 +4244,7 @@ app.post('/api/users/login', async (req, res) => {
         const token = jwt.sign(
             { id: user._id, email: user.email, role: user.status.role || 'user' }, 
             JWT_SECRET, 
-            { expiresIn: '2h' } 
+            { expiresIn: '5h' } 
         );
         
         // --- 🔑 Set the Token as an HTTP-only Cookie ---

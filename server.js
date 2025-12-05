@@ -1135,7 +1135,7 @@ async function getRealTimeDashboardStats() {
     try {
         // 1. Calculate Total Sales (sum of 'totalAmount' from completed orders)
         const salesAggregation = await Order.aggregate([
-            { $match: { status: 'completed' } },
+            { $match: { status: 'Comfirmed' } },
             { $group: { _id: null, totalSales: { $sum: '$totalAmount' } } }
         ]);
         const totalSales = salesAggregation.length > 0 ? salesAggregation[0].totalSales : 0;
@@ -1173,9 +1173,7 @@ async function getRealTimeDashboardStats() {
         // 3. Count Registered Users
         const userCount = await User.countDocuments({});
 
-        // ⭐ ADDED: Calculate Active Subscriptions (Assuming a 'Subscription' model and 'active' status)
-        // You may need to adjust the model name (e.g., Membership) and the status filter if your database schema is different.
-        const activeSubscriptions = await Subscription.countDocuments({ status: 'active' }); 
+        // --- Removed activeSubscriptions calculation line (ReferenceError fix) ---
 
         const recentActivity = await ActivityLog.find({})
             .sort({ timestamp: -1 }) // Sort by newest first
@@ -1190,8 +1188,8 @@ async function getRealTimeDashboardStats() {
             capsStock: capsStock,
             newArrivalsStock: newArrivalsStock,
             preOrderStock: preOrderStock,
-            activeSubscriptions: activeSubscriptions, 
-            recentActivity: recentActivity // Add this new field
+            // Removed activeSubscriptions from the return object
+            recentActivity: recentActivity
         };
 
     } catch (error) {
@@ -1200,6 +1198,7 @@ async function getRealTimeDashboardStats() {
         throw new Error('Database aggregation failed for dashboard stats.');
     }
 }
+
 const PRODUCT_MODEL_MAP = {
     'WearsCollection': 'WearsCollection', 
     'CapCollection': 'CapCollection', 

@@ -212,314 +212,315 @@
 
     </main>
 
-    <script>
-        // --- JAVASCRIPT LOGIC ---
+   <script>
+    // --- JAVASCRIPT LOGIC ---
 
-        const totalSalesElement = document.getElementById('total-sales');
-        const wearsStockElement = document.getElementById('wears-stock');
-        const capsStockElement = document.getElementById('caps-stock');
-        const newArrivalsStockElement = document.getElementById('new-arrivals-stock');
-        const preOrderStockElement = document.getElementById('pre-order-stock');
-        const registeredUsersElement = document.getElementById('registered-users');
-        const activeSubscriptionsElement = document.getElementById('active-subscriptions'); 
-        const loadingIndicator = document.getElementById('loading-indicator');
-        const metricCards = document.getElementById('metric-cards');
-        const sidebar = document.getElementById('sidebar');
-        const sidebarToggle = document.getElementById('sidebar-toggle');
-        const contentSections = document.querySelectorAll('.content-section');
-        const navButtons = document.querySelectorAll('nav button'); 
+    const totalSalesElement = document.getElementById('total-sales');
+    const wearsStockElement = document.getElementById('wears-stock');
+    const capsStockElement = document.getElementById('caps-stock');
+    const newArrivalsStockElement = document.getElementById('new-arrivals-stock');
+    const preOrderStockElement = document.getElementById('pre-order-stock');
+    const registeredUsersElement = document.getElementById('registered-users');
+    // REMOVED: const activeSubscriptionsElement = document.getElementById('active-subscriptions'); 
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const metricCards = document.getElementById('metric-cards');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const contentSections = document.querySelectorAll('.content-section');
+    const navButtons = document.querySelectorAll('nav button'); 
 
-        // ⭐ NEW FUNCTION for external navigation (User Orders) ⭐
-        function navigateToUserOrders() {
-            window.location.href = './userorders.html';
-        }
+    // ⭐ NEW FUNCTION for external navigation (User Orders) ⭐
+    function navigateToUserOrders() {
+        window.location.href = './userorders.html';
+    }
+    
+    // Function for external navigation (Wears Collection)
+    function navigateToWearsCollection() {
+        window.location.href = './wearscollection.html';
+    }
+
+    // Function for external navigation (Caps Collection)
+    function navigateToCapsCollection() {
+        window.location.href = './capscollection.html';
+    }
+    
+    // Function for external navigation (New Arrivals)
+    function navigateToNewArrivals() {
+        window.location.href = './newarrivals.html';
+    }
+
+    // Function for external navigation (Pre-Order Management)
+    function navigateToPreOrders() {
+        window.location.href = './preorders.html';
+    }
+
+    // REMOVED: Function for external navigation (Membership)
+    // function navigateToMembership() {
+    //     window.location.href = './membership.html'; 
+    // }
+    
+    /**
+     * Handles the admin logout process.
+     */
+    function logoutAdmin() {
+        console.log("Logging out... Clearing admin token.");
+        localStorage.removeItem('adminToken');
+        window.location.href = './admin-login.html'; 
+    }
+
+    // Initial setup to show the Dashboard
+    document.addEventListener('DOMContentLoaded', () => {
+        setActiveContent('dashboard');
+        loadDashboardData();
         
-        // Function for external navigation (Wears Collection)
-        function navigateToWearsCollection() {
-            window.location.href = './wearscollection.html';
-        }
+        // Toggle sidebar visibility on mobile
+        sidebarToggle.addEventListener('click', () => {
+            // Toggle the -translate-x-full class
+            sidebar.classList.toggle('-translate-x-full');
+        });
+    });
 
-        // Function for external navigation (Caps Collection)
-        function navigateToCapsCollection() {
-            window.location.href = './capscollection.html';
-        }
-        
-        // Function for external navigation (New Arrivals)
-        function navigateToNewArrivals() {
-            window.location.href = './newarrivals.html';
-        }
-
-        // Function for external navigation (Pre-Order Management)
-        function navigateToPreOrders() {
-            window.location.href = './preorders.html';
-        }
-
-        // Function for external navigation (Membership)
-        function navigateToMembership() {
-            window.location.href = './membership.html'; 
-        }
-        
-        /**
-         * Handles the admin logout process.
-         */
-        function logoutAdmin() {
-            console.log("Logging out... Clearing admin token.");
-            localStorage.removeItem('adminToken');
-            window.location.href = './admin-login.html'; 
-        }
-
-        // Initial setup to show the Dashboard
-        document.addEventListener('DOMContentLoaded', () => {
-            setActiveContent('dashboard');
-            loadDashboardData();
-            
-            // Toggle sidebar visibility on mobile
-            sidebarToggle.addEventListener('click', () => {
-                // Toggle the -translate-x-full class
-                sidebar.classList.toggle('-translate-x-full');
-            });
+    // Function to switch between Dashboard, and Settings content
+    function setActiveContent(contentId) {
+        contentSections.forEach(section => {
+            section.classList.add('hidden');
         });
 
-        // Function to switch between Dashboard, and Settings content
-        function setActiveContent(contentId) {
-            contentSections.forEach(section => {
-                section.classList.add('hidden');
-            });
-
-            // Check if the requested content ID exists before trying to display it
-            const contentElement = document.getElementById(`content-${contentId}`);
-            if (contentElement) {
-                contentElement.classList.remove('hidden');
-            } else if (['userorders', 'newarrivals', 'capscollection', 'wearscollection', 'preorders', 'membership'].includes(contentId)) { // ⭐ ADDED 'userorders'
-                // Special handling for external links: they now redirect, so don't look for an internal section.
-                // We will update button styles, but not display an internal section.
-                console.log(`Content section 'content-${contentId}' is now a redirect. Reverting to dashboard view.`);
-                document.getElementById('content-dashboard').classList.remove('hidden');
-                contentId = `${contentId}-dummy-active-state`; // Use a dummy ID to keep the button active
-            }
+        // Check if the requested content ID exists before trying to display it
+        const contentElement = document.getElementById(`content-${contentId}`);
+        // NOTE: Membership navigation removed from this redirect list
+        if (contentElement) {
+            contentElement.classList.remove('hidden');
+        } else if (['userorders', 'newarrivals', 'capscollection', 'wearscollection', 'preorders'].includes(contentId)) { 
+            // Special handling for external links: they now redirect, so don't look for an internal section.
+            console.log(`Content section 'content-${contentId}' is now a redirect. Reverting to dashboard view.`);
+            document.getElementById('content-dashboard').classList.remove('hidden');
+            contentId = `${contentId}-dummy-active-state`; // Use a dummy ID to keep the button active
+        }
 
 
-            navButtons.forEach(button => {
-                const buttonContentId = button.id.replace('btn-', '');
-                // List all redirect buttons here
-                if (['userorders', 'wearscollection', 'capscollection', 'newarrivals', 'preorders', 'membership', 'logout'].includes(buttonContentId)) { // ⭐ ADDED 'userorders'
-                    // Special handling for the buttons that *are* redirects to remove their internal 'click' activation style
-                    button.classList.remove('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
-                    button.classList.add('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
-                    return; 
-                }
-
-                // Reset inactive styles for internal pages
+        navButtons.forEach(button => {
+            const buttonContentId = button.id.replace('btn-', '');
+            // List all redirect buttons here
+            if (['userorders', 'wearscollection', 'capscollection', 'newarrivals', 'preorders', 'logout'].includes(buttonContentId)) { 
+                // Special handling for the buttons that *are* redirects to remove their internal 'click' activation style
                 button.classList.remove('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
                 button.classList.add('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
-            });
-
-            const activeBtnId = contentId.endsWith('-dummy-active-state') ? `btn-${contentId.replace('-dummy-active-state', '')}` : `btn-${contentId}`;
-            const activeBtn = document.getElementById(activeBtnId);
-            
-            if (activeBtn) {
-                // Set active styles
-                activeBtn.classList.remove('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
-                activeBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
-            } 
-            
-            // Re-apply dashboard styles if a non-existent internal page was clicked (like newarrivals used to be)
-            if (!contentElement && contentId !== 'settings') {
-                document.getElementById('content-dashboard').classList.remove('hidden');
+                return; 
             }
 
+            // Reset inactive styles for internal pages
+            button.classList.remove('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
+            button.classList.add('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
+        });
 
-            // Hide sidebar on small screens after selection
-            if (window.innerWidth < 1024) {
-                sidebar.classList.add('-translate-x-full');
-            }
+        const activeBtnId = contentId.endsWith('-dummy-active-state') ? `btn-${contentId.replace('-dummy-active-state', '')}` : `btn-${contentId}`;
+        const activeBtn = document.getElementById(activeBtnId);
+        
+        if (activeBtn) {
+            // Set active styles
+            activeBtn.classList.remove('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
+            activeBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
+        } 
+        
+        // Re-apply dashboard styles if a non-existent internal page was clicked 
+        if (!contentElement && contentId !== 'settings') {
+            document.getElementById('content-dashboard').classList.remove('hidden');
         }
 
-        /**
-         * Fetches real-time dashboard statistics from the Node.js/MongoDB API.
-         */
-        async function fetchDashboardData() {
-            const token = localStorage.getItem('adminToken'); // Get the actual token
-            
-            if (!token) {
-                console.error("No adminToken found. Redirecting to login for authentication.");
-                // Redirect user to login page immediately if no token is found
-                window.location.href = './admin-login.html'; 
-                return null;
-            }
 
-            try {
-                // IMPORTANT: Replace this with your actual backend endpoint if deploying
-                const response = await fetch('/api/admin/dashboard/stats', { 
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}` 
-                    }
-                });
-
-                if (!response.ok) {
-                    if (response.status === 401 || response.status === 403) {
-                        console.error('Unauthorized access. Token expired or invalid. Logging out.');
-                        logoutAdmin(); // Log out and redirect on Auth failure
-                        return null;
-                    }
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-              const data = await response.json();
-                return {
-                    totalSales: data.totalSales || 0,
-                    wearsStock: data.wearsStock || 0, 
-                    capsStock: data.capsStock || 0, 
-                    newArrivalsStock: data.newArrivalsStock || 0, 
-                    preOrderStock: data.preOrderStock || 0, 
-                    activeSubscriptions: data.activeSubscriptions || 0, 
-                    registeredUsers: data.userCount || 0,
-                    recentActivity: data.recentActivity || [] 
-                };
-
-            } catch (error) {
-                console.error('Error fetching dashboard data:', error);
-                return null;
-            }
-        }
-
-        // Function to load and display data
-        async function loadDashboardData() {
-            loadingIndicator.classList.remove('hidden');
-            metricCards.classList.add('hidden');
-
-            const data = await fetchDashboardData();
-
-            loadingIndicator.classList.add('hidden');
-
-            if (data) {
-                // Format Sales as Nigerian Naira (NGN)
-                const salesFormatted = new Intl.NumberFormat('en-NG', {
-                    style: 'currency',
-                    currency: 'NGN',
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 2,
-                }).format(data.totalSales);
-
-                totalSalesElement.textContent = salesFormatted;
-                
-                // Display individual stock counts
-                wearsStockElement.textContent = data.wearsStock.toLocaleString();
-                capsStockElement.textContent = data.capsStock.toLocaleString();
-                newArrivalsStockElement.textContent = data.newArrivalsStock.toLocaleString();
-                preOrderStockElement.textContent = data.preOrderStock.toLocaleString();
-                
-                // DISPLAY ACTIVE SUBSCRIPTIONS COUNT
-                activeSubscriptionsElement.textContent = data.activeSubscriptions.toLocaleString();
-                
-                registeredUsersElement.textContent = data.registeredUsers.toLocaleString();
-                metricCards.classList.remove('hidden');
-                renderActivityLog(data.recentActivity);
-            } else {
-                // Display error state if data fetching fails
-                metricCards.innerHTML = '<div class="md:col-span-3 text-center p-8 bg-red-100 text-red-700 rounded-xl shadow-lg">Failed to load dashboard data. Please check the API connection.</div>';
-                metricCards.classList.remove('hidden');
-            }
-        /**
-             * Function to calculate "time ago" string
-             * Defined once for efficiency.
-             */
-        function formatTimeAgo(date) {
-            const seconds = Math.floor((new Date() - new Date(date)) / 1000);
-            let interval = seconds / 31536000;
-            if (interval > 1) return Math.floor(interval) + " years ago";
-            interval = seconds / 2592000;
-            if (interval > 1) return Math.floor(interval) + " months ago";
-            interval = seconds / 86400;
-            if (interval > 1) return Math.floor(interval) + " days ago";
-            interval = seconds / 3600;
-            if (interval > 1) return Math.floor(interval) + " hours ago";
-            interval = seconds / 60;
-            if (interval > 1) return Math.floor(interval) + " minutes ago";
-            return Math.floor(seconds) + " seconds ago";
-        }
-
-        /**
-         * Dynamically renders the recent activity log on the dashboard.
-         * @param {Array<Object>} activities - Array of recent activity objects.
-         */
-        function renderActivityLog(activities) {
-            // Using the selector from your latest snippet
-            const logList = document.querySelector('#content-dashboard .mt-8 ul');
-            if (!logList) return; // Exit if the list element isn't found
-
-            // Clear existing mock content
-            logList.innerHTML = '';
-            
-            if (activities.length === 0) {
-                logList.innerHTML = '<li class="p-3 text-center text-gray-400">No recent activity recorded.</li>';
-                return;
-            }
-            
-            activities.forEach(activity => {
-                const li = document.createElement('li');
-                // Added items-center for vertical alignment and space-y-2 for spacing
-                li.className = 'p-3 border-l-4 rounded-md flex justify-between items-center space-y-2'; 
-                
-                let borderColor = 'border-gray-200';
-                let bgColor = '';
-                let icon = '➡️'; // Default icon
-
-                // Apply colors based on event type for quick visual cues
-                switch (activity.eventType) {
-                    case 'ORDER_PLACED':
-                        borderColor = 'border-emerald-400';
-                        bgColor = 'bg-emerald-50';
-                        icon = '✅';
-                        break;
-                    case 'REGISTERED':
-                        borderColor = 'border-cyan-400';
-                        bgColor = 'bg-cyan-50';
-                        icon = '🆕';
-                        break;
-                    case 'FORGOT_PASSWORD':
-                        borderColor = 'border-amber-400';
-                        bgColor = 'bg-amber-50';
-                        icon = '⚠️';
-                        break;
-                    case 'LOGIN': 
-                        borderColor = 'border-purple-400';
-                        bgColor = 'bg-purple-50';
-                        icon = '🔑';
-                        break;
-                    case 'PRODUCT_ADDED': 
-                        borderColor = 'border-yellow-400';
-                        bgColor = 'bg-yellow-50';
-                        icon = '📦';
-                        break;
-                    // NEW CASE: HANDLE MEMBERSHIP SUBSCRIPTION
-                    case 'MEMBERSHIP_SUBSCRIBED':
-                        borderColor = 'border-red-400';
-                        bgColor = 'bg-red-50';
-                        icon = '💳';
-                        break;
-                    // Default case handles ADD_TO_CART and others
-                }
-
-                li.classList.add(borderColor, bgColor);
-                
-                // Using the efficient formatTimeAgo function defined outside this loop
-                const timeAgo = formatTimeAgo(activity.timestamp);
-                
-                li.innerHTML = `
-                    <span class="flex items-center space-x-2">
-                        <span class="text-lg">${icon}</span>
-                        <span>${activity.description}</span>
-                    </span>
-                    <span class="text-xs text-gray-400">${timeAgo}</span>
-                `;
-                
-                logList.appendChild(li);
-            });
+        // Hide sidebar on small screens after selection
+        if (window.innerWidth < 1024) {
+            sidebar.classList.add('-translate-x-full');
         }
     }
+
+    /**
+     * Fetches real-time dashboard statistics from the Node.js/MongoDB API.
+     */
+    async function fetchDashboardData() {
+        const token = localStorage.getItem('adminToken'); // Get the actual token
+        
+        if (!token) {
+            console.error("No adminToken found. Redirecting to login for authentication.");
+            // Redirect user to login page immediately if no token is found
+            window.location.href = './admin-login.html'; 
+            return null;
+        }
+
+        try {
+            // IMPORTANT: Replace this with your actual backend endpoint if deploying
+            const response = await fetch('/api/admin/dashboard/stats', { 
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
+                }
+            });
+
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    console.error('Unauthorized access. Token expired or invalid. Logging out.');
+                    logoutAdmin(); // Log out and redirect on Auth failure
+                    return null;
+                }
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+          const data = await response.json();
+            return {
+                totalSales: data.totalSales || 0,
+                wearsStock: data.wearsStock || 0, 
+                capsStock: data.capsStock || 0, 
+                newArrivalsStock: data.newArrivalsStock || 0, 
+                preOrderStock: data.preOrderStock || 0, 
+                // REMOVED: activeSubscriptions: data.activeSubscriptions || 0, 
+                registeredUsers: data.userCount || 0,
+                recentActivity: data.recentActivity || [] 
+            };
+
+        } catch (error) {
+            console.error('Error fetching dashboard data:', error);
+            return null;
+        }
+    }
+
+    // Function to load and display data
+    async function loadDashboardData() {
+        loadingIndicator.classList.remove('hidden');
+        metricCards.classList.add('hidden');
+
+        const data = await fetchDashboardData();
+
+        loadingIndicator.classList.add('hidden');
+
+        if (data) {
+            // Format Sales as Nigerian Naira (NGN)
+            const salesFormatted = new Intl.NumberFormat('en-NG', {
+                style: 'currency',
+                currency: 'NGN',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2,
+            }).format(data.totalSales);
+
+            totalSalesElement.textContent = salesFormatted;
+            
+            // Display individual stock counts
+            wearsStockElement.textContent = data.wearsStock.toLocaleString();
+            capsStockElement.textContent = data.capsStock.toLocaleString();
+            newArrivalsStockElement.textContent = data.newArrivalsStock.toLocaleString();
+            preOrderStockElement.textContent = data.preOrderStock.toLocaleString();
+            
+            // REMOVED: DISPLAY ACTIVE SUBSCRIPTIONS COUNT
+            // activeSubscriptionsElement.textContent = data.activeSubscriptions.toLocaleString();
+            
+            registeredUsersElement.textContent = data.registeredUsers.toLocaleString();
+            metricCards.classList.remove('hidden');
+            renderActivityLog(data.recentActivity);
+        } else {
+            // Display error state if data fetching fails
+            metricCards.innerHTML = '<div class="md:col-span-3 text-center p-8 bg-red-100 text-red-700 rounded-xl shadow-lg">Failed to load dashboard data. Please check the API connection.</div>';
+            metricCards.classList.remove('hidden');
+        }
+    /**
+         * Function to calculate "time ago" string
+         * Defined once for efficiency.
+         */
+    function formatTimeAgo(date) {
+        const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+        let interval = seconds / 31536000;
+        if (interval > 1) return Math.floor(interval) + " years ago";
+        interval = seconds / 2592000;
+        if (interval > 1) return Math.floor(interval) + " months ago";
+        interval = seconds / 86400;
+        if (interval > 1) return Math.floor(interval) + " days ago";
+        interval = seconds / 3600;
+        if (interval > 1) return Math.floor(interval) + " hours ago";
+        interval = seconds / 60;
+        if (interval > 1) return Math.floor(interval) + " minutes ago";
+        return Math.floor(seconds) + " seconds ago";
+    }
+
+    /**
+     * Dynamically renders the recent activity log on the dashboard.
+     * @param {Array<Object>} activities - Array of recent activity objects.
+     */
+    function renderActivityLog(activities) {
+        // Using the selector from your latest snippet
+        const logList = document.querySelector('#content-dashboard .mt-8 ul');
+        if (!logList) return; // Exit if the list element isn't found
+
+        // Clear existing mock content
+        logList.innerHTML = '';
+        
+        if (activities.length === 0) {
+            logList.innerHTML = '<li class="p-3 text-center text-gray-400">No recent activity recorded.</li>';
+            return;
+        }
+        
+        activities.forEach(activity => {
+            const li = document.createElement('li');
+            // Added items-center for vertical alignment and space-y-2 for spacing
+            li.className = 'p-3 border-l-4 rounded-md flex justify-between items-center space-y-2'; 
+            
+            let borderColor = 'border-gray-200';
+            let bgColor = '';
+            let icon = '➡️'; // Default icon
+
+            // Apply colors based on event type for quick visual cues
+            switch (activity.eventType) {
+                case 'ORDER_PLACED':
+                    borderColor = 'border-emerald-400';
+                    bgColor = 'bg-emerald-50';
+                    icon = '✅';
+                    break;
+                case 'REGISTERED':
+                    borderColor = 'border-cyan-400';
+                    bgColor = 'bg-cyan-50';
+                    icon = '🆕';
+                    break;
+                case 'FORGOT_PASSWORD':
+                    borderColor = 'border-amber-400';
+                    bgColor = 'bg-amber-50';
+                    icon = '⚠️';
+                    break;
+                case 'LOGIN': 
+                    borderColor = 'border-purple-400';
+                    bgColor = 'bg-purple-50';
+                    icon = '🔑';
+                    break;
+                case 'PRODUCT_ADDED': 
+                    borderColor = 'border-yellow-400';
+                    bgColor = 'bg-yellow-50';
+                    icon = '📦';
+                    break;
+                // REMOVED: NEW CASE for MEMBERSHIP_SUBSCRIBED
+                // case 'MEMBERSHIP_SUBSCRIBED':
+                //     borderColor = 'border-red-400';
+                //     bgColor = 'bg-red-50';
+                //     icon = '💳';
+                //     break;
+                // Default case handles ADD_TO_CART and others
+            }
+
+            li.classList.add(borderColor, bgColor);
+            
+            // Using the efficient formatTimeAgo function defined outside this loop
+            const timeAgo = formatTimeAgo(activity.timestamp);
+            
+            li.innerHTML = `
+                <span class="flex items-center space-x-2">
+                    <span class="text-lg">${icon}</span>
+                    <span>${activity.description}</span>
+                </span>
+                <span class="text-xs text-gray-400">${timeAgo}</span>
+            `;
+            
+            logList.appendChild(li);
+        });
+    }
+    } // Closing bracket for loadDashboardData scope
+
     </script>
 </body>
 </html>

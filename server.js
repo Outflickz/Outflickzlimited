@@ -3866,6 +3866,93 @@ app.delete(
     }
 );
 
+// =========================================================
+// 11. GET /api/admin/inventory/deductions - Fetch Deducted Inventory Logs (Admin Protected)
+// =========================================================
+app.get('/api/admin/inventory/deductions', verifyToken, async (req, res) => {
+    try {
+        // Get the category filter from the query parameter (e.g., ?category=wears)
+        const categoryFilter = req.query.category ? req.query.category.toLowerCase() : 'all';
+        
+        // Map the URL filter string to the Mongoose Model Name
+        const categoryMap = {
+            'wears': 'WearsCollection', 
+            'caps': 'CapCollection', 
+            'newarrivals': 'NewArrivals', 
+            'preorders': 'PreOrderCollection' 
+        };
+        
+        // 1. Initial Match Stage (Filter by Order Status)
+        // We only care about orders where inventory was actually deducted ('Confirmed' or later)
+        let pipeline = [
+            {
+                $match: {
+                    status: { $in: ['Confirmed', 'Shipped', 'Delivered'] }
+                }
+            },
+            // 2. Unwind the 'items' array
+            // This creates a separate document for every single product line item in every order.
+            {
+                $unwind: '$items'
+            }
+        ];
+        
+        // 3. Optional Match Stage (Filter by Category)
+        if (categoryFilter !== 'all') {
+            const productType = categoryMap[categoryFilter];
+            if (productType) {
+                pipeline.push({
+                    $match: {
+                        'items.productType': productType // Filter on the specific collection/model name
+                    }
+                });
+            } else {
+                // Handle invalid category query gracefully
+                return res.status(400).json({ message: 'Invalid category filter provided.' });
+            }
+        }
+        
+        // 4. Project Stage (Reshape the data for the frontend log)
+        pipeline.push({
+            $project: {
+                _id: 0, // Exclude the default _id from the order document
+                
+                // Fields needed by the frontend:
+                productId: '$items.productId',
+                name: '$items.name',
+                category: '$items.productType', // Use productType as the category name
+                quantity: '$items.quantity', 
+                orderId: '$_id', // The original order ID
+                date: '$confirmedAt', // The date the deduction happened
+                
+                // Optional: Include the Admin who confirmed the order
+                confirmedBy: '$confirmedBy' 
+            }
+        });
+
+        // 5. Sort Stage (Newest deductions first)
+        pipeline.push({
+            $sort: { date: -1 } 
+        });
+
+        // Execute the aggregation pipeline on the Order model
+        const OrderModel = mongoose.models.Order || mongoose.model('Order');
+        const deductionLogs = await OrderModel.aggregate(pipeline);
+
+        // Map the raw productType string to a cleaner display name for the frontend
+        const deductionLogsFormatted = deductionLogs.map(log => ({
+            ...log,
+            category: log.category.replace('Collection', '').replace('PreOrder', 'Pre-Order')
+        }));
+
+        res.status(200).json(deductionLogsFormatted);
+
+    } catch (error) {
+        console.error('Error fetching inventory deduction log:', error);
+        res.status(500).json({ message: 'Failed to retrieve inventory deduction logs.' });
+    }
+});
+
 // GET /api/collections/wears (For Homepage Display)
 app.get('/api/collections/wears', async (req, res) => {
     try {

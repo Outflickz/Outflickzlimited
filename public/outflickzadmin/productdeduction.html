@@ -155,7 +155,7 @@
         
         /**
          * Fetches and renders the stock deduction log for the specified category.
-         * Assumes the backend endpoint is: GET /api/admin/inventory/deduction-log?category=wears
+         * NOW CALLS THE CORRECT BACKEND ENDPOINT: GET /api/admin/inventory/deductions?category=wears
          */
         async function loadDeductionLog(category) {
             const tableBody = document.getElementById('deduction-table-body');
@@ -196,7 +196,9 @@
             tableBody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600 inline-block"></div> Fetching data...</td></tr>';
             
             let deductionData = [];
-            const apiUrl = `${API_BASE_URL}/api/admin/inventory/deduction-log?category=${category}`;
+            
+            // ⭐ CORRECTED API URL: Changed from 'deduction-log' to 'deductions' ⭐
+            const apiUrl = `${API_BASE_URL}/api/admin/inventory/deductions?category=${category}`; 
 
             try {
                 // 4. Fetch Real Data from Backend
@@ -217,8 +219,9 @@
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
+                // The backend now returns the array of logs directly (not in a 'log' property)
                 const data = await response.json();
-                deductionData = data.log || [];
+                deductionData = data || []; // Assumes the backend returns an array
                 
             } catch (error) {
                 console.error('Error fetching deduction log:', error);
@@ -234,7 +237,8 @@
                 return;
             }
 
-            // Sort by date (newest first)
+            // Sorting is now handled by the backend's aggregation pipeline ($sort: { date: -1 }), 
+            // but we'll keep the frontend sort as a safety fallback.
             deductionData.sort((a, b) => new Date(b.date) - new Date(a.date));
 
             deductionData.forEach(item => {
@@ -266,15 +270,11 @@
         }
         
         function getCategoryBadge(category) {
-             // Backend categories are likely: Wears, Caps, New Arrivals, Pre-Orders
+             // Backend categories returned by the aggregation pipeline: Wears, Caps, New Arrivals, Pre-Orders
              switch (category) {
-                 case 'WearsCollection': 
                  case 'Wears': return 'bg-cyan-100 text-cyan-800';
-                 case 'CapCollection': 
                  case 'Caps': return 'bg-blue-100 text-blue-800';
-                 case 'NewArrivals': 
                  case 'New Arrivals': return 'bg-fuchsia-100 text-fuchsia-800';
-                 case 'PreOrderCollection': 
                  case 'Pre-Orders': return 'bg-amber-100 text-amber-800';
                  default: return 'bg-gray-100 text-gray-800';
              }

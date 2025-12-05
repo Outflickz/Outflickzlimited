@@ -717,6 +717,33 @@ async function fetchInitialCartData() {
     // 🎯 BUY NOW / PRE-ORDER LOGIC START: CALLING NEW API
     // =========================================================================
     const buyNowItemJSON = sessionStorage.getItem(BUY_NOW_KEY);
+/**
+* Fetches the initial cart data, CHECKING FOR A 'BUY NOW' ITEM FIRST. 
+*/
+async function fetchInitialCartData() {
+    const subtotalEl = document.getElementById('summary-subtotal');
+    const shippingCostEl = document.getElementById('summary-shipping-cost');
+    const taxEstimateEl = document.getElementById('summary-tax-estimate');
+    const estimatedTotalEl = document.getElementById('summary-estimated-total');
+    const finalTotalEl = document.getElementById('summary-estimated-total-final');
+    const itemsListEl = document.getElementById('review-items-list');
+    const paymentBtn = document.getElementById('checkout-next-btn');
+    
+    // Set loading state
+    subtotalEl.textContent = '...';
+    shippingCostEl.textContent = '...';
+    taxEstimateEl.textContent = '...';
+    estimatedTotalEl.textContent = '...';
+    finalTotalEl.textContent = '...';
+    itemsListEl.innerHTML = '<div class="text-center py-6 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Loading order details...</div>';
+    paymentBtn.disabled = true;
+
+    let cartData;
+
+    // =========================================================================
+    // 🎯 BUY NOW / PRE-ORDER LOGIC START: CALLING NEW API
+    // =========================================================================
+    const buyNowItemJSON = sessionStorage.getItem(BUY_NOW_KEY);
 
 if (buyNowItemJSON) {
     console.log("Processing Buy Now flow...");
@@ -724,9 +751,11 @@ if (buyNowItemJSON) {
     let item = JSON.parse(buyNowItemJSON);
 
     // ⭐ CRITICAL FIXES FOR SERVER VALIDATION ⭐
-    // 1. Fix invalid 'productType' (Assuming 'Wears' is a generic valid type, or use 'Caps')
+    // 1. Fix invalid 'productType'. If it's a Cap that somehow lost its type, it 
+    // must be defaulted to 'Caps' to prevent lookup in the 'Wears' collection.
     if (!item.productType || item.productType === "undefined" || item.productType === null) {
-        item.productType = 'Wears'; // Default to a known type (e.g., 'Caps' or 'Wears')
+        // CHANGED 'Wears' to 'Caps'
+        item.productType = 'Caps'; // Correctly route the request to the Caps collection logic
         console.warn(`Fixed invalid productType to '${item.productType}' for Buy Now item.`);
     }
 
@@ -816,7 +845,6 @@ if (buyNowItemJSON) {
         paymentBtn.disabled = true;
     }
 }
-
     /**
      * Helper function to notify admin of a new order. (Unchanged, but used in finalizeOrderOnServer)
      */

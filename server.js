@@ -4812,6 +4812,7 @@ app.get('/api/auth/status', verifyUserToken, (req, res) => {
     // We just return a success status.
     res.status(200).json({ message: 'Authenticated', isAuthenticated: true });
 });
+
 // =========================================================
 // NEW: POST /api/orders/calculate-buy-now - Calculate Totals for Single Item (Buy Now/Pre-Order)
 // =========================================================
@@ -4819,12 +4820,21 @@ app.post('/api/orders/calculate-buy-now', verifyUserToken, async (req, res) => {
     // This endpoint calculates totals for a single item passed in the request body, 
     // simulating a checkout from the product page (Buy Now).
 
+    // Define allowed product types for strict validation
+    const VALID_PRODUCT_TYPES = ['WearsCollection', 'CapCollection', 'NewArrivals', 'PreOrderCollection'];
+
     // ⭐ CRITICAL FIX: Ensure productType is included as it is required by the OrderItemSchema
     const { productId, name, productType, size, color, price, quantity, imageUrl, variationIndex, variation } = req.body;
 
     // 1. Basic Input Validation
     if (!productId || !name || !productType || !size || !price || !quantity || price <= 0 || quantity < 1 || variationIndex === undefined || variationIndex === null) {
         return res.status(400).json({ message: 'Missing or invalid item details, including required productType or variation information, for calculation.' });
+    }
+
+    // ⭐ CRITICAL BACKEND FIX: Explicitly validate productType against allowed list
+    if (!VALID_PRODUCT_TYPES.includes(productType)) {
+        console.error(`Validation failed: Invalid productType received for Buy Now: ${productType}`);
+        return res.status(400).json({ message: 'Invalid product collection type received. Cannot calculate totals.' });
     }
 
     // 2. Construct the temporary cart item array, ensuring all necessary fields are present
@@ -4864,6 +4874,9 @@ app.post('/api/orders/calculate-buy-now', verifyUserToken, async (req, res) => {
 // 5. POST /api/users/cart - Add Item to Cart (Protected)
 // =========================================================
 app.post('/api/users/cart', verifyUserToken, async (req, res) => {
+    // Define allowed product types for strict validation
+    const VALID_PRODUCT_TYPES = ['WearsCollection', 'CapCollection', 'NewArrivals', 'PreOrderCollection'];
+
     // ... (gathering and validation remains the same: FIX 1, FIX 2)
     const { productId, name, productType, size, color, price, quantity, imageUrl, variationIndex, variation } = req.body;
     const userId = req.userId;
@@ -4880,6 +4893,12 @@ app.post('/api/users/cart', verifyUserToken, async (req, res) => {
     // Basic Input Validation
     if (!productId || !name || !productType || !size || !price || !quantity || price <= 0 || quantity < 1 || variationIndex === undefined || variationIndex === null) {
         return res.status(400).json({ message: 'Missing or invalid item details, including variation information.' });
+    }
+
+    // ⭐ CRITICAL BACKEND FIX: Explicitly validate productType against allowed list
+    if (!VALID_PRODUCT_TYPES.includes(productType)) {
+        console.error(`Validation failed: Invalid productType received: ${productType}`);
+        return res.status(400).json({ message: 'Invalid product collection type received. Please ensure the product is from a supported collection.' });
     }
 
     const newItem = {
@@ -5066,6 +5085,7 @@ app.delete('/api/users/cart/:itemId', verifyUserToken, async (req, res) => {
         res.status(500).json({ message: 'Failed to remove item.' });
     }
 });
+
 // =========================================================
 // 4. DELETE /api/users/cart - Clear All Items (Protected)
 // =========================================================

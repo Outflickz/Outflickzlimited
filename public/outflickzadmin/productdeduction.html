@@ -329,27 +329,56 @@ async function viewOrderDetails(orderId) {
 /**
  * Renders the order details into the modal body.
  * NOTE: This function now correctly receives the plain order object, not the wrapper.
+ * This version uses robust fallbacks to handle potential missing or misnamed properties
+ * from the backend API response.
  */
 function renderOrderDetails(details, modalBody) {
-    // details.items is now correctly accessed, resolving the TypeError
-    let productsHtml = details.items.map(item => `
-        <li class="flex justify-between py-2 border-b last:border-b-0">
-            <span class="font-medium text-gray-800">${item.name} (${item.variant})</span>
-            <span class="text-red-600 font-bold">x ${item.quantity}</span>
-        </li>
-    `).join('');
+    // --- Fallbacks for Order-Level Details ---
+    const orderId = details.orderId || details._id || 'N/A';
+    
+    // Customer name is likely nested, check common locations
+    const customerName = details.customerName || 
+                         (details.user ? details.user.name : 'N/A') || 
+                         (details.shippingAddress ? details.shippingAddress.name : 'N/A');
+    
+    // Total quantity might be calculated or stored under different names
+    const totalQuantity = details.totalQuantity || details.totalItems || 
+                          (details.items ? details.items.reduce((sum, item) => sum + (item.quantity || 0), 0) : 0);
+    
+    // Date is often stored as 'confirmedAt', 'updatedAt', or 'date'
+    const confirmationDate = details.confirmationDate || details.confirmedAt || details.updatedAt || details.date;
+    const dateDisplay = confirmationDate ? new Date(confirmationDate).toLocaleString() : 'Date Not Available';
+
+
+    // --- Fallbacks for Product Items ---
+    let productsHtml = (details.items || []).map(item => {
+        // Product name: check item.name, then nested item.product.name
+        const productName = item.name || (item.product ? item.product.name : 'Unknown Product');
+        
+        // Variant/Size: check item.variant, then item.size
+        const variant = item.variant || item.size || 'N/A';
+        
+        const quantity = item.quantity || 1;
+        
+        return `
+            <li class="flex justify-between py-2 border-b last:border-b-0">
+                <span class="font-medium text-gray-800">${productName} **(${variant})**</span>
+                <span class="text-red-600 font-bold">x ${quantity}</span>
+            </li>
+        `;
+    }).join('');
 
     modalBody.innerHTML = `
-        <h4 class="text-lg font-bold text-emerald-800 mb-4">Order Summary (ID: ${details.orderId})</h4>
+        <h4 class="text-lg font-bold text-emerald-800 mb-4">Order Summary (ID: ${orderId})</h4>
         
         <div class="grid grid-cols-2 gap-4 mb-6 text-sm">
             <div>
                 <p class="font-semibold text-gray-600">Customer Name:</p>
-                <p class="text-gray-900">${details.customerName}</p>
+                <p class="text-gray-900">${customerName}</p>
             </div>
             <div>
                 <p class="font-semibold text-gray-600">Total Items Deducted:</p>
-                <p class="text-lg font-bold text-red-600">${details.totalQuantity}</p>
+                <p class="text-lg font-bold text-red-600">${totalQuantity}</p>
             </div>
         </div>
         
@@ -360,127 +389,9 @@ function renderOrderDetails(details, modalBody) {
             </ul>
         </div>
         
-        <p class="mt-4 text-xs text-gray-500 text-right">Deduction Confirmed by Admin: ${new Date(details.confirmationDate).toLocaleString()}</p>
+        <p class="mt-4 text-xs text-gray-500 text-right">Deduction Confirmed by Admin: ${dateDisplay}</p>
     `;
 }
-    /**
-     * Fetches and renders the stock deduction log for the specified category.
-     */
-    async function loadDeductionLog(category) {
-        const tableBody = document.getElementById('deduction-table-body');
-        const pageTitle = document.getElementById('page-title');
-        const categoryBtns = document.querySelectorAll('.category-btn');
-        const adminToken = localStorage.getItem('adminToken');
-
-        if (!adminToken) {
-            // Uncomment this for real-world application, keeping it commented for development
-            // logoutAdmin(); 
-            // return;
-        }
-
-        // 1. Update URL for deep linking
-        history.pushState(null, '', `?category=${category}`);
-
-        // 2. Update Title and Active Tab Styling
-        const titleMap = {
-            'all': 'Stock Deduction Log 📦',
-            'wears': 'Wears Deducted from Stock 👕',
-            'caps': 'Caps Deducted from Stock 🧢',
-            'newarrivals': 'New Arrivals Deducted from Stock ✨',
-            'preorders': 'Pre-Orders Deducted from Stock ⏳'
-        };
-        pageTitle.textContent = titleMap[category] || 'Stock Deduction Log 📦';
-
-        categoryBtns.forEach(btn => {
-            btn.classList.remove('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
-            btn.classList.add('bg-gray-200', 'text-gray-700', 'hover:bg-gray-300');
-            
-            if (btn.dataset.category === category) { 
-                btn.classList.remove('bg-gray-200', 'text-gray-700', 'hover:bg-gray-300');
-                btn.classList.add('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
-            }
-        });
-
-        // 3. Update Sidebar Active Link
-        updateSidebarActiveLink(category);
-
-
-        // 4. Display Loading State
-        tableBody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600 inline-block"></div> Fetching data...</td></tr>';
-        
-        let deductionData = [];
-        
-        const apiUrl = `${API_BASE_URL}/api/admin/inventory/deductions?category=${category}`; 
-
-        try {
-            // 5. Fetch Real Data
-            const response = await fetch(apiUrl, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${adminToken}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (response.status === 401) {
-                //logoutAdmin(); 
-                //return;
-            }
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            deductionData = data || []; 
-
-        } catch (error) {
-            console.error('Error fetching deduction log:', error);
-            tableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 text-center text-red-500">Failed to load data: ${error.message}</td></tr>`;
-            return;
-        }
-
-        // 6. Render Table Data
-        tableBody.innerHTML = ''; 
-
-        if (deductionData.length === 0) {
-            const categoryDisplay = category === 'all' ? 'any collection' : category.replace('s', '');
-            tableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">No stock deductions recorded for ${categoryDisplay}.</td></tr>`;
-            return;
-        }
-
-        deductionData.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-        deductionData.forEach(item => {
-            const date = new Date(item.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
-            const timeAgo = formatTimeAgo(item.date);
-            
-            const row = document.createElement('tr');
-            row.className = 'hover:bg-gray-50 transition duration-150';
-            
-            // Optimized column rendering for mobile/desktop
-            row.innerHTML = `
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-medium truncate-mobile">${item.orderId}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 truncate-mobile">${item.name}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600 font-bold">${item.quantity}</td>
-                
-                <td class="lg-only px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 truncate-mobile">${item.productId}</td>
-                <td class="lg-only px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getCategoryBadge(item.category)}">
-                        ${item.category}
-                    </span>
-                </td>
-                <td class="lg-only px-6 py-4 whitespace-nowrap text-sm text-gray-500">${date} (${timeAgo})</td>
-                
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button onclick="viewOrderDetails('${item.orderId}')" class="text-emerald-600 hover:text-emerald-900 font-semibold transition duration-150 ease-in-out underline bg-transparent border-none p-0 cursor-pointer">
-                        View Details
-                    </button>
-                </td>
-            `;
-            tableBody.appendChild(row);
-        });
-    }
     
     /**
      * Logic to highlight the appropriate collection link in the sidebar 

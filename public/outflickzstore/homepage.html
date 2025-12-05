@@ -459,7 +459,6 @@ function addToCart(collectionId, quantity) {
 
     console.log(`Added ${quantity} of item ${collectionId}. New cart total: ${newCount}`);
 }
-
 /**
  * Handles adding an item to the cart. 
  * Tries API (permanent cart via secure cookie) first.
@@ -522,7 +521,8 @@ async function simulateAddToCart(productDetails) {
         color: color, // The color can be 'N/A' but is defined
         price: productDetails.price,
         // 🛑 CRITICAL FIX 3: REMOVE UNSAFE FALLBACK. The backend requires a valid collection key.
-        productType: productDetails.productType, 
+        // 🚀 FIX FOR FATAL ERROR: If productType is missing from productDetails, try to retrieve it from the DOM card element.
+        productType: productDetails.productType || card.getAttribute('data-product-type'), 
         imageUrl: selectedImageUrl, 
         quantity: productDetails.quantity || 1,
         variationIndex: variationIndex, // Now 1-based

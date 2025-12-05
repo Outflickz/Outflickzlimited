@@ -1,458 +1,395 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Deduction Log | Commerce Hub</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="icon" type="image/png" href="https://i.imgur.com/ioWFyQB.png">
-    <style>
-        /* Custom scrollbar for a cleaner look */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-thumb { background-color: #05744b; border-radius: 4px; }
-        body { font-family: 'Inter', sans-serif; font-size: 0.95rem; }
-        /* Style for the currently active link based on the category loaded */
-        .active-link {
-            background-color: #05744b; /* bg-emerald-700 equivalent */
-            color: #ffffff;
-        }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Deduction Log | Commerce Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="https://i.imgur.com/ioWFyQB.png">
+    <style>
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-thumb { background-color: #05744b; border-radius: 4px; }
+        body { font-family: 'Inter', sans-serif; font-size: 0.95rem; }
+        
+        /* Global state for mobile sidebar */
+        .sidebar-open-mobile {
+            overflow: hidden; /* Prevents background scrolling when sidebar is open */
+        }
+    </style>
 </head>
 <body class="bg-gray-50 min-h-screen flex">
 
-    <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-emerald-900 text-white transform transition-transform duration-300 z-30 lg:translate-x-0 -translate-x-full shadow-2xl flex flex-col">
-        <div class="p-6 flex-shrink-0">
-            <img src="https://i.imgur.com/Fz9w1BA.png" alt="E-commerce Logo" class="h-10 w-auto mb-6 rounded-lg shadow-md border border-emerald-700">
-            <h1 class="text-xl font-extrabold text-emerald-400 border-t border-emerald-800 pt-4">Commerce Hub</h1>
-        </div>
-        
-        <nav class="space-y-2 px-4 flex-grow overflow-y-auto">
-            <a href="./admin-dashboard.html" id="btn-dashboard" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l-7-7-7 7m10 0v10a1 1 0 01-1 1h-3m-3 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-9 0h10"></path></svg>
-                Dashboard
-            </a>
-            
-            <a href="./userorders.html" id="btn-userorders" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
-                User Orders
-            </a>
+        <div id="sidebar-backdrop" class="fixed inset-0 bg-black opacity-0 lg:hidden z-20 pointer-events-none transition-opacity duration-300"></div>
 
-            <a href="./productiondeduction.html?category=wears" id="btn-wearscollection" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
-                Wears Collection
-            </a>
+        <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-emerald-900 text-white transform transition-transform duration-300 z-30 lg:translate-x-0 -translate-x-full shadow-2xl flex flex-col">
+        <div class="p-6 flex-shrink-0">
+            <img src="https://i.imgur.com/Fz9w1BA.png" alt="E-commerce Logo" class="h-10 w-auto mb-6 rounded-lg shadow-md border border-emerald-700">
+            <h1 class="text-xl font-extrabold text-emerald-400 border-t border-emerald-800 pt-4">Commerce Hub</h1>
+        </div>
+        
+        <nav class="space-y-2 px-4 flex-grow overflow-y-auto">
+            <a href="./admin-dashboard.html" id="btn-dashboard" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l-7-7-7 7m10 0v10a1 1 0 01-1 1h-3m-3 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-9 0h10"></path></svg>
+                Dashboard
+            </a>
+            
+            <a href="./userorders.html" id="btn-userorders" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                User Orders
+            </a>
 
-            <a href="./productiondeduction.html?category=caps" id="btn-capscollection" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 13h10M4 19v-6a3 3 0 013-3h10a3 3 0 013 3v6a3 3 0 01-3 3H7a3 3 0 01-3-3z"></path></svg>
-                Caps Collection
-            </a>
-            
-            <a href="./productiondeduction.html?category=newarrivals" id="btn-newarrivals" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                New Arrivals
-            </a>
-            
-            <a href="./productiondeduction.html?category=preorders" id="btn-preorders" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
-                Pre-Order 
-            </a>
+            <a href="./productiondeduction.html?category=wears" id="btn-wearscollection" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                Wears Collection
+            </a>
 
-            <a href="./membership.html" id="btn-membership" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3v-5a2 2 0 00-2-2H5a2 2 0 00-2 2v5a3 3 0 003 3z"></path></svg>
-                Membership
-            </a>
-            
-            <a href="./settings.html" id="btn-settings" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.526.34.813.486 1.066-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                Settings
-            </a>
-        </nav>
-        
-        <div class="p-4 flex-shrink-0 border-t border-emerald-800">
-            <button id="btn-logout" onclick="logoutAdmin()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-red-600 hover:bg-red-700 text-white shadow-lg">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                Log Out
-            </button>
-        </div>
-    </aside>
+            <a href="./productiondeduction.html?category=caps" id="btn-capscollection" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 13h10M4 19v-6a3 3 0 013-3h10a3 3 0 013 3v6a3 3 0 01-3 3H7a3 3 0 01-3-3z"></path></svg>
+                Caps Collection
+            </a>
+            
+            <a href="./productiondeduction.html?category=newarrivals" id="btn-newarrivals" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                New Arrivals
+            </a>
+            
+            <a href="./productiondeduction.html?category=preorders" id="btn-preorders" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                Pre-Order 
+            </a>
 
-    <main class="flex-1 lg:ml-64 p-4 transition-all duration-300 overflow-x-hidden">
-        
-        <button id="sidebar-toggle" class="lg:hidden fixed top-4 left-4 z-40 p-2 bg-emerald-600 text-white rounded-lg shadow-lg hover:bg-emerald-700 transition">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-        </button>
+            <a href="./membership.html" id="btn-membership" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3v-5a2 2 0 00-2-2H5a2 2 0 00-2 2v5a3 3 0 003 3z"></path></svg>
+                Membership
+            </a>
+            
+            <a href="./settings.html" id="btn-settings" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.526.34.813.486 1.066-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                Settings
+            </a>
+        </nav>
+        
+        <div class="p-4 flex-shrink-0 border-t border-emerald-800">
+            <button id="btn-logout" onclick="logoutAdmin()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-red-600 hover:bg-red-700 text-white shadow-lg">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                Log Out
+            </button>
+        </div>
+    </aside>
 
-        <section id="deduction-log-content" class="p-6 pt-16 lg:pt-6">
-            <h2 id="page-title" class="text-2xl font-semibold text-gray-800 mb-6">Stock Deduction Log 📦</h2>
+        <main class="flex-1 lg:ml-64 p-4 transition-all duration-300 overflow-x-hidden">
+        
+                <button id="sidebar-toggle" class="lg:hidden fixed top-4 left-4 z-40 p-2 bg-emerald-600 text-white rounded-lg shadow-lg hover:bg-emerald-700 transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        </button>
 
-            <div class="flex space-x-2 mb-6">
-                <button onclick="loadDeductionLog('all')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition" data-category="all">All Deductions</button>
-                <button onclick="loadDeductionLog('wears')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition" data-category="wears">Wears</button>
-                <button onclick="loadDeductionLog('caps')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition" data-category="caps">Caps</button>
-                <button onclick="loadDeductionLog('newarrivals')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition" data-category="newarrivals">New Arrivals</button>
-                <button onclick="loadDeductionLog('preorders')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition" data-category="preorders">Pre-Orders</button>
-            </div>
+                <section id="deduction-log-content" class="p-6 pt-20 lg:pt-6"> 
+            <h2 id="page-title" class="text-2xl font-semibold text-gray-800 mb-6">Stock Deduction Log 📦</h2>
 
-            <div class="bg-white p-6 rounded-xl shadow-lg overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product ID</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Name</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity Deducted</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deduction Date</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th> 
-                        </tr>
-                    </thead>
-                    <tbody id="deduction-table-body" class="bg-white divide-y divide-gray-200">
-                        <tr>
-                            <td colspan="7" class="px-6 py-4 text-center text-gray-500">Loading deduction data...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+                        <div class="flex space-x-2 mb-6 overflow-x-auto pb-2">
+                <button onclick="loadDeductionLog('all')" class="category-btn flex-shrink-0 px-4 py-2 text-sm font-medium rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition" data-category="all">All Deductions</button>
+                <button onclick="loadDeductionLog('wears')" class="category-btn flex-shrink-0 px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition" data-category="wears">Wears</button>
+                <button onclick="loadDeductionLog('caps')" class="category-btn flex-shrink-0 px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition" data-category="caps">Caps</button>
+                <button onclick="loadDeductionLog('newarrivals')" class="category-btn flex-shrink-0 px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition" data-category="newarrivals">New Arrivals</button>
+                <button onclick="loadDeductionLog('preorders')" class="category-btn flex-shrink-0 px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition" data-category="preorders">Pre-Orders</button>
+            </div>
 
-        </section>
+                        <div class="bg-white p-6 rounded-xl shadow-lg overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product ID</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity Deducted</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deduction Date</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th> 
+                        </tr>
+                    </thead>
+                    <tbody id="deduction-table-body" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="7" class="px-6 py-4 text-center text-gray-500">Loading deduction data...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
 
-        <div id="product-details-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden items-center justify-center z-50 p-4" onclick="closeDeductionDetails()">
-            <div class="bg-white rounded-lg shadow-2xl w-full max-w-xl p-6" onclick="event.stopPropagation()">
-                <div class="flex justify-between items-center border-b pb-3 mb-4">
-                    <h3 class="text-xl font-bold text-gray-800">Deducted Product Details ℹ️</h3>
-                    <button onclick="closeDeductionDetails()" class="text-gray-400 hover:text-gray-600 transition">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
-                </div>
-                <div id="modal-content-area" class="space-y-4">
-                    <div class="animate-pulse flex space-x-4">
-                        <div class="rounded-lg bg-gray-300 h-24 w-24"></div>
-                        <div class="flex-1 space-y-4 py-1">
-                            <div class="h-4 bg-gray-300 rounded w-3/4"></div>
-                            <div class="space-y-2">
-                                <div class="h-4 bg-gray-300 rounded"></div>
-                                <div class="h-4 bg-gray-300 rounded w-5/6"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        </main>
-    
-    <script>
-        // --- Configuration ---
-        const API_BASE_URL = 'https://outflickz.netlify.app'; 
+        </section>
 
-        // --- Utility Functions ---
+    </main>
+    
+    <script>
+        // --- Configuration ---
+        const API_BASE_URL = 'https://outflickz.netlify.app'; 
 
-        function logoutAdmin() {
-            localStorage.removeItem('adminToken');
-            window.location.href = './admin-login.html'; 
-        }
-        
-        function formatTimeAgo(timestamp) {
-            const date = new Date(timestamp);
-            const now = new Date();
-            const seconds = Math.floor((now - date) / 1000);
+        // --- Utility Functions ---
 
-            let interval = seconds / 31536000;
-            if (interval > 1) return Math.floor(interval) + " years ago";
-            interval = seconds / 2592000;
-            if (interval > 1) return Math.floor(interval) + " months ago";
-            interval = seconds / 86400;
-            if (interval > 1) return Math.floor(interval) + " days ago";
-            interval = seconds / 3600;
-            if (interval > 1) return Math.floor(interval) + " hours ago";
-            interval = seconds / 60;
-            if (interval > 1) return Math.floor(interval) + " minutes ago";
-            return "just now";
-        }
+        function logoutAdmin() {
+            localStorage.removeItem('adminToken');
+            window.location.href = './admin-login.html'; 
+        }
+        
+        function formatTimeAgo(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const seconds = Math.floor((now - date) / 1000);
 
-        function getCategoryFromURL() {
-            const params = new URLSearchParams(window.location.search);
-            return params.get('category') || 'all'; 
-        }
+            let interval = seconds / 31536000;
+            if (interval > 1) return Math.floor(interval) + " years ago";
+            interval = seconds / 2592000;
+            if (interval > 1) return Math.floor(interval) + " months ago";
+            interval = seconds / 86400;
+            if (interval > 1) return Math.floor(interval) + " days ago";
+            interval = seconds / 3600;
+            if (interval > 1) return Math.floor(interval) + " hours ago";
+            interval = seconds / 60;
+            if (interval > 1) return Math.floor(interval) + " minutes ago";
+            return "just now";
+        }
 
-        /**
-         * Fetches and renders the stock deduction log for the specified category.
-         */
-        async function loadDeductionLog(category) {
-            const tableBody = document.getElementById('deduction-table-body');
-            const pageTitle = document.getElementById('page-title');
-            const categoryBtns = document.querySelectorAll('.category-btn');
-            const adminToken = localStorage.getItem('adminToken');
+        function getCategoryFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('category') || 'all'; 
+        }
 
-            if (!adminToken) {
-                logoutAdmin(); // Redirect if not authenticated
-                return;
-            }
-            
-            // 1. Update Title and Active Tab Styling
-            const titleMap = {
-                'all': 'Stock Deduction Log 📦',
-                'wears': 'Wears Deducted from Stock 👕',
-                'caps': 'Caps Deducted from Stock 🧢',
-                'newarrivals': 'New Arrivals Deducted from Stock ✨',
-                'preorders': 'Pre-Orders Deducted from Stock ⏳'
-            };
-            pageTitle.textContent = titleMap[category] || 'Stock Deduction Log 📦';
+        
+        /**
+         * Fetches and renders the stock deduction log for the specified category.
+         */
+        async function loadDeductionLog(category) {
+            const tableBody = document.getElementById('deduction-table-body');
+            const pageTitle = document.getElementById('page-title');
+            const categoryBtns = document.querySelectorAll('.category-btn');
+            const adminToken = localStorage.getItem('adminToken');
 
-            categoryBtns.forEach(btn => {
-                btn.classList.remove('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
-                btn.classList.add('bg-gray-200', 'text-gray-700', 'hover:bg-gray-300');
-                
-                if (btn.dataset.category === category) { 
-                    btn.classList.remove('bg-gray-200', 'text-gray-700', 'hover:bg-gray-300');
-                    btn.classList.add('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
+            if (!adminToken) {
+                logoutAdmin(); // Redirect if not authenticated
+                return;
+            }
+            
+            // 1. Update Title and Active Tab Styling
+            const titleMap = {
+                'all': 'Stock Deduction Log 📦',
+                'wears': 'Wears Deducted from Stock 👕',
+                'caps': 'Caps Deducted from Stock 🧢',
+                'newarrivals': 'New Arrivals Deducted from Stock ✨',
+                'preorders': 'Pre-Orders Deducted from Stock ⏳'
+            };
+            pageTitle.textContent = titleMap[category] || 'Stock Deduction Log 📦';
+
+            categoryBtns.forEach(btn => {
+                btn.classList.remove('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
+                btn.classList.add('bg-gray-200', 'text-gray-700', 'hover:bg-gray-300');
+                
+                if (btn.dataset.category === category) { 
+                    btn.classList.remove('bg-gray-200', 'text-gray-700', 'hover:bg-gray-300');
+                    btn.classList.add('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
+                }
+            });
+
+            // 2. Update Sidebar Active Link
+            updateSidebarActiveLink(category);
+
+
+            // 3. Display Loading State
+            tableBody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600 inline-block"></div> Fetching data...</td></tr>';
+            
+            let deductionData = [];
+            
+            // API URL: GET /api/admin/inventory/deductions?category=wears 
+            const apiUrl = `${API_BASE_URL}/api/admin/inventory/deductions?category=${category}`; 
+
+            try {
+                // 4. Fetch Real Data from Backend
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${adminToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.status === 401) {
+                    logoutAdmin(); // Handle token expiration/invalid
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                // Assumes the backend returns the array of logs directly
+                const data = await response.json();
+                deductionData = data || []; 
+                
+            } catch (error) {
+                console.error('Error fetching deduction log:', error);
+                tableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 text-center text-red-500">Failed to load data: ${error.message}</td></tr>`;
+                return;
+            }
+
+            // 5. Render Table Data
+            tableBody.innerHTML = ''; 
+
+            if (deductionData.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">No stock deductions recorded for ${category.replace('s', '')}.</td></tr>`;
+                return;
+            }
+
+            // Frontend sort as a safety fallback
+            deductionData.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            deductionData.forEach(item => {
+                // Assuming item structure: { productId, name, category, quantity, orderId, date }
+                const date = new Date(item.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+                const timeAgo = formatTimeAgo(item.date);
+                
+                // Get the lowercase category for the URL, matching the category button data-category values
+                const productCategoryForUrl = item.category.toLowerCase().replace(/\s/g, ''); // 'New Arrivals' -> 'newarrivals'
+                
+                // Construct the link to point to the productiondeduction page for the product's category and ID 
+                const productCollectionLink = `./productiondeduction.html?category=${productCategoryForUrl}&productId=${item.productId}`;
+                
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 transition duration-150';
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.productId}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 truncate max-w-xs">${item.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getCategoryBadge(item.category)}">
+                            ${item.category}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600 font-bold">${item.quantity}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">${item.orderId}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${date} (${timeAgo})</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <a href="${productCollectionLink}" target="_blank" class="text-emerald-600 hover:text-emerald-900 font-semibold transition duration-150 ease-in-out">
+                            View Product
+                        </a>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+        
+        function getCategoryBadge(category) {
+             // Backend categories returned by the aggregation pipeline: Wears, Caps, New Arrivals, Pre-Orders
+             switch (category) {
+                 case 'Wears': return 'bg-cyan-100 text-cyan-800';
+                 case 'Caps': return 'bg-blue-100 text-blue-800';
+                 case 'New Arrivals': return 'bg-fuchsia-100 text-fuchsia-800';
+                 case 'Pre-Orders': return 'bg-amber-100 text-amber-800';
+                 default: return 'bg-gray-100 text-gray-800';
+             }
+        }
+        
+        /**
+         * Logic to highlight the appropriate link in the new sidebar structure
+         * based on the currently loaded category.
+         */
+        function updateSidebarActiveLink(currentCategory) {
+            const links = document.querySelectorAll('#sidebar nav a');
+            
+            // 1. Remove active state from all links
+            links.forEach(link => {
+                link.classList.remove('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
+                link.classList.add('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
+            });
+            
+            // 2. Determine which link to activate based on the category
+            let activeLink = null;
+            
+            switch(currentCategory) {
+                case 'wears':
+                    activeLink = document.getElementById('btn-wearscollection');
+                    break;
+                case 'caps':
+                    activeLink = document.getElementById('btn-capscollection');
+                    break;
+                case 'newarrivals':
+                    activeLink = document.getElementById('btn-newarrivals');
+                    break;
+                case 'preorders':
+                    activeLink = document.getElementById('btn-preorders');
+                    break;
+                default:
+                    // 'all' doesn't correspond to a direct sidebar link, skip.
+                    break;
+            }
+
+            // 3. Apply active state
+            if (activeLink) {
+                activeLink.classList.remove('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
+                activeLink.classList.add('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
+            }
+        }
+
+
+        // --- Initialization and Responsiveness Logic ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const initialCategory = getCategoryFromURL();
+            loadDeductionLog(initialCategory.toLowerCase());
+            
+            const body = document.body;
+            const sidebar = document.getElementById('sidebar');
+            const sidebarToggle = document.getElementById('sidebar-toggle');
+            const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+            
+            // Function to manage sidebar state on mobile
+            function toggleSidebar(show) {
+                // Only execute on non-desktop (screen width < 1024px, the 'lg' breakpoint)
+                if (window.innerWidth >= 1024) return;
+                
+                const isCurrentlyHidden = sidebar.classList.contains('-translate-x-full');
+                
+                // Determine the new state based on 'show' or toggle logic
+                const newState = (show === undefined) ? isCurrentlyHidden : show;
+
+                if (newState) {
+                    // SHOW SIDEBAR
+                    sidebar.classList.remove('-translate-x-full');
+                    sidebarBackdrop.classList.remove('opacity-0', 'pointer-events-none');
+                    sidebarBackdrop.classList.add('opacity-50');
+                    body.classList.add('sidebar-open-mobile');
+                } else {
+                    // HIDE SIDEBAR
+                    sidebar.classList.add('-translate-x-full');
+                    sidebarBackdrop.classList.add('opacity-0', 'pointer-events-none');
+                    sidebarBackdrop.classList.remove('opacity-50');
+                    body.classList.remove('sidebar-open-mobile');
+                }
+            }
+            
+            // Event listeners
+            sidebarToggle.addEventListener('click', () => toggleSidebar());
+            sidebarBackdrop.addEventListener('click', () => toggleSidebar(false));
+
+            // Optional: Hide sidebar on link click (since it navigates anyway)
+            sidebar.querySelectorAll('a').forEach(link => {
+                link.addEventListener('click', () => {
+                    // Small timeout to allow the navigation to start before hiding
+                    setTimeout(() => toggleSidebar(false), 100); 
+                });
+            });
+
+            // Reset sidebar state on resize (e.g., rotating phone to landscape/desktop view)
+            window.addEventListener('resize', () => {
+                if (window.innerWidth >= 1024) {
+                    // Ensure classes are clean for desktop
+                    sidebar.classList.remove('-translate-x-full');
+                    sidebarBackdrop.classList.add('opacity-0', 'pointer-events-none');
+                    body.classList.remove('sidebar-open-mobile');
+                } else if (body.classList.contains('sidebar-open-mobile')) {
+                    // Re-apply mobile state if it was open before resize
+                    toggleSidebar(true);
                 }
-            });
+            });
+        });
 
-            // 2. Update Sidebar Active Link
-            updateSidebarActiveLink(category);
-
-
-            // 3. Display Loading State
-            tableBody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600 inline-block"></div> Fetching data...</td></tr>';
-            
-            let deductionData = [];
-            
-            const apiUrl = `${API_BASE_URL}/api/admin/inventory/deductions?category=${category}`; 
-
-            try {
-                // 4. Fetch Real Data from Backend
-                const response = await fetch(apiUrl, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${adminToken}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                if (response.status === 401) {
-                    logoutAdmin(); // Handle token expiration/invalid
-                    return;
-                }
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const data = await response.json();
-                deductionData = data || []; // Assumes the backend returns an array
-                
-            } catch (error) {
-                console.error('Error fetching deduction log:', error);
-                tableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 text-center text-red-500">Failed to load data: ${error.message}</td></tr>`;
-                return;
-            }
-
-            // 5. Render Table Data
-            tableBody.innerHTML = ''; 
-
-            if (deductionData.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">No stock deductions recorded for ${category.replace('s', '')}.</td></tr>`;
-                return;
-            }
-
-            deductionData.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-            deductionData.forEach(item => {
-                // Assuming item structure: { productId, name, category, quantity, orderId, date }
-                const date = new Date(item.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
-                const timeAgo = formatTimeAgo(item.date);
-                
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-gray-50 transition duration-150';
-                row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.productId}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 truncate max-w-xs">${item.name}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getCategoryBadge(item.category)}">
-                            ${item.category}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600 font-bold">${item.quantity}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">${item.orderId}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${date} (${timeAgo})</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button onclick="showDeductionDetails('${item.productId}', '${item.orderId}', '${item.name}')" class="text-emerald-600 hover:text-emerald-900 font-semibold transition duration-150 ease-in-out underline">
-                            View Details
-                        </button>
-                    </td>
-                `;
-                tableBody.appendChild(row);
-            });
-        }
-        
-        function getCategoryBadge(category) {
-             // Backend categories returned by the aggregation pipeline: Wears, Caps, New Arrivals, Pre-Orders
-             switch (category) {
-                 case 'Wears': return 'bg-cyan-100 text-cyan-800';
-                 case 'Caps': return 'bg-blue-100 text-blue-800';
-                 case 'New Arrivals': return 'bg-fuchsia-100 text-fuchsia-800';
-                 case 'Pre-Orders': return 'bg-amber-100 text-amber-800';
-                 default: return 'bg-gray-100 text-gray-800';
-             }
-        }
-        
-        /**
-         * Logic to highlight the appropriate link in the new sidebar structure
-         * based on the currently loaded category.
-         */
-        function updateSidebarActiveLink(currentCategory) {
-            const links = document.querySelectorAll('#sidebar nav a');
-            
-            // 1. Remove active state from all links
-            links.forEach(link => {
-                link.classList.remove('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
-                link.classList.add('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
-            });
-            
-            // 2. Determine which link to activate based on the category
-            let activeLink = null;
-            
-            switch(currentCategory) {
-                case 'wears':
-                    activeLink = document.getElementById('btn-wearscollection');
-                    break;
-                case 'caps':
-                    activeLink = document.getElementById('btn-capscollection');
-                    break;
-                case 'newarrivals':
-                    activeLink = document.getElementById('btn-newarrivals');
-                    break;
-                case 'preorders':
-                    activeLink = document.getElementById('btn-preorders');
-                    break;
-                default:
-                    // 'all' doesn't correspond to a direct sidebar link, skip.
-                    break;
-            }
-
-            // 3. Apply active state
-            if (activeLink) {
-                activeLink.classList.remove('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
-                activeLink.classList.add('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
-            }
-        }
-
-        // --- NEW FUNCTIONS FOR DEDUCTION DETAILS ---
-        
-        /**
-         * Fetches and displays detailed product/order information in a modal.
-         * In a real application, this would call a new API endpoint.
-         * For demonstration, this uses mock data.
-         */
-        async function showDeductionDetails(productId, orderId, productName) {
-            const modal = document.getElementById('product-details-modal');
-            const modalContentArea = document.getElementById('modal-content-area');
-            const adminToken = localStorage.getItem('adminToken');
-            
-            if (!adminToken) {
-                logoutAdmin();
-                return;
-            }
-
-            // 1. Show Loading State
-            modalContentArea.innerHTML = `
-                <div class="flex items-center justify-center p-8">
-                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mr-4"></div>
-                    <span class="text-gray-600">Fetching order line-item details...</span>
-                </div>
-            `;
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-
-            try {
-                // In a real scenario, you'd call an API: 
-                // e.g., GET /api/admin/orders/${orderId}/product/${productId}/details
-                // and expect a response like: 
-                // { image: 'url', size: 'M', color: 'Black', quantity: 1, ... }
-                
-                // --- MOCK DATA FOR DEMONSTRATION ---
-                await new Promise(resolve => setTimeout(resolve, 800)); // Simulate API latency
-                const mockDetails = {
-                    imageUrl: 'https://i.imgur.com/example-product-image.png', // Placeholder URL
-                    size: ['S', 'M', 'L', 'XL'][Math.floor(Math.random() * 4)],
-                    color: ['Red', 'Blue', 'Green', 'Black'][Math.floor(Math.random() * 4)],
-                    originalQuantity: Math.floor(Math.random() * 5) + 1,
-                    deductedQuantity: 1, // Always 1 for this deduction log item, as per the table.
-                    customerName: 'Mock Customer A',
-                    shippingAddress: '123 Fake St, Anytown, US',
-                    // Note: You would get the actual deducted quantity from the log item's 'quantity' property if you passed it here.
-                };
-                
-                // 2. Render Details
-                modalContentArea.innerHTML = `
-                    <div class="flex items-start space-x-6">
-                        <img src="${mockDetails.imageUrl}" alt="${productName}" class="w-24 h-24 object-cover rounded-lg shadow-md border border-gray-200">
-                        <div class="flex-1">
-                            <p class="text-lg font-bold text-gray-900">${productName}</p>
-                            <p class="text-sm text-gray-500">Product ID: <span class="font-mono">${productId}</span></p>
-                            <p class="text-sm text-gray-500">Order ID: <span class="font-mono text-blue-600">${orderId}</span></p>
-                            <a href="./userorders.html?orderId=${orderId}" target="_blank" class="text-sm text-emerald-600 hover:text-emerald-800 underline mt-1 block">View Full Order Page</a>
-                        </div>
-                    </div>
-                    
-                    <div class="grid grid-cols-2 gap-4 pt-4 border-t mt-4">
-                        <div class="text-sm">
-                            <p class="text-gray-500">Size</p>
-                            <p class="font-semibold text-gray-800">${mockDetails.size}</p>
-                        </div>
-                        <div class="text-sm">
-                            <p class="text-gray-500">Color</p>
-                            <p class="font-semibold text-gray-800">${mockDetails.color}</p>
-                        </div>
-                        <div class="text-sm">
-                            <p class="text-gray-500">Qty Deducted</p>
-                            <p class="font-bold text-red-600 text-lg">${mockDetails.deductedQuantity}</p>
-                        </div>
-                        <div class="text-sm">
-                            <p class="text-gray-500">Total Qty in Order</p>
-                            <p class="font-semibold text-gray-800">${mockDetails.originalQuantity}</p>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-gray-50 p-3 rounded-lg mt-4 border border-gray-200">
-                        <p class="text-sm font-medium text-gray-700">Customer: ${mockDetails.customerName}</p>
-                        <p class="text-xs text-gray-500">Shipping To: ${mockDetails.shippingAddress}</p>
-                    </div>
-                `;
-
-            } catch (error) {
-                console.error('Error fetching deduction details:', error);
-                modalContentArea.innerHTML = `<p class="text-red-500 text-center">Could not load details. API error: ${error.message}</p>`;
-            }
-        }
-
-        function closeDeductionDetails() {
-            const modal = document.getElementById('product-details-modal');
-            modal.classList.remove('flex');
-            modal.classList.add('hidden');
-        }
-
-        // --- Initialization ---
-        document.addEventListener('DOMContentLoaded', () => {
-            const initialCategory = getCategoryFromURL();
-            loadDeductionLog(initialCategory.toLowerCase());
-            
-            const sidebar = document.getElementById('sidebar');
-            const sidebarToggle = document.getElementById('sidebar-toggle');
-            
-            sidebarToggle.addEventListener('click', (e) => {
-                e.stopPropagation();
-                sidebar.classList.toggle('-translate-x-full');
-            });
-
-            document.querySelector('main').addEventListener('click', () => {
-                if (!sidebar.classList.contains('-translate-x-full') && window.innerWidth < 1024) {
-                    sidebar.classList.add('-translate-x-full');
-                }
-            });
-        });
-
-    </script>
+    </script>
 
 </body>
 </html>

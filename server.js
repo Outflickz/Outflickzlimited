@@ -1126,7 +1126,6 @@ async function createAdminUser(email, hashedPassword) {
         return null;
     }
 }
-
 /**
  * Retrieves real-time statistics for the admin dashboard.
  * Calculates Total Sales, and individual collection stock counts.
@@ -1134,8 +1133,16 @@ async function createAdminUser(email, hashedPassword) {
 async function getRealTimeDashboardStats() {
     try {
         // 1. Calculate Total Sales (sum of 'totalAmount' from completed orders)
+        // ⭐ FIX: Using $in to aggregate orders that have successfully progressed 
+        // past payment/inventory and represent actual sales revenue.
         const salesAggregation = await Order.aggregate([
-            { $match: { status: 'Delivered' } },
+            { 
+                $match: { 
+                    status: { 
+                        $in: ['Confirmed', 'Shipped', 'Delivered'] 
+                    } 
+                } 
+            },
             { $group: { _id: null, totalSales: { $sum: '$totalAmount' } } }
         ]);
         const totalSales = salesAggregation.length > 0 ? salesAggregation[0].totalSales : 0;

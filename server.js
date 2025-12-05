@@ -1943,15 +1943,28 @@ app.post('/api/admin/forgot-password', async (req, res) => {
 });
 
 app.get('/api/admin/dashboard/stats', verifyToken, async (req, res) => {
-    try {
-        // This now calls the updated function that aggregates stock from all product models
-        const stats = await getRealTimeDashboardStats();
-        res.status(200).json(stats);
-    } catch (error) {
-        // Updated error logging for better debugging
-        console.error("Dashboard Stats API Error:", error.message);
-        res.status(500).json({ message: 'Failed to retrieve dashboard stats.' });
-    }
+    try {
+        // Log that the request has successfully reached the main API handler
+        console.log("Attempting to retrieve real-time dashboard stats...");
+        
+        // This now calls the updated function that aggregates stock from all product models
+        const stats = await getRealTimeDashboardStats();
+        
+        // Log success
+        console.log("Dashboard stats retrieved successfully.");
+        
+        res.status(200).json(stats);
+    } catch (error) {
+        // ⭐ CRITICAL UPDATE: Log the entire error object to get the stack trace.
+        // This will pinpoint the exact line in getRealTimeDashboardStats() that is crashing.
+        console.error("Dashboard Stats API Crash Detected:");
+        console.error(error); // Logs the name, message, and stack trace
+
+        res.status(500).json({ 
+            message: 'Failed to retrieve dashboard stats due to a server crash.',
+            internalError: error.message // Optionally expose the message for client-side context
+        });
+    }
 });
 
 app.get('/api/admin/users/all', verifyToken, async (req, res) => {

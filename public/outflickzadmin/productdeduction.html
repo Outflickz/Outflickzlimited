@@ -86,11 +86,11 @@
             <h2 id="page-title" class="text-2xl font-semibold text-gray-800 mb-6">Stock Deduction Log 📦</h2>
 
             <div class="flex space-x-2 mb-6">
-                <button onclick="loadDeductionLog('all')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition">All Deductions</button>
-                <button onclick="loadDeductionLog('wears')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition">Wears</button>
-                <button onclick="loadDeductionLog('caps')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition">Caps</button>
-                <button onclick="loadDeductionLog('newarrivals')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition">New Arrivals</button>
-                <button onclick="loadDeductionLog('preorders')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition">Pre-Orders</button>
+                <button onclick="loadDeductionLog('all')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition" data-category="all">All Deductions</button>
+                <button onclick="loadDeductionLog('wears')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition" data-category="wears">Wears</button>
+                <button onclick="loadDeductionLog('caps')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition" data-category="caps">Caps</button>
+                <button onclick="loadDeductionLog('newarrivals')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition" data-category="newarrivals">New Arrivals</button>
+                <button onclick="loadDeductionLog('preorders')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition" data-category="preorders">Pre-Orders</button>
             </div>
 
             <div class="bg-white p-6 rounded-xl shadow-lg overflow-x-auto">
@@ -103,11 +103,12 @@
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity Deducted</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deduction Date</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th> 
                         </tr>
                     </thead>
                     <tbody id="deduction-table-body" class="bg-white divide-y divide-gray-200">
                         <tr>
-                            <td colspan="6" class="px-6 py-4 text-center text-gray-500">Loading deduction data...</td>
+                            <td colspan="7" class="px-6 py-4 text-center text-gray-500">Loading deduction data...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -118,7 +119,10 @@
     </main>
     
     <script>
-        // --- Utility Functions (for consistency) ---
+        // --- Configuration ---
+        const API_BASE_URL = 'YOUR_BACKEND_API_URL'; // **IMPORTANT: Set your actual backend URL here**
+
+        // --- Utility Functions ---
 
         function logoutAdmin() {
             localStorage.removeItem('adminToken');
@@ -143,31 +147,29 @@
             return "just now";
         }
 
-
-        // --- Data & Main Logic ---
-
         function getCategoryFromURL() {
             const params = new URLSearchParams(window.location.search);
             return params.get('category') || 'all'; 
         }
 
-        const dummyDeductionData = [
-            // Dummy data... (kept the same as previous)
-            { productId: 'W001', name: 'Emerald Hoodie', category: 'Wears', quantity: 2, orderId: 'ORD1001', date: '2025-12-05T10:00:00Z' },
-            { productId: 'W002', name: 'Vintage Tee', category: 'Wears', quantity: 1, orderId: 'ORD1002', date: '2025-12-05T11:15:00Z' },
-            { productId: 'C005', name: 'Classic Black Cap', category: 'Caps', quantity: 3, orderId: 'ORD1003', date: '2025-12-04T15:30:00Z' },
-            { productId: 'C010', name: 'Mesh Runner Cap', category: 'Caps', quantity: 1, orderId: 'ORD1005', date: '2025-12-03T09:00:00Z' },
-            { productId: 'NA01', name: 'Winter Jacket 2026', category: 'New Arrivals', quantity: 1, orderId: 'ORD1006', date: '2025-12-05T12:00:00Z' },
-            { productId: 'PO03', name: 'Future Sneaker', category: 'Pre-Orders', quantity: 5, orderId: 'ORD1004', date: '2025-12-04T18:00:00Z' },
-        ];
-
-
+        // --- Data & Main Logic ---
+        
+        /**
+         * Fetches and renders the stock deduction log for the specified category.
+         * Assumes the backend endpoint is: GET /api/admin/inventory/deduction-log?category=wears
+         */
         async function loadDeductionLog(category) {
             const tableBody = document.getElementById('deduction-table-body');
             const pageTitle = document.getElementById('page-title');
             const categoryBtns = document.querySelectorAll('.category-btn');
+            const adminToken = localStorage.getItem('adminToken');
+
+            if (!adminToken) {
+                logoutAdmin(); // Redirect if not authenticated
+                return;
+            }
             
-            // 1. Update Title and Active Tab Styling (on the main filter buttons)
+            // 1. Update Title and Active Tab Styling
             const titleMap = {
                 'all': 'Stock Deduction Log 📦',
                 'wears': 'Wears Deducted from Stock 👕',
@@ -181,14 +183,9 @@
                 btn.classList.remove('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
                 btn.classList.add('bg-gray-200', 'text-gray-700', 'hover:bg-gray-300');
                 
-                const btnText = btn.textContent.toLowerCase().replace(/ deductions/g, '').replace(/-/g, '').trim(); 
-                let checkCategory = category.toLowerCase().replace(/s/g, '').replace(/-/g, '').trim();
-
-                if (category === 'all' && btnText === 'all') checkCategory = 'all';
-
-                if (btnText.includes(checkCategory) && checkCategory !== '') { 
-                     btn.classList.remove('bg-gray-200', 'text-gray-700', 'hover:bg-gray-300');
-                     btn.classList.add('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
+                if (btn.dataset.category === category) { 
+                    btn.classList.remove('bg-gray-200', 'text-gray-700', 'hover:bg-gray-300');
+                    btn.classList.add('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
                 }
             });
 
@@ -196,25 +193,53 @@
             updateSidebarActiveLink(category);
 
 
-            // 3. Filter and Render Table Data (Same logic as before)
-            tableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600 inline-block"></div> Fetching data...</td></tr>';
+            // 3. Display Loading State
+            tableBody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600 inline-block"></div> Fetching data...</td></tr>';
+            
+            let deductionData = [];
+            const apiUrl = `${API_BASE_URL}/api/admin/inventory/deduction-log?category=${category}`;
 
-            const filteredData = category === 'all' 
-                ? dummyDeductionData 
-                : dummyDeductionData.filter(item => item.category.toLowerCase().replace(' ', '') === category);
+            try {
+                // 4. Fetch Real Data from Backend
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${adminToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
 
-            await new Promise(resolve => setTimeout(resolve, 500)); 
+                if (response.status === 401) {
+                    logoutAdmin(); // Handle token expiration/invalid
+                    return;
+                }
 
-            tableBody.innerHTML = ''; 
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
 
-            if (filteredData.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No stock deductions recorded for ${category.replace('s', '')}.</td></tr>`;
+                const data = await response.json();
+                deductionData = data.log || [];
+                
+            } catch (error) {
+                console.error('Error fetching deduction log:', error);
+                tableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 text-center text-red-500">Failed to load data: ${error.message}</td></tr>`;
                 return;
             }
 
-            filteredData.sort((a, b) => new Date(b.date) - new Date(a.date));
+            // 5. Render Table Data
+            tableBody.innerHTML = ''; 
 
-            filteredData.forEach(item => {
+            if (deductionData.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">No stock deductions recorded for ${category.replace('s', '')}.</td></tr>`;
+                return;
+            }
+
+            // Sort by date (newest first)
+            deductionData.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            deductionData.forEach(item => {
+                // Assuming item structure: { productId, name, category, quantity, orderId, date }
                 const date = new Date(item.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
                 const timeAgo = formatTimeAgo(item.date);
                 
@@ -231,16 +256,26 @@
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600 font-bold">${item.quantity}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">${item.orderId}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${date} (${timeAgo})</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <a href="./userorders.html?orderId=${item.orderId}" target="_blank" class="text-emerald-600 hover:text-emerald-900 font-semibold transition duration-150 ease-in-out">
+                            View Order
+                        </a>
+                    </td>
                 `;
                 tableBody.appendChild(row);
             });
         }
         
         function getCategoryBadge(category) {
+             // Backend categories are likely: Wears, Caps, New Arrivals, Pre-Orders
              switch (category) {
+                 case 'WearsCollection': 
                  case 'Wears': return 'bg-cyan-100 text-cyan-800';
+                 case 'CapCollection': 
                  case 'Caps': return 'bg-blue-100 text-blue-800';
+                 case 'NewArrivals': 
                  case 'New Arrivals': return 'bg-fuchsia-100 text-fuchsia-800';
+                 case 'PreOrderCollection': 
                  case 'Pre-Orders': return 'bg-amber-100 text-amber-800';
                  default: return 'bg-gray-100 text-gray-800';
              }
@@ -275,9 +310,8 @@
                 case 'preorders':
                     activeLink = document.getElementById('btn-preorders');
                     break;
-                case 'all': // If 'all' is active, the dashboard link is not the focus, so we check for one of the inventory categories that redirects to this page. We'll default to highlighting 'Wears' if coming from a dashboard metric card.
                 default:
-                    // Since this page is dedicated to Inventory Deduction, we can highlight one of the inventory sections by default if 'all' is shown. Let's not highlight any inventory link specifically for 'all'.
+                    // 'all' doesn't correspond to a direct sidebar link, skip.
                     break;
             }
 

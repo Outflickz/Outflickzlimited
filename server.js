@@ -1134,7 +1134,6 @@ async function createAdminUser(email, hashedPassword) {
 async function getRealTimeDashboardStats() {
     try {
         // 1. Calculate Total Sales (sum of 'totalAmount' from completed orders)
-        // (This remains the same)
         const salesAggregation = await Order.aggregate([
             { $match: { status: 'completed' } },
             { $group: { _id: null, totalSales: { $sum: '$totalAmount' } } }
@@ -1171,35 +1170,36 @@ async function getRealTimeDashboardStats() {
         ]);
         const preOrderStock = preOrderInventory[0]?.total || 0;
 
-
         // 3. Count Registered Users
         const userCount = await User.countDocuments({});
 
+        // ⭐ ADDED: Calculate Active Subscriptions (Assuming a 'Subscription' model and 'active' status)
+        // You may need to adjust the model name (e.g., Membership) and the status filter if your database schema is different.
+        const activeSubscriptions = await Subscription.countDocuments({ status: 'active' }); 
+
         const recentActivity = await ActivityLog.find({})
-    .sort({ timestamp: -1 }) // Sort by newest first
-    .limit(5)
-    .lean(); // Use .lean() for faster query performance
+            .sort({ timestamp: -1 }) // Sort by newest first
+            .limit(5)
+            .lean(); // Use .lean() for faster query performance
 
         // 4. Return all required data fields
         return {
             totalSales: totalSales,
             userCount: userCount,
-            
-            // New Individual Stock Metrics
             wearsStock: wearsStock,
             capsStock: capsStock,
             newArrivalsStock: newArrivalsStock,
             preOrderStock: preOrderStock,
-
+            activeSubscriptions: activeSubscriptions, 
             recentActivity: recentActivity // Add this new field
         };
 
     } catch (error) {
         console.error('Error in getRealTimeDashboardStats:', error);
+        // Log the full error, and re-throw a specific one for the calling function
         throw new Error('Database aggregation failed for dashboard stats.');
     }
 }
-
 const PRODUCT_MODEL_MAP = {
     'WearsCollection': 'WearsCollection', 
     'CapCollection': 'CapCollection', 

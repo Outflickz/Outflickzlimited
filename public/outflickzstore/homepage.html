@@ -369,7 +369,7 @@ function simulateBuyNow(itemDetails) {
 
     
     // ⭐ CRITICAL FIX: Standardize fallback to 'Uncategorized' or product name ⭐
-    const safeProductType = itemDetails.productType || itemDetails.name || 'NewArrivals';
+    const safeProductType = itemDetails.productType || itemDetails.name || itemDetails.collectionName;
 
     // --- CONSTRUCT THE FINAL CHECKOUT ITEM ---
     const itemToCheckout = {
@@ -966,7 +966,7 @@ function createCollectionCard(collection, size = 'default') {
 
     // *** Define Buttons/Labels based on Stock Status ***
     const isButtonDisabled = isOutOfStock && !isPreorder;
-    const safeProductTypeInHtml = collection.collectionName || collection.productType || 'NewArrivals';
+    const safeProductTypeInHtml = collection.collectionName || collection.productType || collection.name;
 
     // Get current quantity value for the button click
     const quantityGetter = `document.getElementById('quantity-input-${collection._id}').value`;

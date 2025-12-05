@@ -1354,29 +1354,30 @@ async function processOrderCompletion(orderId, adminId) {
                     throw new Error(errorMsg);
                 }
 
-               updatedProduct = await ProductModel.findOneAndUpdate(
-        {
-            _id: item.productId,
-            // Find the correct Variation (Outer Array) that contains the required size
-            'variations.variationIndex': item.variationIndex,
-            'variations.sizes.size': item.size // Simple existence check for the size
-        },
-        {
-            $inc: {
-                'variations.$[var].sizes.$[size].stock': -quantityOrdered, 
-                'totalStock': -quantityOrdered 
-            }
-        },
-        {
-            new: true,
-            session: session, 
-            arrayFilters: [
-                { 'var.variationIndex': item.variationIndex }, 
-                // CRITICAL ATOMIC CHECK: Only update if stock for 'size' is >= required quantity
-                { 'size.size': item.size, 'size.stock': { $gte: quantityOrdered } } 
-            ]
-        }
-    );
+                updatedProduct = await ProductModel.findOneAndUpdate(
+                    {
+                        _id: item.productId,
+                        // 🔑 FIX: Only match the product ID and the variation index in the top-level filter.
+                        // The critical size and stock check is now solely handled by the arrayFilters.
+                        'variations.variationIndex': item.variationIndex 
+                    },
+                    {
+                        $inc: {
+                            'variations.$[var].sizes.$[size].stock': -quantityOrdered, 
+                            'totalStock': -quantityOrdered 
+                        }
+                    },
+                    {
+                        new: true,
+                        session: session, 
+                        arrayFilters: [
+                            // Filter 1: Match the correct outer Variation ('var')
+                            { 'var.variationIndex': item.variationIndex }, 
+                            // Filter 2: Match the correct inner Size ('size') AND the atomic stock check
+                            { 'size.size': item.size, 'size.stock': { $gte: quantityOrdered } } 
+                        ]
+                    }
+                );
             
             // --- Group 2: Items with direct 'stock' on variation (CapCollection) ---
             } else if (item.productType === 'CapCollection') {
@@ -1385,15 +1386,17 @@ async function processOrderCompletion(orderId, adminId) {
                     {
                         _id: item.productId,
                         'variations': {
+                            // 🔑 FIX: Use $elemMatch in the main query to perform the atomic stock check
                             $elemMatch: {
                                 variationIndex: item.variationIndex, // Find the correct variation
-                                stock: { $gte: quantityOrdered }     // Check stock directly on variation
+                                stock: { $gte: quantityOrdered }      // Check stock directly on variation
                             }
                         }
                     },
                     {
                         $inc: {
-                            'variations.$[var].stock': -quantityOrdered, // Decrement stock directly on variation
+                            // Decrement stock directly on the variation found by the filter
+                            'variations.$[var].stock': -quantityOrdered, 
                             'totalStock': -quantityOrdered 
                         }
                     },
@@ -1401,7 +1404,8 @@ async function processOrderCompletion(orderId, adminId) {
                         new: true,
                         session: session, 
                         arrayFilters: [
-                            { 'var.variationIndex': item.variationIndex } // Filter by variation index
+                            // Filter by variation index to ensure only the matched element is updated
+                            { 'var.variationIndex': item.variationIndex } 
                         ]
                     }
                 );
@@ -1455,7 +1459,6 @@ async function processOrderCompletion(orderId, adminId) {
         session.endSession();
     }
 }
-
 
 /**
  * Retrieves all orders for the admin sales log.

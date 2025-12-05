@@ -37,22 +37,22 @@
                 User Orders
             </a>
 
-            <a href="./productiondeduction.html?category=wears" id="btn-wearscollection" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+            <a href="./wearscollection.html" id="btn-wearscollection" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
                 Wears Collection
             </a>
 
-            <a href="./productiondeduction.html?category=caps" id="btn-capscollection" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+            <a href="./capscollection.html" id="btn-capscollection" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 13h10M4 19v-6a3 3 0 013-3h10a3 3 0 013 3v6a3 3 0 01-3 3H7a3 3 0 01-3-3z"></path></svg>
                 Caps Collection
             </a>
             
-            <a href="./productiondeduction.html?category=newarrivals" id="btn-newarrivals" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+            <a href="./newarrivals.html" id="btn-newarrivals" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 New Arrivals
             </a>
             
-            <a href="./productiondeduction.html?category=preorders" id="btn-preorders" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+            <a href="./preorders.html" id="btn-preorders" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
                 Pre-Order 
             </a>
@@ -103,8 +103,7 @@
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity Deducted</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deduction Date</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th> 
-                        </tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">View Details</th> </tr>
                     </thead>
                     <tbody id="deduction-table-body" class="bg-white divide-y divide-gray-200">
                         <tr>
@@ -152,10 +151,18 @@
             return params.get('category') || 'all'; 
         }
 
+        /**
+         * Placeholder function to display order details without navigating.
+         * This is where you would add logic to fetch and display
+         * the "Collection Details Confirmed by the Admin" via a Modal or inline display.
+         */
+        function viewOrderDetails(orderId) {
+            alert(`Showing details for Order ID: ${orderId}\n\n(Implement fetch/modal logic here to display the confirmed collection product details.)`);
+            // Add your AJAX/modal display code here to show the details associated with this deduction.
+        }
         
         /**
          * Fetches and renders the stock deduction log for the specified category.
-         * NOW CALLS THE CORRECT BACKEND ENDPOINT: GET /api/admin/inventory/deductions?category=wears
          */
         async function loadDeductionLog(category) {
             const tableBody = document.getElementById('deduction-table-body');
@@ -197,7 +204,6 @@
             
             let deductionData = [];
             
-            // ⭐ CORRECTED API URL: Changed from 'deduction-log' to 'deductions' ⭐
             const apiUrl = `${API_BASE_URL}/api/admin/inventory/deductions?category=${category}`; 
 
             try {
@@ -219,7 +225,6 @@
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
-                // The backend now returns the array of logs directly (not in a 'log' property)
                 const data = await response.json();
                 deductionData = data || []; // Assumes the backend returns an array
                 
@@ -260,9 +265,9 @@
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">${item.orderId}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${date} (${timeAgo})</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <a href="./userorders.html?orderId=${item.orderId}" target="_blank" class="text-emerald-600 hover:text-emerald-900 font-semibold transition duration-150 ease-in-out">
-                            View Order
-                        </a>
+                        <button onclick="viewOrderDetails('${item.orderId}')" class="text-emerald-600 hover:text-emerald-900 font-semibold transition duration-150 ease-in-out underline bg-transparent border-none p-0 cursor-pointer">
+                            View Details
+                        </button>
                     </td>
                 `;
                 tableBody.appendChild(row);

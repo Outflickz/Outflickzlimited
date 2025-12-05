@@ -64,6 +64,7 @@
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3v-5a2 2 0 00-2-2H5a2 2 0 00-2 2v5a3 3 0 003 3z"></path></svg>
                 Membership
             </button>
+
             <button id="btn-settings" onclick="setActiveContent('settings')" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.526.34.813.486 1.066-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                 Settings
@@ -108,7 +109,7 @@
         </div>
     </div>
 
-    <button href="./productdeduction.html" class="text-left bg-white p-5 rounded-xl shadow-md border-b-4 border-cyan-500 hover:shadow-xl transition duration-300 transform hover:scale-[1.02]">
+    <button onclick="navigateToWearsCollection()" class="text-left bg-white p-5 rounded-xl shadow-md border-b-4 border-cyan-500 hover:shadow-xl transition duration-300 transform hover:scale-[1.02]">
         <div class="flex items-center">
             <div class="p-3 rounded-full bg-cyan-100 text-cyan-600">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
@@ -120,7 +121,7 @@
         </div>
     </button>
     
-    <button href="./productdeduction.html"  class="text-left bg-white p-5 rounded-xl shadow-md border-b-4 border-blue-500 hover:shadow-xl transition duration-300 transform hover:scale-[1.02]">
+    <button onclick="navigateToCapsCollection()" class="text-left bg-white p-5 rounded-xl shadow-md border-b-4 border-blue-500 hover:shadow-xl transition duration-300 transform hover:scale-[1.02]">
         <div class="flex items-center">
             <div class="p-3 rounded-full bg-blue-100 text-blue-600">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 13h10M4 19v-6a3 3 0 013-3h10a3 3 0 013 3v6a3 3 0 01-3 3H7a3 3 0 01-3-3z"></path></svg>
@@ -132,7 +133,7 @@
         </div>
     </button>
     
-    <button href="./productdeduction.html"  class="text-left bg-white p-5 rounded-xl shadow-md border-b-4 border-fuchsia-500 hover:shadow-xl transition duration-300 transform hover:scale-[1.02]">
+    <button onclick="navigateToNewArrivals()" class="text-left bg-white p-5 rounded-xl shadow-md border-b-4 border-fuchsia-500 hover:shadow-xl transition duration-300 transform hover:scale-[1.02]">
         <div class="flex items-center">
             <div class="p-3 rounded-full bg-fuchsia-100 text-fuchsia-600">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -144,10 +145,10 @@
         </div>
     </button>
     
-    <button href="./productdedcution.html"  class="text-left bg-white p-5 rounded-xl shadow-md border-b-4 border-amber-500 hover:shadow-xl transition duration-300 transform hover:scale-[1.02]">
+    <button onclick="navigateToPreOrders()" class="text-left bg-white p-5 rounded-xl shadow-md border-b-4 border-amber-500 hover:shadow-xl transition duration-300 transform hover:scale-[1.02]">
         <div class="flex items-center">
             <div class="p-3 rounded-full bg-amber-100 text-amber-600">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></path></svg>
             </div>
             <div class="ml-4">
                 <p class="text-xs font-medium text-gray-500 uppercase">Pre-Order Active Stock</p>
@@ -168,7 +169,7 @@
         </div>
     </div>
 </div>
-              
+            
             <div class="mt-8 bg-white p-6 rounded-xl shadow-lg border-t-2 border-gray-200 lg:col-span-4">
                 <h3 class="text-xl font-semibold mb-4 text-gray-700">Recent Activity Log 🔔</h3>
                 <p class="text-gray-500 text-sm mb-4">Latest actions requiring attention or simply for tracking.</p>
@@ -211,7 +212,6 @@
     const newArrivalsStockElement = document.getElementById('new-arrivals-stock');
     const preOrderStockElement = document.getElementById('pre-order-stock');
     const registeredUsersElement = document.getElementById('registered-users');
-    // ADDED: Re-included activeSubscriptionsElement since the HTML now has the ID
     const activeSubscriptionsElement = document.getElementById('active-subscriptions'); 
     const loadingIndicator = document.getElementById('loading-indicator');
     const metricCards = document.getElementById('metric-cards');
@@ -220,65 +220,82 @@
     const contentSections = document.querySelectorAll('.content-section');
     const navButtons = document.querySelectorAll('nav button'); 
 
-    // ⭐ NEW FUNCTION for external navigation (User Orders) ⭐
+    // --- NAVIGATION FUNCTIONS (for redirection) ---
+
     function navigateToUserOrders() {
+        // Close sidebar on mobile before redirecting
+        if (window.innerWidth < 1024) sidebar.classList.add('-translate-x-full');
         window.location.href = './userorders.html';
     }
     
-    // Function for external navigation (Wears Collection)
     function navigateToWearsCollection() {
+        // Close sidebar on mobile before redirecting
+        if (window.innerWidth < 1024) sidebar.classList.add('-translate-x-full');
         window.location.href = './wearscollection.html';
     }
 
-    // Function for external navigation (Caps Collection)
     function navigateToCapsCollection() {
+        // Close sidebar on mobile before redirecting
+        if (window.innerWidth < 1024) sidebar.classList.add('-translate-x-full');
         window.location.href = './capscollection.html';
     }
     
-    // Function for external navigation (New Arrivals)
     function navigateToNewArrivals() {
+        // Close sidebar on mobile before redirecting
+        if (window.innerWidth < 1024) sidebar.classList.add('-translate-x-full');
         window.location.href = './newarrivals.html';
     }
 
-    // Function for external navigation (Pre-Order Management)
     function navigateToPreOrders() {
+        // Close sidebar on mobile before redirecting
+        if (window.innerWidth < 1024) sidebar.classList.add('-translate-x-full');
         window.location.href = './preorders.html';
     }
 
-    // Function for external navigation (Membership)
     function navigateToMembership() {
+        // Close sidebar on mobile before redirecting
+        if (window.innerWidth < 1024) sidebar.classList.add('-translate-x-full');
         window.location.href = './membership.html'; 
     }
     
     /**
-     * Handles the admin logout process.
-     */
+      * Handles the admin logout process.
+      */
     function logoutAdmin() {
         console.log("Logging out... Clearing admin token.");
         localStorage.removeItem('adminToken');
         window.location.href = './admin-login.html'; 
     }
 
+    // --- INITIALIZATION AND UI LOGIC ---
+
     // Initial setup to show the Dashboard
     document.addEventListener('DOMContentLoaded', () => {
         setActiveContent('dashboard');
         loadDashboardData();
         
-        // Toggle sidebar visibility on mobile
-        sidebarToggle.addEventListener('click', () => {
+        // **CRITICAL MOBILE FIX:** Toggle sidebar visibility on mobile
+        sidebarToggle.addEventListener('click', (event) => {
+            event.stopPropagation(); // Prevent the main content click from immediately closing it
             // Toggle the -translate-x-full class to slide the sidebar in/out
             sidebar.classList.toggle('-translate-x-full');
         });
 
-        // Close sidebar on click outside/content click on small screens
-        document.querySelector('main').addEventListener('click', () => {
+        // Close sidebar on content click/outside click on small screens
+        document.querySelector('main').addEventListener('click', (event) => {
+             // Only close if the main content is clicked AND the sidebar is open AND it's a small screen
              if (!sidebar.classList.contains('-translate-x-full') && window.innerWidth < 1024) {
                  sidebar.classList.add('-translate-x-full');
              }
         });
+        
+        // Prevent click inside sidebar from closing it (on mobile)
+        sidebar.addEventListener('click', (event) => {
+            event.stopPropagation();
+        });
     });
 
-    // Function to switch between Dashboard, and Settings content
+    // Function to switch between Dashboard, and Settings content (Internal Pages)
     function setActiveContent(contentId) {
         contentSections.forEach(section => {
             section.classList.add('hidden');
@@ -286,22 +303,21 @@
 
         // Check if the requested content ID exists before trying to display it
         const contentElement = document.getElementById(`content-${contentId}`);
-        // NOTE: Membership navigation removed from this redirect list
         if (contentElement) {
             contentElement.classList.remove('hidden');
         } else if (['userorders', 'newarrivals', 'capscollection', 'wearscollection', 'preorders', 'membership'].includes(contentId)) { 
-            // Special handling for external links: they now redirect, so don't look for an internal section.
-            console.log(`Content section 'content-${contentId}' is now a redirect. Reverting to dashboard view.`);
+            // Handle clicks on redirect buttons that also use setActiveContent (e.g., if they were internal initially)
+            console.log(`Content section 'content-${contentId}' is a redirect. Reverting to dashboard view for internal state.`);
             document.getElementById('content-dashboard').classList.remove('hidden');
-            contentId = `${contentId}-dummy-active-state`; // Use a dummy ID to keep the button active
+            contentId = `dashboard`; // Force the active state back to dashboard for internal buttons
         }
 
 
         navButtons.forEach(button => {
             const buttonContentId = button.id.replace('btn-', '');
-            // List all redirect buttons here
+            // List all buttons that are *not* internal sections (and are redirects or logout)
             if (['userorders', 'wearscollection', 'capscollection', 'newarrivals', 'preorders', 'membership', 'logout'].includes(buttonContentId)) { 
-                // Special handling for the buttons that *are* redirects to remove their internal 'click' activation style
+                // Remove active styles for redirect/logout buttons
                 button.classList.remove('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
                 button.classList.add('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
                 return; 
@@ -312,7 +328,7 @@
             button.classList.add('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
         });
 
-        const activeBtnId = contentId.endsWith('-dummy-active-state') ? `btn-${contentId.replace('-dummy-active-state', '')}` : `btn-${contentId}`;
+        const activeBtnId = `btn-${contentId}`;
         const activeBtn = document.getElementById(activeBtnId);
         
         if (activeBtn) {
@@ -321,33 +337,28 @@
             activeBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
         } 
         
-        // Re-apply dashboard styles if a non-existent internal page was clicked 
-        if (!contentElement && contentId !== 'settings') {
-            document.getElementById('content-dashboard').classList.remove('hidden');
-        }
-
-
         // Hide sidebar on small screens after selection
         if (window.innerWidth < 1024) {
             sidebar.classList.add('-translate-x-full');
         }
     }
 
- /**
-     * Fetches real-time dashboard statistics from the Node.js/MongoDB API.
-     */
+    // --- DATA FETCHING AND RENDERING LOGIC ---
+
+    /**
+      * Fetches real-time dashboard statistics from the Node.js/MongoDB API.
+      */
     async function fetchDashboardData() {
         const token = localStorage.getItem('adminToken'); // Get the actual token
         
         if (!token) {
             console.error("[FRONTEND] No adminToken found. Redirecting to login for authentication.");
-            // Redirect user to login page immediately if no token is found
             window.location.href = './admin-login.html'; 
             return null;
         }
 
         try {
-            console.log('[FRONTEND] Attempting to fetch dashboard stats from API...'); // ADDED LOG
+            console.log('[FRONTEND] Attempting to fetch dashboard stats from API...');
             // IMPORTANT: Replace this with your actual backend endpoint if deploying
             const response = await fetch('/api/admin/dashboard/stats', { 
                 method: 'GET',
@@ -363,13 +374,12 @@
                     logoutAdmin(); // Log out and redirect on Auth failure
                     return null;
                 }
-                console.error(`[FRONTEND] API call failed with status: ${response.status}`); // ADDED LOG
+                console.error(`[FRONTEND] API call failed with status: ${response.status}`);
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
           const data = await response.json();
             
-            // ⭐ ADDED LOGS: Check the raw data and totalSales value received
             console.log('[FRONTEND] Data received from API:', data); 
             console.log(`[FRONTEND] Received totalSales: ${data.totalSales}, Type: ${typeof data.totalSales}`);
 
@@ -385,7 +395,7 @@
             };
 
         } catch (error) {
-            console.error('[FRONTEND] Error fetching dashboard data:', error); // ADDED CONTEXT TO LOG
+            console.error('[FRONTEND] Error fetching dashboard data:', error);
             return null;
         }
     }
@@ -426,9 +436,9 @@
             metricCards.classList.remove('hidden');
         }
     /**
-         * Function to calculate "time ago" string
-         * Defined once for efficiency.
-         */
+      * Function to calculate "time ago" string
+      * Defined once for efficiency.
+      */
     function formatTimeAgo(date) {
         const seconds = Math.floor((new Date() - new Date(date)) / 1000);
         let interval = seconds / 31536000;
@@ -445,22 +455,22 @@
     }
 
    /**
-     * Dynamically renders the recent activity log on the dashboard.
-     * @param {Array<Object>} activities - Array of recent activity objects.
-     */
-    function renderActivityLog(activities) {
-        const logList = document.querySelector('#content-dashboard .mt-8 ul');
-        if (!logList) return; 
+      * Dynamically renders the recent activity log on the dashboard.
+      * @param {Array<Object>} activities - Array of recent activity objects.
+      */
+    function renderActivityLog(activities) {
+        const logList = document.querySelector('#content-dashboard .mt-8 ul');
+        if (!logList) return; 
 
-        logList.innerHTML = '';
-        
-        if (activities.length === 0) {
-            logList.innerHTML = '<li class="p-3 text-center text-gray-400">No recent activity recorded.</li>';
-            return;
-        }
-        
-        activities.forEach(activity => {
-            const li = document.createElement('li');
+        logList.innerHTML = '';
+        
+        if (activities.length === 0) {
+            logList.innerHTML = '<li class="p-3 text-center text-gray-400">No recent activity recorded.</li>';
+            return;
+        }
+        
+        activities.forEach(activity => {
+            const li = document.createElement('li');
             
             // ⭐️ NEW LOGIC: Determine the user's name for display 
             const user = activity.userId; // This is the populated object now
@@ -468,61 +478,61 @@
                 ? (user.username || user.email || 'Customer')
                 : 'System User';
 
-            // Determine colors and icon based on event type
-            let borderColor = 'border-gray-200';
-            let bgColor = 'bg-white';
-            let icon = '➡️';
+            // Determine colors and icon based on event type
+            let borderColor = 'border-gray-200';
+            let bgColor = 'bg-white';
+            let icon = '➡️';
             let eventText = activity.description;
 
-            switch (activity.eventType) {
-                case 'ORDER_PLACED':
-                    borderColor = 'border-emerald-400';
-                    bgColor = 'bg-emerald-50';
-                    icon = '💰';
+            switch (activity.eventType) {
+                case 'ORDER_PLACED':
+                    borderColor = 'border-emerald-400';
+                    bgColor = 'bg-emerald-50';
+                    icon = '💰';
                     // Rephrase description to highlight the user
                     eventText = `placed new order (Order #${activity.context.orderId || 'N/A'})`; 
-                    break;
-                case 'REGISTERED':
-                    borderColor = 'border-cyan-400';
-                    bgColor = 'bg-cyan-50';
-                    icon = '✨';
+                    break;
+                case 'REGISTERED':
+                    borderColor = 'border-cyan-400';
+                    bgColor = 'bg-cyan-50';
+                    icon = '✨';
                     eventText = 'just created a new account.';
-                    break;
-                case 'LOGIN': 
-                    borderColor = 'border-purple-400';
-                    bgColor = 'bg-purple-50';
-                    icon = '🔑';
+                    break;
+                case 'LOGIN': 
+                    borderColor = 'border-purple-400';
+                    bgColor = 'bg-purple-50';
+                    icon = '🔑';
                     eventText = 'logged in successfully.';
-                    break;
-                case 'MEMBERSHIP_SUBSCRIBED': // Included from your previous snippet
-                    borderColor = 'border-red-400';
-                    bgColor = 'bg-red-50';
-                    icon = '💳';
+                    break;
+                case 'MEMBERSHIP_SUBSCRIBED': 
+                    borderColor = 'border-red-400';
+                    bgColor = 'bg-red-50';
+                    icon = '💳';
                     eventText = 'subscribed to a membership.';
-                    break;
+                    break;
                 // Add cases for FORGOT_PASSWORD and others as needed
-            }
+            }
 
-            li.classList.add(borderColor, bgColor, 'hover:shadow-sm', 
-                            'p-3', 'border-l-4', 'rounded-md', 'flex', 
-                            'justify-between', 'items-center', 'space-y-2');
+            li.classList.add(borderColor, bgColor, 'hover:shadow-sm', 
+                                 'p-3', 'border-l-4', 'rounded-md', 'flex', 
+                                 'justify-between', 'items-center', 'space-y-2');
 
-            const timeAgo = formatTimeAgo(activity.timestamp);
-            
-            li.innerHTML = `
-                <div class="flex items-center space-x-3 w-4/5">
-                    <span class="text-lg">${icon}</span>
-                    <p class="truncate">
-                        <span class="font-semibold text-gray-800">${displayUser}</span>
-                        ${eventText}
-                    </p>
-                </div>
-                <span class="text-xs text-gray-400 whitespace-nowrap">${timeAgo}</span>
-            `;
-            
-            logList.appendChild(li);
-        });
-    }
+            const timeAgo = formatTimeAgo(activity.timestamp);
+            
+            li.innerHTML = `
+                <div class="flex items-center space-x-3 w-4/5">
+                    <span class="text-lg">${icon}</span>
+                    <p class="truncate">
+                        <span class="font-semibold text-gray-800">${displayUser}</span>
+                        ${eventText}
+                    </p>
+                </div>
+                <span class="text-xs text-gray-400 whitespace-nowrap">${timeAgo}</span>
+            `;
+            
+            logList.appendChild(li);
+        });
+    }
     }
     </script>
 </body>

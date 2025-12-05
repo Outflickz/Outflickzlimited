@@ -1142,8 +1142,8 @@ async function getRealTimeDashboardStats() {
         const ActivityLogModel = mongoose.models.ActivityLog || mongoose.model('ActivityLog');
 
         // 1. Calculate Total Sales (sum of 'totalAmount' from completed orders)
-        // FIX: Using $in to aggregate orders that have successfully progressed 
-        // past payment/inventory and represent actual sales revenue.
+        console.log('[BACKEND] Starting Total Sales Aggregation...'); // ADDED LOG
+
         const salesAggregation = await OrderModel.aggregate([ // Using OrderModel
             { 
                 $match: { 
@@ -1154,7 +1154,15 @@ async function getRealTimeDashboardStats() {
             },
             { $group: { _id: null, totalSales: { $sum: '$totalAmount' } } }
         ]);
+        
+        // ⭐ ADDED LOG: Show the raw result from MongoDB
+        console.log('[BACKEND] Raw Sales Aggregation Result:', salesAggregation);
+
         const totalSales = salesAggregation.length > 0 ? salesAggregation[0].totalSales : 0;
+        
+        // ⭐ ADDED LOG: Show the final calculated totalSales value and its type
+        console.log(`[BACKEND] Final totalSales calculated: ${totalSales}, Type: ${typeof totalSales}`);
+
 
         // 2. Calculate Individual Collection Stock Counts
         
@@ -1197,6 +1205,7 @@ async function getRealTimeDashboardStats() {
             .lean(); // Use .lean() for faster query performance
 
         // 4. Return all required data fields
+        console.log('[BACKEND] Returning dashboard stats successfully.'); // ADDED LOG
         return {
             totalSales: totalSales,
             userCount: userCount,
@@ -1967,6 +1976,9 @@ app.get('/api/admin/dashboard/stats', verifyToken, async (req, res) => {
         // Log success
         console.log("Dashboard stats retrieved successfully.");
         
+        // Final log of the data being sent out (optional, but helpful for debugging the API contract)
+        console.log("Dashboard Stats Response Payload:", { totalSales: stats.totalSales, userCount: stats.userCount, ... });
+
         res.status(200).json(stats);
     } catch (error) {
         // ⭐ CRITICAL UPDATE: Log the entire error object to get the stack trace.

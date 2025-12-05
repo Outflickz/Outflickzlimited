@@ -1132,10 +1132,19 @@ async function createAdminUser(email, hashedPassword) {
  */
 async function getRealTimeDashboardStats() {
     try {
+        // ⭐ CRITICAL FIX: Defensively retrieve all Mongoose models
+        const OrderModel = mongoose.models.Order || mongoose.model('Order');
+        const WearsCollectionModel = mongoose.models.WearsCollection || mongoose.model('WearsCollection');
+        const CapCollectionModel = mongoose.models.CapCollection || mongoose.model('CapCollection');
+        const NewArrivalsModel = mongoose.models.NewArrivals || mongoose.model('NewArrivals');
+        const PreOrderCollectionModel = mongoose.models.PreOrderCollection || mongoose.model('PreOrderCollection');
+        const UserModel = mongoose.models.User || mongoose.model('User');
+        const ActivityLogModel = mongoose.models.ActivityLog || mongoose.model('ActivityLog');
+
         // 1. Calculate Total Sales (sum of 'totalAmount' from completed orders)
-        // ⭐ FIX: Using $in to aggregate orders that have successfully progressed 
+        // FIX: Using $in to aggregate orders that have successfully progressed 
         // past payment/inventory and represent actual sales revenue.
-        const salesAggregation = await Order.aggregate([
+        const salesAggregation = await OrderModel.aggregate([ // Using OrderModel
             { 
                 $match: { 
                     status: { 
@@ -1150,39 +1159,39 @@ async function getRealTimeDashboardStats() {
         // 2. Calculate Individual Collection Stock Counts
         
         // Count for Wears Collection (only active items with stock > 0)
-        const wearsInventory = await WearsCollection.aggregate([
+        const wearsInventory = await WearsCollectionModel.aggregate([ // Using WearsCollectionModel
             { $match: { isActive: true, totalStock: { $gt: 0 } } },
             { $group: { _id: null, total: { $sum: '$totalStock' } } }
         ]);
         const wearsStock = wearsInventory[0]?.total || 0;
 
         // Count for Caps Collection (only active items with stock > 0)
-        const capsInventory = await CapCollection.aggregate([
+        const capsInventory = await CapCollectionModel.aggregate([ // Using CapCollectionModel
             { $match: { isActive: true, totalStock: { $gt: 0 } } },
             { $group: { _id: null, total: { $sum: '$totalStock' } } }
         ]);
         const capsStock = capsInventory[0]?.total || 0;
         
         // Count for New Arrivals Collection (only active items with stock > 0)
-        const newArrivalsInventory = await NewArrivals.aggregate([
+        const newArrivalsInventory = await NewArrivalsModel.aggregate([ // Using NewArrivalsModel
             { $match: { isActive: true, totalStock: { $gt: 0 } } },
             { $group: { _id: null, total: { $sum: '$totalStock' } } }
         ]);
         const newArrivalsStock = newArrivalsInventory[0]?.total || 0;
         
         // Count for Pre-Order Collection (only active items with stock > 0)
-        const preOrderInventory = await PreOrderCollection.aggregate([
+        const preOrderInventory = await PreOrderCollectionModel.aggregate([ // Using PreOrderCollectionModel
             { $match: { isActive: true, totalStock: { $gt: 0 } } },
             { $group: { _id: null, total: { $sum: '$totalStock' } } }
         ]);
         const preOrderStock = preOrderInventory[0]?.total || 0;
 
         // 3. Count Registered Users
-        const userCount = await User.countDocuments({});
+        const userCount = await UserModel.countDocuments({}); // Using UserModel
 
         // --- Removed activeSubscriptions calculation line (ReferenceError fix) ---
 
-        const recentActivity = await ActivityLog.find({})
+        const recentActivity = await ActivityLogModel.find({}) // Using ActivityLogModel
             .sort({ timestamp: -1 }) // Sort by newest first
             .limit(5)
             .lean(); // Use .lean() for faster query performance
@@ -1195,7 +1204,6 @@ async function getRealTimeDashboardStats() {
             capsStock: capsStock,
             newArrivalsStock: newArrivalsStock,
             preOrderStock: preOrderStock,
-            // Removed activeSubscriptions from the return object
             recentActivity: recentActivity
         };
 

@@ -197,6 +197,24 @@ function handleLocalCartFallback(details) {
     }
 }
 
+function getCollectionType(productName) {
+    if (!productName) return 'WearsCollection'; // Safe default
+    const lowerName = productName.toLowerCase();
+    
+    // Map product names to the EXACT backend model keys
+    if (lowerName.includes('tee') || lowerName.includes('tank') || lowerName.includes('wears')) {
+        return 'WearsCollection'; 
+    }
+    if (lowerName.includes('cap') || lowerName.includes('curve')) {
+        return 'CapCollection'; 
+    }
+    if (lowerName.includes('arrival') || lowerName.includes('polo')) {
+        return 'NewArrivals'; 
+    }
+    
+    // Default to WearsCollection if uncertain
+    return 'WearsCollection'; 
+}
 /**
  * Adds an item to the cart. Tries API first, falls back to local storage on 401.
  */
@@ -218,7 +236,6 @@ async function simulateAddToCart(productDetails) {
     if (sizeSelectionExists && !selectedSizeInput) {
         displayMessage('Please **select a size** before adding this item to your bag.');
         // Re-enable/reset button state if your calling function disabled it
-        // (Assuming this is handled by the calling function on the collection page)
         return; // Stop the function execution
     }
     
@@ -230,8 +247,7 @@ async function simulateAddToCart(productDetails) {
     
     // --- END VALIDATION CHECK ---
 
-    // 🛑 CRITICAL FIX: The variant input that holds the index and name might be the size OR the color.
-    // We prioritize color if it exists and is selected, otherwise use size.
+    // The variant input that holds the index and name (Prioritize color if selected)
     const variantInput = selectedColorInput || selectedSizeInput;
     
     // The size and color variables now hold the confirmed selection (or 'N/A' if no selector existed)
@@ -240,13 +256,20 @@ async function simulateAddToCart(productDetails) {
     
     // 🚀 FIXED LOGIC for variationIndex and variation Name (MUST come from the variantInput)
     const rawIndex = variantInput?.dataset?.variationIndex || productDetails.variationIndex;
-    // CRITICAL: Ensure we default to 1, as 0 often implies missing data or conflicts with server logic.
-    const variationIndex = parseInt(rawIndex) || 1; // Safely convert to number, default 1 if missing/0
+    // CRITICAL FIX: Default to 1, as 0 can conflict with server logic.
+    const variationIndex = parseInt(rawIndex) || 1; 
     
     const variation = variantInput?.dataset?.variationName || 
                       productDetails.variation || 
                       (color !== 'N/A' && size !== 'N/A' ? `${color} / ${size}` : (color !== 'N/A' ? color : size !== 'N/A' ? size : `Default Variant`));
     // -------------------------------------------------------------
+    
+    // ⭐ CRITICAL FIX: Infer the correct productType if missing/generic ⭐
+    let determinedProductType = productDetails.productType;
+    if (!determinedProductType || determinedProductType === "undefined" || determinedProductType === productDetails.name) {
+        determinedProductType = getCollectionType(productDetails.name);
+        console.warn(`Inferred missing productType for ${productDetails.name} to: ${determinedProductType}`);
+    }
     
     // Unified item data structure for both API (minimal fields) and Local Cart (all fields)
     const requiredDetails = {
@@ -255,7 +278,7 @@ async function simulateAddToCart(productDetails) {
         size: size, // Now guaranteed to be the selected value
         color: color || 'N/A',
         price: productDetails.price,
-        productType: productDetails.productType || productDetails.name,    
+        productType: determinedProductType, // <<<< USING THE FIXED TYPE    
         imageUrl: productDetails.imageUrl,
         quantity: productDetails.quantity || 1,
         variationIndex: variationIndex,
@@ -266,7 +289,7 @@ async function simulateAddToCart(productDetails) {
     const itemDataForAPI = {
         productId: requiredDetails.productId,
         name: requiredDetails.name,
-        productType: requiredDetails.productType,
+        productType: requiredDetails.productType, // <<<< USING THE FIXED TYPE
         price: requiredDetails.price,
         quantity: requiredDetails.quantity,
         size: requiredDetails.size,
@@ -278,6 +301,7 @@ async function simulateAddToCart(productDetails) {
 
     // --- 2. Attempt Authenticated API Call ---
     try {
+        // ... (API call logic remains the same)
         const response = await fetch('/api/users/cart', {
             method: 'POST',
             headers: {
@@ -405,7 +429,6 @@ async function fetchAndRenderCart() {
     }
 }
 
-
 /**
  * Renders the list of cart items dynamically.
  * @param {Array<Object>} items - The array of cart items.
@@ -436,6 +459,8 @@ function renderCartItems(items, isApiCart) {
                         <h3 class="text-base sm:text-lg">
                             <a href="#" class="font-semibold text-gray-900 hover:text-ash-red">${item.name}</a>
                         </h3>
+                        ${item.productType ? `<p class="mt-1 text-xs sm:text-sm text-red-500 font-medium">Type: ${item.productType}</p>` : ''}
+                        
                         ${item.color && item.color !== 'N/A' ? `<p class="mt-1 text-xs sm:text-sm text-gray-500">Color: ${item.color}</p>` : ''}
                         ${item.size && item.size !== 'N/A' ? `<p class="text-xs sm:text-sm text-gray-500">Size: ${item.size}</p>` : ''}
                     </div>

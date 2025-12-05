@@ -1126,6 +1126,7 @@ async function createAdminUser(email, hashedPassword) {
         return null;
     }
 }
+
 /**
  * Retrieves real-time statistics for the admin dashboard.
  * Calculates Total Sales, and individual collection stock counts.
@@ -1976,9 +1977,6 @@ app.get('/api/admin/dashboard/stats', verifyToken, async (req, res) => {
         // Log success
         console.log("Dashboard stats retrieved successfully.");
         
-        // Final log of the data being sent out (optional, but helpful for debugging the API contract)
-        console.log("Dashboard Stats Response Payload:", { totalSales: stats.totalSales, userCount: stats.userCount, ... });
-
         res.status(200).json(stats);
     } catch (error) {
         // ⭐ CRITICAL UPDATE: Log the entire error object to get the stack trace.

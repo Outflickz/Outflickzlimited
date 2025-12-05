@@ -459,6 +459,7 @@ function addToCart(collectionId, quantity) {
 
     console.log(`Added ${quantity} of item ${collectionId}. New cart total: ${newCount}`);
 }
+
 /**
  * Handles adding an item to the cart. 
  * Tries API (permanent cart via secure cookie) first.
@@ -468,23 +469,7 @@ function addToCart(collectionId, quantity) {
 async function simulateAddToCart(productDetails) {
     // --- 1. Gather all item details from DOM and input ---
     const card = document.querySelector(`.collection-card[data-collection-id="${productDetails.productId}"]`);
-    
-    // 🛑 CRITICAL FIX: Ensure the product card element is found. If it's missing,
-    // we cannot reliably get size/color selections or the necessary data-product-type.
-    if (!card) {
-        console.error(`FATAL: Product card not found for ID: ${productDetails.productId}. Cannot retrieve size/color or product type.`);
-        
-        const alertMessage = document.getElementById('cart-alert');
-        if (alertMessage) {
-            alertMessage.textContent = 'Error: Product data container missing. Cannot add to bag.';
-            alertMessage.className = 'absolute top-0 right-0 p-3 m-3 rounded shadow-lg transition-all duration-300 ease-in-out bg-red-700 text-white opacity-100 translate-y-0';
-            setTimeout(() => {
-                alertMessage.classList.add('opacity-0', '-translate-y-10');
-                setTimeout(() => alertMessage.classList.remove('bg-red-700'), 300);
-            }, 3000);
-        }
-        return; // Block execution immediately if card is missing.
-    }
+    if (!card) return;
     
     // The createSizeList function now uses radio buttons again, so this selector is correct.
     const selectedSizeInput = card.querySelector(`input[name="size-${productDetails.productId}"]:checked`);
@@ -504,25 +489,21 @@ async function simulateAddToCart(productDetails) {
         const colorMapContainer = card.querySelector(`#color-map-${productDetails.productId}`);
         
         if (colorMapContainer) {
-            try {
-                const colorMap = JSON.parse(colorMapContainer.getAttribute('data-color-map'));
-                const newImageUrls = colorMap[colorHex];
+            const colorMap = JSON.parse(colorMapContainer.getAttribute('data-color-map'));
+            const newImageUrls = colorMap[colorHex];
+            
+            if (newImageUrls && newImageUrls.frontImageUrl) {
+                // Use the front view of the selected color variant
+                selectedImageUrl = newImageUrls.frontImageUrl; 
                 
-                if (newImageUrls && newImageUrls.frontImageUrl) {
-                    // Use the front view of the selected color variant
-                    selectedImageUrl = newImageUrls.frontImageUrl; 
-                    
-                    // 🚀 CRITICAL FIX 2: Attempt to determine the index based on color selection.
-                    const colorMapKeys = Object.keys(colorMap);
-                    // Convert 0-based client index to 1-based server index
-                    const inferredIndex = colorMapKeys.indexOf(colorHex);
-                    
-                    if (inferredIndex !== -1) {
-                        variationIndex = inferredIndex + 1; // Use 1-based index for server
-                    }
+                // 🚀 CRITICAL FIX 2: Attempt to determine the index based on color selection.
+                const colorMapKeys = Object.keys(colorMap);
+                // Convert 0-based client index to 1-based server index
+                const inferredIndex = colorMapKeys.indexOf(colorHex);
+                
+                if (inferredIndex !== -1) {
+                    variationIndex = inferredIndex + 1; // Use 1-based index for server
                 }
-            } catch (e) {
-                console.error("Error parsing color map data:", e);
             }
         }
     }
@@ -533,16 +514,6 @@ async function simulateAddToCart(productDetails) {
         ? `${color} / ${size}`
         : (color !== 'N/A' ? color : (size !== 'N/A' ? size : 'Default Variant'));
     
-    // --- Determine Product Type ---
-    // Try 1: productDetails object (preferred)
-    let productType = productDetails.productType;
-    if (!productType) {
-        // Try 2: DOM attribute on the product card (most common fallback)
-        productType = card.getAttribute('data-product-type');
-    }
-    // Final fallback to an empty string if all attempts fail, which triggers the FATAL error below.
-    productType = productType || ''; 
-    
     // Unified item data structure for both API (minimal fields) and Local Cart (all fields)
     const requiredDetails = {
         productId: productDetails.productId,
@@ -550,32 +521,13 @@ async function simulateAddToCart(productDetails) {
         size: size,
         color: color, // The color can be 'N/A' but is defined
         price: productDetails.price,
-        // Use the consolidated productType
-        productType: productType, 
+        productType: productDetails.productType || productDetails.name,
         imageUrl: selectedImageUrl, 
         quantity: productDetails.quantity || 1,
         variationIndex: variationIndex, // Now 1-based
         variation: variation // Now defined
     };
     
-    // 🛑 CRITICAL FIX 4 (Client-side validation): Block API call if productType is invalid/missing.
-    const VALID_CLIENT_TYPES = ['WearsCollection', 'CapCollection', 'NewArrivals', 'PreOrderCollection'];
-    if (!requiredDetails.productType || !VALID_CLIENT_TYPES.includes(requiredDetails.productType)) {
-        console.error(`FATAL: Missing or invalid productType received: "${requiredDetails.productType}". Blocking API call to prevent 400 Bad Request. Ensure data-product-type is set on the HTML product card.`);
-        
-        // Show user alert about missing data
-        const alertMessage = document.getElementById('cart-alert');
-        if (alertMessage) {
-            alertMessage.textContent = 'Error: Missing product collection data. Cannot add to bag.';
-            alertMessage.className = 'absolute top-0 right-0 p-3 m-3 rounded shadow-lg transition-all duration-300 ease-in-out bg-red-700 text-white opacity-100 translate-y-0';
-            setTimeout(() => {
-                alertMessage.classList.add('opacity-0', '-translate-y-10');
-                setTimeout(() => alertMessage.classList.remove('bg-red-700'), 300);
-            }, 3000);
-        }
-        return; // Block the invalid API request
-    }
-
     // Construct minimal data for API call 
     const itemDataForAPI = {
         productId: requiredDetails.productId,
@@ -1102,7 +1054,6 @@ const buyNowButtonHtml = `
         </div>
     `;
 }
-
 // Function to DELETE (The block-style version)
 /**
  * Generates the HTML for the size selection options within the collection card.

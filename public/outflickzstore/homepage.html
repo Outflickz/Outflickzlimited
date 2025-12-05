@@ -861,11 +861,13 @@ function createCollectionCard(collection, size = 'default') {
     // BUTTON SIZING: Used to control button width and responsiveness
     const buttonFlexClasses = 'w-1/2 md:w-auto'; 
     
-    // --- FINAL FIX: Ensure 'variants' is accessed correctly and safely ---
+    // --- FINAL FIX: Ensure 'variants'/'variations' is accessed correctly and safely ---
     // Use the first variant for the default image and price display.
-    const primaryVariant = Array.isArray(collection.variants) && collection.variants.length > 0
-        ? collection.variants[0]
-        : null;
+    const primaryVariant = (Array.isArray(collection.variants) && collection.variants.length > 0)
+        ? collection.variants[0] // Standard Wear collection field
+        : (Array.isArray(collection.variations) && collection.variations.length > 0)
+            ? collection.variations[0] // Cap collection field
+            : null;
 
     // Safely assign URLs. If primaryVariant is null, the default placeholder is used.
     const frontImageUrl = primaryVariant?.frontImageUrl || collection.frontImageUrl || defaultFrontImage;
@@ -880,8 +882,8 @@ function createCollectionCard(collection, size = 'default') {
     // 1. Generate the inner HTML for size selection options.
     const innerSizeOptions = createSizeList(collection._id, collection.sizeStockMap, isReduced);
 
-    // 2. Only generate the surrounding div/label structure if there are actual options (not an empty string).
-    const sizeListHtml = innerSizeOptions
+    // 2. Only generate the surrounding div/label structure if there are actual options AND it is NOT a cap collection.
+    const sizeListHtml = (innerSizeOptions && !isCaps) // <--- 🔥 FIX 2: Added !isCaps check
         ? `
             <div class="flex items-center space-x-2 mt-2 mb-3">
                 <span class="text-xs font-medium text-gray-700">Size:</span>
@@ -890,10 +892,10 @@ function createCollectionCard(collection, size = 'default') {
                 </div>
             </div>
         `
-        : ''; // If innerSizeOptions is empty (''), the entire size block is skipped.
+        : ''; // If innerSizeOptions is empty (''), OR it is a Cap collection, the entire size block is skipped.
     // --- CRITICAL FRONTEND FIX END ---
 
-    const colorListHtml = createColorList(collection._id, collection.variants); // Use 'variants'
+    const colorListHtml = createColorList(collection._id, collection.variants || collection.variations); // 🔥 FIX 3: Pass variants OR variations for color list
 
     const maxStock = collection.availableStock > 0 ? collection.availableStock : 0;
 
@@ -971,14 +973,14 @@ const buyNowButtonHtml = `
 
     // Quantity control 
     const quantityControlHtml = isOutOfStock && !isPreorder
-        ? `<div class="w-full md:w-auto flex-shrink-0 ${controlHeight} border border-gray-300 rounded-sm flex items-center justify-center text-ms text-gray-500">N/A</div>`
+        ? `<div class="w-full md:w-auto flex-shrink-0 ${controlHeight} border border-gray-300 rounded-sm flex items-center justify-center text-xs text-gray-500">N/A</div>` // Changed text-ms to text-xs
         : `
             <div class="flex items-center border border-gray-300 rounded-sm w-full md:w-auto">
-                <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-l-ms font-semibold **flex-shrink-0**">
+                <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-l-sm font-semibold flex-shrink-0">
                     &minus;
                 </button>
                 <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock || 999}" aria-label="Quantity" class="${quantityInputWidth} ${controlHeight} text-center ${quantityInputTextSize} border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
-                <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-r-sm font-semibold **flex-shrink-0**">
+                <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-r-sm font-semibold flex-shrink-0">
                     &plus;
                 </button>
             </div>
@@ -1238,7 +1240,6 @@ async function fetchAndRenderNewArrivals() {
         container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server (502/Down).</p>';
     }
 }
-
 
 // --- CAP COLLECTION JS ---
 async function fetchAndRenderCapsCollection() {

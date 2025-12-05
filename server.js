@@ -4107,19 +4107,22 @@ app.get('/api/collections/caps', async (req, res) => {
 
         const publicCollections = await Promise.all(collections.map(async (collection) => {
             
-            // --- CRITICAL: Filter Variants based on stock ---
+            // --- CRITICAL: Filter Variations based on stock ---
+            // Note: Caps use 'variations' in the backend, but the frontend card expects 'variants'.
             const filteredVariantsWithStock = [];
 
             for (const v of collection.variations) {
+                
                 // 1. Calculate total stock for THIS specific color (variant)
-                // Note: Cap variants might only have one "size" (e.g., 'OS'), but we must check stock.
-                const variantTotalStock = (v.sizes || []).reduce((sum, s) => sum + (s.stock || 0), 0);
+                // 🔥 FIX 1: Caps stock is directly on the 'stock' field of the variation, not inside a 'sizes' array.
+                const variantTotalStock = v.stock || 0; 
                 
                 // 2. ONLY INCLUDE THE VARIANT IF IT HAS STOCK
                 if (variantTotalStock > 0) {
                     
                     // 3. Map and prepare the public variant object
                     filteredVariantsWithStock.push({
+                        // Note: The frontend card looks for 'color' and 'frontImageUrl/backImageUrl'
                         color: v.colorHex,
                         frontImageUrl: await generateSignedUrl(v.frontImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Front+View+Error',
                         backImageUrl: await generateSignedUrl(v.backImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Back+View+Error',
@@ -4143,6 +4146,7 @@ app.get('/api/collections/caps', async (req, res) => {
                 sizeStockMap: {}, 
                 availableSizes: [], // Keep the empty array as originally intended for caps
                 availableStock: collection.totalStock, 
+                // IMPORTANT: The frontend (createCollectionCard) expects 'variants', so we use that key here.
                 variants: filteredVariantsWithStock, // Only send in-stock colors
                 frontImageUrl: frontImageUrl,
                 backImageUrl: backImageUrl

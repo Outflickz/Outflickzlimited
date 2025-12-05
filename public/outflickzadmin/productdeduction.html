@@ -273,6 +273,14 @@ async function viewOrderDetails(orderId) {
     const orderIdPlaceholder = document.getElementById('modal-order-id-placeholder');
     const adminToken = localStorage.getItem('adminToken');
     
+    // --- FIX: Check if placeholder elements exist before using them ---
+    if (!modalBody || !orderIdPlaceholder) {
+        console.error("Critical HTML elements for modal not found (modal-details-body or modal-order-id-placeholder). Cannot display details.");
+        // This stops the execution and prevents the TypeError.
+        return;
+    }
+    
+    // These lines are where the original error occurred (line 276 and 277)
     orderIdPlaceholder.textContent = orderId;
     modalBody.innerHTML = `<div class="text-center py-8"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 inline-block"></div><p class="mt-3 text-emerald-600">Fetching order details...</p></div>`;
 
@@ -282,6 +290,7 @@ async function viewOrderDetails(orderId) {
     const fullApiUrl = `${API_BASE_URL}/api/admin/orders/${orderId}`; 
 
     try {
+        // ... (rest of the fetch logic is unchanged)
         const response = await fetch(fullApiUrl, {
             method: 'GET',
             headers: {
@@ -336,12 +345,12 @@ function renderOrderDetails(details, modalBody) {
     
     // Customer name is likely nested, check common locations
     const customerName = details.customerName || 
-                         (details.user ? details.user.name : 'N/A') || 
-                         (details.shippingAddress ? details.shippingAddress.name : 'N/A');
+                             (details.user ? details.user.name : 'N/A') || 
+                             (details.shippingAddress ? details.shippingAddress.name : 'N/A');
     
     // Total quantity might be calculated or stored under different names
     const totalQuantity = details.totalQuantity || details.totalItems || 
-                          (details.items ? details.items.reduce((sum, item) => sum + (item.quantity || 0), 0) : 0);
+                              (details.items ? details.items.reduce((sum, item) => sum + (item.quantity || 0), 0) : 0);
     
     // Date is often stored as 'confirmedAt', 'updatedAt', or 'date'
     const confirmationDate = details.confirmationDate || details.confirmedAt || details.updatedAt || details.date;

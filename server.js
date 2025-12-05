@@ -2020,7 +2020,7 @@ app.get('/api/admin/dashboard/stats', verifyToken, async (req, res) => {
     }
 });
 
-app.get('/api/admin/orders/all', verifyToken, isAdmin, async (req, res) => {
+app.get('/api/admin/orders/all', verifyToken, async (req, res) => {
     try {
         console.log("Attempting to retrieve all order data for Sales Log...");
         

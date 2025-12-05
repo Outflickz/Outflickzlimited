@@ -369,7 +369,7 @@ function simulateBuyNow(itemDetails) {
 
     
     // ⭐ CRITICAL FIX: Standardize fallback to 'Uncategorized' or product name ⭐
-    const safeProductType = collection.collectionName || collection.productType;
+    const safeProductTypeInHtml= itemDetails.productType || itemDetails.name;
 
     // --- CONSTRUCT THE FINAL CHECKOUT ITEM ---
     const itemToCheckout = {

@@ -1088,26 +1088,29 @@ const OrderSchema = new mongoose.Schema({
 
 const Order = mongoose.models.Order || mongoose.model('Order', OrderSchema);
 
-
 const ActivityLogSchema = new mongoose.Schema({
     // Type of event: 'LOGIN', 'ORDER_PLACED', 'REGISTERED', 'FORGOT_PASSWORD', 'ADD_TO_CART'
-    eventType: { type: String, required: true, enum: ['LOGIN', 'ORDER_PLACED', 'REGISTERED', 'FORGOT_PASSWORD', 'ADD_TO_CART'] },
-    
-    // Message describing the event, e.g., "User 'john.doe@email.com' registered."
+    eventType: { 
+        type: String, 
+        required: true, 
+        enum: [
+            'LOGIN', 
+            'ORDER_PLACED', 
+            'REGISTERED', 
+            'FORGOT_PASSWORD', 
+            'ADD_TO_CART',
+            'ORDER_CONFIRMED', // Admin confirmed payment/inventory deduction
+            'ORDER_SHIPPED',   // Admin updated status to Shipped
+            'ORDER_DELIVERED'  // Admin updated status to Delivered
+        ] 
+    },
     description: { type: String, required: true },
-    
-    // Optional: ID of the user involved
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true, required: false }, 
-    
-    // Optional: Additional context data (e.g., orderId, product name)
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true, required: false },     
     context: { type: Object },
-    
     timestamp: { type: Date, default: Date.now, index: true }
 });
 
 const ActivityLog = mongoose.model('ActivityLog', ActivityLogSchema);
-module.exports = ActivityLog;
-
 
 // --- DATABASE INTERACTION FUNCTIONS (Unchanged) ---
 async function findAdminUserByEmail(email) {
@@ -1452,13 +1455,6 @@ async function processOrderCompletion(orderId, adminId) {
         session.endSession();
     }
 }
-
-// Module export for external usage
-module.exports = {
-    processOrderCompletion,
-    inventoryRollback,
-    getProductModel
-};
 
 
 /**
@@ -1814,6 +1810,46 @@ async function uploadFileToPermanentStorage(file) {
     } catch (error) {
         console.error(`[IDrive E2] Failed to upload file ${file.originalname}:`, error); // Updated logging
         throw new Error('Permanent file storage failed. Check IDrive E2 credentials and bucket policy.'); // Updated error message
+    }
+}
+
+// The functions you provided (no changes needed to the logic you drafted)
+async function logAdminOrderAction(order, adminId, eventType) {
+    try {
+        const description = `Order #${order._id.toString().slice(-6)} confirmed. Total: ₦${order.totalAmount.toLocaleString()}.`;
+        
+        const newLogEntry = new ActivityLog({
+            eventType: eventType, // Will be 'ORDER_CONFIRMED'
+            description: description,
+            userId: order.userId,
+            context: {
+                orderId: order._id,
+                adminId: adminId
+            },
+        });
+        await newLogEntry.save();
+    } catch (error) {
+        console.error('[ActivityLog] FAILED to log admin order confirmation:', error);
+    }
+}  
+
+async function logAdminStatusUpdate(order, adminId, eventType) {
+    try {
+        const statusText = eventType === 'ORDER_SHIPPED' ? 'shipped' : 'delivered';
+        const description = `Order #${order._id.toString().slice(-6)} marked as ${statusText}.`;
+
+        const newLogEntry = new ActivityLog({
+            eventType: eventType, // Will be 'ORDER_SHIPPED' or 'ORDER_DELIVERED'
+            description: description,
+            userId: order.userId,
+            context: {
+                orderId: order._id,
+                adminId: adminId
+            },
+        });
+        await newLogEntry.save();
+    } catch (error) {
+        console.error(`[ActivityLog] FAILED to log status update (${eventType}):`, error);
     }
 }
 
@@ -2269,6 +2305,7 @@ app.get('/api/admin/orders/:orderId', verifyToken, async (req, res) => {
     }
 });
 
+// =========================================================
 // 9. PUT /api/admin/orders/:orderId/confirm - Confirm an Order (Admin Protected)
 // =========================================================
 app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
@@ -2369,6 +2406,12 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
             console.warn(`[Email Skip Reason] Could not find email for user ID: ${updatedOrder.userId}. Skipping email notification.`);
         }
         
+        // ⭐ INTEGRATION: Log the successful confirmation action
+        if (finalOrder) {
+            // We assume finalOrder has the required fields (userId, _id, totalAmount)
+            await logAdminOrderAction(finalOrder, adminId, 'ORDER_CONFIRMED'); 
+        }
+
         // 4. Success Response
         res.status(200).json({ 
             // 🎯 UPDATED MESSAGE: The final status will now be 'Confirmed'
@@ -2387,94 +2430,101 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
 // 10. PUT /api/admin/orders/:orderId/status - Update Fulfillment Status
 // =========================================================
 app.put('/api/admin/orders/:orderId/status', verifyToken, async (req, res) => {
-    const { orderId } = req.params;
-    const { newStatus } = req.body; 
-    
-    // 🎯 CRITICAL FIX: Fulfillment MUST start from 'Confirmed'.
-    // This prevents an admin from shipping an order that failed inventory (status: Processing)
-    const validTransitions = {
-        'Confirmed': 'Shipped',
-        'Shipped': 'Delivered'
-    };
-    
-    let updateFields = { status: newStatus };
-    let finalOrder = null;
+    const { orderId } = req.params;
+    const { newStatus } = req.body; 
+    
+    // 🎯 CRITICAL FIX: Fulfillment MUST start from 'Confirmed'.
+    // This prevents an admin from shipping an order that failed inventory (status: Processing)
+    const validTransitions = {
+        'Confirmed': 'Shipped',
+        'Shipped': 'Delivered'
+    };
+    
+    let updateFields = { status: newStatus };
+    let finalOrder = null;
 
-    if (!orderId || !newStatus) {
-        return res.status(400).json({ message: 'Order ID and a new status are required.' });
-    }
+    if (!orderId || !newStatus) {
+        return res.status(400).json({ message: 'Order ID and a new status are required.' });
+    }
 
-    try {
-        // Fetch the full order for context and email
-        const order = await Order.findById(orderId).lean();
+    try {
+        // Fetch the full order for context and email
+        const order = await Order.findById(orderId).lean();
 
-        if (!order) {
-            return res.status(404).json({ message: 'Order not found.' });
-        }
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found.' });
+        }
 
-        const currentStatus = order.status;
-        const expectedNextStatus = validTransitions[currentStatus];
+        const currentStatus = order.status;
+        const expectedNextStatus = validTransitions[currentStatus];
 
-        // 1. Validate Status Transition - The Guardrail
-        if (newStatus !== expectedNextStatus) {
-            console.warn(`[Fulfillment Guardrail Fail] Invalid transition from ${currentStatus} to ${newStatus}. Must be 'Confirmed' to ship.`);
-            return res.status(400).json({ 
-                message: `Invalid status transition from ${currentStatus} to ${newStatus}. Order must be Confirmed to move to Shipped.` 
-            });
-        }
+        // 1. Validate Status Transition - The Guardrail
+        if (newStatus !== expectedNextStatus) {
+            console.warn(`[Fulfillment Guardrail Fail] Invalid transition from ${currentStatus} to ${newStatus}. Must be 'Confirmed' to ship.`);
+            return res.status(400).json({ 
+                message: `Invalid status transition from ${currentStatus} to ${newStatus}. Order must be Confirmed to move to Shipped.` 
+            });
+        }
         
         // ... (Remaining logic for Shipped/Delivered handling is correct) ...
 
-        // 2. Handle 'Shipped' transition (No tracking number/company)
-        if (newStatus === 'Shipped') {
-            updateFields = { 
-                ...updateFields, 
-                // Only setting the timestamp
-                shippedAt: new Date()
-            };
-        }
-        
-        // 3. Handle 'Delivered' transition
-        if (newStatus === 'Delivered') {
-              updateFields = { 
-                ...updateFields, 
-                deliveredAt: new Date()
-            };
-        }
+        // 2. Handle 'Shipped' transition (No tracking number/company)
+        if (newStatus === 'Shipped') {
+            updateFields = { 
+                ...updateFields, 
+                // Only setting the timestamp
+                shippedAt: new Date()
+            };
+        }
+        
+        // 3. Handle 'Delivered' transition
+        if (newStatus === 'Delivered') {
+              updateFields = { 
+                ...updateFields, 
+                deliveredAt: new Date()
+            };
+        }
 
-        // 4. Perform the atomic status update
-        finalOrder = await Order.findByIdAndUpdate(
-            orderId, 
-            { $set: updateFields },
-            { new: true }
-        ).lean();
+        // 4. Perform the atomic status update
+        finalOrder = await Order.findByIdAndUpdate(
+            orderId, 
+            { $set: updateFields },
+            { new: true }
+        ).lean();
 
-        // 5. Send Email Notification (Logic remains, but emails should be simpler)
-        const user = await User.findById(finalOrder.userId).select('email').lean();
-        const customerEmail = user ? user.email : null;
+        // 5. Send Email Notification (Logic remains, but emails should be simpler)
+        const user = await User.findById(finalOrder.userId).select('email').lean();
+        const customerEmail = user ? user.email : null;
 
-        if (customerEmail) {
-            try {
-                if (newStatus === 'Shipped') {
-                    await sendShippingUpdateEmail(customerEmail, finalOrder); 
-                } else if (newStatus === 'Delivered') {
-                    await sendDeliveredEmail(customerEmail, finalOrder);
-                }
-            } catch (emailError) {
-                console.error(`WARNING: Failed to send ${newStatus} email to ${customerEmail}:`, emailError.message);
-            }
-        }
-        
-        // 6. Success Response
-        res.status(200).json({ 
-            message: `Order ${orderId} status successfully updated to ${newStatus}.`,
-            order: finalOrder 
-        });
+        if (customerEmail) {
+            try {
+                if (newStatus === 'Shipped') {
+                    await sendShippingUpdateEmail(customerEmail, finalOrder); 
+                } else if (newStatus === 'Delivered') {
+                    await sendDeliveredEmail(customerEmail, finalOrder);
+                }
+            } catch (emailError) {
+                console.error(`WARNING: Failed to send ${newStatus} email to ${customerEmail}:`, emailError.message);
+            }
+        }
+        
+        // ⭐ INTEGRATION: Log the shipping/delivery action
+        if (finalOrder) {
+            const logEventType = newStatus === 'Shipped' ? 'ORDER_SHIPPED' : 'ORDER_DELIVERED';
+            // We assume req.adminId is available from verifyToken
+            await logAdminStatusUpdate(finalOrder, req.adminId, logEventType); 
+        }
 
-    } catch (error) {
-        console.error(`Error updating order status ${orderId}:`, error);
-        res.status(500).json({ message: 'Failed to update order status due to a server error.' });
-    }
+        // 6. Success Response
+        res.status(200).json({ 
+            message: `Order ${orderId} status successfully updated to ${newStatus}.`,
+            order: finalOrder 
+        });
+
+    } catch (error) {
+        console.error(`Error updating order status ${orderId}:`, error);
+        res.status(500).json({ message: 'Failed to update order status due to a server error.' });
+    }
 });
 
 // GET /api/admin/capscollections - Fetch All Cap Collections (List View)
@@ -5753,6 +5803,10 @@ module.exports = {
     PreOrderCollection,
     Order,
     Cart,
+    ActivityLog,
+    processOrderCompletion,
+    inventoryRollback,
+    getProductModel,
     app,
     mongoose,
     populateInitialData,

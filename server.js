@@ -1135,7 +1135,7 @@ async function getRealTimeDashboardStats() {
     try {
         // 1. Calculate Total Sales (sum of 'totalAmount' from completed orders)
         const salesAggregation = await Order.aggregate([
-            { $match: { status: 'Comfirmed' } },
+            { $match: { status: 'Confirmed' } },
             { $group: { _id: null, totalSales: { $sum: '$totalAmount' } } }
         ]);
         const totalSales = salesAggregation.length > 0 ? salesAggregation[0].totalSales : 0;

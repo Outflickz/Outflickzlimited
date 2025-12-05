@@ -5240,228 +5240,264 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
 // 7. POST /api/orders/place/pending - Create a Pending Order (Protected)
 // =========================================================
 app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
-    
-    // 1. Run the Multer middleware to process the form data and file
-    singleReceiptUpload(req, res, async (err) => {
-        // ... (Multer Error Handling remains the same) ...
-        if (err instanceof multer.MulterError) {
-             return res.status(400).json({ message: `File upload failed: ${err.message}` });
-        } else if (err) {
-             console.error('Unknown Multer Error:', err);
-             return res.status(500).json({ message: 'Error processing file upload.' });
-        }
+    
+    // 1. Run the Multer middleware to process the form data and file
+    singleReceiptUpload(req, res, async (err) => {
+        // ... (Multer Error Handling remains the same) ...
+        if (err instanceof multer.MulterError) {
+             return res.status(400).json({ message: `File upload failed: ${err.message}` });
+        } else if (err) {
+             console.error('Unknown Multer Error:', err);
+             return res.status(500).json({ message: 'Error processing file upload.' });
+        }
 
-        const userId = req.userId;
-        
-        // Extract Form fields 
-        const { 
-            shippingAddress: shippingAddressString, 
-            paymentMethod, 
-            totalAmount: totalAmountString, 
-            subtotal: subtotalString,
-            shippingFee: shippingFeeString,
-            tax: taxString,
-            orderItems: orderItemsString 
-        } = req.body;
-        
-        const receiptFile = req.file; 
-        
-        // Convert string fields
-        const totalAmount = parseFloat(totalAmountString);
-        const subtotal = parseFloat(subtotalString || '0');
-        const shippingFee = parseFloat(shippingFeeString || '0');
-        const tax = parseFloat(taxString || '0');
+        const userId = req.userId;
+        
+        // Extract Form fields 
+        const { 
+            shippingAddress: shippingAddressString, 
+            paymentMethod, 
+            totalAmount: totalAmountString, 
+            subtotal: subtotalString,
+            shippingFee: shippingFeeString,
+            tax: taxString,
+            orderItems: orderItemsString 
+        } = req.body;
+        
+        const receiptFile = req.file; 
+        
+        // Convert string fields
+        const totalAmount = parseFloat(totalAmountString);
+        const subtotal = parseFloat(subtotalString || '0');
+        const shippingFee = parseFloat(shippingFeeString || '0');
+        const tax = parseFloat(taxString || '0');
 
-        let shippingAddress;
+        let shippingAddress;
 
-        // --- UPDATED ROBUST PARSING LOGIC ---
-        try {
-             if (!shippingAddressString || shippingAddressString.trim() === '') {
-                 shippingAddress = null; 
-             } else {
-                 shippingAddress = JSON.parse(shippingAddressString);
-             }
-        } catch (e) {
-             return res.status(400).json({ message: 'Invalid shipping address format. Ensure the address object is stringified correctly.' });
-        }
-        // --- END: UPDATED ROBUST PARSING LOGIC ---
-        
-        // 2. Critical Input Validation
-        if (!shippingAddress || totalAmount <= 0 || isNaN(totalAmount)) {
-             return res.status(400).json({ message: 'Missing shipping address or invalid total amount.' });
-        }
+        // --- UPDATED ROBUST PARSING LOGIC ---
+        try {
+             if (!shippingAddressString || shippingAddressString.trim() === '') {
+                 shippingAddress = null; 
+             } else {
+                 shippingAddress = JSON.parse(shippingAddressString);
+             }
+        } catch (e) {
+             return res.status(400).json({ message: 'Invalid shipping address format. Ensure the address object is stringified correctly.' });
+        }
+        // --- END: UPDATED ROBUST PARSING LOGIC ---
+        
+        // 2. Critical Input Validation
+        if (!shippingAddress || totalAmount <= 0 || isNaN(totalAmount)) {
+             return res.status(400).json({ message: 'Missing shipping address or invalid total amount.' });
+        }
 
-        let paymentReceiptUrl = null;
-        
-        try {
-            // ... (Bank Transfer Receipt Upload Logic remains the same) ...
-            if (paymentMethod === 'Bank Transfer') {
-                if (!receiptFile) {
-                    return res.status(400).json({ message: 'Bank payment receipt image is required for a Bank Transfer order.' });
-                }
-                
-                paymentReceiptUrl = await uploadFileToPermanentStorage(receiptFile);
-                
-                if (!paymentReceiptUrl) {
-                    throw new Error("Failed to get permanent URL after B2 upload.");
-                }
-            }
+        let paymentReceiptUrl = null;
+        
+        try {
+            // ... (Bank Transfer Receipt Upload Logic remains the same) ...
+            if (paymentMethod === 'Bank Transfer') {
+                if (!receiptFile) {
+                    return res.status(400).json({ message: 'Bank payment receipt image is required for a Bank Transfer order.' });
+                }
+                
+                paymentReceiptUrl = await uploadFileToPermanentStorage(receiptFile);
+                
+                if (!paymentReceiptUrl) {
+                    throw new Error("Failed to get permanent URL after B2 upload.");
+                }
+            }
 
-            // ⭐ 4. RETRIEVE ORDER ITEMS (PRIORITIZE Buy Now Items)
-            let finalOrderItems = [];
-            let isBuyNowOrder = false;
-            
-            if (orderItemsString && orderItemsString.trim() !== '') {
-                // Scenario 1: Buy Now Checkout
-                let rawItems;
-                try {
-                    rawItems = JSON.parse(orderItemsString);
-                } catch (e) {
-                    return res.status(400).json({ message: 'Invalid order item list format. Ensure orderItems is stringified correctly.' });
-                }
-                
-                isBuyNowOrder = true;
-                
-                finalOrderItems = rawItems.map(item => {
-                    if (!item.productType || !item.variationIndex) {
-                        throw new Error(`Order item for product ${item.productId} is missing required field: productType or variationIndex.`); 
-                    }
+            // ⭐ 4. RETRIEVE ORDER ITEMS (PRIORITIZE Buy Now Items)
+            let finalOrderItems = [];
+            let isBuyNowOrder = false;
+            
+            if (orderItemsString && orderItemsString.trim() !== '') {
+                // Scenario 1: Buy Now Checkout
+                let rawItems;
+                try {
+                    rawItems = JSON.parse(orderItemsString);
+                } catch (e) {
+                    return res.status(400).json({ message: 'Invalid order item list format. Ensure orderItems is stringified correctly.' });
+                }
+                
+                isBuyNowOrder = true;
+                
+                // -------------------------------------------------------------
+                // ⭐ START: BUY NOW ITEM MAPPING & VALIDATION FIX
+                // -------------------------------------------------------------
+                finalOrderItems = await Promise.all(rawItems.map(async (item) => { // Use Promise.all and async map
+                    if (!item.productType || !item.variationIndex) {
+                        // Throw immediately if mandatory fields are client-missing
+                        throw new Error(`Order item for product ${item.productId} is missing required field: productType or variationIndex.`); 
+                    }
 
-                    return {
-                        ...item, 
-                        priceAtTimeOfPurchase: item.price, 
-                        productType: item.productType, 
-                        variationIndex: item.variationIndex
-                    };
-                });
-
-            } else {
-                // Scenario 2: Standard Cart Checkout
-                const cart = await Cart.findOne({ userId }).lean();
-
-                if (!cart || cart.items.length === 0) {
-                    return res.status(400).json({ message: 'Cannot place order: Shopping bag is empty.' });
-                }
-                
-                // Map cart items to OrderItemSchema structure
-                finalOrderItems = cart.items.map(item => ({
-                    productId: item.productId,
-                    name: item.name, 
-                    imageUrl: item.imageUrl,
-                    productType: item.productType, // Contains the bad data (e.g., 'Uncategorized')
-                    quantity: item.quantity,
-                    priceAtTimeOfPurchase: item.price, 
-                    variationIndex: item.variationIndex,
-                    size: item.size,
-                    variation: item.variation,
-                    color: item.color,
-                }));
-            }
-            
-            if (finalOrderItems.length === 0) {
-                return res.status(400).json({ message: 'Order item list is empty.' });
-            }
-            
-            // -------------------------------------------------------------
-            // ⭐ CRITICAL FIX: VALIDATE AND CORRECT productType (Using getProductModel)
-            // This logic is ONLY executed for items from the permanent Cart (Scenario 2).
-            // -------------------------------------------------------------
-            if (!isBuyNowOrder) {
-                for (let item of finalOrderItems) {
+                    let correctedType = item.productType;
                     let isTypeValid = !!PRODUCT_MODEL_MAP[item.productType];
-
+                    
+                    // Run the correction logic if the type from the client is invalid
                     if (!isTypeValid) { 
-                        console.log(`Attempting to correct invalid productType: ${item.productType} for ${item.productId}`);
+                        console.log(`[BUY NOW] Attempting to correct invalid productType: ${item.productType} for ${item.productId}`);
                         
-                        let correctedType = null;
-                        
-                        // Iterate through all valid product types from the map
+                        // The same collection-lookup logic from the Cart flow
                         for (const type of Object.keys(PRODUCT_MODEL_MAP)) {
-                            try {
-                                const CollectionModel = getProductModel(type); // Safely get the model
-                                
-                                // Check if the product ID exists in this collection
-                                const productExists = await CollectionModel.exists({ _id: item.productId });
-                                
-                                if (productExists) {
-                                    correctedType = type;
-                                    break;
-                                }
-                            } catch (error) {
-                                // If getProductModel throws (e.g., Model not defined), log but continue to next type
-                                console.warn(`Model check failed for type ${type}: ${error.message}`);
-                            }
-                        }
+                            try {
+                                const CollectionModel = getProductModel(type); 
+                                const productExists = await CollectionModel.exists({ _id: item.productId });
+                                
+                                if (productExists) {
+                                    correctedType = type;
+                                    break;
+                                }
+                            } catch (error) {
+                                console.warn(`Model check failed for type ${type}: ${error.message}`);
+                            }
+                        }
 
-                        if (!correctedType) {
-                             // CRITICAL: Product ID not found in any valid collection
-                             throw new Error(`Product ID ${item.productId} (Type: ${item.productType}) not found in any collection. Cannot place order.`);
-                        }
-                        
-                        // 1. Update the final order item with the correct type
-                        item.productType = correctedType;
-                        
-                        // 2. Fix the permanent cart data for future checkouts (Optional but recommended)
-                        await Cart.findOneAndUpdate(
-                            { userId, 'items.productId': item.productId },
-                            { '$set': { 'items.$.productType': correctedType } }
-                        );
+                        if (correctedType === item.productType) { // If it's still the original invalid type
+                             throw new Error(`Product ID ${item.productId} not found in any collection. Cannot place order.`);
+                        }
                     }
-                }
-            }
-            // -------------------------------------------------------------
 
-            const orderRef = `REF-${Date.now()}-${userId.substring(0, 5)}`; 
+                    return {
+                        ...item, 
+                        priceAtTimeOfPurchase: item.price, 
+                        productType: correctedType, // Use the corrected or original type
+                        variationIndex: item.variationIndex
+                    };
+                }));
+                // -------------------------------------------------------------
+                // ⭐ END: BUY NOW ITEM MAPPING & VALIDATION FIX
+                // -------------------------------------------------------------
 
-            const newOrder = await Order.create({
-                userId: userId,
-                // Use the items with the now-corrected productType
-                items: finalOrderItems, 
-                shippingAddress: shippingAddress,
-                totalAmount: totalAmount,
-                subtotal: subtotal,
-                shippingFee: shippingFee,
-                tax: tax,
-                status: 'Pending', 
-                paymentMethod: paymentMethod,
-                orderReference: orderRef, 
-                amountPaidKobo: Math.round(totalAmount * 100),
-                paymentTxnId: orderRef, 
-                paymentReceiptUrl: paymentReceiptUrl,
-            });
+            } else {
+                // Scenario 2: Standard Cart Checkout
+                const cart = await Cart.findOne({ userId }).lean();
 
-            // 6. Clear the user's permanent cart ONLY IF it was a standard cart checkout
-            if (!isBuyNowOrder) {
-                await Cart.findOneAndUpdate(
-                    { userId },
-                    { items: [], updatedAt: Date.now() }
-                );
-            }
-            
-            console.log(`Pending Order created: ${newOrder._id}. Source: ${isBuyNowOrder ? 'Buy Now' : 'Cart'}`);
-            
-            // ... (Success Response remains the same) ...
-            const { firstName, lastName } = shippingAddress;
-            res.status(201).json({
-                message: 'Pending order placed successfully. Awaiting payment verification.',
-                orderId: newOrder._id,
-                status: newOrder.status,
-                firstName: firstName,
-                lastName: lastName,
-                ReceiptUrl: paymentReceiptUrl
-            });
+                if (!cart || cart.items.length === 0) {
+                    return res.status(400).json({ message: 'Cannot place order: Shopping bag is empty.' });
+                }
+                
+                // Map cart items to OrderItemSchema structure
+                finalOrderItems = cart.items.map(item => ({
+                    productId: item.productId,
+                    name: item.name, 
+                    imageUrl: item.imageUrl,
+                    productType: item.productType, 
+                    quantity: item.quantity,
+                    priceAtTimeOfPurchase: item.price, 
+                    variationIndex: item.variationIndex,
+                    size: item.size,
+                    variation: item.variation,
+                    color: item.color,
+                }));
+            }
+            
+            if (finalOrderItems.length === 0) {
+                return res.status(400).json({ message: 'Order item list is empty.' });
+            }
+            
+            // -------------------------------------------------------------
+            // ⭐ CRITICAL FIX: VALIDATE AND CORRECT productType (Using getProductModel)
+            // This logic is ONLY executed for items from the permanent Cart (Scenario 2).
+            // NOTE: The validation for 'Buy Now' is now handled above in Scenario 1.
+            // -------------------------------------------------------------
+            if (!isBuyNowOrder) {
+                for (let item of finalOrderItems) {
+                    let isTypeValid = !!PRODUCT_MODEL_MAP[item.productType];
 
-        } catch (error) {
-            console.error('Error placing pending order:', error);
-            // Send the specific validation message back to the client if possible
-            const userMessage = error.message.includes('validation failed') 
-                                ? error.message.split(':').slice(-1)[0].trim() 
-                                : 'Failed to create pending order due to a server error.';
+                    if (!isTypeValid) { 
+                        console.log(`Attempting to correct invalid productType: ${item.productType} for ${item.productId}`);
+                        
+                        let correctedType = null;
+                        
+                        // Iterate through all valid product types from the map
+                        for (const type of Object.keys(PRODUCT_MODEL_MAP)) {
+                            try {
+                                const CollectionModel = getProductModel(type); // Safely get the model
+                                
+                                // Check if the product ID exists in this collection
+                                const productExists = await CollectionModel.exists({ _id: item.productId });
+                                
+                                if (productExists) {
+                                    correctedType = type;
+                                    break;
+                                }
+                            } catch (error) {
+                                // If getProductModel throws (e.g., Model not defined), log but continue to next type
+                                console.warn(`Model check failed for type ${type}: ${error.message}`);
+                            }
+                        }
 
-            res.status(500).json({ message: userMessage });
-        }
-    });
+                        if (!correctedType) {
+                             // CRITICAL: Product ID not found in any valid collection
+                             throw new Error(`Product ID ${item.productId} (Type: ${item.productType}) not found in any collection. Cannot place order.`);
+                        }
+                        
+                        // 1. Update the final order item with the correct type
+                        item.productType = correctedType;
+                        
+                        // 2. Fix the permanent cart data for future checkouts (Optional but recommended)
+                        await Cart.findOneAndUpdate(
+                            { userId, 'items.productId': item.productId },
+                            { '$set': { 'items.$.productType': correctedType } }
+                        );
+                    }
+                }
+            }
+            // -------------------------------------------------------------
+
+            const orderRef = `REF-${Date.now()}-${userId.substring(0, 5)}`; 
+
+            const newOrder = await Order.create({
+                userId: userId,
+                // Use the items with the now-corrected productType
+                items: finalOrderItems, 
+                shippingAddress: shippingAddress,
+                totalAmount: totalAmount,
+                subtotal: subtotal,
+                shippingFee: shippingFee,
+                tax: tax,
+                status: 'Pending', 
+                paymentMethod: paymentMethod,
+                orderReference: orderRef, 
+                amountPaidKobo: Math.round(totalAmount * 100),
+                paymentTxnId: orderRef, 
+                paymentReceiptUrl: paymentReceiptUrl,
+            });
+
+            // 6. Clear the user's permanent cart ONLY IF it was a standard cart checkout
+            if (!isBuyNowOrder) {
+                await Cart.findOneAndUpdate(
+                    { userId },
+                    { items: [], updatedAt: Date.now() }
+                );
+            }
+            
+            console.log(`Pending Order created: ${newOrder._id}. Source: ${isBuyNowOrder ? 'Buy Now' : 'Cart'}`);
+            
+            // ... (Success Response remains the same) ...
+            const { firstName, lastName } = shippingAddress;
+            res.status(201).json({
+                message: 'Pending order placed successfully. Awaiting payment verification.',
+                orderId: newOrder._id,
+                status: newOrder.status,
+                firstName: firstName,
+                lastName: lastName,
+                ReceiptUrl: paymentReceiptUrl
+            });
+
+        } catch (error) {
+            console.error('Error placing pending order:', error);
+            // Send the specific validation message back to the client if possible
+            const userMessage = error.message.includes('validation failed') 
+                                ? error.message.split(':').slice(-1)[0].trim() 
+                                : 'Failed to create pending order due to a server error.';
+
+            res.status(500).json({ message: userMessage });
+        }
+    });
 });
+
 
 // =========================================================
 // 2. GET /api/orders/history - Retrieve Order History (Protected)

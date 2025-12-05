@@ -543,6 +543,7 @@ async function sendDeliveredEmail(customerEmail, orderDetails) {
     }
 }
 
+
 // --- CONFIGURATION ---
 const MONGODB_URI = process.env.MONGODB_URI
 const JWT_SECRET = process.env.JWT_SECRET
@@ -1458,6 +1459,34 @@ module.exports = {
     getProductModel
 };
 
+
+/**
+ * Retrieves all orders for the admin sales log.
+ * Populates the userId field to get customer information.
+ */
+async function getAllOrders() {
+    try {
+        const OrderModel = mongoose.models.Order || mongoose.model('Order');
+
+        // Fetch all orders
+        // .populate('userId', 'email username') is critical to display customer info 
+        // without sending back the entire User object (like hashed password).
+        const allOrders = await OrderModel.find({})
+            .sort({ createdAt: -1 }) // Sort by newest order first
+            .populate('userId', 'email username') // Populate User info needed for display
+            .lean(); // Use .lean() for faster read performance
+
+        // NOTE: The 'collection' filter on the frontend is challenging 
+        // because it's stored in the nested 'items' array.
+        // For simple display, the current fetch is enough.
+
+        return allOrders;
+    } catch (error) {
+        console.error('Error in getAllOrders:', error);
+        throw new Error('Database query failed for sales log.');
+    }
+}
+
 /**
  * ====================================================================================
  * HELPER FUNCTIONS (Preserved as provided)
@@ -1987,6 +2016,27 @@ app.get('/api/admin/dashboard/stats', verifyToken, async (req, res) => {
         res.status(500).json({ 
             message: 'Failed to retrieve dashboard stats due to a server crash.',
             internalError: error.message // Optionally expose the message for client-side context
+        });
+    }
+});
+
+app.get('/api/admin/orders/all', verifyToken, isAdmin, async (req, res) => {
+    try {
+        console.log("Attempting to retrieve all order data for Sales Log...");
+        
+        // Call the new function
+        const orders = await getAllOrders();
+        
+        console.log(`Successfully retrieved ${orders.length} orders.`);
+        
+        // Return the orders array
+        res.status(200).json(orders);
+        
+    } catch (error) {
+        console.error("Sales Log API Crash Detected:", error);
+        res.status(500).json({ 
+            message: 'Failed to retrieve all order records.',
+            internalError: error.message
         });
     }
 });

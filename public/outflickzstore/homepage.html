@@ -728,16 +728,35 @@ function changeQuantity(collectionId, delta) {
 
     input.value = newValue;
 }
-
 // --- UTILITY FOR SIZE LIST (MATCHING IMAGE DESIGN) ---
-// REVERTED: Now uses radio buttons for native single-selection behavior.
-function createSizeList(collectionId, sizes, isReduced = false) {
-    // Default sizes if none are provided
-    const standardSizes = ['S', 'M', 'L', 'XL'];
-    const filteredSizes = (sizes || [])
-        .filter(size => standardSizes.includes(size.toUpperCase().trim()));
+/**
+ * Generates the HTML for the size selection options within the collection card.
+ * CRITICAL FIX: Filters out sizes that have zero or less stock.
+ * @param {string} collectionId The unique ID of the collection.
+ * @param {Object} sizeStockMap A map of {Size: StockCount} received from the backend (e.g., {S: 10, M: 0, L: 5}).
+ * @param {boolean} isReduced Flag for styling.
+ * @returns {string} The HTML for the size buttons, or an 'N/A' span if none are in stock.
+ */
+function createSizeList(collectionId, sizeStockMap, isReduced = false) {
+    if (!sizeStockMap) {
+        return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
+    }
 
-    if (filteredSizes.length === 0) {
+    // Standard sizes list (used for ordering or ensuring only valid sizes are processed)
+    const standardSizes = ['S', 'M', 'L', 'XL'];
+    
+    // 1. **FILTERING LOGIC:** Convert the map to an array and filter by stock > 0
+    const sizesWithStock = Object.entries(sizeStockMap)
+        .filter(([size, stock]) => 
+            // 1a. Check if the size is one of the standard sizes
+            standardSizes.includes(size.toUpperCase().trim()) && 
+            // 1b. CRITICAL: Check if stock is greater than zero
+            stock > 0
+        )
+        // 2. Map back to just the size string for easy HTML generation
+        .map(([size]) => size); 
+
+    if (sizesWithStock.length === 0) {
         return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
     }
 
@@ -745,11 +764,12 @@ function createSizeList(collectionId, sizes, isReduced = false) {
         ? 'text-[0.6rem] px-1.5 py-0.5' // Smaller for reduced card
         : 'text-xs px-2 py-0.5 md:px-2 md:py-1'; // Default size
 
-    // Using radio buttons with the SAME name attribute ensures native single selection
-    return filteredSizes.map((size, index) => {
+    const groupName = `size-${collectionId}`; // Use the same name for all radios in this group
+    
+    // 3. Generate HTML using the filtered list (sizesWithStock)
+    return sizesWithStock.map((size, index) => {
         const safeSize = size.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
         const inputId = `size-${collectionId}-${safeSize}`;
-        const groupName = `size-${collectionId}`; // Use the same name for all radios in this group
         
         return `
             <label for="${inputId}" class="size-label border border-gray-300 cursor-pointer hover:border-ash-dark transition-all rounded-sm has-[:checked]:border-ash-dark has-[:checked]:bg-gray-100">
@@ -817,39 +837,35 @@ function toggleImage(collectionId) {
         toggleButton.title = "Show Back View";
     }
 }
-
-// --- UTILITY FOR COLOR LIST (FIXED for Pre-Order Collections) ---
+// --- UTILITY FOR COLOR LIST (Stock-Aware) ---
 function createColorList(collectionId, variants) {
     // 1. Initial Safety Check
+    // 'variants' now only includes colors with total stock > 0 (filtered by backend)
     if (!variants || variants.length === 0) return '';
     
-    // 🔑 CRITICAL FIX: Filter out variants where color is undefined (i.e., Pre-Order items)
-    const coloredVariants = variants.filter(v => v.color);
+    // NOTE: The previous 'pre-order' filter is removed because the backend should 
+    // already ensure that every variant passed here is intended to be displayed.
+    const coloredVariants = variants; 
 
-    // If there are no colored variants (e.g., all are pre-order), return empty.
+    // If there are no colored variants, return empty.
     if (coloredVariants.length === 0) return ''; 
 
-    // 2. Create a map for the image switching logic using ONLY the colored variants
+    // 2. Create a map for the image switching logic
     const colorMap = coloredVariants.reduce((acc, v) => {
+        // We only map the necessary image URLs
         acc[v.color] = { frontImageUrl: v.frontImageUrl, backImageUrl: v.backImageUrl };
         return acc;
     }, {});
 
-    // 3. Store the map in the DOM for easy access by changeVariantImage
-    // NOTE: We use coloredVariants here to ensure the map only holds valid colors.
+    // 3. Store the map in the DOM
     const mapHtml = `<div id="color-map-${collectionId}" data-color-map='${JSON.stringify(colorMap)}' class="hidden"></div>`;
 
     // 4. Generate the color swatch buttons
-    // Use the filtered list (coloredVariants) for mapping
     const buttonsHtml = coloredVariants.map((variant, index) => {
-        // Now 'variant.color' is guaranteed to exist!
         const colorHex = variant.color; 
         const style = `background-color: ${colorHex};`;
-        
-        // Safety check for case sensitivity, though not strictly needed here if data is clean
         const safeColor = String(colorHex).toUpperCase(); 
         
-        // This line is now safe because colorHex is a string
         const extraClass = (safeColor === '#FFFFFF' || safeColor === '#FFF') ? 'border-gray-400' : 'border-gray-200';
         
         return `
@@ -1087,27 +1103,39 @@ const buyNowButtonHtml = `
         </div>
     `;
 }
-
 /**
  * Generates the HTML for the size selection options within the collection card.
- * CRITICAL FIX: Returns an empty string if no sizes are available, preventing 'Size: N/A' text.
+ * CRITICAL FIX: Filters out sizes that have zero or less stock.
+ * @param {string} collectionId The unique ID of the collection.
+ * @param {Object} sizeStockMap A map of {Size: StockCount} received from the backend (e.g., {S: 10, M: 0, L: 5}).
+ * @param {boolean} isReduced Flag for styling.
+ * @returns {string} The HTML for the size buttons, or an empty string if none are in stock.
  */
-function createSizeList(collectionId, availableSizes, isReduced) {
-    const standardSizes = ['S', 'M', 'L', 'XL']; 
+function createSizeList(collectionId, sizeStockMap, isReduced) {
+    // Standard sizes list (used for filtering/ordering)
+    const standardSizes = ['S', 'M', 'L', 'XL'];
+    
+    // 1. FILTERING LOGIC: Find only the sizes that have stock > 0
+    // We use Object.entries to get [size, stock] pairs for filtering
+    const sizesWithStock = Object.entries(sizeStockMap || {})
+        .filter(([size, stock]) => 
+            // 1a. Check if the size is one of the standard sizes
+            standardSizes.includes(size.toUpperCase().trim()) && 
+            // 1b. CRITICAL: Check if stock is greater than zero
+            stock > 0
+        )
+        // 2. Map back to just the size string
+        .map(([size]) => size); 
 
-    // The backend provides a list of size strings for the homepage card
-    const filteredSizes = (availableSizes || [])
-        .filter(size => standardSizes.includes(size.toUpperCase().trim()));
-
-    if (filteredSizes.length === 0) {
-        return ''; // <-- FIX: Return empty string instead of "N/A" span
+    if (sizesWithStock.length === 0) {
+        return ''; // <-- Correct: Return empty string if no sizes are available
     }
 
-    // Adjusted classes to match the look of the color swatches (no explicit padding, just w/h for touch targets)
     const sizeClasses = isReduced ? 'w-6 h-6 text-[0.6rem]' : 'w-7 h-7 text-xs';
     const groupName = `size-${collectionId}`;
     
-    const sizeOptionsHtml = filteredSizes.map((size, index) => {
+    // 3. Generate HTML using the filtered list (sizesWithStock)
+    const sizeOptionsHtml = sizesWithStock.map((size, index) => {
         const safeSize = size.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
         const inputId = `size-${collectionId}-${safeSize}`;
         

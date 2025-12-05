@@ -3970,46 +3970,60 @@ app.get('/api/admin/inventory/deductions', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Failed to retrieve inventory deduction logs.' });
     }
 });
-
 // GET /api/collections/wears (For Homepage Display)
 app.get('/api/collections/wears', async (req, res) => {
     try {
-        // Fetch only ACTIVE collections (WearsCollection)
-        // Ensure 'variations' and its nested fields are selected
         const collections = await WearsCollection.find({ isActive: true }) 
             .select('_id name tag price variations totalStock') 
             .sort({ createdAt: -1 })
             .lean(); 
 
-        // Prepare the data for the public frontend
         const publicCollections = await Promise.all(collections.map(async (collection) => {
             
-            // 1. --- FIX: Extract ALL unique sizes from ALL variations ---
-            // The Mongoose schema stores detailed sizes inside the 'variations' array.
-            const allUniqueSizes = collection.variations
-                .flatMap(v => v.sizes ? v.sizes.map(s => s.size) : [])
-                .filter((value, index, self) => self.indexOf(value) === index);
-            // --- END FIX ---
+            const sizeStockMap = {}; // Will store {S: 10, M: 0, L: 5}
 
+            // --- CRITICAL: Filter Variants and Aggregate Stock ---
+            const filteredVariantsWithStock = [];
 
-            // Map Mongoose variation to a simpler public variant object
-            const variants = await Promise.all(collection.variations.map(async (v) => ({
-                color: v.colorHex,
-                frontImageUrl: await generateSignedUrl(v.frontImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Front+View+Error',
-                backImageUrl: await generateSignedUrl(v.backImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Back+View+Error',
-                // Note: We are NOT including sizes/stock here, as the frontend uses the top-level availableSizes.
-            })));
+            for (const v of collection.variations) {
+                // 1. Calculate total stock for THIS specific color (variant)
+                const variantTotalStock = (v.sizes || []).reduce((sum, s) => sum + (s.stock || 0), 0);
+                
+                // 2. ONLY INCLUDE THE VARIANT IF IT HAS STOCK
+                if (variantTotalStock > 0) {
+                    
+                    // 3. Aggregate size stock for the top-level sizeStockMap
+                    (v.sizes || []).forEach(s => {
+                        const normalizedSize = s.size.toUpperCase().trim();
+                        // Only aggregate if the size itself has stock
+                        if (s.stock > 0) {
+                            sizeStockMap[normalizedSize] = (sizeStockMap[normalizedSize] || 0) + s.stock;
+                        }
+                    });
 
+                    // 4. Map and prepare the public variant object
+                    filteredVariantsWithStock.push({
+                        color: v.colorHex,
+                        frontImageUrl: await generateSignedUrl(v.frontImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Front+View+Error',
+                        backImageUrl: await generateSignedUrl(v.backImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Back+View+Error',
+                        // NOTE: Do NOT include sizes/stock here, as the client filters sizes based on sizeStockMap
+                    });
+                }
+            }
+            // --- END CRITICAL FILTERING ---
+
+            // The frontend only uses sizes that have stock in the map, so sizeStockMap is sufficient.
             
             return {
                 _id: collection._id,
                 name: collection.name,
                 tag: collection.tag,
                 price: collection.price, 
-                // 2. --- PASS THE CORRECT DATA: Use the extracted size list ---
-                availableSizes: allUniqueSizes, 
+                // NEW: Pass the stock map to the frontend for filtering sizes
+                sizeStockMap: sizeStockMap,
                 availableStock: collection.totalStock, 
-                variants: variants
+                // NEW: Pass ONLY variants that have stock in AT LEAST ONE size
+                variants: filteredVariantsWithStock
             };
         }));
 
@@ -4019,55 +4033,57 @@ app.get('/api/collections/wears', async (req, res) => {
         res.status(500).json({ message: 'Server error while fetching collections for homepage.', details: error.message });
     }
 });
-
 // GET /api/collections/newarrivals (For Homepage Display)
 app.get('/api/collections/newarrivals', async (req, res) => {
     try {
-        // Fetch only ACTIVE products (NewArrivals)
-        // 1. UPDATED: Removed 'sizes' from select list, as it's not a root field.
-        // We now select 'variations' which contains the size data.
         const products = await NewArrivals.find({ isActive: true }) 
             .select('_id name tag price variations totalStock') 
             .sort({ createdAt: -1 })
             .lean(); 
 
-        // Prepare the data for the public frontend
         const publicProducts = await Promise.all(products.map(async (product) => {
             
-            // Map Mongoose variation to a simpler public variant object
-            const variants = await Promise.all(product.variations.map(async (v) => ({
-                color: v.colorHex,
-                frontImageUrl: await generateSignedUrl(v.frontImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Front+View+Error',
-                backImageUrl: await generateSignedUrl(v.backImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Back+View+Error'
-            })));
+            const sizeStockMap = {}; // Will store {S: 10, M: 0, L: 5}
+            
+            // --- CRITICAL: Filter Variants and Aggregate Stock ---
+            const filteredVariantsWithStock = [];
 
-            // 2. NEW LOGIC: Extract unique list of available size names (e.g., ['S', 'M', 'L'])
-            const uniqueSizes = new Set();
-            if (product.variations && product.variations.length > 0) {
-                // Iterate through ALL variations
-                product.variations.forEach(variation => {
-                    // Iterate through the sizes array within each variation
-                    (variation.sizes || []).forEach(sizeEntry => {
-                        // Check if the stock is greater than 0 before adding the size
-                        if (sizeEntry.size && sizeEntry.stock > 0) {
-                            uniqueSizes.add(sizeEntry.size);
+            for (const v of product.variations) {
+                // 1. Calculate total stock for THIS specific color (variant)
+                const variantTotalStock = (v.sizes || []).reduce((sum, s) => sum + (s.stock || 0), 0);
+                
+                // 2. ONLY INCLUDE THE VARIANT IF IT HAS STOCK
+                if (variantTotalStock > 0) {
+                    
+                    // 3. Aggregate size stock for the top-level sizeStockMap
+                    (v.sizes || []).forEach(s => {
+                        const normalizedSize = s.size.toUpperCase().trim();
+                        // Only aggregate if the size itself has stock
+                        if (s.stock > 0) {
+                            sizeStockMap[normalizedSize] = (sizeStockMap[normalizedSize] || 0) + s.stock;
                         }
                     });
-                });
+
+                    // 4. Map and prepare the public variant object
+                    filteredVariantsWithStock.push({
+                        color: v.colorHex,
+                        frontImageUrl: await generateSignedUrl(v.frontImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Front+View+Error',
+                        backImageUrl: await generateSignedUrl(v.backImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Back+View+Error',
+                    });
+                }
             }
-            
-            // Convert the Set back to an Array and sort it (optional but good practice)
-            const availableSizesArray = Array.from(uniqueSizes).sort();
+            // --- END CRITICAL FILTERING ---
 
             return {
                 _id: product._id,
                 name: product.name,
                 tag: product.tag,
                 price: product.price, 
-                // 3. UPDATED: Use the newly computed array of unique, in-stock sizes
-                availableSizes: availableSizesArray, 
+                // NEW: Pass the stock map to the frontend for filtering sizes
+                sizeStockMap: sizeStockMap,
                 availableStock: product.totalStock, 
-                variants: variants
+                // NEW: Pass ONLY variants that have stock in AT LEAST ONE size
+                variants: filteredVariantsWithStock
             };
         }));
 
@@ -4081,32 +4097,52 @@ app.get('/api/collections/newarrivals', async (req, res) => {
 // GET /api/collections/caps (For Homepage Display)
 app.get('/api/collections/caps', async (req, res) => {
     try {
-        // Fetch only ACTIVE collections (CapCollection)
-        // CRITICAL FIX: Removed 'sizes' from select as it is not needed and potentially confusing for caps
         const collections = await CapCollection.find({ isActive: true }) 
             .select('_id name tag price variations totalStock') 
             .sort({ createdAt: -1 })
             .lean(); 
 
-        // Prepare the data for the public frontend
         const publicCollections = await Promise.all(collections.map(async (collection) => {
             
-            // Map Mongoose variation to a simpler public variant object
-            const variants = await Promise.all(collection.variations.map(async (v) => ({
-                color: v.colorHex,
-                frontImageUrl: await generateSignedUrl(v.frontImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Front+View+Error',
-                backImageUrl: await generateSignedUrl(v.backImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Back+View+Error'
-            })));
+            // --- CRITICAL: Filter Variants based on stock ---
+            const filteredVariantsWithStock = [];
+
+            for (const v of collection.variations) {
+                // 1. Calculate total stock for THIS specific color (variant)
+                // Note: Cap variants might only have one "size" (e.g., 'OS'), but we must check stock.
+                const variantTotalStock = (v.sizes || []).reduce((sum, s) => sum + (s.stock || 0), 0);
+                
+                // 2. ONLY INCLUDE THE VARIANT IF IT HAS STOCK
+                if (variantTotalStock > 0) {
+                    
+                    // 3. Map and prepare the public variant object
+                    filteredVariantsWithStock.push({
+                        color: v.colorHex,
+                        frontImageUrl: await generateSignedUrl(v.frontImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Front+View+Error',
+                        backImageUrl: await generateSignedUrl(v.backImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Back+View+Error',
+                    });
+                }
+            }
+            // --- END CRITICAL FILTERING ---
+
+            // Use the first available variant for default images
+            const primaryVariant = filteredVariantsWithStock[0];
+            const frontImageUrl = primaryVariant?.frontImageUrl;
+            const backImageUrl = primaryVariant?.backImageUrl;
+
 
             return {
                 _id: collection._id,
                 name: collection.name,
                 tag: collection.tag,
                 price: collection.price, 
-                // CRITICAL FIX: Set availableSizes to an empty array so the frontend does not display a size selector
-                availableSizes: [], 
+                // NEW: Send an empty object/map for size data, as caps don't use it.
+                sizeStockMap: {}, 
+                availableSizes: [], // Keep the empty array as originally intended for caps
                 availableStock: collection.totalStock, 
-                variants: variants
+                variants: filteredVariantsWithStock, // Only send in-stock colors
+                frontImageUrl: frontImageUrl,
+                backImageUrl: backImageUrl
             };
         }));
 
@@ -4120,47 +4156,50 @@ app.get('/api/collections/caps', async (req, res) => {
 // GET /api/collections/preorder (For Homepage Display)
 app.get('/api/collections/preorder', async (req, res) => {
     try {
-        // 1. Fetch collections, including all variations
-        // NOTE: The 'sizes' field is removed from .select() as it is not a top-level field 
-        // in the provided schema and is now nested inside 'variations'.
         const collections = await PreOrderCollection.find({ isActive: true })
             .select('_id name tag price totalStock availableDate variations')
             .sort({ createdAt: -1 })
             .lean();
 
-        // 2. Transform the documents into the final public response structure.
         const publicCollections = await Promise.all(collections.map(async (collection) => {
             
-            // Map the internal 'variations' (Mongoose) to 'variants' (Public) with SIGNED URLs
-            const variants = await Promise.all(collection.variations.map(async (v) => ({
-                // Assuming 'v' has a color property or a way to derive one (e.g., from 'tag' or adding a color field to the schema)
-                // Since the original PreOrder schema didn't have a color, we use variationIndex or assume a color field exists.
-                variationIndex: v.variationIndex, 
-                frontImageUrl: await generateSignedUrl(v.frontImageUrl) || null,
-                backImageUrl: await generateSignedUrl(v.backImageUrl) || null,
-            })));
+            const sizeStockMap = {}; // Use for pre-order sizes
+            const filteredVariants = [];
 
-            // --- CRITICAL FIX: AGGREGATE ALL UNIQUE SIZES FROM ALL VARIATIONS ---
-            // The sizes are nested inside collection.variations[i].sizes
-            let allSizes = [];
-            
-            if (collection.variations && collection.variations.length > 0) {
-                // 1. Flatten all size objects from all variations into one array
-                const allSizeObjects = collection.variations.flatMap(v => v.sizes || []);
+            // --- CRITICAL: Filter Variants and Create Size Map ---
+            for (const v of collection.variations) {
+                // For pre-orders, we assume stock is less important than availability,
+                // BUT we still filter if the total stock is explicitly 0 (to hide a variant).
+                const variantTotalStock = (v.sizes || []).reduce((sum, s) => sum + (s.stock || 0), 0);
                 
-                // 2. Extract the size string from each object and get only unique values
-                const uniqueSizeStrings = new Set(allSizeObjects.map(s => s.size).filter(s => s));
-                
-                // 3. Convert Set back to Array
-                allSizes = Array.from(uniqueSizeStrings);
+                // Only include the variant if it has stock OR if the total stock field is missing (defaulting to available)
+                if (variantTotalStock > 0 || !collection.totalStock) {
+                    
+                    // Generate a size map entry for ALL sizes in this variant. 
+                    // Use the actual stock if > 0, otherwise use a placeholder (e.g., 999) 
+                    // to ensure the size button appears on the frontend.
+                    (v.sizes || []).forEach(s => {
+                        const normalizedSize = s.size.toUpperCase().trim();
+                        // For pre-order, the stock is effectively "high" if the item is available
+                        const stockForPreorder = (s.stock > 0) ? s.stock : 999; 
+                        
+                        // We use the MAX stock found for a size across all colors
+                        sizeStockMap[normalizedSize] = Math.max(sizeStockMap[normalizedSize] || 0, stockForPreorder);
+                    });
+
+                    // Map and prepare the public variant object
+                    filteredVariants.push({
+                        color: v.colorHex,
+                        variationIndex: v.variationIndex, 
+                        frontImageUrl: await generateSignedUrl(v.frontImageUrl) || null,
+                        backImageUrl: await generateSignedUrl(v.backImageUrl) || null,
+                    });
+                }
             }
+            // --- END CRITICAL FILTERING ---
             
-            const availableSizesStrings = allSizes;
-            // --- END CRITICAL FIX ---
-
-
-            // --- A. Extract primary image from the first variant ---
-            const firstVariant = variants.length > 0 ? variants[0] : {};
+            // Extract primary image from the first available variant
+            const firstVariant = filteredVariants.length > 0 ? filteredVariants[0] : {};
             const frontImageUrl = firstVariant.frontImageUrl || null;
             const backImageUrl = firstVariant.backImageUrl || null;
 
@@ -4170,18 +4209,18 @@ app.get('/api/collections/preorder', async (req, res) => {
                 tag: collection.tag,
                 price: collection.price, 
                 
-                // Use the aggregated, unique size strings here:
-                availableSizes: availableSizesStrings, 
+                // NEW: Pass the pre-order size stock map
+                sizeStockMap: sizeStockMap, 
+                // We no longer need availableSizes as sizeStockMap handles this
                 
                 availableStock: collection.totalStock, 
                 availableDate: collection.availableDate, 
                 
-                // B. Primary Image URLs for quick display
                 frontImageUrl: frontImageUrl, 
                 backImageUrl: backImageUrl, 
                 
-                // C. Include the full variants array for color swatches/switching
-                variants: variants 
+                // C. Include only filtered variants
+                variants: filteredVariants 
             };
         }));
 

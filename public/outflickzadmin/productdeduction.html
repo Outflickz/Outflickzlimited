@@ -337,10 +337,7 @@ async function viewOrderDetails(orderId) {
 }
 
 /**
- * Renders the order details into the modal body.
- * NOTE: This function now correctly receives the plain order object, not the wrapper.
- * This version uses robust fallbacks to handle potential missing or misnamed properties
- * from the backend API response (fixing the previous undefined issues).
+ * Renders the order details into the modal body, including product image.
  */
 function renderOrderDetails(details, modalBody) {
     // --- Fallbacks for Order-Level Details ---
@@ -351,7 +348,8 @@ function renderOrderDetails(details, modalBody) {
                              (details.user ? details.user.name : 'N/A') || 
                              (details.shippingAddress ? details.shippingAddress.name : 'N/A');
     
-    // Total quantity might be calculated or stored under different names
+    // Total quantity: Use the explicit totalQuantity from the augmented backend response, 
+    // or recalculate if the items array is present (robust fallback).
     const totalQuantity = details.totalQuantity || details.totalItems || 
                               (details.items ? details.items.reduce((sum, item) => sum + (item.quantity || 0), 0) : 0);
     
@@ -360,20 +358,27 @@ function renderOrderDetails(details, modalBody) {
     const dateDisplay = confirmationDate ? new Date(confirmationDate).toLocaleString() : 'Date Not Available';
 
 
-    // --- Fallbacks for Product Items ---
+    // --- 🖼️ Corrected Fallbacks for Product Items (Image & Variant) ---
     let productsHtml = (details.items || []).map(item => {
-        // Product name: check item.name, then nested item.product.name
+        // Product name: Check the denormalized 'name' first
         const productName = item.name || (item.product ? item.product.name : 'Unknown Product');
         
-        // Variant/Size: check item.variant, then item.size
-        const variant = item.variant || item.size || 'N/A';
+        // Variant/Size: Check the denormalized 'variation' first, then 'size'
+        const variant = item.variation || item.size || 'N/A';
+        
+        // Get Image URL: Check the denormalized 'imageUrl' field
+        const imageUrl = item.imageUrl || 'https://via.placeholder.com/60x60?text=No+Image'; // Fallback placeholder
         
         const quantity = item.quantity || 1;
         
         return `
-            <li class="flex justify-between py-2 border-b last:border-b-0">
-                <span class="font-medium text-gray-800">${productName} **(${variant})**</span>
-                <span class="text-red-600 font-bold">x ${quantity}</span>
+            <li class="flex items-start py-3 border-b last:border-b-0 space-x-3">
+                <img src="${imageUrl}" alt="${productName}" class="w-12 h-12 object-cover rounded-md flex-shrink-0 border border-gray-200">
+                <div class="flex-grow">
+                    <span class="font-medium text-gray-800 block">${productName}</span>
+                    <span class="text-sm text-gray-500">Variant: ${variant}</span>
+                </div>
+                <span class="text-lg font-bold text-red-600 flex-shrink-0">x ${quantity}</span>
             </li>
         `;
     }).join('');

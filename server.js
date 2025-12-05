@@ -2244,67 +2244,85 @@ app.get('/api/admin/orders/pending', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Failed to retrieve pending orders.' });
     }
 });
-
 // =========================================================
 // 8b. GET /api/admin/orders/:orderId - Fetch Single Detailed Order (Admin Protected)
 // =========================================================
 app.get('/api/admin/orders/:orderId', verifyToken, async (req, res) => {
-    try {
-        const orderId = req.params.orderId;
+    try {
+        const orderId = req.params.orderId;
 
-        // 1. Fetch the single order
-        const order = await Order.findById(orderId).lean();
+        // 1. Fetch the single order
+        let order = null;
+        
+        // CRITICAL FIX: Try finding by MongoDB _id first (standard practice)
+        // If orderId is a valid ObjectId, findById will work.
+        if (orderId.match(/^[0-9a-fA-F]{24}$/)) {
+             order = await Order.findById(orderId).lean();
+        }
 
-        if (!order) {
-            return res.status(404).json({ message: 'Order not found.' });
-        }
-        
-        // 2. Augment order items with product details (name, imageUrl)
-        const detailedOrders = await augmentOrdersWithProductDetails([order]);
-        let detailedOrder = detailedOrders[0];
+        // If not found by _id (or if it wasn't a valid ObjectId format), 
+        // try searching by the orderReference field, which is often used in logs.
+        if (!order) {
+            console.log(`[Order Fetch] Attempting to find order by orderReference: ${orderId}`);
+            order = await Order.findOne({ orderReference: orderId }).lean();
+        }
 
-        // 🚨 FIX: Generate Signed URL for the Payment Receipt
-        if (detailedOrder.paymentReceiptUrl) {
-            detailedOrder.paymentReceiptUrl = await generateSignedUrl(detailedOrder.paymentReceiptUrl);
-        }
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found.' });
+        }
+        
+        // 2. Augment order items with product details (name, imageUrl)
+        const detailedOrders = await augmentOrdersWithProductDetails([order]);
+        let detailedOrder = detailedOrders[0];
 
-        // 3. Get User Details (Name and Email)
-        const user = await User.findById(detailedOrder.userId)
-            .select('profile.firstName profile.lastName email') 
-            .lean();
+        // 🚨 FIX: Generate Signed URL for the Payment Receipt
+        if (detailedOrder.paymentReceiptUrl) {
+            // Assuming generateSignedUrl is an async helper function
+            detailedOrder.paymentReceiptUrl = await generateSignedUrl(detailedOrder.paymentReceiptUrl);
+        }
 
-        const firstName = user?.profile?.firstName;
-        const lastName = user?.profile?.lastName;
+        // 3. Get User Details (Name and Email)
+        const user = await User.findById(detailedOrder.userId)
+            .select('profile.firstName profile.lastName email') 
+            .lean();
 
-        // Construct userName: Use full name if both exist, otherwise fall back to email
-        const userName = (firstName && lastName) 
-            ? `${firstName} ${lastName}` 
-            : user?.email || 'N/A';
-            
-        const email = user ? user.email : 'Unknown User';
-        
-        // 4. Combine all details
-        const finalDetailedOrder = {
-            ...detailedOrder,
-            // Ensure customerName is explicitly set, as the frontend uses order.customerName
-            customerName: userName, 
-            email: email
-        };
+        const firstName = user?.profile?.firstName;
+        const lastName = user?.profile?.lastName;
 
-        // 🚀 FIX APPLIED HERE: Wrap the finalDetailedOrder object in a parent object with the 'order' key.
-        return res.status(200).json({ 
-            order: finalDetailedOrder 
-        });
+        // Construct userName: Use full name if both exist, otherwise fall back to email
+        const userName = (firstName && lastName) 
+            ? `${firstName} ${lastName}` 
+            : user?.email || 'N/A';
+            
+        const email = user ? user.email : 'Unknown User';
+        
+        // 4. Combine all details
+        const finalDetailedOrder = {
+            ...detailedOrder,
+            // Ensure customerName is explicitly set, as the frontend uses order.customerName
+            customerName: userName, 
+            email: email,
+            // Explicitly include the total quantity for the frontend to calculate Total Items Deducted
+            totalQuantity: detailedOrder.items.reduce((sum, item) => sum + (item.quantity || 0), 0)
+        };
 
-    } catch (error) {
-        console.error(`Error fetching order details for ${req.params.orderId}:`, error);
-        if (error.name === 'CastError' || error.kind === 'ObjectId') {
-             return res.status(400).json({ message: 'Invalid Order ID format.' });
-        }
-        return res.status(500).json({ message: 'Server error: Failed to retrieve order details.' });
-    }
+        // 🚀 FIX APPLIED HERE: Wrap the finalDetailedOrder object in a parent object with the 'order' key.
+        return res.status(200).json({ 
+            order: finalDetailedOrder 
+        });
+
+    } catch (error) {
+        console.error(`Error fetching order details for ${req.params.orderId}:`, error);
+        if (error.name === 'CastError' || error.kind === 'ObjectId') {
+             return res.status(400).json({ message: 'Invalid Order ID format.' });
+        }
+        return res.status(500).json({ message: 'Server error: Failed to retrieve order details.' });
+    }
 });
 
+// =========================================================
+// (All other endpoints remain the same)
+// =========================================================
 // =========================================================
 // 9. PUT /api/admin/orders/:orderId/confirm - Confirm an Order (Admin Protected)
 // =========================================================

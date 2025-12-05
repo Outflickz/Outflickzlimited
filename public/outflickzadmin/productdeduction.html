@@ -238,33 +238,33 @@
 
     // --- Modal Functions ---
     
-    function openModal() {
-        const modal = document.getElementById('orderDetailsModal');
-        const modalContent = document.getElementById('modal-content-wrapper');
-        
-        modal.classList.add('modal-active');
-        modal.classList.remove('hidden');
-        // Apply transition classes for animation
-        setTimeout(() => {
-            modalContent.classList.add('scale-100', 'opacity-100');
-            modalContent.classList.remove('scale-95', 'opacity-0');
-            document.body.style.overflow = 'hidden'; // Prevent scrolling the body
-        }, 10); // Small delay to ensure transition works
-    }
+   function openModal() {
+        const modal = document.getElementById('orderDetailsModal');
+        const modalContent = document.getElementById('modal-content-wrapper');
+        
+        modal.classList.add('modal-active');
+        modal.classList.remove('hidden');
+        // Apply transition classes for animation
+        setTimeout(() => {
+            modalContent.classList.add('scale-100', 'opacity-100');
+            modalContent.classList.remove('scale-95', 'opacity-0');
+            document.body.style.overflow = 'hidden'; // Prevent scrolling the body
+        }, 10); // Small delay to ensure transition works
+    }
 
-    function closeModal() {
-        const modal = document.getElementById('orderDetailsModal');
-        const modalContent = document.getElementById('modal-content-wrapper');
-        
-        modalContent.classList.add('scale-95', 'opacity-0');
-        modalContent.classList.remove('scale-100', 'opacity-100');
-        
-        setTimeout(() => {
-            modal.classList.remove('modal-active');
-            modal.classList.add('hidden');
-            document.body.style.overflow = ''; // Restore scrolling
-        }, 300); // Wait for the transition duration
-    }
+    function closeModal() {
+        const modal = document.getElementById('orderDetailsModal');
+        const modalContent = document.getElementById('modal-content-wrapper');
+        
+        modalContent.classList.add('scale-95', 'opacity-0');
+        modalContent.classList.remove('scale-100', 'opacity-100');
+        
+        setTimeout(() => {
+            modal.classList.remove('modal-active');
+            modal.classList.add('hidden');
+            document.body.style.overflow = ''; // Restore scrolling
+        }, 300); // Wait for the transition duration
+    }
 
 /**
  * Fetches and displays order details in a modal.
@@ -279,14 +279,10 @@ async function viewOrderDetails(orderId) {
 
     openModal();
 
-    // 💡 FIX 1: The correct URL path (from the previous answer)
-    const relativeUrl = `/api/admin/orders/${orderId}`; 
-    
-    // 💡 FIX 2: Construct the full URL using the globally defined API_BASE_URL
-    const fullApiUrl = `${API_BASE_URL}${relativeUrl}`; 
+    // Fix 1: Construct the full URL using the globally defined API_BASE_URL
+    const fullApiUrl = `${API_BASE_URL}/api/admin/orders/${orderId}`; 
 
     try {
-        // Use the newly defined 'fullApiUrl'
         const response = await fetch(fullApiUrl, {
             method: 'GET',
             headers: {
@@ -294,70 +290,79 @@ async function viewOrderDetails(orderId) {
                 'Content-Type': 'application/json'
             }
         });
-            if (response.status === 401) {
-                closeModal();
-                logoutAdmin(); 
-                return;
-            }
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const details = await response.json();
-            
-            // Render the fetched details
-            renderOrderDetails(details, modalBody);
-
-        } catch (error) {
-            console.error('Error fetching order details:', error);
-            
-            // Display actual error message
-            modalBody.innerHTML = `
-                <p class="text-red-600 font-semibold mb-2">Error Loading Details</p>
-                <p>Failed to load collection details for Order ID: ${orderId}. Please check the console for API error details.</p>
-                <p class="text-xs mt-2 text-gray-500">Details: ${error.message}</p>
-            `;
+        if (response.status === 401) {
+            closeModal();
+            logoutAdmin(); 
+            return;
         }
-    }
-    
-    /**
-     * Renders the order details into the modal body.
-     */
-    function renderOrderDetails(details, modalBody) {
-        let productsHtml = details.items.map(item => `
-            <li class="flex justify-between py-2 border-b last:border-b-0">
-                <span class="font-medium text-gray-800">${item.name} (${item.variant})</span>
-                <span class="text-red-600 font-bold">x ${item.quantity}</span>
-            </li>
-        `).join('');
 
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        // **FIX 2: Extract the actual order details from the nested 'order' key**
+        // The backend returns { order: { ...details... } }
+        const orderDetails = data.order; 
+        
+        if (!orderDetails) {
+             throw new Error("Invalid response format: 'order' property missing.");
+        }
+        
+        // Render the fetched details
+        renderOrderDetails(orderDetails, modalBody);
+
+    } catch (error) {
+        console.error('Error fetching order details:', error);
+        
+        // Display actual error message
         modalBody.innerHTML = `
-            <h4 class="text-lg font-bold text-emerald-800 mb-4">Order Summary (ID: ${details.orderId})</h4>
-            
-            <div class="grid grid-cols-2 gap-4 mb-6 text-sm">
-                <div>
-                    <p class="font-semibold text-gray-600">Customer Name:</p>
-                    <p class="text-gray-900">${details.customerName}</p>
-                </div>
-                <div>
-                    <p class="font-semibold text-gray-600">Total Items Deducted:</p>
-                    <p class="text-lg font-bold text-red-600">${details.totalQuantity}</p>
-                </div>
-            </div>
-            
-            <div class="bg-gray-50 p-4 rounded-lg shadow-inner">
-                <p class="font-semibold text-gray-800 mb-2">Deducted Products:</p>
-                <ul class="space-y-1">
-                    ${productsHtml}
-                </ul>
-            </div>
-            
-            <p class="mt-4 text-xs text-gray-500 text-right">Deduction Confirmed by Admin: ${new Date(details.confirmationDate).toLocaleString()}</p>
+            <p class="text-red-600 font-semibold mb-2">Error Loading Details</p>
+            <p>Failed to load collection details for Order ID: ${orderId}. Please check the console for API error details.</p>
+            <p class="text-xs mt-2 text-gray-500">Details: ${error.message}</p>
         `;
     }
+}
 
+/**
+ * Renders the order details into the modal body.
+ * NOTE: This function now correctly receives the plain order object, not the wrapper.
+ */
+function renderOrderDetails(details, modalBody) {
+    // details.items is now correctly accessed, resolving the TypeError
+    let productsHtml = details.items.map(item => `
+        <li class="flex justify-between py-2 border-b last:border-b-0">
+            <span class="font-medium text-gray-800">${item.name} (${item.variant})</span>
+            <span class="text-red-600 font-bold">x ${item.quantity}</span>
+        </li>
+    `).join('');
 
+    modalBody.innerHTML = `
+        <h4 class="text-lg font-bold text-emerald-800 mb-4">Order Summary (ID: ${details.orderId})</h4>
+        
+        <div class="grid grid-cols-2 gap-4 mb-6 text-sm">
+            <div>
+                <p class="font-semibold text-gray-600">Customer Name:</p>
+                <p class="text-gray-900">${details.customerName}</p>
+            </div>
+            <div>
+                <p class="font-semibold text-gray-600">Total Items Deducted:</p>
+                <p class="text-lg font-bold text-red-600">${details.totalQuantity}</p>
+            </div>
+        </div>
+        
+        <div class="bg-gray-50 p-4 rounded-lg shadow-inner">
+            <p class="font-semibold text-gray-800 mb-2">Deducted Products:</p>
+            <ul class="space-y-1">
+                ${productsHtml}
+            </ul>
+        </div>
+        
+        <p class="mt-4 text-xs text-gray-500 text-right">Deduction Confirmed by Admin: ${new Date(details.confirmationDate).toLocaleString()}</p>
+    `;
+}
     /**
      * Fetches and renders the stock deduction log for the specified category.
      */

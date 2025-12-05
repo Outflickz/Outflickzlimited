@@ -11,18 +11,34 @@
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-thumb { background-color: #05744b; border-radius: 4px; }
         body { font-family: 'Inter', sans-serif; font-size: 0.95rem; }
-        /* Style for the currently active link based on the category loaded */
-        .active-link {
-            background-color: #05744b; /* bg-emerald-700 equivalent */
-            color: #ffffff;
-        }
+        
         /* Custom styles for the modal - ensures full viewport coverage and centering */
         .modal-active { display: flex; }
+
+        /* Overlay to dismiss sidebar on mobile */
+        #sidebar-overlay {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        /* Ensure smooth transition for sidebar */
+        #sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+
+        /* Responsive Table Truncation Fix */
+        .truncate-max-w-xs {
+            /* Max width for table cells on small screens before truncation */
+            max-width: 10rem; /* Adjusted for tighter space */
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen flex">
 
-    <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-emerald-900 text-white transform transition-transform duration-300 z-30 lg:translate-x-0 -translate-x-full shadow-2xl flex flex-col">
+    <div id="sidebar-overlay" onclick="closeSidebar()" class="fixed inset-0 bg-black opacity-0 transition-opacity duration-300 z-40 hidden lg:hidden"></div>
+    <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-emerald-900 text-white transform transition-transform duration-300 z-50 lg:translate-x-0 -translate-x-full shadow-2xl flex flex-col">
         <div class="p-6 flex-shrink-0">
             <img src="https://i.imgur.com/Fz9w1BA.png" alt="E-commerce Logo" class="h-10 w-auto mb-6 rounded-lg shadow-md border border-emerald-700">
             <h1 class="text-xl font-extrabold text-emerald-400 border-t border-emerald-800 pt-4">Commerce Hub</h1>
@@ -78,16 +94,16 @@
         </div>
     </aside>
 
-    <main class="flex-1 lg:ml-64 p-4 transition-all duration-300 overflow-x-hidden">
+        <main class="flex-1 lg:ml-64 p-4 transition-all duration-300 overflow-x-hidden">
         
-        <button id="sidebar-toggle" class="lg:hidden fixed top-4 left-4 z-40 p-2 bg-emerald-600 text-white rounded-lg shadow-lg hover:bg-emerald-700 transition">
+                <button id="sidebar-toggle" onclick="openSidebar()" class="lg:hidden fixed top-4 left-4 z-40 p-2 bg-emerald-600 text-white rounded-lg shadow-lg hover:bg-emerald-700 transition">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
         </button>
 
-        <section id="deduction-log-content" class="p-6 pt-16 lg:pt-6">
+                <section id="deduction-log-content" class="p-6 pt-16 lg:pt-6">
             <h2 id="page-title" class="text-2xl font-semibold text-gray-800 mb-6">Stock Deduction Log 📦</h2>
 
-            <div class="flex space-x-2 mb-6">
+                        <div class="flex flex-wrap space-x-2 space-y-2 sm:space-y-0 mb-6">
                 <button onclick="loadDeductionLog('all')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition" data-category="all">All Deductions</button>
                 <button onclick="loadDeductionLog('wears')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition" data-category="wears">Wears</button>
                 <button onclick="loadDeductionLog('caps')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition" data-category="caps">Caps</button>
@@ -95,7 +111,7 @@
                 <button onclick="loadDeductionLog('preorders')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition" data-category="preorders">Pre-Orders</button>
             </div>
 
-            <div class="bg-white p-6 rounded-xl shadow-lg overflow-x-auto">
+                        <div class="bg-white p-6 rounded-xl shadow-lg overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
@@ -119,7 +135,7 @@
 
     </main>
     
-        <div id="orderDetailsModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-gray-900 bg-opacity-75 transition-opacity duration-300 modal-inactive items-center justify-center">
+            <div id="orderDetailsModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-gray-900 bg-opacity-75 transition-opacity duration-300 modal-inactive items-center justify-center">
         <div class="bg-white rounded-xl shadow-2xl overflow-hidden w-11/12 max-w-lg m-4 transform transition-all duration-300 scale-95 opacity-0" id="modal-content-wrapper">
                         <div class="flex justify-between items-center p-5 border-b border-gray-200 bg-emerald-500 text-white">
                 <h3 class="text-xl font-bold">Confirmed Collection Details</h3>
@@ -184,6 +200,28 @@
             return params.get('category') || 'all'; 
         }
 
+        // --- Sidebar Toggling for Responsiveness ---
+        function openSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            sidebar.classList.remove('-translate-x-full');
+            overlay.classList.remove('hidden', 'opacity-0');
+            overlay.classList.add('opacity-100');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.remove('opacity-100');
+            overlay.classList.add('opacity-0');
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                document.body.style.overflow = '';
+            }, 300); // Match transition duration
+        }
+
         // --- Modal Functions ---
         
         function openModal() {
@@ -228,8 +266,7 @@
 
             openModal();
 
-            // NOTE: You need to implement an actual API endpoint to fetch order details.
-            // For the purposes of this front-end fix, I'm using a placeholder API URL.
+            // NOTE: Using the placeholder API URL as provided.
             const apiUrl = `${API_BASE_URL}/api/admin/orders/${orderId}/details`; 
 
             try {
@@ -258,19 +295,11 @@
 
             } catch (error) {
                 console.error('Error fetching order details:', error);
+                // MOCKUP DATA REMOVED: This block now only shows the error.
                 modalBody.innerHTML = `
                     <p class="text-red-600 font-semibold mb-2">Error Loading Details</p>
-                    <p>Failed to load collection details for Order ID: ${orderId}.</p>
+                    <p>Failed to load collection details for Order ID: ${orderId}. Please check the console for API error details.</p>
                     <p class="text-xs mt-2 text-gray-500">Details: ${error.message}</p>
-                                        <div class="mt-4 p-4 border rounded-lg bg-yellow-50 border-yellow-200">
-                        <p class="font-bold text-yellow-800">MOCKUP DATA (Since API call failed):</p>
-                        <ul class="list-disc list-inside mt-2 text-sm">
-                            <li>**Customer:** John Doe (ID: 12345)</li>
-                            <li>**Product:** Black Hoodie, Size L **x 1**</li>
-                            <li>**Product:** Blue Snapback, One Size **x 2**</li>
-                            <li>**Total Items:** 3</li>
-                        </ul>
-                    </div>
                 `;
             }
         }
@@ -301,7 +330,7 @@
                         <p class="font-semibold text-gray-600">Total Items Deducted:</p>
                         <p class="text-lg font-bold text-red-600">${details.totalQuantity}</p>
                     </div>
-                </div>
+            </div>
                 
                 <div class="bg-gray-50 p-4 rounded-lg shadow-inner">
                     <p class="font-semibold text-gray-800 mb-2">Deducted Products:</p>
@@ -409,7 +438,7 @@
                 row.className = 'hover:bg-gray-50 transition duration-150';
                 row.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.productId}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 truncate max-w-xs">${item.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 truncate-max-w-xs">${item.name}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getCategoryBadge(item.category)}">
                             ${item.category}
@@ -475,21 +504,6 @@
             const initialCategory = getCategoryFromURL();
             loadDeductionLog(initialCategory.toLowerCase());
             
-            const sidebar = document.getElementById('sidebar');
-            const sidebarToggle = document.getElementById('sidebar-toggle');
-            
-            sidebarToggle.addEventListener('click', (e) => {
-                e.stopPropagation();
-                sidebar.classList.toggle('-translate-x-full');
-            });
-
-            document.querySelector('main').addEventListener('click', () => {
-                if (!sidebar.classList.contains('-translate-x-full') && window.innerWidth < 1024) {
-                    sidebar.classList.add('-translate-x-full');
-                }
-            });
-            
-            // Close modal on outside click
             const modal = document.getElementById('orderDetailsModal');
             modal.addEventListener('click', (e) => {
                 // Check if the click is directly on the modal backdrop

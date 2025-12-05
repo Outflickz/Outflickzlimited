@@ -971,10 +971,10 @@ const buyNowButtonHtml = `
 
     // Quantity control 
     const quantityControlHtml = isOutOfStock && !isPreorder
-        ? `<div class="w-full md:w-auto flex-shrink-0 ${controlHeight} border border-gray-300 rounded-sm flex items-center justify-center text-xs text-gray-500">N/A</div>`
+        ? `<div class="w-full md:w-auto flex-shrink-0 ${controlHeight} border border-gray-300 rounded-sm flex items-center justify-center text-ms text-gray-500">N/A</div>`
         : `
             <div class="flex items-center border border-gray-300 rounded-sm w-full md:w-auto">
-                <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-l-sm font-semibold **flex-shrink-0**">
+                <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-l-ms font-semibold **flex-shrink-0**">
                     &minus;
                 </button>
                 <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock || 999}" aria-label="Quantity" class="${quantityInputWidth} ${controlHeight} text-center ${quantityInputTextSize} border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />

@@ -1201,10 +1201,11 @@ async function getRealTimeDashboardStats() {
 
         // --- Removed activeSubscriptions calculation line (ReferenceError fix) ---
 
-        const recentActivity = await ActivityLogModel.find({}) // Using ActivityLogModel
-            .sort({ timestamp: -1 }) // Sort by newest first
-            .limit(5)
-            .lean(); // Use .lean() for faster query performance
+       const recentActivity = await ActivityLogModel.find({}) 
+            .sort({ timestamp: -1 }) // Sort by newest first
+            .limit(5)
+            .populate('userId', 'email username') // Fetch only email and username
+            .lean(); // Use .lean() for faster query performance
 
         // 4. Return all required data fields
         console.log('[BACKEND] Returning dashboard stats successfully.'); // ADDED LOG

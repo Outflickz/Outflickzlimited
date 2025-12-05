@@ -458,85 +458,86 @@
         return Math.floor(seconds) + " seconds ago";
     }
 
-    /**
-     * Dynamically renders the recent activity log on the dashboard.
-     * @param {Array<Object>} activities - Array of recent activity objects.
-     */
-    function renderActivityLog(activities) {
-        // Using the selector from your latest snippet
-        const logList = document.querySelector('#content-dashboard .mt-8 ul');
-        if (!logList) return; // Exit if the list element isn't found
+   /**
+     * Dynamically renders the recent activity log on the dashboard.
+     * @param {Array<Object>} activities - Array of recent activity objects.
+     */
+    function renderActivityLog(activities) {
+        const logList = document.querySelector('#content-dashboard .mt-8 ul');
+        if (!logList) return; 
 
-        // Clear existing mock content
-        logList.innerHTML = '';
-        
-        if (activities.length === 0) {
-            logList.innerHTML = '<li class="p-3 text-center text-gray-400">No recent activity recorded.</li>';
-            return;
-        }
-        
-        activities.forEach(activity => {
-            const li = document.createElement('li');
-            // Added items-center for vertical alignment and space-y-2 for spacing
-            li.className = 'p-3 border-l-4 rounded-md flex justify-between items-center space-y-2'; 
+        logList.innerHTML = '';
+        
+        if (activities.length === 0) {
+            logList.innerHTML = '<li class="p-3 text-center text-gray-400">No recent activity recorded.</li>';
+            return;
+        }
+        
+        activities.forEach(activity => {
+            const li = document.createElement('li');
             
-            let borderColor = 'border-gray-200';
-            let bgColor = '';
-            let icon = '➡️'; // Default icon
+            // ⭐️ NEW LOGIC: Determine the user's name for display 
+            const user = activity.userId; // This is the populated object now
+            const displayUser = user 
+                ? (user.username || user.email || 'Customer')
+                : 'System User';
 
-            // Apply colors based on event type for quick visual cues
-            switch (activity.eventType) {
-                case 'ORDER_PLACED':
-                    borderColor = 'border-emerald-400';
-                    bgColor = 'bg-emerald-50';
-                    icon = '✅';
-                    break;
-                case 'REGISTERED':
-                    borderColor = 'border-cyan-400';
-                    bgColor = 'bg-cyan-50';
-                    icon = '🆕';
-                    break;
-                case 'FORGOT_PASSWORD':
-                    borderColor = 'border-amber-400';
-                    bgColor = 'bg-amber-50';
-                    icon = '⚠️';
-                    break;
-                case 'LOGIN': 
-                    borderColor = 'border-purple-400';
-                    bgColor = 'bg-purple-50';
-                    icon = '🔑';
-                    break;
-                case 'PRODUCT_ADDED': 
-                    borderColor = 'border-yellow-400';
-                    bgColor = 'bg-yellow-50';
-                    icon = '📦';
-                    break;
-                case 'MEMBERSHIP_SUBSCRIBED': // NEW: Added case for Membership
-                    borderColor = 'border-red-400';
-                    bgColor = 'bg-red-50';
-                    icon = '💳';
-                    break;
-                // Default case handles ADD_TO_CART and others
-            }
+            // Determine colors and icon based on event type
+            let borderColor = 'border-gray-200';
+            let bgColor = 'bg-white';
+            let icon = '➡️';
+            let eventText = activity.description;
 
-            li.classList.add(borderColor, bgColor, 'hover:shadow-sm'); // Added hover effect
-            
-            // Using the efficient formatTimeAgo function defined outside this loop
-            const timeAgo = formatTimeAgo(activity.timestamp);
-            
-            li.innerHTML = `
-                <span class="flex items-center space-x-2">
-                    <span class="text-lg">${icon}</span>
-                    <span>${activity.description}</span>
-                </span>
-                <span class="text-xs text-gray-400">${timeAgo}</span>
-            `;
-            
-            logList.appendChild(li);
-        });
+            switch (activity.eventType) {
+                case 'ORDER_PLACED':
+                    borderColor = 'border-emerald-400';
+                    bgColor = 'bg-emerald-50';
+                    icon = '💰';
+                    // Rephrase description to highlight the user
+                    eventText = `placed new order (Order #${activity.context.orderId || 'N/A'})`; 
+                    break;
+                case 'REGISTERED':
+                    borderColor = 'border-cyan-400';
+                    bgColor = 'bg-cyan-50';
+                    icon = '✨';
+                    eventText = 'just created a new account.';
+                    break;
+                case 'LOGIN': 
+                    borderColor = 'border-purple-400';
+                    bgColor = 'bg-purple-50';
+                    icon = '🔑';
+                    eventText = 'logged in successfully.';
+                    break;
+                case 'MEMBERSHIP_SUBSCRIBED': // Included from your previous snippet
+                    borderColor = 'border-red-400';
+                    bgColor = 'bg-red-50';
+                    icon = '💳';
+                    eventText = 'subscribed to a membership.';
+                    break;
+                // Add cases for FORGOT_PASSWORD and others as needed
+            }
+
+            li.classList.add(borderColor, bgColor, 'hover:shadow-sm', 
+                            'p-3', 'border-l-4', 'rounded-md', 'flex', 
+                            'justify-between', 'items-center', 'space-y-2');
+
+            const timeAgo = formatTimeAgo(activity.timestamp);
+            
+            li.innerHTML = `
+                <div class="flex items-center space-x-3 w-4/5">
+                    <span class="text-lg">${icon}</span>
+                    <p class="truncate">
+                        <span class="font-semibold text-gray-800">${displayUser}</span>
+                        ${eventText}
+                    </p>
+                </div>
+                <span class="text-xs text-gray-400 whitespace-nowrap">${timeAgo}</span>
+            `;
+            
+            logList.appendChild(li);
+        });
+    }
     }
-    } // Closing bracket for loadDashboardData scope
-
     </script>
 </body>
 </html>

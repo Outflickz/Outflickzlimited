@@ -204,42 +204,48 @@ async function simulateAddToCart(productDetails) {
     // 1. Gather all item details needed for local cart fallback and API
     const card = document.querySelector(`.collection-card[data-collection-id="${productDetails.productId}"]`) || document;
     
-    // Check if size radio buttons exist on the card
+    // Check if size/color radio buttons exist on the card
     const sizeSelectionExists = card.querySelector(`input[name="size-${productDetails.productId}"]`);
+    const colorSelectionExists = card.querySelector(`input[name="color-${productDetails.productId}"]`);
     
     // Find the currently selected size and color inputs
     const selectedSizeInput = card.querySelector(`input[name="size-${productDetails.productId}"]:checked`);
     const selectedColorInput = card.querySelector(`input[name="color-${productDetails.productId}"]:checked`);
     
-    // --- 🛑 SIZE VALIDATION CHECK (NEW/FIXED LOGIC) ---
-    // If size selection inputs exist but none are checked, display an error and stop.
+    // --- 🛑 SIZE/COLOR VALIDATION CHECK (ENHANCED LOGIC) ---
+    
+    // If a size selection input exists but none is checked, throw error.
     if (sizeSelectionExists && !selectedSizeInput) {
         displayMessage('Please **select a size** before adding this item to your bag.');
-        
-        // Optional: Re-enable/reset the 'Add to Cart' button state here if necessary
-        const cartButton = card.querySelector('.add-to-cart-btn');
-        if (cartButton) {
-             // Assuming your application disables the button immediately on click, 
-             // you might need application-specific logic to re-enable it.
-        }
+        // Re-enable/reset button state if your calling function disabled it
+        // (Assuming this is handled by the calling function on the collection page)
         return; // Stop the function execution
     }
-    // --- END SIZE VALIDATION CHECK ---
+    
+    // If a color selection input exists but none is checked, throw error.
+    if (colorSelectionExists && !selectedColorInput) {
+        displayMessage('Please **select a color** before adding this item to your bag.');
+        return; // Stop the function execution
+    }
+    
+    // --- END VALIDATION CHECK ---
 
-    // 🛑 CRITICAL FIX: Base variation data extraction on the selected color/size input
+    // 🛑 CRITICAL FIX: The variant input that holds the index and name might be the size OR the color.
+    // We prioritize color if it exists and is selected, otherwise use size.
     const variantInput = selectedColorInput || selectedSizeInput;
     
-    // The size variable now holds the confirmed selection (or 'N/A' if no selector existed)
+    // The size and color variables now hold the confirmed selection (or 'N/A' if no selector existed)
     const size = selectedSizeInput ? selectedSizeInput.value : productDetails.size || 'N/A';
     const color = selectedColorInput ? selectedColorInput.value : productDetails.color || 'N/A';
     
-    // 🚀 FIXED LOGIC for variationIndex and variation Name
+    // 🚀 FIXED LOGIC for variationIndex and variation Name (MUST come from the variantInput)
     const rawIndex = variantInput?.dataset?.variationIndex || productDetails.variationIndex;
-    const variationIndex = parseInt(rawIndex) || 0; // Safely convert to number, default 0
+    // CRITICAL: Ensure we default to 1, as 0 often implies missing data or conflicts with server logic.
+    const variationIndex = parseInt(rawIndex) || 1; // Safely convert to number, default 1 if missing/0
     
     const variation = variantInput?.dataset?.variationName || 
                       productDetails.variation || 
-                      (color !== 'N/A' ? `${color} / ${size}` : `Default Variant`);
+                      (color !== 'N/A' && size !== 'N/A' ? `${color} / ${size}` : (color !== 'N/A' ? color : size !== 'N/A' ? size : `Default Variant`));
     // -------------------------------------------------------------
     
     // Unified item data structure for both API (minimal fields) and Local Cart (all fields)

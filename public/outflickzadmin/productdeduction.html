@@ -280,8 +280,7 @@
 
         openModal();
 
-        const apiUrl = `${API_BASE_URL}/api/admin/orders/${orderId}/details`; 
-
+        const url = `/api/admin/orders/${orderId}`;
         try {
             const response = await fetch(apiUrl, {
                 method: 'GET',

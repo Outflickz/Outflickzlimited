@@ -521,13 +521,32 @@ async function simulateAddToCart(productDetails) {
         size: size,
         color: color, // The color can be 'N/A' but is defined
         price: productDetails.price,
-        productType: productDetails.productType || productDetails.name,
+        // 🛑 CRITICAL FIX 3: REMOVE UNSAFE FALLBACK. The backend requires a valid collection key.
+        productType: productDetails.productType, 
         imageUrl: selectedImageUrl, 
         quantity: productDetails.quantity || 1,
         variationIndex: variationIndex, // Now 1-based
         variation: variation // Now defined
     };
     
+    // 🛑 CRITICAL FIX 4 (Client-side validation): Block API call if productType is invalid/missing.
+    const VALID_CLIENT_TYPES = ['WearsCollection', 'CapCollection', 'NewArrivals', 'PreOrderCollection'];
+    if (!requiredDetails.productType || !VALID_CLIENT_TYPES.includes(requiredDetails.productType)) {
+        console.error('FATAL: Missing or invalid productType. Blocking API call to prevent 400 Bad Request.');
+        
+        // Show user alert about missing data
+        const alertMessage = document.getElementById('cart-alert');
+        if (alertMessage) {
+            alertMessage.textContent = 'Error: Missing product collection data. Please check item source.';
+            alertMessage.className = 'absolute top-0 right-0 p-3 m-3 rounded shadow-lg transition-all duration-300 ease-in-out bg-red-700 text-white opacity-100 translate-y-0';
+            setTimeout(() => {
+                alertMessage.classList.add('opacity-0', '-translate-y-10');
+                setTimeout(() => alertMessage.classList.remove('bg-red-700'), 300);
+            }, 3000);
+        }
+        return; // Block the invalid API request
+    }
+
     // Construct minimal data for API call 
     const itemDataForAPI = {
         productId: requiredDetails.productId,

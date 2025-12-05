@@ -170,101 +170,100 @@
     </div>
 
    <script>
-    // --- Configuration ---
-    const API_BASE_URL = 'https://outflickz.netlify.app'; 
+   // --- Configuration ---
+const API_BASE_URL = 'https://outflickz.netlify.app'; 
 
-    // --- Utility Functions ---
+// --- Utility Functions ---
+function logoutAdmin() {
+    localStorage.removeItem('adminToken');
+    window.location.href = './admin-login.html'; 
+}
 
-    function logoutAdmin() {
-        localStorage.removeItem('adminToken');
-        window.location.href = './admin-login.html'; 
+function formatTimeAgo(timestamp) {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const seconds = Math.floor((now - date) / 1000);
+
+    let interval = seconds / 31536000;
+    if (interval > 1) return Math.floor(interval) + " years ago";
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + " months ago";
+    interval = seconds / 86400;
+    if (interval > 1) return Math.floor(interval) + " days ago";
+    interval = seconds / 3600;
+    if (interval > 1) return Math.floor(interval) + " hours ago";
+    interval = seconds / 60;
+    if (interval > 1) return Math.floor(interval) + " minutes ago";
+    return "just now";
+}
+
+function getCategoryBadge(category) {
+    // Backend categories: Wears, Caps, New Arrivals, Pre-Orders
+    switch (category) {
+        case 'Wears': return 'bg-cyan-100 text-cyan-800';
+        case 'Caps': return 'bg-blue-100 text-blue-800';
+        case 'New Arrivals': return 'bg-fuchsia-100 text-fuchsia-800';
+        case 'Pre-Orders': return 'bg-amber-100 text-amber-800';
+        default: return 'bg-gray-100 text-gray-800';
     }
+}
+
+function getCategoryFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('category') || 'all'; 
+}
+
+// --- Sidebar Toggling for Responsiveness ---
+function openSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    sidebar.classList.remove('-translate-x-full');
+    overlay.classList.remove('hidden', 'opacity-0');
+    overlay.classList.add('opacity-100');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    sidebar.classList.add('-translate-x-full');
+    overlay.classList.remove('opacity-100');
+    overlay.classList.add('opacity-0');
+    setTimeout(() => {
+        overlay.classList.add('hidden');
+        document.body.style.overflow = '';
+    }, 300); // Match transition duration
+}
+
+// --- Modal Functions ---
+
+function openModal() {
+    const modal = document.getElementById('orderDetailsModal');
+    const modalContent = document.getElementById('modal-content-wrapper');
     
-    function formatTimeAgo(timestamp) {
-        const date = new Date(timestamp);
-        const now = new Date();
-        const seconds = Math.floor((now - date) / 1000);
+    modal.classList.add('modal-active');
+    modal.classList.remove('hidden');
+    // Apply transition classes for animation
+    setTimeout(() => {
+        modalContent.classList.add('scale-100', 'opacity-100');
+        modalContent.classList.remove('scale-95', 'opacity-0');
+        document.body.style.overflow = 'hidden'; // Prevent scrolling the body
+    }, 10); // Small delay to ensure transition works
+}
 
-        let interval = seconds / 31536000;
-        if (interval > 1) return Math.floor(interval) + " years ago";
-        interval = seconds / 2592000;
-        if (interval > 1) return Math.floor(interval) + " months ago";
-        interval = seconds / 86400;
-        if (interval > 1) return Math.floor(interval) + " days ago";
-        interval = seconds / 3600;
-        if (interval > 1) return Math.floor(interval) + " hours ago";
-        interval = seconds / 60;
-        if (interval > 1) return Math.floor(interval) + " minutes ago";
-        return "just now";
-    }
+function closeModal() {
+    const modal = document.getElementById('orderDetailsModal');
+    const modalContent = document.getElementById('modal-content-wrapper');
     
-    function getCategoryBadge(category) {
-        // Backend categories: Wears, Caps, New Arrivals, Pre-Orders
-        switch (category) {
-            case 'Wears': return 'bg-cyan-100 text-cyan-800';
-            case 'Caps': return 'bg-blue-100 text-blue-800';
-            case 'New Arrivals': return 'bg-fuchsia-100 text-fuchsia-800';
-            case 'Pre-Orders': return 'bg-amber-100 text-amber-800';
-            default: return 'bg-gray-100 text-gray-800';
-        }
-    }
-
-    function getCategoryFromURL() {
-        const params = new URLSearchParams(window.location.search);
-        return params.get('category') || 'all'; 
-    }
-
-    // --- Sidebar Toggling for Responsiveness ---
-    function openSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('sidebar-overlay');
-        sidebar.classList.remove('-translate-x-full');
-        overlay.classList.remove('hidden', 'opacity-0');
-        overlay.classList.add('opacity-100');
-        document.body.style.overflow = 'hidden';
-    }
-
-    function closeSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('sidebar-overlay');
-        sidebar.classList.add('-translate-x-full');
-        overlay.classList.remove('opacity-100');
-        overlay.classList.add('opacity-0');
-        setTimeout(() => {
-            overlay.classList.add('hidden');
-            document.body.style.overflow = '';
-        }, 300); // Match transition duration
-    }
-
-    // --- Modal Functions ---
+    modalContent.classList.add('scale-95', 'opacity-0');
+    modalContent.classList.remove('scale-100', 'opacity-100');
     
-   function openModal() {
-        const modal = document.getElementById('orderDetailsModal');
-        const modalContent = document.getElementById('modal-content-wrapper');
-        
-        modal.classList.add('modal-active');
-        modal.classList.remove('hidden');
-        // Apply transition classes for animation
-        setTimeout(() => {
-            modalContent.classList.add('scale-100', 'opacity-100');
-            modalContent.classList.remove('scale-95', 'opacity-0');
-            document.body.style.overflow = 'hidden'; // Prevent scrolling the body
-        }, 10); // Small delay to ensure transition works
-    }
-
-    function closeModal() {
-        const modal = document.getElementById('orderDetailsModal');
-        const modalContent = document.getElementById('modal-content-wrapper');
-        
-        modalContent.classList.add('scale-95', 'opacity-0');
-        modalContent.classList.remove('scale-100', 'opacity-100');
-        
-        setTimeout(() => {
-            modal.classList.remove('modal-active');
-            modal.classList.add('hidden');
-            document.body.style.overflow = ''; // Restore scrolling
-        }, 300); // Wait for the transition duration
-    }
+    setTimeout(() => {
+        modal.classList.remove('modal-active');
+        modal.classList.add('hidden');
+        document.body.style.overflow = ''; // Restore scrolling
+    }, 300); // Wait for the transition duration
+}
 
 /**
  * Fetches and displays order details in a modal.
@@ -279,7 +278,7 @@ async function viewOrderDetails(orderId) {
 
     openModal();
 
-    // Fix 1: Construct the full URL using the globally defined API_BASE_URL
+    // Construct the full URL using the globally defined API_BASE_URL
     const fullApiUrl = `${API_BASE_URL}/api/admin/orders/${orderId}`; 
 
     try {
@@ -303,8 +302,7 @@ async function viewOrderDetails(orderId) {
 
         const data = await response.json();
         
-        // **FIX 2: Extract the actual order details from the nested 'order' key**
-        // The backend returns { order: { ...details... } }
+        // Extract the actual order details from the nested 'order' key
         const orderDetails = data.order; 
         
         if (!orderDetails) {
@@ -330,7 +328,7 @@ async function viewOrderDetails(orderId) {
  * Renders the order details into the modal body.
  * NOTE: This function now correctly receives the plain order object, not the wrapper.
  * This version uses robust fallbacks to handle potential missing or misnamed properties
- * from the backend API response.
+ * from the backend API response (fixing the previous undefined issues).
  */
 function renderOrderDetails(details, modalBody) {
     // --- Fallbacks for Order-Level Details ---
@@ -392,64 +390,183 @@ function renderOrderDetails(details, modalBody) {
         <p class="mt-4 text-xs text-gray-500 text-right">Deduction Confirmed by Admin: ${dateDisplay}</p>
     `;
 }
-    
-    /**
-     * Logic to highlight the appropriate collection link in the sidebar 
-     * based on the currently loaded deduction category filter.
-     */
-    function updateSidebarActiveLink(currentCategory) {
-        const links = document.querySelectorAll('#sidebar nav a');
-        
-        // 1. Remove active state from all links
-        links.forEach(link => {
-            link.classList.remove('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
-            link.classList.add('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
-        });
-        
-        // 2. Determine which link to activate based on the category
-        let activeLink = null;
-        
-        switch(currentCategory) {
-            case 'wears':
-                activeLink = document.getElementById('btn-wearscollection');
-                break;
-            case 'caps':
-                activeLink = document.getElementById('btn-capscollection');
-                break;
-            case 'newarrivals':
-                activeLink = document.getElementById('btn-newarrivals');
-                break;
-            case 'preorders':
-                activeLink = document.getElementById('btn-preorders');
-                break;
-            default:
-                // 'all' or 'dashboard', etc. should not highlight a collection link.
-                break;
-        }
 
-        // 3. Apply active state
-        if (activeLink) {
-            activeLink.classList.remove('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
-            activeLink.classList.add('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
-        }
+/**
+ * Logic to highlight the appropriate collection link in the sidebar 
+ * based on the currently loaded deduction category filter.
+ */
+function updateSidebarActiveLink(currentCategory) {
+    const links = document.querySelectorAll('#sidebar nav a');
+    
+    // 1. Remove active state from all links
+    links.forEach(link => {
+        link.classList.remove('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
+        link.classList.add('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
+    });
+    
+    // 2. Determine which link to activate based on the category
+    let activeLink = null;
+    
+    switch(currentCategory) {
+        case 'wears':
+            activeLink = document.getElementById('btn-wearscollection');
+            break;
+        case 'caps':
+            activeLink = document.getElementById('btn-capscollection');
+            break;
+        case 'newarrivals':
+            activeLink = document.getElementById('btn-newarrivals');
+            break;
+        case 'preorders':
+            activeLink = document.getElementById('btn-preorders');
+            break;
+        default:
+            // 'all' or 'dashboard', etc. should not highlight a collection link.
+            break;
     }
 
+    // 3. Apply active state
+    if (activeLink) {
+        activeLink.classList.remove('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
+        activeLink.classList.add('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
+    }
+}
 
-    // --- Initialization ---
-    document.addEventListener('DOMContentLoaded', () => {
-        // Load the category specified in the URL, or default to 'all'
-        const initialCategory = getCategoryFromURL();
-        loadDeductionLog(initialCategory.toLowerCase());
+/**
+ * Fetches and renders the stock deduction log for the specified category.
+ * MOVED HERE to ensure it is defined before the DOMContentLoaded listener calls it.
+ */
+async function loadDeductionLog(category) {
+    const tableBody = document.getElementById('deduction-table-body');
+    const pageTitle = document.getElementById('page-title');
+    const categoryBtns = document.querySelectorAll('.category-btn');
+    const adminToken = localStorage.getItem('adminToken');
+
+    if (!adminToken) {
+        // logoutAdmin(); 
+        // return;
+    }
+
+    // 1. Update URL for deep linking
+    history.pushState(null, '', `?category=${category}`);
+
+    // 2. Update Title and Active Tab Styling
+    const titleMap = {
+        'all': 'Stock Deduction Log 📦',
+        'wears': 'Wears Deducted from Stock 👕',
+        'caps': 'Caps Deducted from Stock 🧢',
+        'newarrivals': 'New Arrivals Deducted from Stock ✨',
+        'preorders': 'Pre-Orders Deducted from Stock ⏳'
+    };
+    pageTitle.textContent = titleMap[category] || 'Stock Deduction Log 📦';
+
+    categoryBtns.forEach(btn => {
+        btn.classList.remove('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
+        btn.classList.add('bg-gray-200', 'text-gray-700', 'hover:bg-gray-300');
         
-        // Close modal when clicking outside of it
-        const modal = document.getElementById('orderDetailsModal');
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                closeModal();
-            }
-        });
+        if (btn.dataset.category === category) { 
+            btn.classList.remove('bg-gray-200', 'text-gray-700', 'hover:bg-gray-300');
+            btn.classList.add('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
+        }
     });
 
+    // 3. Update Sidebar Active Link
+    updateSidebarActiveLink(category);
+
+
+    // 4. Display Loading State
+    tableBody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600 inline-block"></div> Fetching data...</td></tr>';
+    
+    let deductionData = [];
+    
+    const apiUrl = `${API_BASE_URL}/api/admin/inventory/deductions?category=${category}`; 
+
+    try {
+        // 5. Fetch Real Data
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${adminToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (response.status === 401) {
+            //logoutAdmin(); 
+            //return;
+        }
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        deductionData = data || []; 
+
+    } catch (error) {
+        console.error('Error fetching deduction log:', error);
+        tableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 text-center text-red-500">Failed to load data: ${error.message}</td></tr>`;
+        return;
+    }
+
+    // 6. Render Table Data
+    tableBody.innerHTML = ''; 
+
+    if (deductionData.length === 0) {
+        const categoryDisplay = category === 'all' ? 'any collection' : category.replace('s', '');
+        tableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">No stock deductions recorded for ${categoryDisplay}.</td></tr>`;
+        return;
+    }
+
+    deductionData.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    deductionData.forEach(item => {
+        const date = new Date(item.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+        const timeAgo = formatTimeAgo(item.date);
+        
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-gray-50 transition duration-150';
+        
+        // Optimized column rendering for mobile/desktop
+        row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-medium truncate-mobile">${item.orderId}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 truncate-mobile">${item.name}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600 font-bold">${item.quantity}</td>
+            
+            <td class="lg-only px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 truncate-mobile">${item.productId}</td>
+            <td class="lg-only px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getCategoryBadge(item.category)}">
+                    ${item.category}
+                </span>
+            </td>
+            <td class="lg-only px-6 py-4 whitespace-nowrap text-sm text-gray-500">${date} (${timeAgo})</td>
+            
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                <button onclick="viewOrderDetails('${item.orderId}')" class="text-emerald-600 hover:text-emerald-900 font-semibold transition duration-150 ease-in-out underline bg-transparent border-none p-0 cursor-pointer">
+                    View Details
+                </button>
+            </td>
+        `;
+        tableBody.appendChild(row);
+    });
+}
+
+
+// --- Initialization ---
+document.addEventListener('DOMContentLoaded', () => {
+    // Load the category specified in the URL, or default to 'all'
+    const initialCategory = getCategoryFromURL();
+    // This call now succeeds because loadDeductionLog is defined above
+    loadDeductionLog(initialCategory.toLowerCase()); 
+    
+    // Close modal when clicking outside of it
+    const modal = document.getElementById('orderDetailsModal');
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeModal();
+        }
+    });
+});
 </script>
 </body>
 </html>

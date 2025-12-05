@@ -690,40 +690,53 @@
     }
 
 
-    /**
-     * Fetches the initial cart data, CHECKING FOR A 'BUY NOW' ITEM FIRST. (Unchanged, but important for flow)
-     */
-    async function fetchInitialCartData() {
-        const subtotalEl = document.getElementById('summary-subtotal');
-        const shippingCostEl = document.getElementById('summary-shipping-cost');
-        const taxEstimateEl = document.getElementById('summary-tax-estimate');
-        const estimatedTotalEl = document.getElementById('summary-estimated-total');
-        const finalTotalEl = document.getElementById('summary-estimated-total-final');
-        const itemsListEl = document.getElementById('review-items-list');
-        const paymentBtn = document.getElementById('checkout-next-btn');
-        
-        // Set loading state
-        subtotalEl.textContent = '...';
-        shippingCostEl.textContent = '...';
-        taxEstimateEl.textContent = '...';
-        estimatedTotalEl.textContent = '...';
-        finalTotalEl.textContent = '...';
-        itemsListEl.innerHTML = '<div class="text-center py-6 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Loading order details...</div>';
-        paymentBtn.disabled = true;
+   /**
+ * Fetches the initial cart data, CHECKING FOR A 'BUY NOW' ITEM FIRST. (Unchanged, but important for flow)
+ */
+async function fetchInitialCartData() {
+    const subtotalEl = document.getElementById('summary-subtotal');
+    const shippingCostEl = document.getElementById('summary-shipping-cost');
+    const taxEstimateEl = document.getElementById('summary-tax-estimate');
+    const estimatedTotalEl = document.getElementById('summary-estimated-total');
+    const finalTotalEl = document.getElementById('summary-estimated-total-final');
+    const itemsListEl = document.getElementById('review-items-list');
+    const paymentBtn = document.getElementById('checkout-next-btn');
+    
+    // Set loading state
+    subtotalEl.textContent = '...';
+    shippingCostEl.textContent = '...';
+    taxEstimateEl.textContent = '...';
+    estimatedTotalEl.textContent = '...';
+    finalTotalEl.textContent = '...';
+    itemsListEl.innerHTML = '<div class="text-center py-6 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Loading order details...</div>';
+    paymentBtn.disabled = true;
 
-        let cartData;
+    let cartData;
 
-        // =========================================================================
-        // 🎯 BUY NOW / PRE-ORDER LOGIC START: CALLING NEW API
-        // =========================================================================
-        const buyNowItemJSON = sessionStorage.getItem(BUY_NOW_KEY);
+    // =========================================================================
+    // 🎯 BUY NOW / PRE-ORDER LOGIC START: CALLING NEW API
+    // =========================================================================
+    const buyNowItemJSON = sessionStorage.getItem(BUY_NOW_KEY);
 
 if (buyNowItemJSON) {
     console.log("Processing Buy Now flow...");
     
     let item = JSON.parse(buyNowItemJSON);
 
-    // ⭐ CRITICAL FIX TO PREVENT VARIATIONINDEX: 0 VALIDATION ERROR ⭐
+    // ⭐ CRITICAL FIXES FOR SERVER VALIDATION ⭐
+    // 1. Fix invalid 'productType' (Assuming 'Wears' is a generic valid type, or use 'Caps')
+    if (!item.productType || item.productType === "undefined" || item.productType === null) {
+        item.productType = 'Wears'; // Default to a known type (e.g., 'Caps' or 'Wears')
+        console.warn(`Fixed invalid productType to '${item.productType}' for Buy Now item.`);
+    }
+
+    // 2. Fix empty 'size' field (Critical for Caps which use variation/color as size equivalent)
+    if (!item.size && item.variation) {
+        item.size = item.variation; // Use the variation (colorHex or variation string) as the identifier for size/variant
+        console.warn("Fixed empty size by using variation value for Buy Now item (Cap fix).");
+    }
+
+    // 3. Fix 0-based variationIndex if server expects >= 1
     // If the index is 0 (which often represents the first item in a 0-based array)
     // and the server schema expects >= 1, we must adjust it.
     if (item.variationIndex === 0) {
@@ -760,50 +773,49 @@ if (buyNowItemJSON) {
                 return;
             }
         }
-        // =========================================================================
+    // =========================================================================
 
-        // --- STANDARD CART LOGIC START ---
-        
-        // Check for empty local cart if user is NOT logged in (API is assumed to handle authenticated empty cart)
-        if (!isUserLoggedIn()) {
-            const localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
-            if (localCart.length === 0) {
-                displayMessage('Your cart is empty. Redirecting to home.');
-                setTimeout(() => window.location.href = 'homepage.html', 1500);
-                return;
-            } 
-        }
-
-        try {
-            // === REAL API CALL FOR STANDARD CART ===
-            const response = await fetch('/api/users/cart', { // Corrected path assumption
-                method: 'GET',
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to fetch cart data from API.');
-            }
-
-            cartData = await response.json();
-
-            if (!cartData.items || cartData.items.length === 0) {
-                displayMessage('Your cart is empty. Redirecting to home.');
-                setTimeout(() => window.location.href = 'homepage.html', 1500);
-                return;
-            }
-            
-            // Render the data received from the API
-            renderCartData(cartData, paymentBtn);
-            
-        } catch (error) {
-            console.error('Error fetching cart data for checkout:', error);
-            itemsListEl.innerHTML = '<div class="text-center py-6 text-red-500">Error loading cart. Please go back to cart.</div>';
-            displayMessage(error.message || 'An error occurred loading your cart. Please try again.');
-            paymentBtn.disabled = true;
-        }
+    // --- STANDARD CART LOGIC START ---
+    
+    // Check for empty local cart if user is NOT logged in (API is assumed to handle authenticated empty cart)
+    if (!isUserLoggedIn()) {
+        const localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
+        if (localCart.length === 0) {
+            displayMessage('Your cart is empty. Redirecting to home.');
+            setTimeout(() => window.location.href = 'homepage.html', 1500);
+            return;
+        } 
     }
 
+    try {
+        // === REAL API CALL FOR STANDARD CART ===
+        const response = await fetch('/api/users/cart', { // Corrected path assumption
+            method: 'GET',
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to fetch cart data from API.');
+        }
+
+        cartData = await response.json();
+
+        if (!cartData.items || cartData.items.length === 0) {
+            displayMessage('Your cart is empty. Redirecting to home.');
+            setTimeout(() => window.location.href = 'homepage.html', 1500);
+            return;
+        }
+        
+        // Render the data received from the API
+        renderCartData(cartData, paymentBtn);
+        
+    } catch (error) {
+        console.error('Error fetching cart data for checkout:', error);
+        itemsListEl.innerHTML = '<div class="text-center py-6 text-red-500">Error loading cart. Please go back to cart.</div>';
+        displayMessage(error.message || 'An error occurred loading your cart. Please try again.');
+        paymentBtn.disabled = true;
+    }
+}
 
     /**
      * Helper function to notify admin of a new order. (Unchanged, but used in finalizeOrderOnServer)

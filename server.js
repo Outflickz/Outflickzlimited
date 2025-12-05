@@ -4766,7 +4766,6 @@ app.get('/api/auth/status', verifyUserToken, (req, res) => {
     // We just return a success status.
     res.status(200).json({ message: 'Authenticated', isAuthenticated: true });
 });
-
 // =========================================================
 // NEW: POST /api/orders/calculate-buy-now - Calculate Totals for Single Item (Buy Now/Pre-Order)
 // =========================================================
@@ -4783,6 +4782,7 @@ app.post('/api/orders/calculate-buy-now', verifyUserToken, async (req, res) => {
     }
 
     // 2. Construct the temporary cart item array, ensuring all necessary fields are present
+    // Note: For Cap items, 'size' will contain the variation identifier (e.g., color hex) as fixed on the client-side.
     const temporaryItem = {
         productId,
         name,

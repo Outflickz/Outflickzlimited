@@ -726,7 +726,7 @@ if (buyNowItemJSON) {
     // ⭐ CRITICAL FIXES FOR SERVER VALIDATION ⭐
     // 1. Fix invalid 'productType' (Assuming 'Wears' is a generic valid type, or use 'Caps')
     if (!item.productType || item.productType === "undefined" || item.productType === null) {
-        item.productType = ''; // Default to a known type (e.g., 'Caps' or 'Wears')
+        item.productType = 'Wears'; // Default to a known type (e.g., 'Caps' or 'Wears')
         console.warn(`Fixed invalid productType to '${item.productType}' for Buy Now item.`);
     }
 

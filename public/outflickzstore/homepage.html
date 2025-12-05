@@ -1447,14 +1447,22 @@ document.addEventListener('DOMContentLoaded', () => {
 </div>
 
     <div id="mobile-menu" class="hidden md:hidden bg-color-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
-        <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
-            <a href="preorder.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
-            <a href="newarrivals.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">New Arrivals</a>
-            <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Wears Collection</a>
-            <a href="capcollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cap Collection</a>
-            <a href="useraccount.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Account</a>
+    <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
+        <a href="preorder.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
+        <a href="newarrivals.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">New Arrivals</a>
+        <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Wears Collection</a>
+        <a href="capcollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cap Collection</a>
+        
+        <button 
+            id="mobile-profile-login-button" 
+            class="w-full flex items-center px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md text-left"
+            aria-label="User Account or Login"
+            onclick="redirectToProfileOrLogin()">
+            <i class="fas fa-user w-4 h-4 mr-3"></i>
+            Account / Login
+        </button>
         </div>
-    </div>
+</div>
 
     <main class="relative h-[60vh] md:h-[calc(100vh-4rem)] overflow-hidden">
         <div class="hero-bg-slider-container">

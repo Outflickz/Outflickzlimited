@@ -2547,6 +2547,7 @@ app.put('/api/admin/orders/:orderId/status', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Failed to update order status due to a server error.' });
     }
 });
+
 // POST /api/admin/email/send - Protected Admin Endpoint for sending mass emails
 app.post('/api/admin/email/send', verifyToken, async (req, res) => {
     // 1. Input Validation

@@ -247,11 +247,12 @@ async function sendMail(toEmail, subject, htmlContent) {
         throw new Error("Email service is unconfigured.");
     }
     
-    return transporter.sendMail({
+   return transporter.sendMail({
         from: `Outflickz Limited <${process.env.EMAIL_USER}>`, // Sender address
-        to: toEmail, // list of receivers
+        to: toEmail, // Primary recipient (Admin's email or placeholder)
+        bcc: bccList, // <<-- IMPORTANT: This sends the newsletter to all users
         subject: subject, // Subject line
-        html: htmlContent, // html body
+        html: htmlContent, // HTML body
     });
 }
 

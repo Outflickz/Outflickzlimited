@@ -147,30 +147,48 @@
         
     </main>
 
-   <script>
-    // Dummy functions to prevent errors when navigating
-    function logoutAdmin() { console.log('Admin logged out'); }
+  <script>
+    // ⚠️ CRITICAL: Ensure this logout function correctly handles token removal and redirection
+    function logoutAdmin() {
+        console.log('Admin logged out. Clearing token.');
+        localStorage.removeItem('adminToken');
+        // window.location.href = './admin-login.html'; // Uncomment this line in production
+    }
 
     // Array to store all user emails fetched from the database
     let allUserEmails = [];
     let membershipUserEmails = [];
 
     /**
-     * Fetches all user emails and membership emails from the backend API.
+     * Fetches all user emails and membership emails from the backend API, using the stored token.
      */
     async function fetchUserEmails() {
         console.log('Fetching user emails...');
+        
+        // --- 🔑 FIX 1: Get token from localStorage ---
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            console.error('Authentication Error: Admin token not found. Cannot fetch users.');
+            logoutAdmin(); 
+            return;
+        }
+        // ---------------------------------------------
+
         try {
-            // NOTE: You must ensure 'verifyToken' is working and the request includes the admin authentication token.
             const response = await fetch('/api/admin/users/all', {
-                 method: 'GET',
+                method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
+                    'Authorization': `Bearer ${token}` // Use the retrieved token
                 }
             });
             
             if (!response.ok) {
+                 if (response.status === 401 || response.status === 403) {
+                     console.error('Unauthorized access. Token expired or invalid.');
+                     logoutAdmin();
+                     return;
+                }
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
@@ -227,8 +245,6 @@
         }
 
         try {
-            // In a real app, this should fetch HTML from a backend endpoint (e.g., /api/admin/templates/:id)
-            // For this example, we'll use a local mock template function:
             const templateData = await getMockTemplate(templateId);
             
             subjectInput.value = templateData.subject;
@@ -241,119 +257,130 @@
         }
     });
 
-   
+    
     /**
- * DUMMY FUNCTION to simulate fetching a template. 
- * In production, this should be a real API call.
- */
-async function getMockTemplate(templateId) {
-    // 1. Corrected URL variables
-    const LOGO_URL = 'https://i.imgur.com/1Rxhi9q.jpeg'; // Correct: This is your logo image link
-    const SITE_BASE_URL = 'https://outflickz.netlify.app';  // Correct: This is your website's actual domain
-    const templateName = document.querySelector(`#email-template option[value="${templateId}"]`).textContent;
+     * DUMMY FUNCTION to simulate fetching a template. 
+     * NOTE: This template logic is robust for client-side use.
+     */
+    async function getMockTemplate(templateId) {
+        // 1. Corrected URL variables
+        const LOGO_URL = 'https://i.imgur.com/1Rxhi9q.jpeg'; // Correct: This is your logo image link
+        const SITE_BASE_URL = 'https://outflickz.netlify.app';  // Correct: This is your website's actual domain
+        const templateName = document.querySelector(`#email-template option[value="${templateId}"]`).textContent;
 
-    // 2. Updated baseHtml function (Text color and structure maintained)
-    const baseHtml = (content) => `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>${templateName}</title>
-            <style>
-                /* Ensure all content text is black/dark gray for readability */
-                .content-text {
-                    color: #333333; /* Dark Gray */
-                }
-            </style>
-        </head>
-        <body style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;">
-            <table width="100%" border="0" cellpadding="0" cellspacing="0">
-                <tr>
-                    <td align="center">
-                        <table width="600" style="background-color: #047857; padding: 20px; border-radius: 8px 8px 0 0;">
-                            <tr>
-                                <td align="left">
-                                    <a href="${SITE_BASE_URL}" style="text-decoration: none;">
-                                        <img src="${LOGO_URL}" alt="Commerce Hub Logo" style="height: 40px; border-radius: 4px;">
-                                        <span style="color: #fff; font-size: 1.5rem; font-weight: bold; margin-left: 10px;">Commerce Hub</span>
-                                    </a>
-                                </td>
-                            </tr>
-                        </table>
-                        
-                        <table width="600" style="background-color: #ffffff; padding: 30px; border-radius: 0 0 8px 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                            <tr>
-                                <td class="content-text">
-                                    ${content}
-                                </td>
-                            </tr>
-                        </table>
+        // 2. Updated baseHtml function (Text color and structure maintained)
+        const baseHtml = (content) => `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>${templateName}</title>
+                <style>
+                    /* Ensure all content text is black/dark gray for readability */
+                    .content-text {
+                        color: #333333; /* Dark Gray */
+                    }
+                </style>
+            </head>
+            <body style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;">
+                <table width="100%" border="0" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td align="center">
+                            <table width="600" style="background-color: #047857; padding: 20px; border-radius: 8px 8px 0 0;">
+                                <tr>
+                                    <td align="left">
+                                        <a href="${SITE_BASE_URL}" style="text-decoration: none;">
+                                            <img src="${LOGO_URL}" alt="Commerce Hub Logo" style="height: 40px; border-radius: 4px;">
+                                            <span style="color: #fff; font-size: 1.5rem; font-weight: bold; margin-left: 10px;">Commerce Hub</span>
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <table width="600" style="background-color: #ffffff; padding: 30px; border-radius: 0 0 8px 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                                <tr>
+                                    <td class="content-text">
+                                        ${content}
+                                    </td>
+                                </tr>
+                            </table>
 
-                        <table width="600" style="padding: 20px; text-align: center;">
-                            <tr>
-                                <td>
-                                    <p style="color: #666; font-size: 12px;">© ${new Date().getFullYear()} Commerce Hub. All rights reserved.</p>
-                                    <p style="color: #666; font-size: 12px;">You are receiving this email because you signed up on our website.</p>
-                                    <p style="font-size: 12px;"><a href="${SITE_BASE_URL}/unsubscribe" style="color: #047857;">Unsubscribe</a></p>
-                                </td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
-        </body>
-        </html>
-    `;
+                            <table width="600" style="padding: 20px; text-align: center;">
+                                <tr>
+                                    <td>
+                                        <p style="color: #666; font-size: 12px;">© ${new Date().getFullYear()} Commerce Hub. All rights reserved.</p>
+                                        <p style="color: #666; font-size: 12px;">You are receiving this email because you signed up on our website.</p>
+                                        <p style="font-size: 12px;"><a href="${SITE_BASE_URL}/unsubscribe" style="color: #047857;">Unsubscribe</a></p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+            </html>
+        `;
 
-    let content = '';
-    let subject = 'An Update from Outflickz';
+        let content = '';
+        let subject = 'An Update from Outflickz';
 
-    switch (templateId) {
-        case 'template-1': // New Product / Wears / Caps
-            subject = '🔥 New Arrivals! Check Out Our Latest Collection';
-            content = `
-                <h2 style="color: #047857;">Exciting New Products Just Dropped!</h2>
-                <p>We're thrilled to announce the arrival of our new **Wears** and **Caps** collections. From stylish shirts to fresh headwear, we've got something for everyone.</p>
-                <p>Don't miss out on these limited-edition items.</p>
-                <a href="${SITE_BASE_URL}/new-arrivals" style="display: inline-block; padding: 10px 20px; background-color: #ef4444; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; margin-top: 15px;">Shop New Arrivals Now</a>
-                <p style="margin-top: 20px;">See you on the site!</p>
-            `;
-            break;
-        case 'template-2': // Pre-Order Product Announcement
-            subject = '🚀 Get Early Access: Our Exclusive Pre-Order is Open!';
-            content = `
-                <h2 style="color: #047857;">Secure Your Items First!</h2>
-                <p>A highly anticipated product is now available for **Pre-Order**! Secure yours today to guarantee availability and be one of the first to receive it.</p>
-                <p>Estimated shipping: [Insert Estimated Date Here].</p>
-                <a href="${SITE_BASE_URL}/pre-order" style="display: inline-block; padding: 10px 20px; background-color: #f59e0b; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; margin-top: 15px;">Pre-Order Now</a>
-            `;
-            break;
-        case 'template-3': // Site Maintenance
-            subject = '🛠️ Important Notice: Scheduled Site Maintenance';
-            content = `
-                <h2 style="color: #047857;">Heads Up: Site Improvement in Progress</h2>
-                <p>We're performing scheduled maintenance to enhance your shopping experience and introduce new features.</p>
-                <ul>
-                    <li>**When:** [Date] from [Start Time] to [End Time] (Your Timezone)</li>
-                    <li>**Impact:** The site will be temporarily unavailable during this window.</li>
-                </ul>
-                <p>We apologize for any inconvenience this may cause and thank you for your patience!</p>
-            `;
-            break;
+        switch (templateId) {
+            case 'template-1': // New Product / Wears / Caps
+                subject = '🔥 New Arrivals! Check Out Our Latest Collection';
+                content = `
+                    <h2 style="color: #047857;">Exciting New Products Just Dropped!</h2>
+                    <p>We're thrilled to announce the arrival of our new **Wears** and **Caps** collections. From stylish shirts to fresh headwear, we've got something for everyone.</p>
+                    <p>Don't miss out on these limited-edition items.</p>
+                    <a href="${SITE_BASE_URL}/new-arrivals" style="display: inline-block; padding: 10px 20px; background-color: #ef4444; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; margin-top: 15px;">Shop New Arrivals Now</a>
+                    <p style="margin-top: 20px;">See you on the site!</p>
+                `;
+                break;
+            case 'template-2': // Pre-Order Product Announcement
+                subject = '🚀 Get Early Access: Our Exclusive Pre-Order is Open!';
+                content = `
+                    <h2 style="color: #047857;">Secure Your Items First!</h2>
+                    <p>A highly anticipated product is now available for **Pre-Order**! Secure yours today to guarantee availability and be one of the first to receive it.</p>
+                    <p>Estimated shipping: [Insert Estimated Date Here].</p>
+                    <a href="${SITE_BASE_URL}/pre-order" style="display: inline-block; padding: 10px 20px; background-color: #f59e0b; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; margin-top: 15px;">Pre-Order Now</a>
+                `;
+                break;
+            case 'template-3': // Site Maintenance
+                subject = '🛠️ Important Notice: Scheduled Site Maintenance';
+                content = `
+                    <h2 style="color: #047857;">Heads Up: Site Improvement in Progress</h2>
+                    <p>We're performing scheduled maintenance to enhance your shopping experience and introduce new features.</p>
+                    <ul>
+                        <li>**When:** [Date] from [Start Time] to [End Time] (Your Timezone)</li>
+                        <li>**Impact:** The site will be temporarily unavailable during this window.</li>
+                    </ul>
+                    <p>We apologize for any inconvenience this may cause and thank you for your patience!</p>
+                `;
+                break;
+        }
+
+        return {
+            subject: subject,
+            body: baseHtml(content)
+        };
     }
+        
 
-    return {
-        subject: subject,
-        body: baseHtml(content)
-    };
-}
-       
-
-    // Dummy form submission handling
-    document.getElementById('email-form').addEventListener('submit', function(e) {
+    /**
+     * Handles the form submission: collects recipients, prepares payload, and calls the backend API.
+     */
+    document.getElementById('email-form').addEventListener('submit', async function(e) {
         e.preventDefault();
         
+        // --- 🔑 FIX 2: Get token for submission ---
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            alert('Authentication token is missing. Please log in again.');
+            logoutAdmin();
+            return;
+        }
+        // ------------------------------------------
+
         const recipientType = document.getElementById('recipient-type').value;
         const subject = document.getElementById('email-subject').value;
         const body = document.getElementById('email-body').value;
@@ -384,18 +411,34 @@ async function getMockTemplate(templateId) {
 
         console.log('Sending Payload:', payload);
 
-        // In a real application, call the new backend API endpoint here:
-        // sendEmailCampaign(payload);
-        
-        alert(`
-            Email Campaign Simulated!
-            Target: ${recipientType.toUpperCase()} (${recipientsToSend.length} emails)
-            Subject: ${subject}
-            
-            NOTE: This is a frontend simulation. The actual email must be sent via a server API call.
-        `);
-        
-        // e.target.reset(); // Uncomment to clear form after successful send
+        try {
+             // --- 🚀 FIX 3: Actual API call implementation ---
+             const response = await fetch('/api/admin/email/send', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` // Use the retrieved token
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                 if (response.status === 401 || response.status === 403) {
+                     alert(`Sending failed: Unauthorized. Logging out.`);
+                     logoutAdmin();
+                     return;
+                }
+                throw new Error(result.message || 'Failed to send email campaign.');
+            }
+
+            alert(`Success! ${result.message}`);
+            // e.target.reset(); // Optionally clear the form after success
+        } catch (error) {
+            console.error('Email Send Error:', error);
+            alert(`Email sending failed: ${error.message}. Check console for details.`);
+        }
     });
 </script>
 </body>

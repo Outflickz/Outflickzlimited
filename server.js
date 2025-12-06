@@ -2557,22 +2557,18 @@ app.post('/api/admin/email/send', verifyToken, async (req, res) => {
         return res.status(400).json({ message: 'Missing required email fields (recipients, subject, or content).' });
     }
     
-    // Optional: Add more robust email format validation for each recipient.
-    
     try {
-        // Prepare email options for your service
+        // --- 🔑 Use Consistent Sender Name from sendMail Helper's Logic ---
         const mailOptions = {
-            // Use your verified sender email, optionally with a friendly name.
-            // Using the same EMAIL_USER in 'from' is mandatory for most SMTP providers.
-            from: `"Outflickz" <${EMAIL_USER}>`, 
-            bcc: recipients, // Use BCC to hide the full list of emails from recipients
+            // NOTE: Use 'Outflickz Limited' to match the helper's branding.
+            from: `"Outflickz Limited" <${EMAIL_USER}>`, 
+            bcc: recipients, // Crucial for mass email privacy
             subject: subject,
             html: htmlContent,
-            // You might want a plain text fallback version as well
-            // text: "Your text version of the email content..."
         };
 
-        // 3. Send the Email (Replacing the Dummy Simulation)
+        // 3. Send the Email using the configured 'transporter' object
+        // (This is how the new 'sendMail' helper function works internally)
         const info = await transporter.sendMail(mailOptions);
         
         console.log(`Email campaign successfully sent. Message ID: ${info.messageId}`);
@@ -2586,7 +2582,6 @@ app.post('/api/admin/email/send', verifyToken, async (req, res) => {
     } catch (error) {
         console.error('Email sending error:', error);
         
-        // Log the error response from Nodemailer/SMTP for debugging
         if (error.response) {
             console.error('SMTP Error Response:', error.response);
         }

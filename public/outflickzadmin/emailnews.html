@@ -35,7 +35,7 @@
         </div>
         
         <nav class="space-y-2 px-4 flex-grow overflow-y-auto">
-            <a href="./dashboard.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+            <a href="./admin-dashboard.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l-7-7-7 7m10 0v10a1 1 0 01-1 1h-3m-3 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-9 0h10"></path></svg>
                 Dashboard
             </a>
@@ -188,7 +188,7 @@
                      console.error('Unauthorized access. Token expired or invalid.');
                      logoutAdmin();
                      return;
-                }
+                 }
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
@@ -208,7 +208,7 @@
                 `All Registered Users (${allUserEmails.length})`;
             document.querySelector('#recipient-type option[value="membership-only"]').textContent = 
                 `Membership Holders Only (${membershipUserEmails.length})`;
-                
+                 
         } catch (error) {
             console.error('Error fetching user emails:', error);
             alert('Failed to load user list. Check console for details.');
@@ -249,7 +249,8 @@
             
             subjectInput.value = templateData.subject;
             bodyTextarea.value = templateData.body;
-            bodyTextarea.setAttribute('placeholder', templateData.subject);
+            // FIX: Set placeholder to a general informative message for templates, since the body is HTML
+            bodyTextarea.setAttribute('placeholder', 'The content for the selected template has been loaded (HTML structure is hidden).');
             
         } catch (error) {
             console.error('Error loading template:', error);
@@ -265,7 +266,7 @@
     async function getMockTemplate(templateId) {
         // 1. Corrected URL variables
         const LOGO_URL = 'https://i.imgur.com/1Rxhi9q.jpeg'; // Correct: This is your logo image link
-        const SITE_BASE_URL = 'https://outflickz.netlify.app';  // Correct: This is your website's actual domain
+        const SITE_BASE_URL = 'https://outflickz.netlify.app';  // Correct: This is your website's actual domain
         const templateName = document.querySelector(`#email-template option[value="${templateId}"]`).textContent;
 
         // 2. Updated baseHtml function (Text color and structure maintained)
@@ -326,7 +327,7 @@
         let subject = 'An Update from Outflickz';
 
         switch (templateId) {
-            case 'template-1': // New Product / Wears / Caps
+            case 'template-1': // Default Promotion Template
                 subject = '🔥 New Arrivals! Check Out Our Latest Collection';
                 content = `
                     <h2 style="color: #047857;">Exciting New Products Just Dropped!</h2>
@@ -336,7 +337,7 @@
                     <p style="margin-top: 20px;">See you on the site!</p>
                 `;
                 break;
-            case 'template-2': // Pre-Order Product Announcement
+            case 'template-2': // Simple Announcement
                 subject = '🚀 Get Early Access: Our Exclusive Pre-Order is Open!';
                 content = `
                     <h2 style="color: #047857;">Secure Your Items First!</h2>
@@ -345,16 +346,18 @@
                     <a href="${SITE_BASE_URL}/pre-order" style="display: inline-block; padding: 10px 20px; background-color: #f59e0b; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; margin-top: 15px;">Pre-Order Now</a>
                 `;
                 break;
-            case 'template-3': // Site Maintenance
-                subject = '🛠️ Important Notice: Scheduled Site Maintenance';
+            case 'template-3': // Holiday Sale (Updated from Site Maintenance)
+                subject = '🎉 Big Savings Alert: Our Holiday Sale is Live!';
                 content = `
-                    <h2 style="color: #047857;">Heads Up: Site Improvement in Progress</h2>
-                    <p>We're performing scheduled maintenance to enhance your shopping experience and introduce new features.</p>
+                    <h2 style="color: #047857;">Don't Miss Out on the Holiday Rush!</h2>
+                    <p>Our massive **Holiday Sale** is officially live! Get up to **50% off** on selected items across our Wears and Caps collections.</p>
                     <ul>
-                        <li>**When:** [Date] from [Start Time] to [End Time] (Your Timezone)</li>
-                        <li>**Impact:** The site will be temporarily unavailable during this window.</li>
+                        <li>**What:** Up to 50% Off!</li>
+                        <li>**When:** [Start Date] to [End Date]</li>
+                        <li>**Code:** Use code **HOLIDAY2025** at checkout.</li>
                     </ul>
-                    <p>We apologize for any inconvenience this may cause and thank you for your patience!</p>
+                    <a href="${SITE_BASE_URL}/sale" style="display: inline-block; padding: 10px 20px; background-color: #047857; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; margin-top: 15px;">Shop The Sale</a>
+                    <p style="margin-top: 20px;">Happy Holidays from the Commerce Hub Team!</p>
                 `;
                 break;
         }
@@ -429,7 +432,7 @@
                      alert(`Sending failed: Unauthorized. Logging out.`);
                      logoutAdmin();
                      return;
-                }
+                 }
                 throw new Error(result.message || 'Failed to send email campaign.');
             }
 

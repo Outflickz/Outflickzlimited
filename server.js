@@ -2010,12 +2010,64 @@ async function getVisitorAnalytics(period = 'daily') {
     return { labels, data };
 }
 
+const getSessionId = (req) => {
+    // ⚠️ IMPORTANT: Adjust this based on how you handle sessions/cookies.
+    // If using express-session, it's req.session.id
+    // If using a custom cookie, you'll need to parse req.cookies
+    return req.session?.id || req.cookies?.sessionId || null; 
+};
+
+// Middleware function to log the visitor details
+const visitorLogger = async (req, res, next) => {
+    // Only log GET requests to avoid logging mutations (POST, PUT, DELETE) 
+    // and internal API calls, focusing on page views.
+    if (req.method !== 'GET') {
+        return next();
+    }
+    
+    // Ignore internal system requests (e.g., favicon, assets)
+    if (req.path.includes('favicon.ico') || req.path.startsWith('/assets')) {
+        return next();
+    }
+    
+    // --- Data Extraction ---
+    const sessionId = getSessionId(req);
+    const userId = req.user?._id || null; // Assumes 'req.user' is set by authentication
+    
+    if (!sessionId) {
+        console.warn('VisitorLogger: Session ID is missing. Cannot log visit.');
+        return next();
+    }
+    
+    // --- Database Creation ---
+    try {
+        await VisitorLog.create({
+            sessionId: sessionId,
+            userId: userId,
+            path: req.path,
+            fullUrl: req.originalUrl,
+            method: req.method,
+            timestamp: new Date(),
+            referrer: req.headers.referer || null,
+            // You'd also add deviceType, ipAddress, and geo data here
+            // using libraries like 'express-useragent' and 'geoip-lite'
+        });
+        
+    } catch (error) {
+        console.error("CRITICAL ERROR: Failed to create VisitorLog entry.", error);
+    }
+    
+    // ⚠️ CRUCIAL: Pass control to the next middleware/route handler
+    next(); 
+};
+
 // --- EXPRESS CONFIGURATION AND MIDDLEWARE ---
 const app = express();
 // Ensure express.json() is used BEFORE the update route, but after the full form route
 // To allow both JSON and multipart/form-data parsing
 app.use(express.json()); 
 app.use(cookieParser());
+app.use(visitorLogger);
 
 app.use(express.static(path.join(__dirname, 'public')));
 

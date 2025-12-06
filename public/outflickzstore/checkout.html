@@ -728,7 +728,7 @@ if (buyNowItemJSON) {
     // must be defaulted to 'Caps' to prevent lookup in the 'Wears' collection.
     if (!item.productType || item.productType === "undefined" || item.productType === null) {
         // CHANGED 'Wears' to 'Caps'
-        item.productType = 'Caps'; // Correctly route the request to the Caps collection logic
+        item.productType || productDetails.name,// Correctly route the request to the Caps collection logic
         console.warn(`Fixed invalid productType to '${item.productType}' for Buy Now item.`);
     }
 

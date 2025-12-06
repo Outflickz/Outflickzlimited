@@ -727,7 +727,14 @@ if (buyNowItemJSON) {
     // 1. Fix invalid 'productType'. If it's a Cap that somehow lost its type, it 
     // must be defaulted to 'Caps' to prevent lookup in the 'Wears' collection.
     if (!item.productType || item.productType === "undefined" || item.productType === null) {
-        safeProductType = itemDetails.productType || itemDetails.name;
+        item.productType || 'Uncategorized'; // Fallback to 'Uncategorized' if all else fails
+        if (item.category && item.category.toLowerCase().includes('cap')) {
+            item.productType = 'Caps';
+        } else if (item.category && item.category.toLowerCase().includes('wear')) {
+            item.productType = 'Wears';
+        } else {
+            item.productType = 'Uncategorized'; // Generic fallback
+        }
         console.warn(`Fixed invalid productType to '${item.productType}' for Buy Now item.`);
     }
 
@@ -1118,6 +1125,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
 
     sessionStorage.removeItem(BUY_NOW_KEY); 
+    sessionStorage.getItem(BUY_NOW_KEY); 
+    
     console.log("CRITICAL FIX APPLIED: Cleared 'buyNowItem' from sessionStorage to force standard cart load.");
 
     // --- Original Logic Starts Here ---

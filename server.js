@@ -2547,6 +2547,52 @@ app.put('/api/admin/orders/:orderId/status', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Failed to update order status due to a server error.' });
     }
 });
+// POST /api/admin/email/send - Protected Admin Endpoint for sending mass emails
+app.post('/api/admin/email/send', verifyToken, async (req, res) => {
+    // 1. Input Validation
+    const { recipients, subject, htmlContent } = req.body;
+
+    if (!recipients || !subject || !htmlContent || !Array.isArray(recipients) || recipients.length === 0) {
+        return res.status(400).json({ message: 'Missing required email fields (recipients, subject, or content).' });
+    }
+    
+    // Optional: Add more robust email format validation for each recipient.
+    
+    try {
+        // Prepare email options for your service
+        const mailOptions = {
+            // Use your verified sender email, optionally with a friendly name.
+            // Using the same EMAIL_USER in 'from' is mandatory for most SMTP providers.
+            from: `"Outflickz" <${EMAIL_USER}>`, 
+            bcc: recipients, // Use BCC to hide the full list of emails from recipients
+            subject: subject,
+            html: htmlContent,
+            // You might want a plain text fallback version as well
+            // text: "Your text version of the email content..."
+        };
+
+        // 3. Send the Email (Replacing the Dummy Simulation)
+        const info = await transporter.sendMail(mailOptions);
+        
+        console.log(`Email campaign successfully sent. Message ID: ${info.messageId}`);
+
+        // 4. Success Response
+        return res.status(200).json({ 
+            message: `Email campaign successfully sent to ${recipients.length} users.`,
+            details: info.messageId
+        });
+
+    } catch (error) {
+        console.error('Email sending error:', error);
+        
+        // Log the error response from Nodemailer/SMTP for debugging
+        if (error.response) {
+            console.error('SMTP Error Response:', error.response);
+        }
+
+        return res.status(500).json({ message: 'Server error: Failed to send email campaign. Check SMTP configuration or credentials.' });
+    }
+});
 
 // GET /api/admin/capscollections - Fetch All Cap Collections (List View)
 app.get('/api/admin/capscollections', verifyToken, async (req, res) => {

@@ -1124,7 +1124,6 @@ async function processBankTransferOrder(totalAmount, shippingAddress) {
 document.addEventListener('DOMContentLoaded', () => {
     
 
-    sessionStorage.removeItem(BUY_NOW_KEY); 
     sessionStorage.getItem(BUY_NOW_KEY); 
     
     console.log("CRITICAL FIX APPLIED: Cleared 'buyNowItem' from sessionStorage to force standard cart load.");

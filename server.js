@@ -2038,6 +2038,84 @@ app.post('/api/admin/forgot-password', async (req, res) => {
     res.status(200).json({ message: 'If an account with that email address exists, a password reset link has been sent.' });
 });
 
+app.put('/api/admin/change-password', verifyToken, async (req, res) => {
+    // req.adminId is set by the verifyAdminToken middleware
+    const { currentPassword, newPassword } = req.body;
+
+    // 1. Basic Input Validation
+    if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: 'Current password and new password are required.' });
+    }
+
+    // 2. New Password Complexity Check
+    if (newPassword.length < 8) {
+        return res.status(400).json({ message: 'New password must be at least 8 characters long.' });
+    }
+
+    try {
+        // 3. Fetch the admin, explicitly including the password field
+        // Note: The Admin model schema must have `select: false` on the password field for this to work.
+        const admin = await Admin.findById(req.adminId).select('+password');
+
+        if (!admin) {
+            // Should be rare, handles tokens pointing to deleted users
+            return res.status(404).json({ message: 'Admin user not found or session expired.' });
+        }
+
+        // 4. Verify the current password
+        const isMatch = await bcrypt.compare(currentPassword, admin.password);
+        if (!isMatch) {
+            // Log the failed attempt for security monitoring
+            try {
+                await logActivity(
+                    'ADMIN_PASSWORD_CHANGE_FAILURE',
+                    `Admin ${admin.email || 'N/A'} failed to change password due to incorrect current password.`,
+                    admin._id,
+                    { ipAddress: req.ip }
+                );
+            } catch (logErr) {
+                console.warn('Activity logging failed:', logErr);
+            }
+            return res.status(401).json({ message: 'The current password you entered is incorrect.' });
+        }
+        
+        // 5. Check if the new password is the same as the current password
+        if (currentPassword === newPassword) {
+            return res.status(400).json({ message: 'New password cannot be the same as the current password.' });
+        }
+
+        // 6. Hash the new password
+        const hashedPassword = await bcrypt.hash(newPassword, 10); // 10 is the salt rounds
+
+        // 7. Update the admin's password in the database
+        admin.password = hashedPassword;
+        await admin.save(); // Save the updated password
+
+        // 8. Log the successful password change event
+        try {
+            await logActivity(
+                'ADMIN_PASSWORD_CHANGE_SUCCESS',
+                `Admin **${admin.email || 'N/A'}** successfully changed their password.`,
+                admin._id,
+                { ipAddress: req.ip }
+            );
+        } catch (logErr) {
+            console.warn('Activity logging failed (success):', logErr);
+        }
+
+        // 9. Success Response
+        // NOTE: It is a good security practice to force a re-login.
+        return res.status(200).json({ 
+            message: 'Password updated successfully. Please log in again with your new password.',
+            shouldRelogin: true // Hint for the frontend
+        });
+
+    } catch (error) {
+        console.error("Admin password change error:", error);
+        return res.status(500).json({ message: 'Server error: Failed to change admin password.' });
+    }
+});
+
 app.get('/api/admin/dashboard/stats', verifyToken, async (req, res) => {
     try {
         // Log that the request has successfully reached the main API handler

@@ -115,19 +115,19 @@
         }, 5000);
     }
 
-    // Function to toggle password visibility (add this inside your existing <script> tag)
+    // --- New Function for Password Visibility ---
 function togglePasswordVisibility(inputId, iconId) {
-    const input = getElement(inputId);
-    const icon = getElement(iconId);
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
 
     if (input.type === 'password') {
         input.type = 'text';
-        icon.classList.remove('fa-eye-slash');
-        icon.classList.add('fa-eye');
-    } else {
-        input.type = 'password';
         icon.classList.remove('fa-eye');
         icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
     }
 }
 
@@ -766,47 +766,53 @@ async function submitChangePassword(event) {
         </div>
     </div>
 
+<div id="change-password-modal" class="hidden fixed inset-0 z-[60] overflow-y-auto modal-backdrop flex items-center justify-center p-4" aria-labelledby="modal-title-password" role="dialog" aria-modal="true">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-auto transform transition-all">
+        <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+            <h3 class="text-xl font-bold text-ash-red" id="modal-title-password">Change Password</h3>
+            <button onclick="closeModal('change-password-modal')" class="text-gray-400 hover:text-gray-600 transition" aria-label="Close modal">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <form id="change-password-form" onsubmit="submitChangePassword(event)" class="p-6 space-y-4">
+            
+            <div>
+                <label for="change-password-old" class="block text-sm font-medium text-gray-700">Current Password</label>
+                <input type="password" id="change-password-old" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-ash-red focus:border-ash-red">
+            </div>
 
-   <div id="change-password-modal" class="hidden fixed inset-0 z-[60] overflow-y-auto modal-backdrop flex items-center justify-center p-4" aria-labelledby="modal-title-password" role="dialog" aria-modal="true">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-auto transform transition-all">
-        <div class="p-6 border-b border-gray-100 flex justify-between items-center">
-            <h3 class="text-xl font-bold text-ash-red" id="modal-title-password">Change Password</h3>
-            <button onclick="closeModal('change-password-modal')" class="text-gray-400 hover:text-gray-600 transition" aria-label="Close modal">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-        </div>
-        <form id="change-password-form" onsubmit="submitChangePassword(event)" class="p-6 space-y-4">
-            
-            <div class="relative">
-                <label for="change-password-old" class="block text-sm font-medium text-gray-700">Current Password</label>
-                <input type="password" id="change-password-old" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 pr-10 focus:ring-ash-red focus:border-ash-red">
-                <button type="button" onclick="togglePasswordVisibility('change-password-old', 'toggle-old-icon')" class="absolute inset-y-0 right-0 top-6 flex items-center pr-3 text-gray-500 hover:text-ash-red" aria-label="Toggle password visibility">
-                    <i id="toggle-old-icon" class="fas fa-eye-slash"></i>
-                </button>
-            </div>
+                        <div>
+                <label for="change-password-new" class="block text-sm font-medium text-gray-700">New Password</label>
+                <div class="relative mt-1">
+                    <input type="password" id="change-password-new" required class="block w-full border border-gray-300 rounded-md shadow-sm p-3 pr-12 focus:ring-ash-red focus:border-ash-red">
+                    <button type="button" 
+                            onclick="togglePasswordVisibility('change-password-new', 'toggle-new-password')" 
+                            class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-ash-red transition" 
+                            aria-label="Toggle new password visibility">
+                        <i class="fas fa-eye" id="toggle-new-password"></i>
+                    </button>
+                </div>
+            </div>
 
-            <div class="relative">
-                <label for="change-password-new" class="block text-sm font-medium text-gray-700">New Password</label>
-                <input type="password" id="change-password-new" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 pr-10 focus:ring-ash-red focus:border-ash-red">
-                <button type="button" onclick="togglePasswordVisibility('change-password-new', 'toggle-new-icon')" class="absolute inset-y-0 right-0 top-6 flex items-center pr-3 text-gray-500 hover:text-ash-red" aria-label="Toggle password visibility">
-                    <i id="toggle-new-icon" class="fas fa-eye-slash"></i>
-                </button>
-            </div>
-
-            <div class="relative">
-                <label for="change-password-confirm" class="block text-sm font-medium text-gray-700">Confirm New Password</label>
-                <input type="password" id="change-password-confirm" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 pr-10 focus:ring-ash-red focus:border-ash-red">
-                <button type="button" onclick="togglePasswordVisibility('change-password-confirm', 'toggle-confirm-icon')" class="absolute inset-y-0 right-0 top-6 flex items-center pr-3 text-gray-500 hover:text-ash-red" aria-label="Toggle password visibility">
-                    <i id="toggle-confirm-icon" class="fas fa-eye-slash"></i>
-                </button>
-            </div>
-            
-            <div class="flex justify-end pt-4 space-x-3 border-t border-gray-100 mt-6">
-                <button type="button" onclick="closeModal('change-password-modal')" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium transition duration-150">Cancel</button>
-                <button type="submit" id="submit-password-btn" class="px-4 py-2 bg-ash-red text-white rounded-lg hover:bg-ash-red-dark font-medium transition duration-150">Save New Password</button>
-            </div>
-        </form>
-    </div>
+                        <div>
+                <label for="change-password-confirm" class="block text-sm font-medium text-gray-700">Confirm New Password</label>
+                <div class="relative mt-1">
+                    <input type="password" id="change-password-confirm" required class="block w-full border border-gray-300 rounded-md shadow-sm p-3 pr-12 focus:ring-ash-red focus:border-ash-red">
+                    <button type="button" 
+                            onclick="togglePasswordVisibility('change-password-confirm', 'toggle-confirm-password')" 
+                            class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-ash-red transition" 
+                            aria-label="Toggle confirm password visibility">
+                        <i class="fas fa-eye" id="toggle-confirm-password"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="flex justify-end pt-4 space-x-3 border-t border-gray-100 mt-6">
+                <button type="button" onclick="closeModal('change-password-modal')" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium transition duration-150">Cancel</button>
+                <button type="submit" id="submit-password-btn" class="px-4 py-2 bg-ash-red text-white rounded-lg hover:bg-ash-red-dark font-medium transition duration-150">Save New Password</button>
+            </div>
+        </form>
+    </div>
 </div>
 
     <footer class="bg-gray-900 text-gray-300 py-10 sm:py-14 border-t border-gray-800 mt-12">

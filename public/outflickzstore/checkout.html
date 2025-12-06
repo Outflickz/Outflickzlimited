@@ -1112,17 +1112,20 @@ async function processBankTransferOrder(totalAmount, shippingAddress) {
         }
     }
 
-
-   // --- Main Initialization (Modified to fix the Buy Now/Cart conflict) ---
+// --- Main Initialization (Final Fix: Conditional Clearing) ---
 document.addEventListener('DOMContentLoaded', () => {
-    
-    // ⭐ CRITICAL FIX: Ensure the Buy Now flag is cleared on standard checkout load. ⭐
-    // This prevents a previous "Buy Now" session from overriding the current Cart total.
-    // Since the standard Cart link doesn't use a specific query parameter, 
-    // we assume a clean slate for the standard checkout flow.
-    console.log("CRITICAL FIX APPLIED: Cleared 'buyNowItem' from sessionStorage to force standard cart load.");
 
-    // --- Original Logic Starts Here ---
+    const urlParams = new URLSearchParams(window.location.search);
+    const source = urlParams.get('source'); // Check for the source parameter
+
+    // ⭐ FINAL FIX: Only clear the BUY_NOW_KEY if the source is NOT 'buynow'. ⭐
+    // If the source is 'buynow', the key must remain for fetchInitialCartData to use it.
+    // If the source is null (user came from cart link), we clear the key to force the API cart load.
+    if (source !== 'buynow') {
+        sessionStorage.removeItem(BUY_NOW_KEY); 
+        console.log("CLEANUP: Cleared 'buyNowItem' from sessionStorage to ensure standard cart load.");
+    }
+
     if (!isUserLoggedIn()) {
         redirectToProfileOrLogin();
         return;
@@ -1130,7 +1133,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     updateCartBadge();
     fetchUserData(); // Pre-fills form
-    fetchInitialCartData(); // Loads order summary (Now loads the actual standard cart)
+    fetchInitialCartData(); // Loads order summary (now correctly loads the intended flow)
     updateCheckoutView(); // Renders step 1
     
     // Attach event listener to the main button

@@ -1120,7 +1120,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // This prevents a previous "Buy Now" session from overriding the current Cart total.
     // Since the standard Cart link doesn't use a specific query parameter, 
     // we assume a clean slate for the standard checkout flow.
-    sessionStorage.removeItem(BUY_NOW_KEY); 
     console.log("CRITICAL FIX APPLIED: Cleared 'buyNowItem' from sessionStorage to force standard cart load.");
 
     // --- Original Logic Starts Here ---

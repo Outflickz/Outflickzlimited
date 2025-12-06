@@ -64,6 +64,13 @@
         document.getElementById(modalId).classList.add('hidden');
     }
 
+    function openChangePasswordModal() {
+    const modal = document.getElementById('change-password-modal');
+    modal.classList.remove('hidden');
+    // Optional: Clear form on open
+    document.getElementById('change-password-form').reset();
+}
+
     function openEditProfileModal() {
         const modal = document.getElementById('edit-profile-modal');
         modal.classList.remove('hidden');
@@ -359,6 +366,63 @@
             }
         }
     }
+
+    // --- Submission Handlers (Change Password) ---
+async function submitChangePassword(event) {
+    event.preventDefault();
+    const button = document.getElementById('submit-password-btn');
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = 'Updating...';
+
+    const oldPassword = document.getElementById('change-password-old').value;
+    const newPassword = document.getElementById('change-password-new').value;
+    const confirmPassword = document.getElementById('change-password-confirm').value;
+
+    if (newPassword !== confirmPassword) {
+        showStatusMessage('New password and confirmation do not match.', false);
+        button.disabled = false;
+        button.textContent = originalText;
+        return;
+    }
+
+    const passwordData = {
+        oldPassword: oldPassword,
+        newPassword: newPassword
+    };
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/users/change-password`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(passwordData),
+            credentials: 'include'
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            showStatusMessage(data.message || 'Failed to change password.', false);
+            throw new Error(data.message || 'Password change failed');
+        }
+
+        // SUCCESS
+        closeModal('change-password-modal');
+        showStatusMessage('Password updated successfully! Please log in again using your new password.', true);
+        
+        // Optional: Force user to log out after successful password change
+        setTimeout(logoutUser, 3000); 
+
+    } catch (error) {
+        console.error('Password Change Error:', error);
+        if (!document.getElementById('status-message-container').classList.contains('bg-red-100')) {
+            showStatusMessage('An unexpected error occurred during password change.', false);
+        }
+    } finally {
+        button.disabled = false;
+        button.textContent = originalText;
+    }
+}
     
     /**
      * Attempts to fetch user data and redirects to login on failure (401/403).
@@ -580,17 +644,27 @@
                         </div>
                     </div>
                     
-                    <div id="settings" class="scroll-mt-24 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                        <h3 class="font-extrabold text-2xl text-ash-red border-b-2 border-ash-red pb-3 mb-6 flex justify-between items-center">
-                            Settings <i class="fas fa-cog"></i>
-                        </h3>
-                        <p class="text-gray-600">Future settings: Change Password, Notification Preferences, Delete Account.</p>
-                        <button class="mt-4 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition">Change Password</button>
-                    </div>
-
-                </section>
-            </div>
+                   <div id="settings" class="scroll-mt-24 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+    <h3 class="font-extrabold text-2xl text-ash-red border-b-2 border-ash-red pb-3 mb-6 flex justify-between items-center">
+        Settings <i class="fas fa-cog"></i>
+    </h3>
+    
+    <div class="space-y-4">
+        <div class="p-4 border rounded-lg flex items-center justify-between bg-gray-50">
+            <p class="text-gray-700 font-medium">Change Account Password</p>
+            <button onclick="openChangePasswordModal()" class="px-4 py-2 bg-ash-red text-white rounded-lg hover:bg-ash-red-dark transition font-medium" aria-label="Open change password form">
+                <i class="fas fa-key mr-1"></i> Change Password
+            </button>
         </div>
+        
+        <div class="p-4 border rounded-lg flex items-center justify-between bg-gray-50 opacity-50 cursor-not-allowed">
+            <p class="text-gray-700 font-medium">Notification Preferences (Future feature)</p>
+            <button disabled class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg transition font-medium">
+                Manage
+            </button>
+        </div>
+    </div>
+</div>
 
     </main>
     
@@ -675,6 +749,39 @@
             </form>
         </div>
     </div>
+
+    <div id="change-password-modal" class="hidden fixed inset-0 z-[60] overflow-y-auto modal-backdrop flex items-center justify-center p-4" aria-labelledby="modal-title-password" role="dialog" aria-modal="true">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-auto transform transition-all">
+        <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+            <h3 class="text-xl font-bold text-ash-red" id="modal-title-password">Change Password</h3>
+            <button onclick="closeModal('change-password-modal')" class="text-gray-400 hover:text-gray-600 transition" aria-label="Close modal">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <form id="change-password-form" onsubmit="submitChangePassword(event)" class="p-6 space-y-4">
+            
+            <div>
+                <label for="change-password-old" class="block text-sm font-medium text-gray-700">Current Password</label>
+                <input type="password" id="change-password-old" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-ash-red focus:border-ash-red">
+            </div>
+
+            <div>
+                <label for="change-password-new" class="block text-sm font-medium text-gray-700">New Password</label>
+                <input type="password" id="change-password-new" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-ash-red focus:border-ash-red">
+            </div>
+
+            <div>
+                <label for="change-password-confirm" class="block text-sm font-medium text-gray-700">Confirm New Password</label>
+                <input type="password" id="change-password-confirm" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-ash-red focus:border-ash-red">
+            </div>
+            
+            <div class="flex justify-end pt-4 space-x-3 border-t border-gray-100 mt-6">
+                <button type="button" onclick="closeModal('change-password-modal')" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium transition duration-150">Cancel</button>
+                <button type="submit" id="submit-password-btn" class="px-4 py-2 bg-ash-red text-white rounded-lg hover:bg-ash-red-dark font-medium transition duration-150">Save New Password</button>
+            </div>
+        </form>
+    </div>
+</div>
 
     <footer class="bg-gray-900 text-gray-300 py-10 sm:py-14 border-t border-gray-800 mt-12">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

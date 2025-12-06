@@ -238,24 +238,26 @@ async function deleteFileFromPermanentStorage(fileUrl) {
 
 /**
  * Helper function to send email using the configured transporter.
- * This function was referenced but not defined in the original code.
+ * @param {string} toEmail - The primary recipient (usually the admin/sender for BCC blasts).
+ * @param {string} subject - The email subject.
+ * @param {string} htmlContent - The HTML body of the email.
+ * @param {string} [bccList=''] - A comma-separated string of recipient emails (the users).
  */
-async function sendMail(toEmail, subject, htmlContent) {
+async function sendMail(toEmail, subject, htmlContent, bccList = '') {
+    
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
         console.error("FATAL: Email environment variables (EMAIL_USER/EMAIL_PASS) are not set.");
-        // Throw an error to ensure the calling function catches it
         throw new Error("Email service is unconfigured.");
     }
     
-   return transporter.sendMail({
+    return transporter.sendMail({
         from: `Outflickz Limited <${process.env.EMAIL_USER}>`, // Sender address
-        to: toEmail, // Primary recipient (Admin's email or placeholder)
-        bcc: bccList, // <<-- IMPORTANT: This sends the newsletter to all users
+        to: toEmail, // Primary recipient
+        bcc: bccList, // Now correctly referencing the function parameter
         subject: subject, // Subject line
         html: htmlContent, // HTML body
     });
 }
-
 /**
  * Helper function to generate, HASH, and save a new verification code.
  * IMPORTANT: This now stores the HASH, not the plain code.

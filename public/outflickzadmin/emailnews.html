@@ -230,8 +230,11 @@ const sendStatusElement = document.getElementById('send-status');
 
 let currentSelectedTemplateId = null;
 let currentEditedHtml = null; // New variable to hold the currently edited HTML content
-
 // --- NEWSLETTER TEMPLATES ---
+const LOGO_URL = "https://i.imgur.com/1Rxhi9q.jpeg";
+const LOGO_ALT = "Outflickz Limited";
+const LOGO_HTML = `<img src="${LOGO_URL}" alt="${LOGO_ALT}" style="max-width: 150px; height: auto; display: block; margin: 0 auto;"/>`;
+
 const newsletterTemplates = {
     'new-collection': {
         icon: `<svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`,
@@ -240,7 +243,8 @@ const newsletterTemplates = {
         html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; background-color: #ffffff;">
                 <div style="background-color: #059669; color: white; padding: 20px; text-align: center;">
-                    <h2 style="margin: 0; font-size: 24px;">✨ New Arrivals Are Here!</h2>
+                    ${LOGO_HTML}
+                    <h2 style="margin: 10px 0 0; font-size: 20px;">New Arrivals Are Here!</h2>
                 </div>
                 <div style="padding: 20px;">
                     <p style="font-size: 16px; line-height: 1.5; color: #333;">Hi [Customer Name],</p>
@@ -251,7 +255,7 @@ const newsletterTemplates = {
                     <p style="font-size: 14px; color: #666; text-align: center;">Don't miss out on the latest trends and limited stock!</p>
                 </div>
                 <div style="background-color: #f3f4f6; padding: 15px; text-align: center; font-size: 12px; color: #9ca3af;">
-                    &copy; 2025 Commerce Hub. All rights reserved.
+                    &copy; 2025 Outflickz. All rights reserved.
                 </div>
             </div>
         `
@@ -263,7 +267,8 @@ const newsletterTemplates = {
         html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; background-color: #ffffff;">
                 <div style="background-color: #f59e0b; color: white; padding: 20px; text-align: center;">
-                    <h2 style="margin: 0; font-size: 24px;">📢 Pre-Order Window Open!</h2>
+                    ${LOGO_HTML}
+                    <h2 style="margin: 10px 0 0; font-size: 20px;">Pre-Order Window Open!</h2>
                 </div>
                 <div style="padding: 20px;">
                     <p style="font-size: 16px; line-height: 1.5; color: #333;">Dear Valued Customer,</p>
@@ -277,7 +282,7 @@ const newsletterTemplates = {
                     </div>
                 </div>
                 <div style="background-color: #f3f4f6; padding: 15px; text-align: center; font-size: 12px; color: #9ca3af;">
-                    &copy; 2025 Commerce Hub. Pre-order ends soon.
+                    &copy; 2025 Outflickz. Pre-order ends soon.
                 </div>
             </div>
         `
@@ -289,7 +294,8 @@ const newsletterTemplates = {
         html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; background-color: #ffffff;">
                 <div style="background-color: #10b981; color: white; padding: 20px; text-align: center;">
-                    <h2 style="margin: 0; font-size: 24px;">👚 Wears Collection Spotlight</h2>
+                    ${LOGO_HTML}
+                    <h2 style="margin: 10px 0 0; font-size: 20px;">Wears Collection Spotlight</h2>
                 </div>
                 <div style="padding: 20px; text-align: center;">
                     <p style="font-size: 16px; line-height: 1.5; color: #333;">Discover the perfect blend of comfort and style in our hand-picked Wears Collection.</p>
@@ -300,7 +306,7 @@ const newsletterTemplates = {
                     </div>
                 </div>
                 <div style="background-color: #f3f4f6; padding: 15px; text-align: center; font-size: 12px; color: #9ca3af;">
-                    &copy; 2025 Commerce Hub. Shop quality fashion.
+                    &copy; 2025 Outflickz. Shop quality fashion.
                 </div>
             </div>
         `
@@ -312,7 +318,8 @@ const newsletterTemplates = {
         html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; background-color: #ffffff;">
                 <div style="background-color: #3b82f6; color: white; padding: 20px; text-align: center;">
-                    <h2 style="margin: 0; font-size: 24px;">🧢 The Perfect Cap Awaits!</h2>
+                    ${LOGO_HTML}
+                    <h2 style="margin: 10px 0 0; font-size: 20px;">The Perfect Cap Awaits!</h2>
                 </div>
                 <div style="padding: 20px; text-align: center;">
                     <p style="font-size: 16px; line-height: 1.5; color: #333;">Add the ultimate finishing touch to your outfit with our diverse Caps Collection.</p>
@@ -338,7 +345,8 @@ const newsletterTemplates = {
         html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; background-color: #ffffff;">
                 <div style="background-color: #f97316; color: white; padding: 20px; text-align: center;">
-                    <h2 style="margin: 0; font-size: 24px;">🛠️ Scheduled Maintenance</h2>
+                    ${LOGO_HTML}
+                    <h2 style="margin: 10px 0 0; font-size: 20px;">Scheduled Maintenance</h2>
                 </div>
                 <div style="padding: 20px;">
                     <p style="font-size: 16px; line-height: 1.5; color: #333;">Hello,</p>
@@ -350,7 +358,7 @@ const newsletterTemplates = {
                     <p style="font-size: 16px; line-height: 1.5; color: #333;">We apologize for any inconvenience this may cause and thank you for your patience as we improve Commerce Hub.</p>
                 </div>
                 <div style="background-color: #f3f4f6; padding: 15px; text-align: center; font-size: 12px; color: #9ca3af;">
-                    &copy; 2025 Commerce Hub. Back soon!
+                    &copy; 2025 Outflickz. Back soon!
                 </div>
             </div>
         `
@@ -362,7 +370,8 @@ const newsletterTemplates = {
         html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; background-color: #ffffff;">
                 <div style="background-color: #6366f1; color: white; padding: 20px; text-align: center;">
-                    <h2 style="margin: 0; font-size: 24px;">🎉 New Feature Launched!</h2>
+                    ${LOGO_HTML}
+                    <h2 style="margin: 10px 0 0; font-size: 20px;">New Feature Launched!</h2>
                 </div>
                 <div style="padding: 20px;">
                     <p style="font-size: 16px; line-height: 1.5; color: #333;">We are excited to announce a major upgrade: **[FEATURE_NAME]** is now live on Commerce Hub!</p>
@@ -374,7 +383,7 @@ const newsletterTemplates = {
                     <p style="font-size: 14px; color: #666; text-align: center;">Thank you for being a part of the Commerce Hub community!</p>
                 </div>
                 <div style="background-color: #f3f4f6; padding: 15px; text-align: center; font-size: 12px; color: #9ca3af;">
-                    &copy; 2025 Commerce Hub. Always improving for you.
+                    &copy; 2025 Outflickz. Always improving for you.
                 </div>
             </div>
         `

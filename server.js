@@ -2081,6 +2081,76 @@ app.get('/api/admin/orders/all', verifyToken, async (req, res) => {
     }
 });
 
+app.post('/api/admin/newsletter/send', verifyToken, async (req, res) => {
+    // 1. Extract newsletter details from the request body
+    const { 
+        subject, 
+        htmlContent 
+    } = req.body;
+
+    // 2. Basic validation
+    if (!subject || !htmlContent) {
+        return res.status(400).json({ 
+            message: 'Missing required fields: subject and htmlContent are mandatory.' 
+        });
+    }
+
+    try {
+        // 3. Fetch all user emails for the newsletter
+        // We only need the 'email' field for sending the newsletter
+        const users = await User.find({}).select('email').lean();
+        
+        if (users.length === 0) {
+            return res.status(200).json({ 
+                message: 'No users registered to receive the newsletter. Email process aborted.',
+                successCount: 0
+            });
+        }
+        
+        // Extract just the emails into an array
+        const recipientEmails = users.map(user => user.email).filter(email => email); // Filter out any null/undefined emails
+
+        // 4. Send the newsletter to all recipients
+        
+        // Nodemailer's sendMail is designed to handle multiple recipients 
+        // if the 'to' field is a comma-separated string or an array.
+        // For performance and centralized sending status tracking, 
+        // we send a single mail with all recipients in the 'bcc' field.
+        
+        // This method also ensures individual users cannot see the full mailing list.
+        const allRecipientsBCC = recipientEmails.join(', ');
+
+        const mailOptions = {
+            to: process.env.EMAIL_USER, // Send the main email to the sender's address (or a placeholder)
+            bcc: allRecipientsBCC, // Send the actual content to all users via BCC
+            subject: subject,
+            html: htmlContent
+        };
+        
+        // Re-use the sendMail helper function
+        const info = await sendMail(mailOptions.to, mailOptions.subject, mailOptions.html, mailOptions.bcc);
+
+        // 5. Success Response
+        console.log(`Newsletter sent successfully to ${recipientEmails.length} recipients.`);
+        console.log('Nodemailer response:', info);
+
+        return res.status(200).json({
+            message: `Newsletter successfully queued for sending to ${recipientEmails.length} recipients.`,
+            successCount: recipientEmails.length,
+            // info: info // Optionally include Nodemailer info for debugging
+        });
+
+    } catch (error) {
+        console.error('Newsletter send error:', error);
+
+        // This handles both database errors and errors thrown by the sendMail helper 
+        // (e.g., if EMAIL_USER/PASS is missing)
+        return res.status(500).json({ 
+            message: `Failed to send newsletter. Error: ${error.message || 'Internal Server Error'}` 
+        });
+    }
+});
+
 app.get('/api/admin/users/all', verifyToken, async (req, res) => {
     try {
         // Fetch all users. Select only necessary fields and exclude the password (which is selected: false by default, but we re-specify for clarity).

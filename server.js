@@ -4812,6 +4812,7 @@ app.get('/api/auth/status', verifyUserToken, (req, res) => {
     // We just return a success status.
     res.status(200).json({ message: 'Authenticated', isAuthenticated: true });
 });
+
 // =========================================================
 // NEW: POST /api/orders/calculate-buy-now - Calculate Totals for Single Item (Buy Now/Pre-Order)
 // =========================================================

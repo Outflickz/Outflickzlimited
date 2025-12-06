@@ -4837,6 +4837,90 @@ app.post('/api/users/forgot-password', async (req, res) => {
     }
 });
 
+// =========================================================
+// 6. PUT /api/users/change-password (Change Password - Protected)
+// =========================================================
+app.put('/api/users/change-password', verifyUserToken, async (req, res) => {
+    // req.userId is set by the verifyUserToken middleware
+    const { currentPassword, newPassword } = req.body;
+
+    // 1. Basic Input Validation
+    if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: 'Current password and new password are required.' });
+    }
+
+    // Optional: Add new password complexity checks (length, mix of chars)
+    if (newPassword.length < 8) {
+        return res.status(400).json({ message: 'New password must be at least 8 characters long.' });
+    }
+
+    try {
+        // 2. Fetch the user, explicitly including the stored password
+        const user = await User.findById(req.userId).select('+password').lean();
+
+        if (!user) {
+            // Should be rare, but handles token-user mismatch
+            return res.status(404).json({ message: 'User not found or session expired.' });
+        }
+
+        // 3. Verify the current password
+        if (!(await bcrypt.compare(currentPassword, user.password))) {
+            // Log the failed attempt for security monitoring
+            try {
+                await logActivity(
+                    'PASSWORD_CHANGE_FAILURE',
+                    `User ${user.email} failed to change password due to incorrect current password.`,
+                    user._id,
+                    { ipAddress: req.ip }
+                );
+            } catch (logErr) {
+                console.warn('Activity logging failed (password change failure):', logErr);
+            }
+            return res.status(401).json({ message: 'The current password you entered is incorrect.' });
+        }
+        
+        // Check if the new password is the same as the current password
+        if (currentPassword === newPassword) {
+            return res.status(400).json({ message: 'New password cannot be the same as the current password.' });
+        }
+
+        // 4. Hash the new password
+        // Use a function from your setup to hash the password (e.g., bcrypt.hash)
+        const hashedPassword = await bcrypt.hash(newPassword, 10); // 10 is the salt rounds
+
+        // 5. Update the user's password in the database
+        await User.findByIdAndUpdate(
+            req.userId,
+            { password: hashedPassword },
+            { new: true, runValidators: true }
+        );
+
+        // 6. Log the successful password change event
+        try {
+            await logActivity(
+                'PASSWORD_CHANGE',
+                `User **${user.email}** successfully changed their password.`,
+                user._id,
+                { ipAddress: req.ip }
+            );
+        } catch (logErr) {
+            console.warn('Activity logging failed (password change success):', logErr);
+        }
+
+        // 7. Success Response
+        // NOTE: It is a good security practice to force a re-login after a password change
+        // by clearing the old token/cookie, but we'll stick to the requested response format for now.
+        return res.status(200).json({ 
+            message: 'Password updated successfully. You should log in again with your new password.',
+            shouldRelogin: true // Hint for the frontend
+        });
+
+    } catch (error) {
+        console.error("Change password error:", error);
+        return res.status(500).json({ message: 'Server error: Failed to change password.' });
+    }
+});
+
 // 4. GET /api/auth/status (Check Authentication Status - Protected)
 app.get('/api/auth/status', verifyUserToken, (req, res) => {
     // If verifyUserToken successfully executed, it means:

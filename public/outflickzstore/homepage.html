@@ -959,8 +959,12 @@ const buyNowButtonHtml = `
             productId: '${collection._id}',
             name: '${collection.name.replace(/'/g, "\\'")}',
             
-            // ⭐ FIX 1: Explicitly pass a safe productType
+            // FIX 1: Explicitly pass a safe productType
             productType: '${safeProductTypeInHtml}', 
+            
+            // ⭐ FIX 2: ADD MISSING REQUIRED FIELDS ⭐
+            size: selectedSize, // ASSUMPTION: This variable must hold the user's selected size string
+            variationIndex: selectedVariationIndex, // ASSUMPTION: This variable must hold the user's selected index (0, 1, 2...)
             
             price: ${itemPrice},
             quantity: parseInt(${quantityGetter}),

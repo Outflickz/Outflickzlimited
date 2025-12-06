@@ -959,13 +959,8 @@ const buyNowButtonHtml = `
             productId: '${collection._id}',
             name: '${collection.name.replace(/'/g, "\\'")}',
             
-            // Required for server routing/validation
+            // ⭐ FIX 1: Explicitly pass a safe productType
             productType: '${safeProductTypeInHtml}', 
-            
-            // ⭐ CRITICAL FIX: Pass required 'size' and 'variationIndex' fields ⭐
-            size: ${finalSizeString}, // This is the colorHex for Caps, or the size string for others
-            color: ${finalColorString}, // Optional, but good for Cart display
-            variationIndex: ${finalVariationIndex}, // Must be a number (1-based for Caps, usually 0-based client-side)
             
             price: ${itemPrice},
             quantity: parseInt(${quantityGetter}),
@@ -1117,37 +1112,6 @@ function createSizeList(collectionId, sizeStockMap, isReduced = false) {
         `;
     }).join('');
 }
-
-// ASSUMPTION: 'safeProductTypeInHtml' holds the collection name ('CapCollection', 'WearsCollection', etc.)
-const IS_CAP = (safeProductTypeInHtml === 'CapCollection');
-
-let finalSizeValue;
-let finalVariationIndex;
-let selectedColor; // Must be declared with 'let' or 'var' to be scoped correctly
-
-// --- Logic to adapt the size and index based on product type ---
-if (IS_CAP) {
-    // For Caps, the Cart schema requires 'size', so we use the colorHex as the identifier.
-    // ASSUMPTION: 'selectedColorHex' holds the colorHex of the selected cap variation.
-    finalSizeValue = selectedColorHex; 
-    
-    // The Cap schema uses a 1-based index (min: 1)
-    finalVariationIndex = selectedVariationIndex; 
-    
-    // Ensure the color field is also populated for Cap
-    selectedColor = selectedColorName || selectedColorHex; 
-
-} else {
-    // For Wears, New Arrivals, Pre-Order, use the standard size and index
-    finalSizeValue = selectedSize; 
-    finalVariationIndex = selectedVariationIndex; 
-    selectedColor = selectedColorName;
-}
-
-// Ensure the string variables are quoted for the HTML
-// These two variables are CRITICAL for safe injection into the HTML string
-const finalSizeString = `'${finalSizeValue}'`;
-const finalColorString = selectedColor ? `'${selectedColor.replace(/'/g, "\\'")}'` : 'undefined';
 
 async function fetchAndRenderWearsCollections() {
     const container = document.getElementById('wears-collections-grid');

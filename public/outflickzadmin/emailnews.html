@@ -119,7 +119,7 @@
                 <div class="mb-6">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Select a Template</label>
                     <div id="template-buttons" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                        </div>
+                    </div>
                 </div>
 
                 <form id="newsletter-form" class="space-y-4">
@@ -136,6 +136,22 @@
                         <p class="text-xs text-red-500">Note: The content shown is the final, pre-designed HTML. Actual sending is handled by the backend API.</p>
                     </div>
 
+                    <button type="button" id="toggle-edit-btn" class="hidden px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition duration-150 mt-4">
+                        ✏️ Edit HTML / Back to Preview
+                    </button>
+
+                    <div id="editor-container" class="hidden mt-4">
+                        <label for="template-editor" class="block text-sm font-medium text-gray-700">Edit Template HTML:</label>
+                        <textarea id="template-editor" rows="20" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 font-mono text-sm"></textarea>
+                        <div class="flex justify-end mt-3 space-x-3">
+                            <button type="button" id="save-template-btn" class="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 transition duration-150">
+                                Apply Changes to Send
+                            </button>
+                            <button type="button" id="cancel-edit-btn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition duration-150">
+                                Cancel Edit (Revert)
+                            </button>
+                        </div>
+                    </div>
                     <button type="submit" id="send-newsletter-btn" disabled class="w-full py-2 px-4 bg-blue-400 text-white font-medium rounded-lg shadow-md transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700">
                         Select a template to enable Send
                     </button>
@@ -184,10 +200,17 @@
 
         </section>
 
-    </main>
+    </main> 
+<script>
+    // --- JAVASCRIPT LOGIC ---
 
-    <script>
-   // --- JAVASCRIPT LOGIC ---
+// --- NEW CONSTANTS FOR EDITING ---
+const templateEditor = document.getElementById('template-editor'); // Assuming an HTML element with id="template-editor" is available
+const editorContainer = document.getElementById('editor-container'); // Assuming an HTML element with id="editor-container" wraps the editor and buttons
+const toggleEditBtn = document.getElementById('toggle-edit-btn'); // Assuming an HTML element with id="toggle-edit-btn" is available
+const saveTemplateBtn = document.getElementById('save-template-btn'); // Assuming an HTML element with id="save-template-btn" is available
+const cancelEditBtn = document.getElementById('cancel-edit-btn'); // Assuming an HTML element with id="cancel-edit-btn" is available
+// ------------------------------------
 
 const sidebar = document.getElementById('sidebar');
 const sidebarToggle = document.getElementById('sidebar-toggle');
@@ -206,6 +229,7 @@ const sendNewsletterBtn = document.getElementById('send-newsletter-btn');
 const sendStatusElement = document.getElementById('send-status');
 
 let currentSelectedTemplateId = null;
+let currentEditedHtml = null; // New variable to hold the currently edited HTML content
 
 // --- NEWSLETTER TEMPLATES ---
 const newsletterTemplates = {
@@ -440,6 +464,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Handle newsletter form submission
     newsletterForm.addEventListener('submit', handleSendNewsletter);
+    
+    // --- NEW TEMPLATE EDITING LISTENERS ---
+    if (toggleEditBtn) toggleEditBtn.addEventListener('click', toggleTemplateEditMode);
+    if (saveTemplateBtn) saveTemplateBtn.addEventListener('click', applyEditedTemplate);
+    if (cancelEditBtn) cancelEditBtn.addEventListener('click', cancelTemplateEdit);
+    // ------------------------------------
 });
 
 /**
@@ -472,6 +502,9 @@ function selectTemplate(templateId) {
     currentSelectedTemplateId = templateId;
     selectedTemplateIdInput.value = templateId;
 
+    // NEW: Initialize the current edited content
+    currentEditedHtml = template.html;
+
     // Update subject input
     subjectInput.value = template.subject;
 
@@ -482,10 +515,15 @@ function selectTemplate(templateId) {
     sendNewsletterBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
     sendNewsletterBtn.disabled = false;
 
-    // Render preview
-    // Note: The HTML is sanitized by the browser's iframe sandbox, but ensure links/images are relative or safe in a real app.
-    templatePreview.srcdoc = template.html;
+    // Render initial preview using the initialized HTML (safe substitution for preview)
+    templatePreview.srcdoc = currentEditedHtml.replace(/\[Customer Name\]/g, 'Subscriber');
     previewContainer.classList.remove('hidden');
+
+    // Show the Edit button
+    if (toggleEditBtn) toggleEditBtn.classList.remove('hidden');
+    
+    // Ensure we are in Preview Mode when a new template is selected
+    setTemplateEditMode(false);
 
     // Update button visual state
     document.querySelectorAll('#template-buttons button').forEach(btn => {
@@ -501,6 +539,82 @@ function selectTemplate(templateId) {
     sendStatusElement.classList.add('hidden');
 }
 
+// --- NEW TEMPLATE EDITING FUNCTIONS ---
+
+/**
+ * Toggles between template preview and HTML edit mode.
+ */
+function toggleTemplateEditMode() {
+    if (!currentSelectedTemplateId) {
+        alert("Please select a template first.");
+        return;
+    }
+    const isCurrentlyEditing = !editorContainer.classList.contains('hidden');
+    setTemplateEditMode(!isCurrentlyEditing);
+}
+
+/**
+ * Sets the template editor mode (edit or preview).
+ * @param {boolean} isEditing - true for edit mode, false for preview mode.
+ */
+function setTemplateEditMode(isEditing) {
+    if (!templateEditor || !editorContainer || !toggleEditBtn) {
+        console.error("Template editing elements not found in DOM.");
+        return;
+    }
+    
+    if (isEditing) {
+        // Switch to EDIT mode
+        previewContainer.classList.add('hidden');
+        editorContainer.classList.remove('hidden');
+        templateEditor.value = currentEditedHtml; // Populate editor with current HTML
+        toggleEditBtn.textContent = '✅ Back to Preview';
+        sendNewsletterBtn.disabled = true; // Disable sending while in edit mode
+    } else {
+        // Switch to PREVIEW mode
+        editorContainer.classList.add('hidden');
+        previewContainer.classList.remove('hidden');
+        // Re-render the preview with the current edited HTML (safe substitution for preview)
+        templatePreview.srcdoc = currentEditedHtml.replace(/\[Customer Name\]/g, 'Subscriber');
+        toggleEditBtn.textContent = '✏️ Edit HTML / Back to Preview';
+        sendNewsletterBtn.disabled = false; // Enable sending
+    }
+}
+
+/**
+ * Applies the changes from the editor and switches back to preview mode.
+ */
+function applyEditedTemplate() {
+    // 1. Save the content from the textarea
+    currentEditedHtml = templateEditor.value;
+
+    // 2. Switch back to preview mode
+    setTemplateEditMode(false);
+
+    // 3. Provide feedback
+    sendStatusElement.textContent = `📝 HTML changes applied and ready to send.`;
+    sendStatusElement.className = 'p-3 mt-4 text-sm text-blue-700 bg-blue-100 rounded-lg text-center';
+    sendStatusElement.classList.remove('hidden');
+}
+
+/**
+ * Discards changes in the editor and reverts to the original template HTML.
+ */
+function cancelTemplateEdit() {
+    const originalTemplate = newsletterTemplates[currentSelectedTemplateId];
+
+    if (confirm('Are you sure you want to discard your changes and revert to the original template?')) {
+        currentEditedHtml = originalTemplate.html;
+        setTemplateEditMode(false);
+
+        sendStatusElement.textContent = `🔄 HTML changes discarded. Reverted to original "${originalTemplate.name}" template.`;
+        sendStatusElement.className = 'p-3 mt-4 text-sm text-orange-700 bg-orange-100 rounded-lg text-center';
+        sendStatusElement.classList.remove('hidden');
+    }
+}
+
+// --- END NEW TEMPLATE EDITING FUNCTIONS ---
+
 /**
  * Handles the submission of the newsletter form.
  * @param {Event} event - The form submission event.
@@ -512,13 +626,18 @@ async function handleSendNewsletter(event) {
         alert("Please select a newsletter template first.");
         return;
     }
+    
+    // NEW CHECK: Prevent sending while the editor is open
+    if (editorContainer && !editorContainer.classList.contains('hidden')) {
+        alert("Please apply or cancel your HTML edits before sending the newsletter.");
+        return;
+    }
 
     const template = newsletterTemplates[currentSelectedTemplateId];
     const subject = subjectInput.value;
 
-    // A simple substitution for the customer name placeholder to make the preview more dynamic.
-    // NOTE: A real system handles per-recipient substitution on the backend.
-    const bodyHtml = template.html.replace(/\[Customer Name\]/g, 'Subscriber');
+    // CRITICAL CHANGE: Use currentEditedHtml (which holds the user's modifications)
+    const bodyHtmlToSend = currentEditedHtml.replace(/\[Customer Name\]/g, 'Subscriber');
 
     sendNewsletterBtn.disabled = true;
     sendNewsletterBtn.textContent = 'Sending... Please wait.';
@@ -536,7 +655,7 @@ async function handleSendNewsletter(event) {
             },
             body: JSON.stringify({
                 subject: subject,
-                htmlContent: bodyHtml,
+                htmlContent: bodyHtmlToSend, // Send the edited HTML content
                 templateId: currentSelectedTemplateId
             })
         });
@@ -592,7 +711,7 @@ function formatDate(dateString) {
     }
 }
 
-// --- DATA FETCHING AND RENDERING LOGIC ---
+// --- DATA FETCHING AND RENDERING LOGIC (NO CHANGES) ---
 
 /**
  * Fetches all registered users from the API.
@@ -697,6 +816,6 @@ async function loadUsersForNewsletter() {
         userTableBody.appendChild(row);
     });
 }
-    </script>
+</script>
 </body>
 </html>

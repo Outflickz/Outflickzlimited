@@ -2201,67 +2201,6 @@ app.get('/api/admin/users/:userId/orders', verifyToken, async (req, res) => {
     }
 });
 
-// Replaced protect, restrictTo('admin') with the single verifyToken middleware
-app.post('/api/admin/email/newsletter', verifyToken, catchAsync(async (req, res, next) => {
-    // 1. Validate Input
-    const { subject, htmlContent, category } = req.body;
-    
-    if (!subject || !htmlContent || !category) {
-        return res.status(400).json({
-            status: 'fail',
-            message: 'Missing required fields: subject, htmlContent, and category are required.',
-        });
-    }
-
-    console.log(`[BACKEND] Preparing to send newsletter: ${subject} (${category})`);
-
-    // 2. Fetch All User Emails
-    // Find all users who are not explicitly unsubscribed (assuming no unsubscribe field here)
-    const users = await User.find({ email: { $exists: true } }).select('email name');
-
-    if (users.length === 0) {
-        console.warn('[BACKEND] No registered users found to send newsletter.');
-        return res.status(200).json({
-            status: 'success',
-            message: 'No recipients found. Newsletter not sent.',
-            sentCount: 0,
-        });
-    }
-
-    // 3. Bulk Email Dispatch
-    const emailPromises = users.map(user => {
-        // Personalize the content (using the {{USERNAME}} placeholder mentioned in the front-end logic)
-        const personalizedContent = htmlContent.replace(/{{USERNAME}}/g, user.name || 'Valued Customer');
-        
-        return sendMail(user.email, subject, personalizedContent)
-            .then(result => {
-                // Return nodemailer result which contains 'accepted' array if successful
-                return result; 
-            })
-            .catch(error => {
-                console.error(`[EMAIL ERROR] Failed to send email to ${user.email}:`, error.message);
-                return { email: user.email, accepted: [] }; // Indicate failure clearly
-            });
-    });
-
-    // Wait for all emails to attempt to send
-    const results = await Promise.all(emailPromises);
-
-    // Count successfully accepted emails
-    const sentEmails = results.filter(r => r && r.accepted && r.accepted.length > 0).length;
-    const failedEmails = users.length - sentEmails;
-    
-    console.log(`[BACKEND] Dispatch complete. Successful: ${sentEmails}, Failed: ${failedEmails}`);
-
-    // 4. Respond to Admin
-    res.status(200).json({
-        status: 'success',
-        message: 'Newsletter dispatch initiated for all registered users.',
-        sentCount: sentEmails,
-        totalAttempts: users.length,
-        failedCount: failedEmails,
-    });
-}));
 
 // =========================================================
 // 8. GET /api/admin/orders/pending - Fetch All Pending Orders (Admin Protected)

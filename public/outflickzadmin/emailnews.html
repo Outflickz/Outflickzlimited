@@ -96,7 +96,6 @@
 
         <section id="content-emailnews" class="content-section p-6 pt-16 lg:pt-6">
             <h2 class="text-2xl font-semibold text-gray-800 mb-6">Email Newsletter Management 📧</h2>
-            
             <div class="bg-white p-6 rounded-xl shadow-lg border-t-2 border-emerald-500">
                 <div class="mb-4 flex justify-between items-center">
                     <h3 class="text-xl font-medium text-gray-700">Registered Users for Newsletter</h3>
@@ -131,7 +130,7 @@
                     </table>
                 </div>
 
-                   <div id="error-message" class="hidden p-4 mt-4 text-sm text-red-700 bg-red-100 rounded-lg">
+                 <div id="error-message" class="hidden p-4 mt-4 text-sm text-red-700 bg-red-100 rounded-lg">
                     Failed to load user data. Check console for details.
                 </div>
             </div>
@@ -140,29 +139,15 @@
                 <h3 class="text-xl font-medium text-gray-700 mb-4">Send a New Newsletter</h3>
                 <form id="newsletter-form" class="space-y-4">
                     <div>
-                        <label for="newsletter-category" class="block text-sm font-medium text-gray-700">Email Category/Purpose</label>
-                        <select id="newsletter-category" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 bg-white focus:ring-emerald-500 focus:border-emerald-500">
-                            <option value="" disabled selected>Select the email's purpose</option>
-                            <option value="New Product/Collection">New Product/Collection Launch</option>
-                            <option value="Pre-Order Announcement">Pre-Order Announcement</option>
-                            <option value="New Caps">New Caps Alert</option>
-                            <option value="New Wears">New Wears Alert</option>
-                            <option value="Sale/Promotion">Sale or Promotion</option>
-                            <option value="Maintenance/Upgrade">Maintenance or Upgrade Notice</option>
-                            <option value="General News">General News/Update</option>
-                        </select>
-                    </div>
-                                        <div>
                         <label for="newsletter-subject" class="block text-sm font-medium text-gray-700">Subject</label>
-                        <input type="text" id="newsletter-subject" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500" placeholder="E.g., HUGE Summer Sale Now Live!">
+                        <input type="text" id="newsletter-subject" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
                     </div>
-                                        <div>
-                        <label for="newsletter-body" class="block text-sm font-medium text-gray-700">Body Content (HTML Allowed)</label>
-                        <textarea id="newsletter-body" rows="8" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500" placeholder="Enter the full HTML content for your email newsletter here. **Use {{USERNAME}} to personalize the greeting.**"></textarea>
-                        <p class="text-xs text-gray-500 mt-1">**Tip:** Use the placeholder <code>{{USERNAME}}</code> in the body content to insert the user's name.</p>
+                    <div>
+                        <label for="newsletter-body" class="block text-sm font-medium text-gray-700">Body Content</label>
+                        <textarea id="newsletter-body" rows="6" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"></textarea>
                     </div>
-                                        <button type="submit" class="w-full py-2 px-4 bg-emerald-600 text-white font-medium rounded-lg shadow-md hover:bg-emerald-700 transition duration-200 disabled:opacity-50">
-                        Send Newsletter to All Registered Users
+                    <button type="submit" class="w-full py-2 px-4 bg-blue-600 text-white font-medium rounded-lg shadow-md hover:bg-blue-700 transition duration-200">
+                        Send to All Registered Users
                     </button>
                 </form>
             </div>
@@ -180,8 +165,7 @@
     const loadingIndicator = document.getElementById('loading-indicator');
     const userTableContainer = document.getElementById('user-table-container');
     const errorMessage = document.getElementById('error-message');
-    const newsletterForm = document.getElementById('newsletter-form'); // Added
-
+    
     // --- NAVIGATION FUNCTIONS (Keep same as dashboard for consistency) ---
     
     function closeSidebarOnMobile() {
@@ -239,92 +223,10 @@
         window.location.href = './admin-login.html'; 
     }
 
-    // --- EMAIL SENDING LOGIC (NEW) ---
-
-    /**
-     * Handles the form submission to send a newsletter to all registered users.
-     * @param {Event} event - The form submission event.
-     */
-    async function sendNewsletter(event) {
-        event.preventDefault();
-
-        const token = localStorage.getItem('adminToken');
-        if (!token) {
-            alert("Authentication failed. Please log in again.");
-            logoutAdmin();
-            return;
-        }
-
-        const subject = document.getElementById('newsletter-subject').value;
-        const bodyContent = document.getElementById('newsletter-body').value;
-        const category = document.getElementById('newsletter-category').value; 
-
-        if (!subject || !bodyContent || !category) {
-            alert("Please fill in the subject, body, and select a category before sending.");
-            return;
-        }
-
-        const button = newsletterForm.querySelector('button[type="submit"]');
-        const originalText = button.textContent;
-        
-        button.disabled = true;
-        button.textContent = 'Sending... Please wait (This may take a moment)';
-        button.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
-        button.classList.add('bg-blue-500'); // Change color to indicate action
-
-        try {
-            console.log(`[FRONTEND] Sending newsletter - Category: ${category}, Subject: ${subject}`);
-            // API ENDPOINT: /api/admin/email/newsletter
-            const response = await fetch('/api/admin/email/newsletter', { 
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
-                },
-                body: JSON.stringify({
-                    subject: subject,
-                    htmlContent: bodyContent, // This is the HTML content from the textarea
-                    category: category
-                })
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ message: response.statusText }));
-
-                if (response.status === 401 || response.status === 403) {
-                    alert(`Unauthorized: ${errorData.message || 'Your admin session may have expired.'}`);
-                    logoutAdmin();
-                    return;
-                }
-                throw new Error(errorData.message || `Server error: ${response.status}`);
-            }
-
-            const result = await response.json();
-            alert(`Newsletter dispatch initiated! \nTotal attempts: ${result.totalAttempts}\nSuccessfully sent: ${result.sentCount}\nFailed: ${result.failedCount}`);
-            
-            // Clear only subject, body, and reset category selection
-            document.getElementById('newsletter-subject').value = '';
-            document.getElementById('newsletter-body').value = '';
-            document.getElementById('newsletter-category').value = '';
-
-        } catch (error) {
-            console.error('[FRONTEND] Error sending newsletter:', error);
-            alert(`Failed to send newsletter: ${error.message || 'Check console for details.'}`);
-        } finally {
-            button.disabled = false;
-            button.textContent = originalText;
-            button.classList.remove('bg-blue-500');
-            button.classList.add('bg-emerald-600', 'hover:bg-emerald-700'); // Restore original color
-        }
-    }
-
     // --- INITIALIZATION AND UI LOGIC ---
 
     document.addEventListener('DOMContentLoaded', () => {
         loadUsersForNewsletter();
-        
-        // **ATTACH NEWSLETTER FORM SUBMISSION HANDLER**
-        newsletterForm.addEventListener('submit', sendNewsletter);
         
         // **CRITICAL MOBILE FIX:** Toggle sidebar visibility on mobile
         sidebarToggle.addEventListener('click', (event) => {
@@ -360,7 +262,6 @@
 
     /**
      * Fetches all registered users from the API.
-     * ASSUMPTION: API endpoint is /api/admin/users/all
      */
     async function fetchAllUsers() {
         const token = localStorage.getItem('adminToken');
@@ -393,6 +294,7 @@
 
             const data = await response.json();
             
+            console.log('[FRONTEND] Data received from API:', data); 
             // The API returns { users: [...], count: N }
             return data.users || [];
 
@@ -430,7 +332,6 @@
         }
 
         users.forEach(user => {
-            // Assuming 'isMember' and 'createdAt' exist on the User model
             const isMember = user.isMember;
             const statusBadge = isMember 
                 ? '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">VIP Member</span>'

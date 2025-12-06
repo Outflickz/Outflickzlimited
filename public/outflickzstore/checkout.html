@@ -727,14 +727,7 @@ if (buyNowItemJSON) {
     // 1. Fix invalid 'productType'. If it's a Cap that somehow lost its type, it 
     // must be defaulted to 'Caps' to prevent lookup in the 'Wears' collection.
     if (!item.productType || item.productType === "undefined" || item.productType === null) {
-        item.productType || 'Uncategorized'; // Fallback to 'Uncategorized' if all else fails
-        if (item.category && item.category.toLowerCase().includes('cap')) {
-            item.productType = 'Caps';
-        } else if (item.category && item.category.toLowerCase().includes('wear')) {
-            item.productType = 'Wears';
-        } else {
-            item.productType = 'Uncategorized'; // Generic fallback
-        }
+        item.productType || 'Uncategorized'; // Fallback to 'Uncategorized' if all else fails,
         console.warn(`Fixed invalid productType to '${item.productType}' for Buy Now item.`);
     }
 
@@ -1123,9 +1116,7 @@ async function processBankTransferOrder(totalAmount, shippingAddress) {
    // --- Main Initialization (Modified to fix the Buy Now/Cart conflict) ---
 document.addEventListener('DOMContentLoaded', () => {
     
-
     sessionStorage.getItem(BUY_NOW_KEY); 
-    
     console.log("CRITICAL FIX APPLIED: Cleared 'buyNowItem' from sessionStorage to force standard cart load.");
 
     // --- Original Logic Starts Here ---

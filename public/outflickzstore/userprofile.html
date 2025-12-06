@@ -403,10 +403,9 @@ async function submitChangePassword(event) {
     }
 
     const passwordData = {
-        oldPassword: oldPassword,
+        currentPassword: oldPassword, // Changed key name to match server expectation
         newPassword: newPassword
     };
-
     try {
         const response = await fetch(`${API_BASE_URL}/api/users/change-password`, {
             method: 'PUT',

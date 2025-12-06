@@ -1115,8 +1115,6 @@ const ActivityLogSchema = new mongoose.Schema({
 
 const ActivityLog = mongoose.model('ActivityLog', ActivityLogSchema);
 
-
-
 const visitorLogSchema = new mongoose.Schema({
     // --- 🔑 CORE IDENTIFIERS ---
     // Used to count unique sessions/visitors
@@ -1184,9 +1182,12 @@ const visitorLogSchema = new mongoose.Schema({
     timestamps: false 
 });
 
+// ✅ CRITICAL OPTIMIZATION: Add a compound index for the main analytics query.
+// This supports the aggregation pipeline's $match (timestamp) and $group (sessionId) stages.
+visitorLogSchema.index({ timestamp: 1, sessionId: 1 }); // 
+
 // Create the model using the same pattern as your other schemas
 const VisitorLog = mongoose.models.VisitorLog || mongoose.model('VisitorLog', visitorLogSchema);
-
 
 // --- DATABASE INTERACTION FUNCTIONS (Unchanged) ---
 async function findAdminUserByEmail(email) {
@@ -1931,7 +1932,6 @@ async function logAdminStatusUpdate(order, adminId, eventType) {
         console.error(`[ActivityLog] FAILED to log status update (${eventType}):`, error);
     }
 }
-
 // Assuming VisitorLog is accessible
 async function getVisitorAnalytics(period = 'daily') {
     let dateRange = 30; // Default to last 30 days for daily chart
@@ -1942,7 +1942,11 @@ async function getVisitorAnalytics(period = 'daily') {
     switch (period) {
         case 'monthly':
             dateRange = 365; // Last 12 months
-            timeUnit = { $month: "$timestamp", year: { $year: "$timestamp" } };
+            // FIX: Assign $month operator to a key (e.g., 'month')
+            timeUnit = { 
+                month: { $month: "$timestamp" }, 
+                year: { $year: "$timestamp" } 
+            };
             break;
         case 'yearly':
             dateRange = 3 * 365; // Last 3 years
@@ -1951,8 +1955,9 @@ async function getVisitorAnalytics(period = 'daily') {
         case 'daily':
         default:
             dateRange = 30; // Last 30 days
+            // FIX: Assign $dayOfYear operator to a key (e.g., 'day')
             timeUnit = { 
-                $dayOfYear: "$timestamp", 
+                day: { $dayOfYear: "$timestamp" }, // Corrected field name
                 year: { $year: "$timestamp" } 
             };
             break;
@@ -1970,7 +1975,7 @@ async function getVisitorAnalytics(period = 'daily') {
         {
             // 2. GROUP by the time unit (day/month/year)
             $group: {
-                _id: timeUnit,
+                _id: timeUnit, // Now uses correct structure, e.g., { day: <number>, year: <number> }
                 // Count unique session IDs (Unique Visitors) for that period
                 uniqueVisitors: { $addToSet: "$sessionId" },
             }
@@ -1982,8 +1987,10 @@ async function getVisitorAnalytics(period = 'daily') {
                 label: { // Create a readable label for the chart
                     $concat: [
                         { $toString: "$_id.year" },
+                        // FIX: Use 'month' and 'day' from the corrected _id structure
                         { $cond: [ { $ifNull: ["$_id.month", false] }, { $concat: ["-", { $toString: "$_id.month" }] }, "" ] },
-                        { $cond: [ { $ifNull: ["$_id.dayOfYear", false] }, { $concat: ["-", { $toString: "$_id.dayOfYear" }] }, "" ] }
+                        { $cond: [ { $ifNull: ["$_id.day", false] }, { $concat: ["-", { $toString: "$_id.day" }] }, "" ] }
+                        // NOTE: Renamed $_id.dayOfYear to $_id.day for consistency with the group stage
                     ]
                 },
                 count: { $size: "$uniqueVisitors" }

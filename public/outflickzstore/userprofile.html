@@ -115,6 +115,22 @@
         }, 5000);
     }
 
+    // Function to toggle password visibility (add this inside your existing <script> tag)
+function togglePasswordVisibility(inputId, iconId) {
+    const input = getElement(inputId);
+    const icon = getElement(iconId);
+
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    }
+}
+
     // --- Submission Handlers (Personal Information) ---
     async function submitEditProfile(event) {
         event.preventDefault();
@@ -750,7 +766,8 @@ async function submitChangePassword(event) {
         </div>
     </div>
 
-    <div id="change-password-modal" class="hidden fixed inset-0 z-[60] overflow-y-auto modal-backdrop flex items-center justify-center p-4" aria-labelledby="modal-title-password" role="dialog" aria-modal="true">
+
+   <div id="change-password-modal" class="hidden fixed inset-0 z-[60] overflow-y-auto modal-backdrop flex items-center justify-center p-4" aria-labelledby="modal-title-password" role="dialog" aria-modal="true">
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-auto transform transition-all">
         <div class="p-6 border-b border-gray-100 flex justify-between items-center">
             <h3 class="text-xl font-bold text-ash-red" id="modal-title-password">Change Password</h3>
@@ -760,19 +777,28 @@ async function submitChangePassword(event) {
         </div>
         <form id="change-password-form" onsubmit="submitChangePassword(event)" class="p-6 space-y-4">
             
-            <div>
+            <div class="relative">
                 <label for="change-password-old" class="block text-sm font-medium text-gray-700">Current Password</label>
-                <input type="password" id="change-password-old" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-ash-red focus:border-ash-red">
+                <input type="password" id="change-password-old" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 pr-10 focus:ring-ash-red focus:border-ash-red">
+                <button type="button" onclick="togglePasswordVisibility('change-password-old', 'toggle-old-icon')" class="absolute inset-y-0 right-0 top-6 flex items-center pr-3 text-gray-500 hover:text-ash-red" aria-label="Toggle password visibility">
+                    <i id="toggle-old-icon" class="fas fa-eye-slash"></i>
+                </button>
             </div>
 
-            <div>
+            <div class="relative">
                 <label for="change-password-new" class="block text-sm font-medium text-gray-700">New Password</label>
-                <input type="password" id="change-password-new" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-ash-red focus:border-ash-red">
+                <input type="password" id="change-password-new" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 pr-10 focus:ring-ash-red focus:border-ash-red">
+                <button type="button" onclick="togglePasswordVisibility('change-password-new', 'toggle-new-icon')" class="absolute inset-y-0 right-0 top-6 flex items-center pr-3 text-gray-500 hover:text-ash-red" aria-label="Toggle password visibility">
+                    <i id="toggle-new-icon" class="fas fa-eye-slash"></i>
+                </button>
             </div>
 
-            <div>
+            <div class="relative">
                 <label for="change-password-confirm" class="block text-sm font-medium text-gray-700">Confirm New Password</label>
-                <input type="password" id="change-password-confirm" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-ash-red focus:border-ash-red">
+                <input type="password" id="change-password-confirm" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 pr-10 focus:ring-ash-red focus:border-ash-red">
+                <button type="button" onclick="togglePasswordVisibility('change-password-confirm', 'toggle-confirm-icon')" class="absolute inset-y-0 right-0 top-6 flex items-center pr-3 text-gray-500 hover:text-ash-red" aria-label="Toggle password visibility">
+                    <i id="toggle-confirm-icon" class="fas fa-eye-slash"></i>
+                </button>
             </div>
             
             <div class="flex justify-end pt-4 space-x-3 border-t border-gray-100 mt-6">

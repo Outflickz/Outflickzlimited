@@ -4331,7 +4331,7 @@ app.post('/api/users/register', async (req, res) => {
         const verificationHtml = `
             <div style="background-color: #ffffffff; padding: 30px; border: 1px solid #ffffffff; max-width: 500px; margin: 0 auto; font-family: sans-serif; border-radius: 8px;">
                 <div style="text-align: center; padding-bottom: 20px;">
-                    <img src="[https://i.imgur.com/1Rxhi9q.jpeg](https://i.imgur.com/1Rxhi9q.jpeg)" alt="Outflickz Limited Logo" style="max-width: 120px; height: auto; display: block; margin: 0 auto;">
+                    <img src="[https://i.imgur.com/6Bvu8yB.png](https://i.imgur.com/6Bvu8yB.png)" alt="Outflickz Limited Logo" style="max-width: 120px; height: auto; display: block; margin: 0 auto;">
                 </div>
                 
                 <h2 style="color: #000000; font-weight: 600; text-align: center;">Verify Your Account</h2>
@@ -4373,7 +4373,7 @@ app.post('/api/users/register', async (req, res) => {
                     const verificationHtml = `
                         <div style="background-color: #ffffffff; padding: 30px; border: 1px solid #ffffffff; max-width: 500px; margin: 0 auto; font-family: sans-serif; border-radius: 8px;">
                             <div style="text-align: center; padding-bottom: 20px;">
-                                <img src="[https://i.imgur.com/1Rxhi9q.jpeg](https://i.imgur.com/1Rxhi9q.jpeg)" alt="Outflickz Limited Logo" style="max-width: 120px; height: auto; display: block; margin: 0 auto;">
+                                <img src="[https://i.imgur.com/6Bvu8yB.png](https://i.imgur.com/6Bvu8yB.png)" alt="Outflickz Limited Logo" style="max-width: 120px; height: auto; display: block; margin: 0 auto;">
                             </div>
                             
                             <h2 style="color: #000000; font-weight: 600; text-align: center;">Verify Your Account</h2>
@@ -4455,7 +4455,7 @@ app.post('/api/users/resend-verification', async (req, res) => {
         const verificationHtml = `
             <div style="background-color: #ffffffff; padding: 30px; border: 1px solid #e0e0e0; max-width: 500px; margin: 0 auto; font-family: sans-serif; border-radius: 8px;">
                 <div style="text-align: center; padding-bottom: 20px;">
-                    <img src="https://i.imgur.com/1Rxhi9q.jpeg" alt="Outflickz Limited Logo" style="max-width: 120px; height: auto; display: block; margin: 0 auto;">
+                    <img src="https://i.imgur.com/6Bvu8yB.png" alt="Outflickz Limited Logo" style="max-width: 120px; height: auto; display: block; margin: 0 auto;">
                 </div>
                 
                 <h2 style="color: #000000; font-weight: 600; text-align: center;">Resent Verification Code</h2>
@@ -4803,7 +4803,7 @@ app.post('/api/users/forgot-password', async (req, res) => {
                 <div style="background-color: #ffffff; color: #000000; padding: 20px; border: 1px solid #eeeeee; max-width: 600px; margin: 0 auto; font-family: sans-serif; border-radius: 8px;">
                     <!-- Outflickz Logo -->
                     <div style="text-align: center; padding-bottom: 20px;">
-                        <img src="https://i.imgur.com/1Rxhi9q.jpeg" alt="Outflickz Limited Logo" style="max-width: 150px; height: auto; display: block; margin: 0 auto;">
+                        <img src="https://i.imgur.com/6Bvu8yB.png" alt="Outflickz Limited Logo" style="max-width: 150px; height: auto; display: block; margin: 0 auto;">
                     </div>
 
                     <h2 style="color: #000000; font-weight: 600;">Password Reset Request</h2>
@@ -5494,7 +5494,7 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
                 <table border="0" cellpadding="0" cellspacing="0" width="600" class="container" style="background-color: #ffffff; border: 1px solid #dddddd; border-radius: 8px;">
                     <tr>
                         <td align="center" style="padding: 20px 0 10px 0;">
-                            <img src="https://i.imgur.com/1Rxhi9q.jpeg" alt="Outfulickz Logo" class="header-logo" width="180" style="display: block; border: 0; max-width: 180px;">
+                            <img src="https://i.imgur.com/6Bvu8yB.png" alt="Outfulickz Logo" class="header-logo" width="180" style="display: block; border: 0; max-width: 180px;">
                         </td>
                     </tr>
                     <tr>

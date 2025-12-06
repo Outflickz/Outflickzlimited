@@ -2548,45 +2548,75 @@ app.put('/api/admin/orders/:orderId/status', verifyToken, async (req, res) => {
     }
 });
 
-// POST /api/admin/email/send - Protected Admin Endpoint for sending mass emails
-app.post('/api/admin/email/send', verifyToken, async (req, res) => {
-    // 1. Input Validation
+
+// --- 3. POST /api/admin/email/send (Send Email Campaign) ---
+app.get('/api/admin/email/send', verifyToken, async (req, res) => {
+
+    // Destructure the payload sent from the 'emailnews.html' client
     const { recipients, subject, htmlContent } = req.body;
 
-    if (!recipients || !subject || !htmlContent || !Array.isArray(recipients) || recipients.length === 0) {
-        return res.status(400).json({ message: 'Missing required email fields (recipients, subject, or content).' });
+    // --- Basic Validation ---
+    if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
+        return res.status(400).json({ message: 'Recipient list cannot be empty.' });
     }
+    if (!subject || subject.trim() === '') {
+        return res.status(400).json({ message: 'Subject line is required.' });
+    }
+    if (!htmlContent || htmlContent.trim() === '') {
+        return res.status(400).json({ message: 'Email content is required.' });
+    }
+
+    let successCount = 0;
+    let failureCount = 0;
+    const failedEmails = [];
     
-    try {
-        // --- 🔑 Use Consistent Sender Name from sendMail Helper's Logic ---
-        const mailOptions = {
-            // NOTE: Use 'Outflickz Limited' to match the helper's branding.
-            from: `"Outflickz Limited" <${EMAIL_USER}>`, 
-            bcc: recipients, // Crucial for mass email privacy
-            subject: subject,
-            html: htmlContent,
-        };
+    // Safety Limit: Prevent accidental send to millions of users in one go
+    const maxRecipients = 5000;
+    const finalRecipients = recipients.slice(0, maxRecipients); 
+    
+    // --- Sending Loop ---
+    for (const email of finalRecipients) {
+        try {
+            // NOTE: The 'sendMail' function is the one defined in the first code snippet
+            await sendMail(email, subject, htmlContent);
+            successCount++;
+        } catch (error) {
+            console.error(`Failed to send email to ${email}:`, error.message);
+            failureCount++;
+            failedEmails.push(email);
+        }
+    }
+    // ----------------------
 
-        // 3. Send the Email using the configured 'transporter' object
-        // (This is how the new 'sendMail' helper function works internally)
-        const info = await transporter.sendMail(mailOptions);
-        
-        console.log(`Email campaign successfully sent. Message ID: ${info.messageId}`);
+    // --- Response Handling ---
+    if (successCount > 0) {
+        const totalAttempted = finalRecipients.length;
+        const message = `Campaign send complete. Successfully sent to ${successCount} out of ${totalAttempted} recipients.`;
 
-        // 4. Success Response
-        return res.status(200).json({ 
-            message: `Email campaign successfully sent to ${recipients.length} users.`,
-            details: info.messageId
-        });
-
-    } catch (error) {
-        console.error('Email sending error:', error);
-        
-        if (error.response) {
-            console.error('SMTP Error Response:', error.response);
+        // If some failed, return a 207 Multi-Status or 202 Accepted with details
+        if (failureCount > 0) {
+            console.warn(`Email Campaign Warning: ${failureCount} emails failed to send.`);
+            return res.status(202).json({ 
+                message: `${message} ${failureCount} emails failed.`,
+                status: 'partial_success',
+                stats: { totalAttempted, successCount, failureCount, failedEmails }
+            });
         }
 
-        return res.status(500).json({ message: 'Server error: Failed to send email campaign. Check SMTP configuration or credentials.' });
+        // If all succeeded
+        return res.status(200).json({ 
+            message: message, 
+            status: 'success',
+            stats: { totalAttempted, successCount, failureCount }
+        });
+        
+    } else {
+        // If the loop ran but all failed (e.g., SMTP issue, configuration error)
+        return res.status(500).json({ 
+            message: 'Email campaign failed completely. Check server logs and email service configuration.', 
+            status: 'complete_failure',
+            stats: { totalAttempted: finalRecipients.length, successCount, failureCount, failedEmails }
+        });
     }
 });
 

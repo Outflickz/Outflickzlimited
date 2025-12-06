@@ -1115,6 +1115,79 @@ const ActivityLogSchema = new mongoose.Schema({
 
 const ActivityLog = mongoose.model('ActivityLog', ActivityLogSchema);
 
+
+
+const visitorLogSchema = new mongoose.Schema({
+    // --- 🔑 CORE IDENTIFIERS ---
+    // Used to count unique sessions/visitors
+    sessionId: { 
+        type: String, 
+        required: true, 
+        index: true // Index for fast lookup/grouping
+    },
+    // Optional: Link to a registered user if they are logged in
+    userId: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'User', 
+        default: null,
+        index: true 
+    },
+    
+    // --- 🌍 EVENT & CONTEXT ---
+    // The URL path visited (e.g., /api/products/123)
+    path: { 
+        type: String, 
+        required: true 
+    },
+    // The full URL including query parameters
+    fullUrl: { 
+        type: String 
+    },
+    // HTTP method used (GET, POST, etc.) - useful for filtering API usage
+    method: {
+        type: String,
+        enum: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+        default: 'GET'
+    },
+    
+    // --- 📍 SOURCE & TIME ---
+    // The timestamp when the event occurred (Crucial for time-based aggregation)
+    timestamp: { 
+        type: Date, 
+        default: Date.now,
+        index: true // Index for time-based queries (e.g., visitors today)
+    },
+    // The source that referred the user (e.g., Google, Twitter, direct)
+    referrer: { 
+        type: String, 
+        default: null 
+    },
+
+    // --- 💻 DEVICE & GEOGRAPHY ---
+    // Device type derived from User-Agent (e.g., 'desktop', 'mobile', 'bot')
+    deviceType: { 
+        type: String 
+    },
+    // The user's IP address (for geographical and unique visitor estimation)
+    ipAddress: { 
+        type: String 
+    },
+    // Basic geographical data derived from IP (e.g., country, city)
+    geo: {
+        country: { type: String, default: null },
+        city: { type: String, default: null }
+    }
+
+}, { 
+    // Mongoose option to ensure we use the explicit 'timestamp' field above 
+    // for when the event occurred, rather than relying on Mongoose's auto-timestamps.
+    timestamps: false 
+});
+
+// Create the model using the same pattern as your other schemas
+const VisitorLog = mongoose.models.VisitorLog || mongoose.model('VisitorLog', visitorLogSchema);
+
+
 // --- DATABASE INTERACTION FUNCTIONS (Unchanged) ---
 async function findAdminUserByEmail(email) {
     const adminUser = await Admin.findOne({ email }).select('+password').lean();
@@ -1859,6 +1932,41 @@ async function logAdminStatusUpdate(order, adminId, eventType) {
     }
 }
 
+async function getVisitorAnalytics() {
+    // Calculate the date for 7 days ago
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const analyticsData = await VisitorLog.aggregate([
+        {
+            // 1. Filter: Select only the log entries within the last 7 days
+            $match: {
+                timestamp: { $gte: sevenDaysAgo }
+            }
+        },
+        {
+            // 2. Group: Combine all matched documents into a single group
+            $group: {
+                _id: null,
+                // Count unique sessionId values ($addToSet) to get Unique Visitors
+                uniqueSessions: { $addToSet: "$sessionId" },
+                // Count total documents ($sum: 1) to get Page Views
+                totalPageViews: { $sum: 1 }
+            }
+        },
+        {
+            // 3. Project: Shape the final output
+            $project: {
+                _id: 0,
+                uniqueVisitorsLast7Days: { $size: "$uniqueSessions" }, // Get the count of unique sessions
+                totalPageViewsLast7Days: "$totalPageViews"
+            }
+        }
+    ]);
+
+    // Return the results, handling the case where no data is found
+    return analyticsData.length > 0 ? analyticsData[0] : { uniqueVisitorsLast7Days: 0, totalPageViewsLast7Days: 0 };
+}
+
 // --- EXPRESS CONFIGURATION AND MIDDLEWARE ---
 const app = express();
 // Ensure express.json() is used BEFORE the update route, but after the full form route
@@ -2137,6 +2245,37 @@ app.get('/api/admin/dashboard/stats', verifyToken, async (req, res) => {
         res.status(500).json({ 
             message: 'Failed to retrieve dashboard stats due to a server crash.',
             internalError: error.message // Optionally expose the message for client-side context
+        });
+    }
+});
+
+/**
+ * GET /api/analytics/visitors/
+ * Retrieves general visitor analytics (e.g., total count, unique visits).
+ */
+app.get('/api/analytics/visitors/', verifyToken, async (req, res) => {
+    try {
+        // Log the start of the request
+        console.log("Attempting to retrieve visitor analytics...");
+        
+        // Call the function to fetch the data
+        const stats = await getVisitorAnalytics();
+        
+        // Log success
+        console.log("Visitor analytics retrieved successfully.");
+        
+        // Respond with the fetched data
+        res.status(200).json(stats);
+        
+    } catch (error) {
+        // Log the full error for debugging purposes
+        console.error("Visitor Analytics API Crash Detected:");
+        console.error(error); // Logs the name, message, and stack trace
+
+        // Send a 500 Internal Server Error response
+        res.status(500).json({ 
+            message: 'Failed to retrieve visitor analytics due to a server error.',
+            internalError: error.message 
         });
     }
 });
@@ -6154,6 +6293,7 @@ module.exports = {
     Order,
     Cart,
     ActivityLog,
+    VisitorLog,
     processOrderCompletion,
     inventoryRollback,
     getProductModel,

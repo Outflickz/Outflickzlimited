@@ -1,426 +1,483 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Settings | E-commerce Admin Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="icon" type="image/png" href="https://i.imgur.com/ioWFyQB.png">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
-    <style>
-        /* Custom scrollbar for a cleaner look */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-thumb {
-            background-color: #05744b; /* emerald-700 */
-            border-radius: 4px;
-        }
-        body {
-            font-family: 'Inter', sans-serif;
-            font-size: 0.95rem;
-        }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings | E-commerce Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="https://i.imgur.com/ioWFyQB.png">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <style>
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #05744b; /* emerald-700 */
+            border-radius: 4px;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+        }
+    </style>
 </head>
 <body class="bg-gray-50 min-h-screen flex">
 
-    <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-emerald-900 text-white transform transition-transform duration-300 z-30 lg:translate-x-0 -translate-x-full shadow-2xl flex flex-col">
-        <div class="p-6 flex-shrink-0">
-            <img src="https://i.imgur.com/Fz9w1BA.png" alt="E-commerce Logo" class="h-10 w-auto mb-6 rounded-lg shadow-md border border-emerald-700">
-            <h1 class="text-xl font-extrabold text-emerald-400 border-t border-emerald-800 pt-4">Commerce Hub</h1>
-        </div>
-        
-        <nav class="space-y-2 px-4 flex-grow overflow-y-auto">
-            <button id="btn-dashboard" onclick="window.location.href='./admin-dashboard.html'" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l-7-7-7 7m10 0v10a1 1 0 01-1 1h-3m-3 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-9 0h10"></path></svg>
-                Dashboard
-            </button>
-            
-            <button id="btn-userorders" onclick="window.location.href='./userorders.html'" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
-                User Orders
-            </button>
-            <button id="btn-wearscollection" onclick="window.location.href='./wearscollection.html'" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
-                Wears Collection
-            </button>
-            <button id="btn-capscollection" onclick="window.location.href='./capscollection.html'" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 13h10M4 19v-6a3 3 0 013-3h10a3 3 0 013 3v6a3 3 0 01-3 3H7a3 3 0 01-3-3z"></path></svg>
-                Caps Collection
-            </button>
-            <button id="btn-newarrivals" onclick="window.location.href='./newarrivals.html'" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                New Arrivals
-            </button>
-            <button id="btn-preorders" onclick="window.location.href='./preorders.html'" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
-                Pre-Order 
-            </button>
-            <button id="btn-membership" onclick="window.location.href='./membership.html'" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3v-5a2 2 0 00-2-2H5a2 2 0 00-2 2v5a3 3 0 003 3z"></path></svg>
-                Membership
-            </button>
-            <button id="btn-emailnews" onclick="window.location.href='./emailnews.html'" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3v-5a2 2 0 00-2-2H5a2 2 0 00-2 2v5a3 3 0 003 3z"></path></svg>
-                Email News
-            </button>
-            <button id="btn-settings" onclick="window.location.href='./settings.html'" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-emerald-600 hover:bg-emerald-700 active-link">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.526.34.813.486 1.066-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                Settings
-            </button>
-        </nav>
-        
-        <div class="p-4 flex-shrink-0 border-t border-emerald-800">
-            <button id="btn-logout" onclick="logoutAdmin()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-red-600 hover:bg-red-700 text-white shadow-lg">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                Log Out
-            </button>
-        </div>
-    </aside>
+    <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-emerald-900 text-white transform transition-transform duration-300 z-30 lg:translate-x-0 -translate-x-full shadow-2xl flex flex-col">
+        <div class="p-6 flex-shrink-0">
+            <img src="https://i.imgur.com/Fz9w1BA.png" alt="E-commerce Logo" class="h-10 w-auto mb-6 rounded-lg shadow-md border border-emerald-700">
+            <h1 class="text-xl font-extrabold text-emerald-400 border-t border-emerald-800 pt-4">Commerce Hub</h1>
+        </div>
+        
+        <nav class="space-y-2 px-4 flex-grow overflow-y-auto">
+            <button id="btn-dashboard" onclick="window.location.href='./admin-dashboard.html'" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l-7-7-7 7m10 0v10a1 1 0 01-1 1h-3m-3 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-9 0h10"></path></svg>
+                Dashboard
+            </button>
+            
+            <button id="btn-userorders" onclick="window.location.href='./userorders.html'" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                User Orders
+            </button>
+            <button id="btn-wearscollection" onclick="window.location.href='./wearscollection.html'" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                Wears Collection
+            </button>
+            <button id="btn-capscollection" onclick="window.location.href='./capscollection.html'" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 13h10M4 19v-6a3 3 0 013-3h10a3 3 0 013 3v6a3 3 0 01-3 3H7a3 3 0 01-3-3z"></path></svg>
+                Caps Collection
+            </button>
+            <button id="btn-newarrivals" onclick="window.location.href='./newarrivals.html'" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                New Arrivals
+            </button>
+            <button id="btn-preorders" onclick="window.location.href='./preorders.html'" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                Pre-Order 
+            </button>
+            <button id="btn-membership" onclick="window.location.href='./membership.html'" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3v-5a2 2 0 00-2-2H5a2 2 0 00-2 2v5a3 3 0 003 3z"></path></svg>
+                Membership
+            </button>
+            <button id="btn-emailnews" onclick="window.location.href='./emailnews.html'" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3v-5a2 2 0 00-2-2H5a2 2 0 00-2 2v5a3 3 0 003 3z"></path></svg>
+                Email News
+            </button>
+            <button id="btn-settings" onclick="window.location.href='./settings.html'" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-emerald-600 hover:bg-emerald-700 active-link">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.526.34.813.486 1.066-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                Settings
+            </button>
+        </nav>
+        
+        <div class="p-4 flex-shrink-0 border-t border-emerald-800">
+            <button id="btn-logout" onclick="logoutAdmin()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-red-600 hover:bg-red-700 text-white shadow-lg">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                Log Out
+            </button>
+        </div>
+    </aside>
 
-    <main class="flex-1 lg:ml-64 p-4 transition-all duration-300 overflow-x-hidden">
-        <button id="sidebar-toggle" class="lg:hidden fixed top-4 left-4 z-40 p-2 bg-emerald-600 text-white rounded-lg shadow-lg hover:bg-emerald-700 transition">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-        </button>
+    <main class="flex-1 lg:ml-64 p-4 transition-all duration-300 overflow-x-hidden">
+        <button id="sidebar-toggle" class="lg:hidden fixed top-4 left-4 z-40 p-2 bg-emerald-600 text-white rounded-lg shadow-lg hover:bg-emerald-700 transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        </button>
 
-        <section id="content-settings" class="content-section p-6 pt-16 lg:pt-6">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-6">Application Settings & Admin Profile ⚙️</h2>
-            
-            <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
-                <h3 class="text-xl font-semibold text-gray-700 mb-4 border-b pb-2">Platform Configuration</h3>
-                <p class="text-gray-700 text-sm">Manage core configurations and system parameters for the e-commerce platform.</p>
-                <div class="mt-6 space-y-4">
-                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
-                        <label for="maintenance-mode" class="text-gray-600 text-sm">Enable Maintenance Mode</label>
-                        <input type="checkbox" id="maintenance-mode" class="h-4 w-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500">
-                    </div>
-                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
-                        <label for="max-users" class="text-gray-600 text-sm">Max Registered Users Limit</label>
-                        <input type="number" id="max-users" value="1000" class="w-24 border border-gray-300 rounded-md p-1 text-center text-sm focus:border-emerald-500 focus:ring-emerald-500">
-                    </div>
-                </div>
-                <button class="mt-6 w-full md:w-auto py-2 px-6 bg-emerald-600 text-white font-medium rounded-lg shadow-md hover:bg-emerald-700 transition duration-200">
-                    Save Global Settings
-                </button>
-            </div>
-            
-            <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-t-4 border-emerald-500">
-                <h3 class="text-xl font-semibold text-gray-700 mb-4 border-b pb-2">Website Visitor Trends 📈</h3>
-                
-                <div class="flex space-x-4 mb-6">
-                    <button id="chart-daily" class="py-1 px-4 text-sm font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition">Daily</button>
-                    <button id="chart-monthly" class="py-1 px-4 text-sm font-medium rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition">Monthly</button>
-                    <button id="chart-yearly" class="py-1 px-4 text-sm font-medium rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition">Yearly</button>
-                </div>
+        <section id="content-settings" class="content-section p-6 pt-16 lg:pt-6">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6">Application Settings & Admin Profile ⚙️</h2>
+            
+            <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+                <h3 class="text-xl font-semibold text-gray-700 mb-4 border-b pb-2">Platform Configuration</h3>
+                <p class="text-gray-700 text-sm">Manage core configurations and system parameters for the e-commerce platform.</p>
+                <div class="mt-6 space-y-4">
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                        <label for="maintenance-mode" class="text-gray-600 text-sm">Enable Maintenance Mode</label>
+                        <input type="checkbox" id="maintenance-mode" class="h-4 w-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500">
+                    </div>
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                        <label for="max-users" class="block text-gray-600 text-sm">Max Registered Users Limit</label>
+                        <input type="number" id="max-users" value="1000" class="w-24 border border-gray-300 rounded-md p-1 text-center text-sm focus:border-emerald-500 focus:ring-emerald-500">
+                    </div>
+                </div>
+                <button class="mt-6 w-full md:w-auto py-2 px-6 bg-emerald-600 text-white font-medium rounded-lg shadow-md hover:bg-emerald-700 transition duration-200">
+                    Save Global Settings
+                </button>
+            </div>
+            
+            <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-t-4 border-emerald-500">
+                <h3 class="text-xl font-semibold text-gray-700 mb-4 border-b pb-2">Website Visitor Trends 📈</h3>
+                
+                <div class="flex space-x-4 mb-6">
+                    <button id="chart-daily" class="py-1 px-4 text-sm font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition">Daily</button>
+                    <button id="chart-monthly" class="py-1 px-4 text-sm font-medium rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition">Monthly</button>
+                    <button id="chart-yearly" class="py-1 px-4 text-sm font-medium rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition">Yearly</button>
+            </div>
 
-                <div class="relative h-80 md:h-96">
-                    <canvas id="visitor-chart"></canvas>
-                </div>
-            </div>
+                <div class="relative h-80 md:h-96">
+                    <canvas id="visitor-chart"></canvas>
+                </div>
+            </div>
 
-            <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-red-500">
-                <h3 class="text-xl font-semibold text-red-700 mb-4 border-b pb-2">Admin Password Management</h3>
-                <div id="password-status-message" class="hidden p-3 mb-4 rounded-lg text-sm transition duration-300" role="alert"></div>
-                
-                <form id="change-admin-password-form">
-                    <div class="space-y-4">
-                        <div>
-                            <label for="current-password" class="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
-                            <input type="password" id="current-password" name="currentPassword" required class="w-full border border-gray-300 rounded-lg p-2 focus:ring-red-500 focus:border-red-500" placeholder="Enter your current password">
-                        </div>
-                        <div>
-                            <label for="new-password" class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
-                            <input type="password" id="new-password" name="newPassword" required class="w-full border border-gray-300 rounded-lg p-2 focus:ring-red-500 focus:border-red-500" placeholder="Minimum 8 characters">
-                            <p class="text-xs text-gray-500 mt-1">Must be at least 8 characters long.</p>
-                        </div>
-                        <div>
-                            <label for="confirm-new-password" class="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
-                            <input type="password" id="confirm-new-password" required class="w-full border border-gray-300 rounded-lg p-2 focus:ring-red-500 focus:border-red-500" placeholder="Re-enter new password">
-                        </div>
-                    </div>
-                    <button type="submit" id="submit-password-btn" class="mt-6 w-full py-2 px-6 bg-red-600 text-white font-medium rounded-lg shadow-md hover:bg-red-700 transition duration-200">
-                        Change Password
-                    </button>
-                </form>
-            </div>
+            <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-red-500">
+                <h3 class="text-xl font-semibold text-red-700 mb-4 border-b pb-2">Admin Password Management</h3>
+                <div id="password-status-message" class="hidden p-3 mb-4 rounded-lg text-sm transition duration-300" role="alert"></div>
+                
+                <form id="change-admin-password-form">
+                    <div class="space-y-4">
+                        <div>
+                            <label for="current-password" class="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                            <input type="password" id="current-password" name="currentPassword" required class="w-full border border-gray-300 rounded-lg p-2 focus:ring-red-500 focus:border-red-500" placeholder="Enter your current password">
+                        </div>
+                        <div>
+                            <label for="new-password" class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                            <input type="password" id="new-password" name="newPassword" required class="w-full border border-gray-300 rounded-lg p-2 focus:ring-red-500 focus:border-red-500" placeholder="Minimum 8 characters">
+                            <p class="text-xs text-gray-500 mt-1">Must be at least 8 characters long.</p>
+                        </div>
+                        <div>
+                            <label for="confirm-new-password" class="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                            <input type="password" id="confirm-new-password" required class="w-full border border-gray-300 rounded-lg p-2 focus:ring-red-500 focus:border-red-500" placeholder="Re-enter new password">
+                        </div>
+                    </div>
+                    <button type="submit" id="submit-password-btn" class="mt-6 w-full py-2 px-6 bg-red-600 text-white font-medium rounded-lg shadow-md hover:bg-red-700 transition duration-200">
+                        Change Password
+                    </button>
+                </form>
+            </div>
 
-        </section>
+        </section>
 
-    </main>
+    </main>
 
-    <script>
-    // --- JAVASCRIPT LOGIC ---
+    <script>
+    // --- JAVASCRIPT LOGIC ---
 
-    const sidebar = document.getElementById('sidebar');
-    const sidebarToggle = document.getElementById('sidebar-toggle');
-    const passwordForm = document.getElementById('change-admin-password-form');
-    const passwordStatusMessage = document.getElementById('password-status-message');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const passwordForm = document.getElementById('change-admin-password-form');
+    const passwordStatusMessage = document.getElementById('password-status-message');
 
-    // Chart elements
-    const chartCanvas = document.getElementById('visitor-chart');
-    const dailyBtn = document.getElementById('chart-daily');
-    const monthlyBtn = document.getElementById('chart-monthly');
-    const yearlyBtn = document.getElementById('chart-yearly');
-    let visitorChart; // Variable to hold the Chart.js instance
+    // Chart elements
+    const chartCanvas = document.getElementById('visitor-chart');
+    const dailyBtn = document.getElementById('chart-daily');
+    const monthlyBtn = document.getElementById('chart-monthly');
+    const yearlyBtn = document.getElementById('chart-yearly');
+    let visitorChart; // Variable to hold the Chart.js instance
 
-    // API_BASE_URL is not defined in the provided HTML, assuming it's relative or needs defining.
-    const API_BASE_URL = ''; 
-
-    // Dummy Data for the Chart (Replace this with API calls to the backend later)
-    const visitorData = {
-        daily: {
-            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-            data: [320, 450, 510, 390, 680, 800, 650]
-        },
-        monthly: {
-            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-            data: [8500, 7200, 9100, 10500, 11800, 15000, 13400, 12900, 11500, 14000, 16200, 18100]
-        },
-        yearly: {
-            labels: ['2020', '2021', '2022', '2023', '2024', '2025'],
-            data: [55000, 78000, 95000, 120000, 155000, 185000]
-        }
-    };
+    // API_BASE_URL is not defined in the provided HTML, assuming it's relative or needs defining.
+    const API_BASE_URL = ''; 
 
 
-    // --- UTILITY FUNCTIONS ---
+    // --- UTILITY FUNCTIONS ---
 
-    function logoutAdmin() {
-        console.log("Logging out... Clearing admin token.");
-        localStorage.removeItem('adminToken');
-        window.location.href = './admin-login.html'; 
-    }
+    function logoutAdmin() {
+        console.log("Logging out... Clearing admin token.");
+        localStorage.removeItem('adminToken');
+        window.location.href = './admin-login.html'; 
+    }
 
-    function showPasswordStatusMessage(message, isSuccess) {
-        passwordStatusMessage.textContent = message;
-        passwordStatusMessage.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700');
-        
-        if (isSuccess) {
-            passwordStatusMessage.classList.add('bg-green-100', 'text-green-700');
-        } else {
-            passwordStatusMessage.classList.add('bg-red-100', 'text-red-700');
-        }
-    }
+    function showPasswordStatusMessage(message, isSuccess) {
+        passwordStatusMessage.textContent = message;
+        passwordStatusMessage.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700');
+        
+        if (isSuccess) {
+            passwordStatusMessage.classList.add('bg-green-100', 'text-green-700');
+        } else {
+            passwordStatusMessage.classList.add('bg-red-100', 'text-red-700');
+        }
+    }
 
-
-    // --- CHART LOGIC ---
+    // --- API DATA FETCHING LOGIC ---
 
     /**
-     * Initializes or updates the Chart.js line chart.
+     * Fetches visitor data for a given period from the backend API.
+     * Assumes endpoints: /api/analytics/visitors/daily, /api/analytics/visitors/monthly, /api/analytics/visitors/yearly
      * @param {string} period - 'daily', 'monthly', or 'yearly'
+     * @returns {Promise<object>} - A promise that resolves to an object with { labels: [], data: [] }
      */
-    function renderVisitorChart(period) {
-        const dataSet = visitorData[period] || visitorData.daily;
-        const ctx = chartCanvas.getContext('2d');
-
-        // Destroy existing chart instance before creating a new one
-        if (visitorChart) {
-            visitorChart.destroy();
-        }
-
-        visitorChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: dataSet.labels,
-                datasets: [{
-                    label: `Total Visitors (${period.charAt(0).toUpperCase() + period.slice(1)})`,
-                    data: dataSet.data,
-                    borderColor: '#059669', // emerald-600
-                    backgroundColor: 'rgba(5, 150, 105, 0.1)', // Light emerald fill
-                    tension: 0.4, // Smooth curve
-                    pointRadius: 4,
-                    pointHoverRadius: 6,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top',
-                    },
-                    tooltip: {
-                         callbacks: {
-                            label: function(context) {
-                                let label = context.dataset.label || '';
-                                if (label) {
-                                    label += ': ';
-                                }
-                                if (context.parsed.y !== null) {
-                                    label += new Intl.NumberFormat('en-US').format(context.parsed.y);
-                                }
-                                return label;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Number of Visitors'
-                        },
-                        ticks: {
-                            callback: function(value, index, ticks) {
-                                return new Intl.NumberFormat('en-US').format(value);
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    /**
-     * Updates the UI to highlight the active chart button.
-     * @param {HTMLElement} activeElement 
-     */
-    function setActiveButton(activeElement) {
-        const buttons = [dailyBtn, monthlyBtn, yearlyBtn];
-        buttons.forEach(btn => {
-            btn.classList.remove('bg-emerald-600', 'text-white');
-            btn.classList.add('bg-gray-200', 'text-gray-700');
-        });
-        activeElement.classList.remove('bg-gray-200', 'text-gray-700');
-        activeElement.classList.add('bg-emerald-600', 'text-white');
-    }
-
-
-    // --- PASSWORD CHANGE LOGIC (kept as is) ---
-
-    async function submitChangeAdminPassword(event) {
-        event.preventDefault();
-        const button = document.getElementById('submit-password-btn');
-        const originalText = button.textContent;
-        passwordStatusMessage.classList.add('hidden'); 
-
-        const currentPassword = document.getElementById('current-password').value;
-        const newPassword = document.getElementById('new-password').value;
-        const confirmPassword = document.getElementById('confirm-new-password').value;
+    async function fetchVisitorData(period) {
         const token = localStorage.getItem('adminToken');
-
         if (!token) {
-            showPasswordStatusMessage('Authentication token missing. Please log in.', false);
-            setTimeout(logoutAdmin, 1500);
-            return;
+            console.error("Authentication token missing for chart data.");
+            showPasswordStatusMessage('Session expired. Please log in again.', false);
+            setTimeout(logoutAdmin, 2000);
+            return { labels: [], data: [] };
         }
-
-        if (newPassword !== confirmPassword) {
-            showPasswordStatusMessage('New password and confirmation do not match.', false);
-            return;
-        }
-
-        if (newPassword.length < 8) {
-             showPasswordStatusMessage('New password must be at least 8 characters long.', false);
-             return;
-        }
-
-        // Set loading state
-        button.disabled = true;
-        button.textContent = 'Updating...';
-
-        const passwordData = {
-            currentPassword: currentPassword,
-            newPassword: newPassword
-        };
+        
+        // Construct the endpoint based on the period
+        const endpoint = `${API_BASE_URL}/api/analytics/visitors/${period}`; 
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/admin/change-password`, {
-                method: 'PUT',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
-                },
-                body: JSON.stringify(passwordData)
+            const response = await fetch(endpoint, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
             });
 
-            const data = await response.json();
-
             if (!response.ok) {
-                const errorMessage = data.message || 'Failed to change password.';
-                showPasswordStatusMessage(errorMessage, false);
-                console.error('Password Change Error:', errorMessage);
+                const errorData = await response.json().catch(() => ({ message: 'Unknown API error' }));
+                console.error(`Error fetching ${period} visitor data:`, errorData.message);
+                
                 if (response.status === 401 || response.status === 403) {
-                     setTimeout(logoutAdmin, 2000); 
+                     showPasswordStatusMessage('Session expired. Please log in again.', false);
+                     setTimeout(logoutAdmin, 2000);
                 }
-                throw new Error(errorMessage);
+                
+                return { labels: [], data: [] }; 
             }
 
-            // SUCCESS
-            showPasswordStatusMessage('Password updated successfully! You will be logged out to re-authenticate.', true);
+            const data = await response.json();
             
-            setTimeout(logoutAdmin, 3000); 
+            // Assuming the API response structure is { labels: [...], data: [...] }
+            return data; 
 
         } catch (error) {
-            console.error('Password Change Error:', error);
-            if (error.message.includes('Failed to fetch')) {
-                showPasswordStatusMessage('Network error: Could not reach the server.', false);
-            }
-        } finally {
-            if (!document.getElementById('password-status-message').textContent.includes('logged out')) {
-                 button.disabled = false;
-                 button.textContent = originalText;
-            }
+            console.error('Network error fetching visitor data:', error);
+            return { labels: [], data: [] };
         }
     }
 
 
-    // --- INITIALIZATION AND UI LOGIC ---
+    // --- CHART LOGIC ---
 
-    document.addEventListener('DOMContentLoaded', () => {
-        // Check for admin token on load, redirect if missing
-        if (!localStorage.getItem('adminToken')) {
-            console.log("No token found, redirecting to admin login.");
-            window.location.href = './admin-login.html';
+    /**
+     * Initializes or updates the Chart.js line chart by fetching data from the API.
+     * @param {string} period - 'daily', 'monthly', or 'yearly'
+     */
+    async function renderVisitorChart(period) {
+        const ctx = chartCanvas.getContext('2d');
+
+        // 1. Destroy existing chart instance to clear the canvas/old chart
+        if (visitorChart) {
+            visitorChart.destroy();
+            visitorChart = null;
+        }
+
+        // Optional: Display a temporary "Loading..." message
+        ctx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
+        ctx.font = '16px Inter, sans-serif';
+        ctx.fillStyle = '#6b7280'; // gray-500
+        ctx.textAlign = 'center';
+        ctx.fillText('Loading visitor data...', chartCanvas.width / 2, chartCanvas.height / 2);
+
+
+        // 2. Fetch data from API
+        const dataSet = await fetchVisitorData(period); 
+        
+        // 3. Check data validity and handle errors
+        if (!dataSet || !dataSet.data || dataSet.data.length === 0) {
+            // Clear loading text and display error/no data message
+            ctx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
+            ctx.fillStyle = '#ef4444'; // red-500
+            ctx.fillText('No data available or error loading data.', chartCanvas.width / 2, chartCanvas.height / 2);
             return;
         }
-        
-        // Initialize the visitor chart to 'Daily' when the page loads
-        renderVisitorChart('daily');
-        setActiveButton(dailyBtn);
 
-        // Event listeners for Chart Buttons
-        dailyBtn.addEventListener('click', () => {
-            renderVisitorChart('daily');
-            setActiveButton(dailyBtn);
-        });
+        // 4. Render the new chart instance
+        visitorChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: dataSet.labels, // Use fetched labels
+                datasets: [{
+                    label: `Total Visitors (${period.charAt(0).toUpperCase() + period.slice(1)})`,
+                    data: dataSet.data, // Use fetched data
+                    borderColor: '#059669', // emerald-600
+                    backgroundColor: 'rgba(5, 150, 105, 0.1)', // Light emerald fill
+                    tension: 0.4, // Smooth curve
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                    },
+                    tooltip: {
+                         callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += new Intl.NumberFormat('en-US').format(context.parsed.y);
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Visitors'
+                        },
+                        ticks: {
+                            callback: function(value, index, ticks) {
+                                return new Intl.NumberFormat('en-US').format(value);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
 
-        monthlyBtn.addEventListener('click', () => {
-            renderVisitorChart('monthly');
-            setActiveButton(monthlyBtn);
-        });
+    /**
+     * Updates the UI to highlight the active chart button.
+     * @param {HTMLElement} activeElement 
+     */
+    function setActiveButton(activeElement) {
+        const buttons = [dailyBtn, monthlyBtn, yearlyBtn];
+        buttons.forEach(btn => {
+            btn.classList.remove('bg-emerald-600', 'text-white');
+            btn.classList.add('bg-gray-200', 'text-gray-700');
+        });
+        activeElement.classList.remove('bg-gray-200', 'text-gray-700');
+        activeElement.classList.add('bg-emerald-600', 'text-white');
+    }
 
-        yearlyBtn.addEventListener('click', () => {
-            renderVisitorChart('yearly');
-            setActiveButton(yearlyBtn);
-        });
+
+    // --- PASSWORD CHANGE LOGIC (kept as is) ---
+
+    async function submitChangeAdminPassword(event) {
+        event.preventDefault();
+        const button = document.getElementById('submit-password-btn');
+        const originalText = button.textContent;
+        passwordStatusMessage.classList.add('hidden'); 
+
+        const currentPassword = document.getElementById('current-password').value;
+        const newPassword = document.getElementById('new-password').value;
+        const confirmPassword = document.getElementById('confirm-new-password').value;
+        const token = localStorage.getItem('adminToken');
+
+        if (!token) {
+            showPasswordStatusMessage('Authentication token missing. Please log in.', false);
+            setTimeout(logoutAdmin, 1500);
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            showPasswordStatusMessage('New password and confirmation do not match.', false);
+            return;
+        }
+
+        if (newPassword.length < 8) {
+             showPasswordStatusMessage('New password must be at least 8 characters long.', false);
+             return;
+        }
+
+        // Set loading state
+        button.disabled = true;
+        button.textContent = 'Updating...';
+
+        const passwordData = {
+            currentPassword: currentPassword,
+            newPassword: newPassword
+        };
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/admin/change-password`, {
+                method: 'PUT',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
+                },
+                body: JSON.stringify(passwordData)
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                const errorMessage = data.message || 'Failed to change password.';
+                showPasswordStatusMessage(errorMessage, false);
+                console.error('Password Change Error:', errorMessage);
+                if (response.status === 401 || response.status === 403) {
+                     setTimeout(logoutAdmin, 2000); 
+                }
+                throw new Error(errorMessage);
+            }
+
+            // SUCCESS
+            showPasswordStatusMessage('Password updated successfully! You will be logged out to re-authenticate.', true);
+            
+            setTimeout(logoutAdmin, 3000); 
+
+        } catch (error) {
+            console.error('Password Change Error:', error);
+            if (error.message && error.message.includes('Failed to fetch')) {
+                showPasswordStatusMessage('Network error: Could not reach the server.', false);
+            }
+        } finally {
+            if (!document.getElementById('password-status-message').textContent.includes('logged out')) {
+                 button.disabled = false;
+                 button.textContent = originalText;
+            }
+        }
+    }
 
 
-        // Sidebar toggle logic
-        sidebarToggle.addEventListener('click', (event) => {
-            event.stopPropagation();
-            sidebar.classList.toggle('-translate-x-full');
-        });
+    // --- INITIALIZATION AND UI LOGIC ---
 
-        // Event listener for closing sidebar on main content click (mobile)
-        document.querySelector('main').addEventListener('click', (event) => {
-             if (!sidebar.classList.contains('-translate-x-full') && window.innerWidth < 1024) {
-                 sidebar.classList.add('-translate-x-full');
-             }
-        });
-        
-        // Prevent click inside sidebar from closing it (on mobile)
-        sidebar.addEventListener('click', (event) => {
-            event.stopPropagation();
-        });
+    document.addEventListener('DOMContentLoaded', () => {
+        // Check for admin token on load, redirect if missing
+        if (!localStorage.getItem('adminToken')) {
+            console.log("No token found, redirecting to admin login.");
+            window.location.href = './admin-login.html';
+            return;
+        }
+        
+        // Initialize the visitor chart to 'Daily' when the page loads
+        renderVisitorChart('daily');
+        setActiveButton(dailyBtn);
 
-        // Attach password form submission handler
-        passwordForm.addEventListener('submit', submitChangeAdminPassword);
-    });
+        // Event listeners for Chart Buttons
+        dailyBtn.addEventListener('click', () => {
+            renderVisitorChart('daily');
+            setActiveButton(dailyBtn);
+        });
 
-    </script>
+        monthlyBtn.addEventListener('click', () => {
+            renderVisitorChart('monthly');
+            setActiveButton(monthlyBtn);
+        });
+
+        yearlyBtn.addEventListener('click', () => {
+            renderVisitorChart('yearly');
+            setActiveButton(yearlyBtn);
+        });
+
+
+        // Sidebar toggle logic
+        sidebarToggle.addEventListener('click', (event) => {
+            event.stopPropagation();
+            sidebar.classList.toggle('-translate-x-full');
+        });
+
+        // Event listener for closing sidebar on main content click (mobile)
+        document.querySelector('main').addEventListener('click', (event) => {
+             if (!sidebar.classList.contains('-translate-x-full') && window.innerWidth < 1024) {
+                 sidebar.classList.add('-translate-x-full');
+             }
+        });
+        
+        // Prevent click inside sidebar from closing it (on mobile)
+        sidebar.addEventListener('click', (event) => {
+            event.stopPropagation();
+        });
+
+        // Attach password form submission handler
+        passwordForm.addEventListener('submit', submitChangeAdminPassword);
+    });
+
+    </script>
 </body>
 </html>

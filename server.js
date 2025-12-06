@@ -2247,7 +2247,7 @@ app.post('/api/admin/forgot-password', async (req, res) => {
     res.status(200).json({ message: 'If an account with that email address exists, a password reset link has been sent.' });
 });
 
-app.put('/api/admin/change-password', verifyToken, async (req, res) => {
+app.put('/api/admin/change-password', async (req, res) => {
     // req.adminId is set by the verifyAdminToken middleware
     const { currentPassword, newPassword } = req.body;
 

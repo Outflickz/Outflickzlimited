@@ -1932,39 +1932,75 @@ async function logAdminStatusUpdate(order, adminId, eventType) {
     }
 }
 
-async function getVisitorAnalytics() {
-    // Calculate the date for 7 days ago
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+// Assuming VisitorLog is accessible
+async function getVisitorAnalytics(period = 'daily') {
+    let dateRange = 30; // Default to last 30 days for daily chart
+    let timeUnit;       // MongoDB date part to group by
+    let timeFilter;     // Date object to start filtering from
+
+    // Define filter/grouping based on the period
+    switch (period) {
+        case 'monthly':
+            dateRange = 365; // Last 12 months
+            timeUnit = { $month: "$timestamp", year: { $year: "$timestamp" } };
+            break;
+        case 'yearly':
+            dateRange = 3 * 365; // Last 3 years
+            timeUnit = { $year: "$timestamp" };
+            break;
+        case 'daily':
+        default:
+            dateRange = 30; // Last 30 days
+            timeUnit = { 
+                $dayOfYear: "$timestamp", 
+                year: { $year: "$timestamp" } 
+            };
+            break;
+    }
+    
+    timeFilter = new Date(Date.now() - dateRange * 24 * 60 * 60 * 1000);
 
     const analyticsData = await VisitorLog.aggregate([
         {
-            // 1. Filter: Select only the log entries within the last 7 days
+            // 1. FILTER by the last X days
             $match: {
-                timestamp: { $gte: sevenDaysAgo }
+                timestamp: { $gte: timeFilter }
             }
         },
         {
-            // 2. Group: Combine all matched documents into a single group
+            // 2. GROUP by the time unit (day/month/year)
             $group: {
-                _id: null,
-                // Count unique sessionId values ($addToSet) to get Unique Visitors
-                uniqueSessions: { $addToSet: "$sessionId" },
-                // Count total documents ($sum: 1) to get Page Views
-                totalPageViews: { $sum: 1 }
+                _id: timeUnit,
+                // Count unique session IDs (Unique Visitors) for that period
+                uniqueVisitors: { $addToSet: "$sessionId" },
             }
         },
         {
-            // 3. Project: Shape the final output
+            // 3. PROJECT: Format and count the size of the unique set
             $project: {
                 _id: 0,
-                uniqueVisitorsLast7Days: { $size: "$uniqueSessions" }, // Get the count of unique sessions
-                totalPageViewsLast7Days: "$totalPageViews"
+                label: { // Create a readable label for the chart
+                    $concat: [
+                        { $toString: "$_id.year" },
+                        { $cond: [ { $ifNull: ["$_id.month", false] }, { $concat: ["-", { $toString: "$_id.month" }] }, "" ] },
+                        { $cond: [ { $ifNull: ["$_id.dayOfYear", false] }, { $concat: ["-", { $toString: "$_id.dayOfYear" }] }, "" ] }
+                    ]
+                },
+                count: { $size: "$uniqueVisitors" }
             }
+        },
+        {
+            // 4. SORT chronologically
+            $sort: { label: 1 }
         }
     ]);
 
-    // Return the results, handling the case where no data is found
-    return analyticsData.length > 0 ? analyticsData[0] : { uniqueVisitorsLast7Days: 0, totalPageViewsLast7Days: 0 };
+    // 5. FORMAT output into { labels: [], data: [] }
+    const labels = analyticsData.map(item => item.label);
+    const data = analyticsData.map(item => item.count);
+    
+    // Return the structure expected by Chart.js in the frontend
+    return { labels, data };
 }
 
 // --- EXPRESS CONFIGURATION AND MIDDLEWARE ---
@@ -2249,30 +2285,24 @@ app.get('/api/admin/dashboard/stats', verifyToken, async (req, res) => {
     }
 });
 
-/**
- * GET /api/analytics/visitors/
- * Retrieves general visitor analytics (e.g., total count, unique visits).
- */
-app.get('/api/analytics/visitors/', verifyToken, async (req, res) => {
+app.get('/api/analytics/visitors/:period', verifyToken, async (req, res) => {
     try {
-        // Log the start of the request
-        console.log("Attempting to retrieve visitor analytics...");
+        const { period } = req.params; // Extract the requested period ('daily', 'monthly', etc.)
         
-        // Call the function to fetch the data
-        const stats = await getVisitorAnalytics();
+        console.log(`Attempting to retrieve visitor analytics for period: ${period}...`);
         
-        // Log success
+        // Pass the period parameter to the analytics function
+        // NOTE: You will need to rewrite getVisitorAnalytics to accept and use this parameter.
+        const stats = await getVisitorAnalytics(period); 
+        
         console.log("Visitor analytics retrieved successfully.");
         
-        // Respond with the fetched data
         res.status(200).json(stats);
         
     } catch (error) {
-        // Log the full error for debugging purposes
         console.error("Visitor Analytics API Crash Detected:");
-        console.error(error); // Logs the name, message, and stack trace
+        console.error(error);
 
-        // Send a 500 Internal Server Error response
         res.status(500).json({ 
             message: 'Failed to retrieve visitor analytics due to a server error.',
             internalError: error.message 

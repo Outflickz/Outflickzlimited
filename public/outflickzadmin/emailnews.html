@@ -24,6 +24,19 @@
             background-color: #059669; /* emerald-600 */
             color: white;
         }
+        /* Style for the template preview iframe */
+        #template-preview {
+            width: 100%;
+            height: 400px;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+        }
+        /* Style for the selected template button */
+        .template-selected {
+            border-color: #059669; /* emerald-600 */
+            background-color: #d1fae5; /* emerald-100 */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen flex">
@@ -96,7 +109,41 @@
 
         <section id="content-emailnews" class="content-section p-6 pt-16 lg:pt-6">
             <h2 class="text-2xl font-semibold text-gray-800 mb-6">Email Newsletter Management 📧</h2>
-            <div class="bg-white p-6 rounded-xl shadow-lg border-t-2 border-emerald-500">
+            
+            <div class="mt-8 bg-white p-6 rounded-xl shadow-lg border-t-2 border-emerald-500">
+                <h3 class="text-xl font-medium text-gray-700 mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-2 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    Create & Send Newsletter
+                </h3>
+
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Select a Template</label>
+                    <div id="template-buttons" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                        </div>
+                </div>
+
+                <form id="newsletter-form" class="space-y-4">
+                    <input type="hidden" id="selected-template-id" value="">
+                    
+                    <div>
+                        <label for="newsletter-subject" class="block text-sm font-medium text-gray-700">Subject</label>
+                        <input type="text" id="newsletter-subject" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500 bg-gray-50" placeholder="e.g., Exciting New Arrivals Just Dropped!" readonly>
+                    </div>
+
+                    <div id="preview-container" class="space-y-2 hidden">
+                        <label class="block text-sm font-medium text-gray-700">Template Preview (Content not editable here)</label>
+                        <iframe id="template-preview" title="Newsletter Preview"></iframe>
+                        <p class="text-xs text-red-500">Note: The content shown is the final, pre-designed HTML. Actual sending is handled by the backend API.</p>
+                    </div>
+
+                    <button type="submit" id="send-newsletter-btn" disabled class="w-full py-2 px-4 bg-blue-400 text-white font-medium rounded-lg shadow-md transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700">
+                        Select a template to enable Send
+                    </button>
+                    <div id="send-status" class="hidden p-3 text-sm text-center rounded-lg"></div>
+                </form>
+            </div>
+            
+            <div class="bg-white p-6 rounded-xl shadow-lg border-t-2 border-emerald-500 mt-8">
                 <div class="mb-4 flex justify-between items-center">
                     <h3 class="text-xl font-medium text-gray-700">Registered Users for Newsletter</h3>
                     <span id="user-count" class="text-lg font-bold text-emerald-600">Total: 0</span>
@@ -130,234 +177,526 @@
                     </table>
                 </div>
 
-                 <div id="error-message" class="hidden p-4 mt-4 text-sm text-red-700 bg-red-100 rounded-lg">
+               <div id="error-message" class="hidden p-4 mt-4 text-sm text-red-700 bg-red-100 rounded-lg">
                     Failed to load user data. Check console for details.
                 </div>
             </div>
 
-            <div class="mt-8 bg-white p-6 rounded-xl shadow-lg border-t-2 border-emerald-500">
-                <h3 class="text-xl font-medium text-gray-700 mb-4">Send a New Newsletter</h3>
-                <form id="newsletter-form" class="space-y-4">
-                    <div>
-                        <label for="newsletter-subject" class="block text-sm font-medium text-gray-700">Subject</label>
-                        <input type="text" id="newsletter-subject" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
-                    </div>
-                    <div>
-                        <label for="newsletter-body" class="block text-sm font-medium text-gray-700">Body Content</label>
-                        <textarea id="newsletter-body" rows="6" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"></textarea>
-                    </div>
-                    <button type="submit" class="w-full py-2 px-4 bg-blue-600 text-white font-medium rounded-lg shadow-md hover:bg-blue-700 transition duration-200">
-                        Send to All Registered Users
-                    </button>
-                </form>
-            </div>
         </section>
 
     </main>
 
     <script>
-    // --- JAVASCRIPT LOGIC ---
+   // --- JAVASCRIPT LOGIC ---
 
-    const sidebar = document.getElementById('sidebar');
-    const sidebarToggle = document.getElementById('sidebar-toggle');
-    const userTableBody = document.getElementById('user-table-body');
-    const userCountElement = document.getElementById('user-count');
-    const loadingIndicator = document.getElementById('loading-indicator');
-    const userTableContainer = document.getElementById('user-table-container');
-    const errorMessage = document.getElementById('error-message');
-    
-    // --- NAVIGATION FUNCTIONS (Keep same as dashboard for consistency) ---
-    
-    function closeSidebarOnMobile() {
-        if (window.innerWidth < 1024) sidebar.classList.add('-translate-x-full');
-    }
+const sidebar = document.getElementById('sidebar');
+const sidebarToggle = document.getElementById('sidebar-toggle');
+const userTableBody = document.getElementById('user-table-body');
+const userCountElement = document.getElementById('user-count');
+const loadingIndicator = document.getElementById('loading-indicator');
+const userTableContainer = document.getElementById('user-table-container');
+const errorMessage = document.getElementById('error-message');
+const newsletterForm = document.getElementById('newsletter-form');
+const subjectInput = document.getElementById('newsletter-subject');
+const templatePreview = document.getElementById('template-preview');
+const previewContainer = document.getElementById('preview-container');
+const selectedTemplateIdInput = document.getElementById('selected-template-id');
+const templateButtonsContainer = document.getElementById('template-buttons');
+const sendNewsletterBtn = document.getElementById('send-newsletter-btn');
+const sendStatusElement = document.getElementById('send-status');
 
-    function navigateToDashboard() {
-        closeSidebarOnMobile();
-        window.location.href = './admin-dashboard.html'; 
-    }
-    
-    function navigateToUserOrders() {
-        closeSidebarOnMobile();
-        window.location.href = './userorders.html';
-    }
-    
-    function navigateToWearsCollection() {
-        closeSidebarOnMobile();
-        window.location.href = './wearscollection.html';
-    }
+let currentSelectedTemplateId = null;
 
-    function navigateToCapsCollection() {
-        closeSidebarOnMobile();
-        window.location.href = './capscollection.html';
+// --- NEWSLETTER TEMPLATES ---
+const newsletterTemplates = {
+    'new-collection': {
+        icon: `<svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`,
+        name: "New Arrivals",
+        subject: "🚨 Just Dropped! Explore Our Latest Collection Now",
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; background-color: #ffffff;">
+                <div style="background-color: #059669; color: white; padding: 20px; text-align: center;">
+                    <h2 style="margin: 0; font-size: 24px;">✨ New Arrivals Are Here!</h2>
+                </div>
+                <div style="padding: 20px;">
+                    <p style="font-size: 16px; line-height: 1.5; color: #333;">Hi [Customer Name],</p>
+                    <p style="font-size: 16px; line-height: 1.5; color: #333;">Get ready to refresh your wardrobe! We've just added a stunning new collection of exclusive items.</p>
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="[LINK_TO_NEW_COLLECTION]" style="background-color: #3b82f6; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">Shop The New Collection</a>
+                    </div>
+                    <p style="font-size: 14px; color: #666; text-align: center;">Don't miss out on the latest trends and limited stock!</p>
+                </div>
+                <div style="background-color: #f3f4f6; padding: 15px; text-align: center; font-size: 12px; color: #9ca3af;">
+                    &copy; 2025 Commerce Hub. All rights reserved.
+                </div>
+            </div>
+        `
+    },
+    'pre-order': {
+        icon: `<svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>`,
+        name: "Pre-Order Alert",
+        subject: "⏳ Be the First! Pre-Order Your Favorite Items Today",
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; background-color: #ffffff;">
+                <div style="background-color: #f59e0b; color: white; padding: 20px; text-align: center;">
+                    <h2 style="margin: 0; font-size: 24px;">📢 Pre-Order Window Open!</h2>
+                </div>
+                <div style="padding: 20px;">
+                    <p style="font-size: 16px; line-height: 1.5; color: #333;">Dear Valued Customer,</p>
+                    <p style="font-size: 16px; line-height: 1.5; color: #333;">The highly anticipated [PRODUCT_NAME_CATEGORY] is now available for pre-order. Secure your item before general stock runs out!</p>
+                    <ul style="list-style-type: none; padding: 0; margin: 15px 0;">
+                        <li style="padding: 5px 0; color: #333;"><strong>Exclusive Access:</strong> Guaranteed stock.</li>
+                        <li style="padding: 5px 0; color: #333;"><strong>Special Discount:</strong> [DISCOUNT_PERCENT]% off pre-orders.</li>
+                    </ul>
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="[LINK_TO_PREORDERS]" style="background-color: #ef4444; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">Reserve Yours Now</a>
+                    </div>
+                </div>
+                <div style="background-color: #f3f4f6; padding: 15px; text-align: center; font-size: 12px; color: #9ca3af;">
+                    &copy; 2025 Commerce Hub. Pre-order ends soon.
+                </div>
+            </div>
+        `
+    },
+    'wears-special': {
+        icon: `<svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>`,
+        name: "Wears Spotlight",
+        subject: "👕 Elevate Your Style with Our Wears Collection",
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; background-color: #ffffff;">
+                <div style="background-color: #10b981; color: white; padding: 20px; text-align: center;">
+                    <h2 style="margin: 0; font-size: 24px;">👚 Wears Collection Spotlight</h2>
+                </div>
+                <div style="padding: 20px; text-align: center;">
+                    <p style="font-size: 16px; line-height: 1.5; color: #333;">Discover the perfect blend of comfort and style in our hand-picked Wears Collection.</p>
+                    <img src="[WEAR_IMAGE_URL]" alt="Featured Wear" style="width: 100%; max-width: 400px; height: auto; margin: 20px 0; border-radius: 8px;"/>
+                    <p style="font-size: 16px; line-height: 1.5; color: #333;">From casual tees to essential hoodies, find your next favorite piece today.</p>
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="[LINK_TO_WEARS_COLLECTION]" style="background-color: #059669; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">Browse Wears</a>
+                    </div>
+                </div>
+                <div style="background-color: #f3f4f6; padding: 15px; text-align: center; font-size: 12px; color: #9ca3af;">
+                    &copy; 2025 Commerce Hub. Shop quality fashion.
+                </div>
+            </div>
+        `
+    },
+    'caps-special': {
+        icon: `<svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 13h10M4 19v-6a3 3 0 013-3h10a3 3 0 013 3v6a3 3 0 01-3 3H7a3 3 0 01-3-3z"></path></svg>`,
+        name: "Caps Spotlight",
+        subject: "🧢 Top Off Your Look! New Caps Collection Arrived",
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; background-color: #ffffff;">
+                <div style="background-color: #3b82f6; color: white; padding: 20px; text-align: center;">
+                    <h2 style="margin: 0; font-size: 24px;">🧢 The Perfect Cap Awaits!</h2>
+                </div>
+                <div style="padding: 20px; text-align: center;">
+                    <p style="font-size: 16px; line-height: 1.5; color: #333;">Add the ultimate finishing touch to your outfit with our diverse Caps Collection.</p>
+                    <div style="display: flex; justify-content: space-around; margin: 20px 0;">
+                        <img src="[CAP_IMAGE_1_URL]" alt="Cap 1" style="width: 45%; max-width: 200px; height: auto; border-radius: 8px;"/>
+                        <img src="[CAP_IMAGE_2_URL]" alt="Cap 2" style="width: 45%; max-width: 200px; height: auto; border-radius: 8px;"/>
+                    </div>
+                    <p style="font-size: 16px; line-height: 1.5; color: #333;">Snapbacks, beanies, or dad hats—we have the style you need for any season.</p>
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="[LINK_TO_CAPS_COLLECTION]" style="background-color: #059669; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">Discover Caps</a>
+                    </div>
+                </div>
+                <div style="background-color: #f3f4f6; padding: 15px; text-align: center; font-size: 12px; color: #9ca3af;">
+                    &copy; 2025 Commerce Hub. Protect your head, look great doing it.
+                </div>
+            </div>
+        `
+    },
+    'maintenance': {
+        icon: `<svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.526.34.813.486 1.066-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>`,
+        name: "Maintenance Notice",
+        subject: "⚙️ Important: Scheduled Website Maintenance",
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; background-color: #ffffff;">
+                <div style="background-color: #f97316; color: white; padding: 20px; text-align: center;">
+                    <h2 style="margin: 0; font-size: 24px;">🛠️ Scheduled Maintenance</h2>
+                </div>
+                <div style="padding: 20px;">
+                    <p style="font-size: 16px; line-height: 1.5; color: #333;">Hello,</p>
+                    <p style="font-size: 16px; line-height: 1.5; color: #333;">We will be performing **scheduled maintenance** to upgrade our systems for a better shopping experience. During this time, the website will be temporarily unavailable.</p>
+                    <ul style="list-style-type: none; padding: 0; margin: 15px 0; background-color: #fef3c7; padding: 15px; border-left: 4px solid #f59e0b; border-radius: 4px;">
+                        <li style="padding: 5px 0; color: #333;"><strong>Start Time:</strong> [DATE] at [TIME] [TIMEZONE]</li>
+                        <li style="padding: 5px 0; color: #333;"><strong>Duration:</strong> Approximately [DURATION]</li>
+                    </ul>
+                    <p style="font-size: 16px; line-height: 1.5; color: #333;">We apologize for any inconvenience this may cause and thank you for your patience as we improve Commerce Hub.</p>
+                </div>
+                <div style="background-color: #f3f4f6; padding: 15px; text-align: center; font-size: 12px; color: #9ca3af;">
+                    &copy; 2025 Commerce Hub. Back soon!
+                </div>
+            </div>
+        `
+    },
+    'upgrade-feature': {
+        icon: `<svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.09 2.09L18 10.364M8 12h.01M16 12h.01M12 21.09l-3.273-3.273L4 12V4l4-4h8l4 4v8l-4 4-3.273 3.273z"></path></svg>`,
+        name: "Feature Upgrade",
+        subject: "🚀 Big News! Introducing Our New [FEATURE_NAME]",
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; background-color: #ffffff;">
+                <div style="background-color: #6366f1; color: white; padding: 20px; text-align: center;">
+                    <h2 style="margin: 0; font-size: 24px;">🎉 New Feature Launched!</h2>
+                </div>
+                <div style="padding: 20px;">
+                    <p style="font-size: 16px; line-height: 1.5; color: #333;">We are excited to announce a major upgrade: **[FEATURE_NAME]** is now live on Commerce Hub!</p>
+                    <h4 style="color: #6366f1; margin-top: 15px;">What's New?</h4>
+                    <p style="font-size: 16px; line-height: 1.5; color: #333;">[BRIEF_EXPLANATION_OF_FEATURE_BENEFITS]. This makes your shopping experience [BETTER_WORD] and more [EFFICIENT_WORD].</p>
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="[LINK_TO_FEATURE]" style="background-color: #3b82f6; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">Check Out the Upgrade</a>
+                    </div>
+                    <p style="font-size: 14px; color: #666; text-align: center;">Thank you for being a part of the Commerce Hub community!</p>
+                </div>
+                <div style="background-color: #f3f4f6; padding: 15px; text-align: center; font-size: 12px; color: #9ca3af;">
+                    &copy; 2025 Commerce Hub. Always improving for you.
+                </div>
+            </div>
+        `
     }
-    
-    function navigateToNewArrivals() {
-        closeSidebarOnMobile();
-        window.location.href = './newarrivals.html';
-    }
+};
 
-    function navigateToPreOrders() {
-        closeSidebarOnMobile();
-        window.location.href = './preorders.html';
-    }
+// --- NAVIGATION FUNCTIONS (Keep same as dashboard for consistency) ---
 
-    function navigateToMembership() {
-        closeSidebarOnMobile();
-        window.location.href = './membership.html'; 
-    }
+function closeSidebarOnMobile() {
+    if (window.innerWidth < 1024) sidebar.classList.add('-translate-x-full');
+}
 
-    function navigateToEmailNews() {
-        // Current page, no redirect needed, but hide sidebar
-        closeSidebarOnMobile();
-    }
-    
-    function navigateToSettings() {
-        closeSidebarOnMobile();
-        window.location.href = './settings.html'; // Assuming settings is a separate page now
-    }
-    
-    function logoutAdmin() {
-        console.log("Logging out... Clearing admin token.");
-        localStorage.removeItem('adminToken');
-        window.location.href = './admin-login.html'; 
-    }
+function navigateToDashboard() {
+    closeSidebarOnMobile();
+    window.location.href = './admin-dashboard.html';
+}
 
-    // --- INITIALIZATION AND UI LOGIC ---
+function navigateToUserOrders() {
+    closeSidebarOnMobile();
+    window.location.href = './userorders.html';
+}
 
-    document.addEventListener('DOMContentLoaded', () => {
-        loadUsersForNewsletter();
-        
-        // **CRITICAL MOBILE FIX:** Toggle sidebar visibility on mobile
-        sidebarToggle.addEventListener('click', (event) => {
-            event.stopPropagation();
-            sidebar.classList.toggle('-translate-x-full');
-        });
+function navigateToWearsCollection() {
+    closeSidebarOnMobile();
+    window.location.href = './wearscollection.html';
+}
 
-        // Close sidebar on content click/outside click on small screens
-        document.querySelector('main').addEventListener('click', (event) => {
-            if (!sidebar.classList.contains('-translate-x-full') && window.innerWidth < 1024) {
-                sidebar.classList.add('-translate-x-full');
-            }
-        });
-        
-        // Prevent click inside sidebar from closing it (on mobile)
-        sidebar.addEventListener('click', (event) => {
-            event.stopPropagation();
-        });
+function navigateToCapsCollection() {
+    closeSidebarOnMobile();
+    window.location.href = './capscollection.html';
+}
+
+function navigateToNewArrivals() {
+    closeSidebarOnMobile();
+    window.location.href = './newarrivals.html';
+}
+
+function navigateToPreOrders() {
+    closeSidebarOnMobile();
+    window.location.href = './preorders.html';
+}
+
+function navigateToMembership() {
+    closeSidebarOnMobile();
+    window.location.href = './membership.html';
+}
+
+function navigateToEmailNews() {
+    // Current page, no redirect needed, but hide sidebar
+    closeSidebarOnMobile();
+}
+
+function navigateToSettings() {
+    closeSidebarOnMobile();
+    window.location.href = './settings.html';
+}
+
+function logoutAdmin() {
+    console.log("Logging out... Clearing admin token.");
+    localStorage.removeItem('adminToken');
+    window.location.href = './admin-login.html';
+}
+
+// --- INITIALIZATION AND UI LOGIC ---
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadUsersForNewsletter();
+    renderTemplateButtons();
+
+    // **CRITICAL MOBILE FIX:** Toggle sidebar visibility on mobile
+    sidebarToggle.addEventListener('click', (event) => {
+        event.stopPropagation();
+        sidebar.classList.toggle('-translate-x-full');
     });
 
-    /**
-     * Formats a MongoDB date string into a readable format.
-     * @param {string} dateString - The date string from the database.
-     * @returns {string} - Formatted date string.
-     */
-    function formatDate(dateString) {
-        if (!dateString) return 'N/A';
+    // Close sidebar on content click/outside click on small screens
+    document.querySelector('main').addEventListener('click', (event) => {
+        if (!sidebar.classList.contains('-translate-x-full') && window.innerWidth < 1024) {
+            sidebar.classList.add('-translate-x-full');
+        }
+    });
+
+    // Prevent click inside sidebar from closing it (on mobile)
+    sidebar.addEventListener('click', (event) => {
+        event.stopPropagation();
+    });
+
+    // Handle newsletter form submission
+    newsletterForm.addEventListener('submit', handleSendNewsletter);
+});
+
+/**
+ * Renders the template selection buttons.
+ */
+function renderTemplateButtons() {
+    templateButtonsContainer.innerHTML = '';
+    Object.entries(newsletterTemplates).forEach(([id, template]) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        // Add a check to apply the 'template-selected' class on initial selection if applicable
+        const isSelected = id === currentSelectedTemplateId ? ' template-selected' : '';
+        button.className = `flex flex-col items-center justify-center p-3 text-sm font-medium border-2 border-gray-200 rounded-lg shadow-sm transition duration-150 ease-in-out hover:border-emerald-500 hover:shadow-md bg-white text-gray-700${isSelected}`;
+        button.setAttribute('data-template-id', id);
+        button.innerHTML = `${template.icon} ${template.name}`;
+        button.onclick = () => selectTemplate(id);
+        templateButtonsContainer.appendChild(button);
+    });
+}
+
+/**
+ * Selects a template, updates the UI, and shows the preview.
+ * @param {string} templateId - The ID of the selected template.
+ */
+function selectTemplate(templateId) {
+    const template = newsletterTemplates[templateId];
+    if (!template) return;
+
+    // Update tracking variable and input
+    currentSelectedTemplateId = templateId;
+    selectedTemplateIdInput.value = templateId;
+
+    // Update subject input
+    subjectInput.value = template.subject;
+
+    // Update button text and state
+    sendNewsletterBtn.textContent = `Send "${template.name}" to All Registered Users`;
+    // Ensure button is visually active/ready to send
+    sendNewsletterBtn.classList.remove('bg-blue-400'); // Remove the passive/unselected state class if any
+    sendNewsletterBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+    sendNewsletterBtn.disabled = false;
+
+    // Render preview
+    // Note: The HTML is sanitized by the browser's iframe sandbox, but ensure links/images are relative or safe in a real app.
+    templatePreview.srcdoc = template.html;
+    previewContainer.classList.remove('hidden');
+
+    // Update button visual state
+    document.querySelectorAll('#template-buttons button').forEach(btn => {
+        btn.classList.remove('template-selected');
+    });
+    // Add a border/color to the selected button (assumes 'template-selected' CSS class is defined)
+    const selectedButton = document.querySelector(`[data-template-id="${templateId}"]`);
+    if (selectedButton) {
+        selectedButton.classList.add('template-selected');
+    }
+
+    // Clear previous status messages
+    sendStatusElement.classList.add('hidden');
+}
+
+/**
+ * Handles the submission of the newsletter form.
+ * @param {Event} event - The form submission event.
+ */
+async function handleSendNewsletter(event) {
+    event.preventDefault();
+
+    if (!currentSelectedTemplateId) {
+        alert("Please select a newsletter template first.");
+        return;
+    }
+
+    const template = newsletterTemplates[currentSelectedTemplateId];
+    const subject = subjectInput.value;
+
+    // A simple substitution for the customer name placeholder to make the preview more dynamic.
+    // NOTE: A real system handles per-recipient substitution on the backend.
+    const bodyHtml = template.html.replace(/\[Customer Name\]/g, 'Subscriber');
+
+    sendNewsletterBtn.disabled = true;
+    sendNewsletterBtn.textContent = 'Sending... Please wait.';
+    sendStatusElement.classList.add('hidden');
+
+    try {
+        console.log(`[FRONTEND] Attempting to send newsletter with subject: "${subject}" using template: ${currentSelectedTemplateId}`);
+
+        // SIMULATED API CALL
+        const response = await fetch('/api/admin/newsletter/send', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+            },
+            body: JSON.stringify({
+                subject: subject,
+                htmlContent: bodyHtml,
+                templateId: currentSelectedTemplateId
+            })
+        });
+
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                logoutAdmin();
+                return;
+            }
+            // Attempt to parse error message from body if available
+            const errorData = await response.json().catch(() => ({ message: `API failed with status: ${response.status}` }));
+            throw new Error(errorData.message || `API failed with status: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        // Get the current user count from the display for the success message
+        const userCountMatch = userCountElement.textContent.match(/Total: ([\d,]+)/);
+        const recipientsCount = result.recipientsCount || (userCountMatch ? userCountMatch[1] : 'all');
+
+        sendStatusElement.textContent = `✅ Success! Newsletter "${template.name}" sent to ${recipientsCount} users.`;
+        sendStatusElement.className = 'p-3 mt-4 text-sm text-green-700 bg-green-100 rounded-lg text-center';
+        sendStatusElement.classList.remove('hidden');
+        console.log('[FRONTEND] Newsletter sent successfully:', result);
+
+    } catch (error) {
+        console.error('[FRONTEND] Error sending newsletter:', error);
+        sendStatusElement.textContent = `❌ Error sending newsletter: ${error.message}.`;
+        sendStatusElement.className = 'p-3 mt-4 text-sm text-red-700 bg-red-100 rounded-lg text-center';
+        sendStatusElement.classList.remove('hidden');
+    } finally {
+        sendNewsletterBtn.disabled = false;
+        // Restore button text using the (safely accessed) template name
+        sendNewsletterBtn.textContent = `Send "${template ? template.name : 'Selected Template'}" to All Registered Users`;
+    }
+}
+
+
+/**
+ * Formats a MongoDB date string into a readable format.
+ * @param {string} dateString - The date string from the database.
+ * @returns {string} - Formatted date string.
+ */
+function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    // Use Intl.DateTimeFormat for robustness
+    try {
         const options = { year: 'numeric', month: 'short', day: 'numeric' };
         return new Date(dateString).toLocaleDateString('en-US', options);
+    } catch (e) {
+        console.error("Date formatting failed:", e);
+        return 'Invalid Date';
     }
-    
-    // --- DATA FETCHING AND RENDERING LOGIC ---
+}
 
-    /**
-     * Fetches all registered users from the API.
-     */
-    async function fetchAllUsers() {
-        const token = localStorage.getItem('adminToken');
-        
-        if (!token) {
-            console.error("[FRONTEND] No adminToken found. Redirecting to login for authentication.");
-            window.location.href = './admin-login.html'; 
-            return null;
-        }
+// --- DATA FETCHING AND RENDERING LOGIC ---
 
-        try {
-            console.log('[FRONTEND] Attempting to fetch all users from API...');
-            const response = await fetch('/api/admin/users/all', { 
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
-                }
-            });
+/**
+ * Fetches all registered users from the API.
+ */
+async function fetchAllUsers() {
+    const token = localStorage.getItem('adminToken');
 
-            if (!response.ok) {
-                if (response.status === 401 || response.status === 403) {
-                    console.error('[FRONTEND] Unauthorized access. Token expired or invalid. Logging out.');
-                    logoutAdmin();
-                    return null;
-                }
-                console.error(`[FRONTEND] API call failed with status: ${response.status}`);
-                throw new Error(`HTTP error! status: ${response.status}`);
+    if (!token) {
+        console.error("[FRONTEND] No adminToken found. Redirecting to login for authentication.");
+        window.location.href = './admin-login.html';
+        return null;
+    }
+
+    try {
+        console.log('[FRONTEND] Attempting to fetch all users from API...');
+        const response = await fetch('/api/admin/users/all', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
             }
-
-            const data = await response.json();
-            
-            console.log('[FRONTEND] Data received from API:', data); 
-            // The API returns { users: [...], count: N }
-            return data.users || [];
-
-        } catch (error) {
-            console.error('[FRONTEND] Error fetching user data:', error);
-            return null;
-        }
-    }
-
-    /**
-     * Loads and displays the user data in the table.
-     */
-    async function loadUsersForNewsletter() {
-        loadingIndicator.classList.remove('hidden');
-        userTableContainer.classList.add('hidden');
-        errorMessage.classList.add('hidden');
-        userTableBody.innerHTML = '';
-        userCountElement.textContent = 'Total: 0';
-
-        const users = await fetchAllUsers();
-
-        loadingIndicator.classList.add('hidden');
-
-        if (users === null) {
-            errorMessage.classList.remove('hidden');
-            return;
-        }
-        
-        userTableContainer.classList.remove('hidden');
-        userCountElement.textContent = `Total: ${users.length.toLocaleString()}`;
-
-        if (users.length === 0) {
-            userTableBody.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-gray-500">No registered users found.</td></tr>';
-            return;
-        }
-
-        users.forEach(user => {
-            const isMember = user.isMember;
-            const statusBadge = isMember 
-                ? '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">VIP Member</span>'
-                : '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">Standard</span>';
-
-            const row = document.createElement('tr');
-            row.className = 'hover:bg-gray-50';
-            
-            row.innerHTML = `
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    ${user.name}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    ${user.email}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm">
-                    ${statusBadge}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    ${formatDate(user.createdAt)}
-                </td>
-            `;
-            userTableBody.appendChild(row);
         });
+
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                console.error('[FRONTEND] Unauthorized access. Token expired or invalid. Logging out.');
+                logoutAdmin();
+                return null;
+            }
+            console.error(`[FRONTEND] API call failed with status: ${response.status}`);
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        console.log('[FRONTEND] Data received from API:', data);
+        // The API returns { users: [...], count: N }
+        return data.users || [];
+
+    } catch (error) {
+        console.error('[FRONTEND] Error fetching user data:', error);
+        return null;
+    }
+}
+
+/**
+ * Loads and displays the user data in the table.
+ */
+async function loadUsersForNewsletter() {
+    loadingIndicator.classList.remove('hidden');
+    userTableContainer.classList.add('hidden');
+    errorMessage.classList.add('hidden');
+    userTableBody.innerHTML = '';
+    userCountElement.textContent = 'Total: 0';
+
+    const users = await fetchAllUsers();
+
+    loadingIndicator.classList.add('hidden');
+
+    if (users === null) {
+        errorMessage.classList.remove('hidden');
+        return;
     }
 
+    userTableContainer.classList.remove('hidden');
+    userCountElement.textContent = `Total: ${users.length.toLocaleString()}`;
+
+    if (users.length === 0) {
+        userTableBody.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-gray-500">No registered users found.</td></tr>';
+        return;
+    }
+
+    users.forEach(user => {
+        // Assume 'isSubscribed' is the relevant field for newsletter, though 'isMember' is used here.
+        // I will stick to 'isMember' as it's what was in the original code, but note the context.
+        const isMember = user.isMember;
+        const statusBadge = isMember
+            ? '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">VIP Member</span>'
+            : '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">Standard</span>';
+
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-gray-50';
+
+        // Sanitizing name and email just in case (though highly recommended to sanitize on server)
+        const userName = user.name ? user.name.replace(/</g, "&lt;").replace(/>/g, "&gt;") : 'N/A';
+        const userEmail = user.email ? user.email.replace(/</g, "&lt;").replace(/>/g, "&gt;") : 'N/A';
+
+        row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                ${userName}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                ${userEmail}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                ${statusBadge}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                ${formatDate(user.createdAt)}
+            </td>
+        `;
+        userTableBody.appendChild(row);
+    });
+}
     </script>
 </body>
 </html>

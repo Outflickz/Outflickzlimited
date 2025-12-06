@@ -4832,7 +4832,7 @@ app.post('/api/orders/calculate-buy-now', verifyUserToken, async (req, res) => {
     const temporaryItem = {
         productId,
         name,
-        productType, // Required for order tracking
+        productType, 
         size,
         color: color || 'N/A',
         price, // This price acts as 'priceAtTimeOfPurchase' for the calculation

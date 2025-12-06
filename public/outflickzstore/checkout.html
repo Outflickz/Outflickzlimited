@@ -727,7 +727,6 @@ if (buyNowItemJSON) {
     // 1. Fix invalid 'productType'. If it's a Cap that somehow lost its type, it 
     // must be defaulted to 'Caps' to prevent lookup in the 'Wears' collection.
     if (!item.productType || item.productType === "undefined" || item.productType === null) {
-        // CHANGED 'Wears' to 'Caps'
         item.productType || productDetails.name,// Correctly route the request to the Caps collection logic
         console.warn(`Fixed invalid productType to '${item.productType}' for Buy Now item.`);
     }
@@ -1114,70 +1113,79 @@ async function processBankTransferOrder(totalAmount, shippingAddress) {
     }
 
 
-    // --- Main Initialization (Unchanged) ---
-    document.addEventListener('DOMContentLoaded', () => {
-        if (!isUserLoggedIn()) {
-            redirectToProfileOrLogin();
-            return;
-        }
-        
-        updateCartBadge();
-        fetchUserData(); // Pre-fills form
-        fetchInitialCartData(); // Loads order summary
-        updateCheckoutView(); // Renders step 1
-        
-        // Attach event listener to the main button
-        const nextBtn = document.getElementById('checkout-next-btn');
-        if (nextBtn) {
-            nextBtn.onclick = validateAndProceedToReview; // Starts the flow at step 1
-        }
-        
-        // Attach event listeners to Edit buttons in Review step (Step 2)
-        document.getElementById('edit-shipping-btn').onclick = () => {
-            checkoutStep = 1;
-            updateCheckoutView();
-            window.scrollTo(0, 0); 
-        };
-        
-        document.getElementById('edit-order-btn').onclick = () => {
-            // This should take the user to the cart page to edit items
-            window.location.href = 'cart.html';
-        };
+   // --- Main Initialization (Modified to fix the Buy Now/Cart conflict) ---
+document.addEventListener('DOMContentLoaded', () => {
+    
+    // ⭐ CRITICAL FIX: Ensure the Buy Now flag is cleared on standard checkout load. ⭐
+    // This prevents a previous "Buy Now" session from overriding the current Cart total.
+    // Since the standard Cart link doesn't use a specific query parameter, 
+    // we assume a clean slate for the standard checkout flow.
+    sessionStorage.removeItem(BUY_NOW_KEY); 
+    console.log("CRITICAL FIX APPLIED: Cleared 'buyNowItem' from sessionStorage to force standard cart load.");
 
-        // Attach event listener to payment radio buttons for bank details visibility
-        const bankRadio = document.getElementById('payment-bank');
-        const paystackRadio = document.getElementById('payment-paystack');
-        const bankDetailsInfo = document.getElementById('bank-details-info');
-        const receiptUploadSection = document.getElementById('bank-transfer-receipt-upload');
-        const receiptInput = document.getElementById('bank-receipt-upload');
+    // --- Original Logic Starts Here ---
+    if (!isUserLoggedIn()) {
+        redirectToProfileOrLogin();
+        return;
+    }
+    
+    updateCartBadge();
+    fetchUserData(); // Pre-fills form
+    fetchInitialCartData(); // Loads order summary (Now loads the actual standard cart)
+    updateCheckoutView(); // Renders step 1
+    
+    // Attach event listener to the main button
+    const nextBtn = document.getElementById('checkout-next-btn');
+    if (nextBtn) {
+        nextBtn.onclick = validateAndProceedToReview; // Starts the flow at step 1
+    }
+    
+    // Attach event listeners to Edit buttons in Review step (Step 2)
+    document.getElementById('edit-shipping-btn').onclick = () => {
+        checkoutStep = 1;
+        updateCheckoutView();
+        window.scrollTo(0, 0); 
+    };
+    
+    document.getElementById('edit-order-btn').onclick = () => {
+        // This should take the user to the cart page to edit items
+        window.location.href = 'cart.html';
+    };
 
-        function toggleBankDetails() {
-            const isBankChecked = bankRadio && bankRadio.checked;
-            
-            if (bankDetailsInfo) bankDetailsInfo.style.display = isBankChecked ? 'block' : 'none';
-            if (receiptUploadSection) receiptUploadSection.classList.toggle('hidden', !isBankChecked);
+    // Attach event listener to payment radio buttons for bank details visibility
+    const bankRadio = document.getElementById('payment-bank');
+    const paystackRadio = document.getElementById('payment-paystack');
+    const bankDetailsInfo = document.getElementById('bank-details-info');
+    const receiptUploadSection = document.getElementById('bank-transfer-receipt-upload');
+    const receiptInput = document.getElementById('bank-receipt-upload');
 
-            // Set required attribute dynamically
-            if (receiptInput) {
-                if (isBankChecked) {
-                    receiptInput.setAttribute('required', 'required');
-                } else {
-                    receiptInput.removeAttribute('required');
-                }
+    function toggleBankDetails() {
+        const isBankChecked = bankRadio && bankRadio.checked;
+        
+        if (bankDetailsInfo) bankDetailsInfo.style.display = isBankChecked ? 'block' : 'none';
+        if (receiptUploadSection) receiptUploadSection.classList.toggle('hidden', !isBankChecked);
+
+        // Set required attribute dynamically
+        if (receiptInput) {
+            if (isBankChecked) {
+                receiptInput.setAttribute('required', 'required');
+            } else {
+                receiptInput.removeAttribute('required');
             }
         }
+    }
 
-        if (bankRadio) bankRadio.addEventListener('change', toggleBankDetails);
-        if (paystackRadio) paystackRadio.addEventListener('change', toggleBankDetails);
-        
-        toggleBankDetails(); // Initial call
-        
-        // Attach the hideMessageModal function to the close button
-        const closeButton = document.getElementById('message-modal-close-btn');
-        if (closeButton) {
-            closeButton.addEventListener('click', hideMessageModal);
-        }
-    });
+    if (bankRadio) bankRadio.addEventListener('change', toggleBankDetails);
+    if (paystackRadio) paystackRadio.addEventListener('change', toggleBankDetails);
+    
+    toggleBankDetails(); // Initial call
+    
+    // Attach the hideMessageModal function to the close button
+    const closeButton = document.getElementById('message-modal-close-btn');
+    if (closeButton) {
+        closeButton.addEventListener('click', hideMessageModal);
+    }
+});
 </script>
 </body>
 </html>

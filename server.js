@@ -2079,6 +2079,8 @@ app.get('/newarrivals', (req, res) => { res.sendFile(path.join(__dirname, 'publi
 app.get('/wearscollection', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'wearscollection.html')); }); 
 app.get('/preorder', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'preoder.html')); }); 
 
+
+
 //ADMIN ROUTE
 app.get('/admin-login', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzadmin', 'admin-login.html')); });
 app.get('/admin-dashboard', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzadmin', 'admin-dashboard.html')); });
@@ -2086,6 +2088,10 @@ app.get('/wearscollection', (req, res) => { res.sendFile(path.join(__dirname, 'p
 app.get('/capscollection', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzadmin', 'capscollection.html')); }); 
 app.get('/newarrivals', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzadmin', 'newarrivals.html')); }); 
 app.get('/preorders', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzadmin', 'preorders.html')); }); 
+app.get('/membership', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzadmin', 'membership.html')); }); 
+app.get('/saleslog', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzadmin', 'saleslog.html')); }); 
+app.get('/emailnews', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzadmin', 'emailnews.html')); }); 
+app.get('/settings', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzadmin', 'settings.html')); }); 
 
 
 

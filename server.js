@@ -2248,7 +2248,8 @@ app.post('/api/admin/forgot-password', async (req, res) => {
 });
 
 app.put('/api/admin/change-password', verifyToken, async (req, res) => {
-    // req.adminId is set by the verifyAdminToken middleware
+    // FIX: Get the admin ID from the property set by verifyToken (req.adminUser)
+    const adminId = req.adminUser ? (req.adminUser.id || req.adminUser._id) : null;
     const { currentPassword, newPassword } = req.body;
 
     // 1. Basic Input Validation
@@ -2262,12 +2263,13 @@ app.put('/api/admin/change-password', verifyToken, async (req, res) => {
     }
 
     try {
+        // We no longer rely on req.adminId being set externally.
         // 3. Fetch the admin, explicitly including the password field
-        // Note: The Admin model schema must have `select: false` on the password field for this to work.
-        const admin = await Admin.findById(req.adminId).select('+password');
+        const admin = await Admin.findById(adminId).select('+password');
 
         if (!admin) {
-            // Should be rare, handles tokens pointing to deleted users
+            // This now correctly captures cases where the token is valid but the 
+            // ID extracted from it (adminId) doesn't match an active admin user.
             return res.status(404).json({ message: 'Admin user not found or session expired.' });
         }
 
@@ -2313,7 +2315,6 @@ app.put('/api/admin/change-password', verifyToken, async (req, res) => {
         }
 
         // 9. Success Response
-        // NOTE: It is a good security practice to force a re-login.
         return res.status(200).json({ 
             message: 'Password updated successfully. Please log in again with your new password.',
             shouldRelogin: true // Hint for the frontend

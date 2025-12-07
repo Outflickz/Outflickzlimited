@@ -850,7 +850,7 @@ function createCollectionCard(collection, size = 'default') {
     const isReduced = reducedSizes.includes(size);
     const isCaps = size === 'caps'; 
     const isWears = size === 'wears'; 
-    const isPreorder = size === 'preorder'; // <--- CRITICAL: Determines if it's a pre-order card
+    const isPreorder = size === 'preorder'; 
     const isnewrrivals = size === 'newarrivals';
 
     // Card Padding
@@ -903,22 +903,7 @@ function createCollectionCard(collection, size = 'default') {
         : ''; 
     // --- CRITICAL FRONTEND FIX END ---
 
-    // --- NEW FIX: Conditional Color List Rendering ---
-    const colorListHtml = isPreorder 
-        ? '' // Empty string if it's a pre-order collection
-        : createColorList(collection._id, collection.variants || collection.variations); 
-    
-    const colorSwatchesHtml = colorListHtml 
-        ? `
-            <div class="flex items-center gap-2 mt-2">
-                <span class="text-xs font-medium text-gray-700">Color:</span>
-                <div class="flex gap-1 text-gray-700">
-                    ${colorListHtml}
-                </div>
-            </div>
-        ` 
-        : '';
-    // --- END NEW FIX ---
+    const colorListHtml = createColorList(collection._id, collection.variants || collection.variations); 
 
     const maxStock = collection.availableStock > 0 ? collection.availableStock : 0;
 
@@ -1054,8 +1039,14 @@ function createCollectionCard(collection, size = 'default') {
 
                 <p class="${priceFontSize} text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
 
-                ${colorSwatchesHtml} // <--- Only displays if NOT pre-order and colors exist
-                
+                                
+                <div class="flex items-center gap-2 mt-2">
+                    <span class="text-xs font-medium text-gray-700">Color:</span>
+                    <div class="flex gap-1 text-gray-700">
+                        ${colorListHtml}
+                    </div>
+                </div>
+                                
                 <div class="flex flex-col md:flex-row items-start md:items-center justify-between w-full mt-2 gap-2">
                     ${sizeListHtml} 
                     ${quantityControlHtml}

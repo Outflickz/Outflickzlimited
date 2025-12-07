@@ -8,7 +8,7 @@ const mongoose = require('mongoose');
 const multer = require('multer');
 const nodemailer = require('nodemailer');
 const cookieParser = require('cookie-parser');
-
+const session = require('express-session'); // <-- ADD THIS LINE
 
 const { S3Client, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { Upload } = require('@aws-sdk/lib-storage');
@@ -2080,6 +2080,21 @@ const app = express();
 // To allow both JSON and multipart/form-data parsing
 app.use(express.json()); 
 app.use(cookieParser());
+
+app.use(session({
+    secret: process.env.JWT_SECRET, 
+    
+    resave: false,
+    saveUninitialized: true,
+    
+    cookie: { 
+        // Set secure: true when deployed behind Netlify (HTTPS)
+        secure: process.env.NODE_ENV === 'production' ? true : false, 
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
+}));
+
 app.use(visitorLogger);
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -2245,7 +2260,7 @@ app.post('/api/admin/login', async (req, res) => {
         const token = jwt.sign(
             { id: adminUser.id, email: adminUser.email, role: 'admin' }, 
             JWT_SECRET, 
-            { expiresIn: '5h' }
+            { expiresIn: '24h' }
         );
         
         res.status(200).json({ token, message: 'Login successful' });
@@ -4907,7 +4922,7 @@ app.post('/api/users/login', async (req, res) => {
         const token = jwt.sign(
             { id: user._id, email: user.email, role: user.status.role || 'user' }, 
             JWT_SECRET, 
-            { expiresIn: '5h' } 
+            { expiresIn: '24h' } 
         );
         
         // --- 🔑 Set the Token as an HTTP-only Cookie ---

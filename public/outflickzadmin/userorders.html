@@ -497,7 +497,7 @@ async function confirmOrder(orderId) {
         document.getElementById('detail-order-id').textContent = order._id.substring(0, 8);
 
         // 2. SUMMARY CARD (FIXED SECTION)
-        document.getElementById('detail-customer-name').textContent = order.userName || 'N/A';
+        document.getElementById('detail-customer-name').textContent = order.customerName || 'N/A';
         document.getElementById('detail-customer-email').textContent = order.email || 'N/A';
         document.getElementById('detail-date').textContent = formatDate(order.createdAt);
         document.getElementById('detail-payment-method').textContent = order.paymentMethod || 'Bank Transfer'; // Default if missing

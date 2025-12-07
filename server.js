@@ -2662,6 +2662,7 @@ app.get('/api/admin/orders/pending', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Failed to retrieve pending orders.' });
     }
 });
+
 // =========================================================
 // 8b. GET /api/admin/orders/:orderId - Fetch Single Detailed Order (Admin Protected)
 // =========================================================

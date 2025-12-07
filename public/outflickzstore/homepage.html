@@ -788,24 +788,19 @@ function toggleImage(collectionId) {
         toggleButton.title = "Show Back View";
     }
 }
-
 // --- UTILITY FOR COLOR LIST (Stock-Aware) ---
 function createColorList(collectionId, variants) {
     // 1. Initial Safety Check
-    // 'variants' now only includes colors with total stock > 0 (filtered by backend)
     if (!variants || variants.length === 0) return '';
     
-    // NOTE: The previous 'pre-order' filter is removed because the backend should 
-    // already ensure that every variant passed here is intended to be displayed.
     const coloredVariants = variants; 
-
-    // If there are no colored variants, return empty.
     if (coloredVariants.length === 0) return ''; 
 
     // 2. Create a map for the image switching logic
+    // ✅ FIX: Use colorName as the key for the color map if it exists
     const colorMap = coloredVariants.reduce((acc, v) => {
-        // We only map the necessary image URLs
-        acc[v.color] = { frontImageUrl: v.frontImageUrl, backImageUrl: v.backImageUrl };
+        const key = v.colorName || v.colorHex; // Use name, fall back to hex
+        acc[key] = { frontImageUrl: v.frontImageUrl, backImageUrl: v.backImageUrl };
         return acc;
     }, {});
 
@@ -814,24 +809,28 @@ function createColorList(collectionId, variants) {
 
     // 4. Generate the color swatch buttons
     const buttonsHtml = coloredVariants.map((variant, index) => {
-        const colorHex = variant.color; 
+        // Assume 'v.colorName' is now available from the backend response
+        // 🌟 FIX 1: Get the human-readable color name for the value
+        const colorName = variant.colorName || 'N/A';
+        const colorHex = variant.colorHex || '#FFFFFF'; // Use v.colorHex for the visual display
+        
         const style = `background-color: ${colorHex};`;
         const safeColor = String(colorHex).toUpperCase(); 
         
         const extraClass = (safeColor === '#FFFFFF' || safeColor === '#FFF') ? 'border-gray-400' : 'border-gray-200';
         
         return `
-            <label for="color-${collectionId}-${colorHex}" class="color-label cursor-pointer p-[1px] rounded-full border border-transparent hover:border-ash-red transition-all has-[:checked]:border-ash-red">
+            <label for="color-${collectionId}-${colorName.replace(/\s/g, '-')}" class="color-label cursor-pointer p-[1px] rounded-full border border-transparent hover:border-ash-red transition-all has-[:checked]:border-ash-red">
                 <input 
                     type="radio" 
-                    id="color-${collectionId}-${colorHex}" 
+                    id="color-${collectionId}-${colorName.replace(/\s/g, '-')}" 
                     name="color-${collectionId}" 
-                    value="${colorHex}" 
+                    value="${colorName}" // 🏆 CRITICAL FIX: Use the human-readable colorName here!
                     class="hidden" 
                     onchange="changeVariantImage('${collectionId}', this.value)" 
-                    ${index === 0 ? 'checked' : ''}
+                    ${index === 0 ? 'checked' : ''} // ✅ FIX: First one is always checked
                 >
-                <span class="block w-4 h-4 rounded-full border ${extraClass}" style="${style}"></span>
+                <span class="block w-4 h-4 rounded-full border ${extraClass}" style="${style}" title="${colorName}"></span>
             </label>
         `;
     }).join('');

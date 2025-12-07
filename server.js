@@ -4543,40 +4543,38 @@ app.get('/api/collections/caps', async (req, res) => {
 // GET /api/collections/preorder (For Homepage Display)
 app.get('/api/collections/preorder', async (req, res) => {
     try {
+        // 1. Select the new 'variations.colorName' field
         const collections = await PreOrderCollection.find({ isActive: true })
-            .select('_id name tag price totalStock availableDate variations')
+            .select('_id name tag price totalStock availableDate variations.colorName variations.colorHex variations.variationIndex variations.frontImageUrl variations.backImageUrl variations.sizes')
             .sort({ createdAt: -1 })
             .lean();
 
         const publicCollections = await Promise.all(collections.map(async (collection) => {
             
-            const sizeStockMap = {}; // Use for pre-order sizes
+            const sizeStockMap = {}; 
             const filteredVariants = [];
 
             // --- CRITICAL: Filter Variants and Create Size Map ---
             for (const v of collection.variations) {
-                // For pre-orders, we assume stock is less important than availability,
-                // BUT we still filter if the total stock is explicitly 0 (to hide a variant).
+                
                 const variantTotalStock = (v.sizes || []).reduce((sum, s) => sum + (s.stock || 0), 0);
                 
-                // Only include the variant if it has stock OR if the total stock field is missing (defaulting to available)
                 if (variantTotalStock > 0 || !collection.totalStock) {
                     
-                    // Generate a size map entry for ALL sizes in this variant. 
-                    // Use the actual stock if > 0, otherwise use a placeholder (e.g., 999) 
-                    // to ensure the size button appears on the frontend.
+                    // Generate a size map entry 
                     (v.sizes || []).forEach(s => {
                         const normalizedSize = s.size.toUpperCase().trim();
-                        // For pre-order, the stock is effectively "high" if the item is available
                         const stockForPreorder = (s.stock > 0) ? s.stock : 999; 
                         
-                        // We use the MAX stock found for a size across all colors
                         sizeStockMap[normalizedSize] = Math.max(sizeStockMap[normalizedSize] || 0, stockForPreorder);
                     });
 
                     // Map and prepare the public variant object
                     filteredVariants.push({
-                        color: v.colorHex,
+                        // ✅ FIX: Include both color name (for payload) and hex (for swatch)
+                        colorName: v.colorName || 'Default', // Use name for client payload value
+                        colorHex: v.colorHex || '#FFFFFF',   // Use hex for swatch rendering
+                        
                         variationIndex: v.variationIndex, 
                         frontImageUrl: await generateSignedUrl(v.frontImageUrl) || null,
                         backImageUrl: await generateSignedUrl(v.backImageUrl) || null,
@@ -4596,9 +4594,7 @@ app.get('/api/collections/preorder', async (req, res) => {
                 tag: collection.tag,
                 price: collection.price, 
                 
-                // NEW: Pass the pre-order size stock map
                 sizeStockMap: sizeStockMap, 
-                // We no longer need availableSizes as sizeStockMap handles this
                 
                 availableStock: collection.totalStock, 
                 availableDate: collection.availableDate, 
@@ -4606,7 +4602,6 @@ app.get('/api/collections/preorder', async (req, res) => {
                 frontImageUrl: frontImageUrl, 
                 backImageUrl: backImageUrl, 
                 
-                // C. Include only filtered variants
                 variants: filteredVariants 
             };
         }));

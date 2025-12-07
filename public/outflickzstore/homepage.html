@@ -517,12 +517,13 @@ async function simulateAddToCart(productDetails) {
         }
     }
 
-    // 🌟 FIX FOR ReferenceError: variation is not defined (Line 539) 🌟
-    // Construct a descriptive variation name using the selected size and color.
-    const variation = (color !== 'N/A' && size !== 'N/A')
-        ? `${color} / ${size}`
-        : (color !== 'N/A' ? color : (size !== 'N/A' ? size : 'Default Variant'));
-    
+   let variation = `${color} / ${size}`;
+
+// Fallback for products where neither size nor color was selected/applicable
+if (variation === 'N/A / N/A') {
+    variation = 'Default Variant';
+}
+
     // Unified item data structure for both API (minimal fields) and Local Cart (all fields)
     const requiredDetails = {
         productId: productDetails.productId,

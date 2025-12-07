@@ -389,14 +389,26 @@ function showConfirmationModal(message) {
 // ------------------------------------------------------------------------------------------
 
 // --- GLOBAL FUNCTIONS REQUIRED FOR INLINE HTML HANDLERS ---
-window.updateColorPreview = (colorValue, previewId) => { /* No-op */ }; 
+window.updateColorPreview = (colorValue, previewId) => {
+    const previewElement = document.getElementById(previewId);
+    if (previewElement) {
+        // Simple validation to prevent erroring out on malformed hex strings
+        if (/^#[0-9A-F]{6}$/i.test(colorValue)) {
+            previewElement.style.backgroundColor = colorValue;
+            previewElement.textContent = colorValue.toUpperCase();
+        } else {
+             previewElement.style.backgroundColor = '#f3f4f6'; // Fallback to gray
+             previewElement.textContent = 'Invalid Hex';
+        }
+    }
+}; 
 window.editCollection = editCollection;
 window.deleteCollection = deleteCollection;
 window.removeProductSection = removeProductSection;
 window.quickRestockAndActivate = quickRestockAndActivate;
 window.logoutAdmin = logoutAdmin;
 window.removeNestedSizeStockInput = removeNestedSizeStockInput; // NEW
-window.addNestedSizeStockInput = addNestedSizeStockInput;      // NEW
+window.addNestedSizeStockInput = addNestedSizeStockInput;      // NEW
 // ---------------------------------------------------------
 
 // --- UTILITY FUNCTIONS (Kept the same) ---
@@ -508,7 +520,7 @@ function resetForm() {
 
 // ------------------------------------------------------------------------------------------
 
-// --- FORM SECTION MANAGEMENT (MODIFIED: ADDED NESTED SIZE/STOCK LOGIC) ---
+// --- FORM SECTION MANAGEMENT (MODIFIED: ADDED COLOR HEX INPUT) ---
 /**
  * Function to create a product section HTML structure.
  * @param {number} index - The zero-based index for the section (0 to 3).
@@ -519,6 +531,7 @@ function createProductSection(index, variationData = null) {
     const uniqueId = `section-${sectionNumber}`;
     const frontImageUrl = variationData?.frontImageUrl || null;
     const backImageUrl = variationData?.backImageUrl || null;
+    const colorHex = variationData?.colorHex || ''; // NEW: Get existing color hex
     const nestedSizes = variationData?.sizes || []; // Array of {size: 'S', stock: 10}
 
     // File inputs are only required if creating a new collection and no existing URL exists
@@ -578,6 +591,28 @@ function createProductSection(index, variationData = null) {
         </div>
     `;
     // --------------------------------------
+    
+    // --- COLOR HEX INPUT (NEW) ---
+    const colorPreviewId = `${uniqueId}-color-preview`;
+    const colorHtml = `
+        <div>
+            <label for="${uniqueId}-color-hex" class="block text-sm font-medium text-gray-700">Color Hex Code (e.g., #000000)</label>
+            <div class="mt-1 flex rounded-md shadow-sm">
+                <input type="text" id="${uniqueId}-color-hex" value="${colorHex}" placeholder="#RRGGBB" 
+                       oninput="updateColorPreview(this.value, '${colorPreviewId}')"
+                       maxlength="7"
+                       class="flex-1 block w-full border border-gray-300 rounded-l-md p-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                <span id="${colorPreviewId}" 
+                      style="background-color: ${colorHex || '#f3f4f6'};"
+                      class="inline-flex items-center px-3 text-xs text-white border border-gray-300 rounded-r-md min-w-16 transition-colors duration-100 ease-in-out">
+                    ${colorHex || 'N/A'}
+                </span>
+            </div>
+            <p class="mt-1 text-xs text-gray-500">Optional: Enter a 6-digit hex code to represent the variation color.</p>
+        </div>
+    `;
+    // -----------------------------
 
     return `
         <div id="${uniqueId}" data-variation-index="${sectionNumber}" class="p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-inner relative">
@@ -586,7 +621,11 @@ function createProductSection(index, variationData = null) {
                 ${sectionNumber > 1 ? `<button type="button" onclick="removeProductSection('${uniqueId}')" class="text-red-500 hover:text-red-700 transition duration-150 text-sm">Remove</button>` : ''}
             </h4>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                ${colorHtml}
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                 ${renderImageInput('front-view', frontImageUrl, fileRequiredAttribute, 'Front View')}
                 ${renderImageInput('back-view', backImageUrl, fileRequiredAttribute, 'Back View')}
             </div>
@@ -633,6 +672,9 @@ function reindexProductSections() {
         const existingFrontUrl = section.querySelector('[id^="existing-front-view-url-"]')?.value || null;
         const existingBackUrl = section.querySelector('[id^="existing-back-view-url-"]')?.value || null;
         
+        // NEW: Extract Color Hex
+        const existingColorHex = section.querySelector(`[id^="section-${index + 1}-color-hex"]`)?.value || '';
+
         const existingSizes = Array.from(section.querySelectorAll('.nested-size-stock-group')).map(group => ({
             size: group.querySelector('.size-input').value,
             stock: parseInt(group.querySelector('.stock-input').value)
@@ -642,6 +684,7 @@ function reindexProductSections() {
         const variationData = {
             frontImageUrl: existingFrontUrl,
             backImageUrl: existingBackUrl,
+            colorHex: existingColorHex, // Pass the color data
             sizes: existingSizes // Pass the nested size/stock array
         };
 
@@ -670,11 +713,7 @@ function updateAddSectionButtonState() {
         addSectionBtn.classList.remove('opacity-50', 'cursor-not-allowed');
         addSectionBtn.classList.add('hover:bg-emerald-50');
     }
-}
-
-// ------------------------------------------------------------------------------------------
-
-// --- COLLECTION MANAGEMENT (BACKEND INTERACTION) ---
+} 
 
 /**
  * Fetches data for a specific collection and populates the form for editing.
@@ -733,6 +772,15 @@ async function editCollection(collectionId) {
             // Pass the entire variation object
             newSection.innerHTML = createProductSection(index, variation).trim(); 
             productSectionsContainer.appendChild(newSection.firstChild);
+            
+            // CRITICAL FIX: Manually trigger the color preview update on load
+            const sectionNumber = index + 1;
+            const colorInput = document.getElementById(`section-${sectionNumber}-color-hex`);
+            const colorPreviewId = `section-${sectionNumber}-color-preview`;
+            if (colorInput) {
+                window.updateColorPreview(colorInput.value, colorPreviewId);
+            }
+
             sectionCount++;
         });
 
@@ -782,7 +830,7 @@ async function handleCollectionSubmit(event) {
         return;
     }
     
-    // --- 1. Collect Variations and Files (NESTED SIZE/STOCK LOGIC) ---
+    // --- 1. Collect Variations and Files (NESTED SIZE/STOCK & COLOR LOGIC) ---
     const formData = new FormData();
     let productVariationsMetadata = [];
     let isValid = true;
@@ -804,6 +852,17 @@ async function handleCollectionSubmit(event) {
 
         let frontUrlForMetadata = existingFrontUrl;
         let backUrlForMetadata = existingBackUrl;
+
+        // --- NEW: COLOR HEX COLLECTION ---
+        const colorHexInput = document.getElementById(`section-${sectionNumber}-color-hex`);
+        const colorHexValue = colorHexInput ? colorHexInput.value.trim().toUpperCase() : null;
+
+        // Basic Color validation (optional field, but if entered, must be valid or empty)
+        if (colorHexValue && !/^#[0-9A-F]{6}$/i.test(colorHexValue)) {
+            showErrorModal(`Invalid Color Hex code for Variation <mark>#${sectionNumber}</mark>. It must be a 6-digit hex code (e.g., #00FF33) or left empty.`);
+            isValid = false;
+            return false;
+        }
 
         // --- NESTED SIZE/STOCK COLLECTION ---
         const nestedSizes = [];
@@ -873,7 +932,8 @@ async function handleCollectionSubmit(event) {
             variationIndex: sectionNumber,
             frontImageUrl: frontUrlForMetadata,
             backImageUrl: backUrlForMetadata, 
-            sizes: nestedSizes, // <<< CRITICAL CHANGE: Nested Size/Stock Array
+            colorHex: colorHexValue, // <<< CRITICAL CHANGE: Added color hex
+            sizes: nestedSizes, // Nested Size/Stock Array
         });
         
         return true; // Continue Array.every loop
@@ -903,7 +963,7 @@ async function handleCollectionSubmit(event) {
         totalStock: finalTotalStock, // Computed total stock from all variations' nested inputs
         isActive: isActive,
         availableDate: document.getElementById('available-date').value, 
-        variations: productVariationsMetadata // Array containing nested size/stock
+        variations: productVariationsMetadata // Array containing nested size/stock and color
     };
 
     // --- 3. Append JSON Data to FormData ---
@@ -1215,7 +1275,6 @@ function getTagClass(tag) {
         default: return 'bg-gray-100 text-gray-800';
     }
 }
-
 
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {

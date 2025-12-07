@@ -916,8 +916,6 @@ CapCollectionSchema.pre('findOneAndUpdate', function(next) {
 // --- Model Definition and Export ---
 const CapCollection = mongoose.models.CapCollection || mongoose.model('CapCollection', CapCollectionSchema);
 
-
-// --- 📦 UPDATED PRE-ORDER COLLECTION SCHEMA 📦 ---
 const PreOrderCollectionSchema = new mongoose.Schema({
     // General Product Information
     name: { type: String, required: [true, 'Collection name is required'], trim: true },
@@ -943,12 +941,11 @@ const PreOrderCollectionSchema = new mongoose.Schema({
             message: 'A collection must have between 1 and 4 variations.'
         }
     }
-}, { timestamps: true });
+}, { timestamps: true }); // Using { timestamps: true } handles createdAt and updatedAt automatically
 
-
-// --- UPDATED Pre-Save Middleware (PreOrderCollection) ---
 PreOrderCollectionSchema.pre('save', function(next) {
-    this.updatedAt = Date.now();
+    // If using { timestamps: true }, this line is often unnecessary but harmless
+    // this.updatedAt = Date.now(); 
     
     // 1. Calculate the new total stock
     let calculatedTotalStock = 0;
@@ -958,6 +955,8 @@ PreOrderCollectionSchema.pre('save', function(next) {
         calculatedTotalStock = this.variations.reduce((totalCollectionStock, variation) => {
             
             // For each variation, sum the stock of all its sizes
+            // Note: variation.sizes is guaranteed to be an array or null/undefined, 
+            // so || [] ensures safe reduction.
             const variationStockSum = (variation.sizes || []).reduce((totalSizeStock, sizeEntry) => {
                 // Safely access size stock property, defaulting to 0
                 return totalSizeStock + (sizeEntry.stock || 0);
@@ -4539,14 +4538,13 @@ app.get('/api/collections/caps', async (req, res) => {
         res.status(500).json({ message: 'Server error while fetching cap collections for homepage.', details: error.message });
     }
 });
-
 // GET /api/collections/preorder (For Homepage Display)
 app.get('/api/collections/preorder', async (req, res) => {
     try {
-        // 1. Ensure all necessary fields, including the new color fields, are selected.
-        // Mongoose will just return 'undefined' for fields that don't exist on the documents.
+        // 1. Ensure all necessary fields are selected.
+        // NOTE: Removed 'variations.colorName' since the admin form only supplies colorHex.
         const collections = await PreOrderCollection.find({ isActive: true })
-            .select('_id name tag price totalStock availableDate variations.colorName variations.colorHex variations.variationIndex variations.frontImageUrl variations.backImageUrl variations.sizes')
+            .select('_id name tag price totalStock availableDate variations.colorHex variations.variationIndex variations.frontImageUrl variations.backImageUrl variations.sizes')
             .sort({ createdAt: -1 })
             .lean();
 
@@ -4560,36 +4558,36 @@ app.get('/api/collections/preorder', async (req, res) => {
                 
                 const variantTotalStock = (v.sizes || []).reduce((sum, s) => sum + (s.stock || 0), 0);
                 
+                // Only include variants that have stock or if the collection totalStock is null/undefined
                 if (variantTotalStock > 0 || !collection.totalStock) {
                     
-                    // Generate a size map entry 
+                    // Generate a size map entry (Max stock across all variants for a given size)
                     (v.sizes || []).forEach(s => {
                         const normalizedSize = s.size.toUpperCase().trim();
+                        // Use actual stock if > 0, otherwise use a high number for pre-order if stock is meant to be unlimited/ignored
                         const stockForPreorder = (s.stock > 0) ? s.stock : 999; 
                         
                         sizeStockMap[normalizedSize] = Math.max(sizeStockMap[normalizedSize] || 0, stockForPreorder);
                     });
 
                     // Map and prepare the public variant object
-                    // 🌟 FIX: Use fallback values for color fields if they are missing from the DB 🌟
-                    const fallbackColorName = v.colorName || 'Default';
+                    // 🌟 CRITICAL FIX: Only use colorHex as colorName is not provided by admin
                     const fallbackColorHex = v.colorHex || '#000000'; // Using black as a visual fallback
 
                     filteredVariants.push({
-                        // Send fallback values if the DB document is missing color fields
-                        colorName: fallbackColorName, 
-                        colorHex: fallbackColorHex,   
+                        // colorName: fallbackColorName, // REMOVED: Not supplied by admin form
+                        colorHex: fallbackColorHex,   
                         
                         variationIndex: v.variationIndex, 
                         frontImageUrl: await generateSignedUrl(v.frontImageUrl) || null,
                         backImageUrl: await generateSignedUrl(v.backImageUrl) || null,
+                        // sizes array is NOT sent to the client in the variant, only aggregated into sizeStockMap
                     });
                 }
             }
             // --- END CRITICAL FILTERING ---
             
-            // ... (rest of the mapping remains the same)
-
+            // Determine the primary images from the first filtered variant
             const firstVariant = filteredVariants.length > 0 ? filteredVariants[0] : {};
             const frontImageUrl = firstVariant.frontImageUrl || collection.frontImageUrl || null;
             const backImageUrl = firstVariant.backImageUrl || collection.backImageUrl || null;
@@ -4608,7 +4606,7 @@ app.get('/api/collections/preorder', async (req, res) => {
                 frontImageUrl: frontImageUrl, 
                 backImageUrl: backImageUrl, 
                 
-                variants: filteredVariants // This now contains the 'colorName' field
+                variants: filteredVariants // This now contains the 'colorHex' field
             };
         }));
 

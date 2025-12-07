@@ -788,24 +788,24 @@ function toggleImage(collectionId) {
         toggleButton.title = "Show Back View";
     }
 }
-
 // --- UTILITY FOR COLOR LIST (Stock-Aware) ---
 function createColorList(collectionId, variants) {
-    // 1. Initial Safety Check
-    // 'variants' now only includes colors with total stock > 0 (filtered by backend)
+   
     if (!variants || variants.length === 0) return '';
-    
-    // NOTE: The previous 'pre-order' filter is removed because the backend should 
-    // already ensure that every variant passed here is intended to be displayed.
+   
     const coloredVariants = variants; 
 
     // If there are no colored variants, return empty.
     if (coloredVariants.length === 0) return ''; 
 
     // 2. Create a map for the image switching logic
+    // ⭐ FIX 1: Use variant.colorHex as the key and the value (for image switching) ⭐
     const colorMap = coloredVariants.reduce((acc, v) => {
-        // We only map the necessary image URLs
-        acc[v.color] = { frontImageUrl: v.frontImageUrl, backImageUrl: v.backImageUrl };
+        // We only map the necessary image URLs, keyed by the hex code
+        const colorHexKey = v.colorHex;
+        if (colorHexKey) {
+            acc[colorHexKey] = { frontImageUrl: v.frontImageUrl, backImageUrl: v.backImageUrl, variationIndex: v.variationIndex };
+        }
         return acc;
     }, {});
 
@@ -814,22 +814,29 @@ function createColorList(collectionId, variants) {
 
     // 4. Generate the color swatch buttons
     const buttonsHtml = coloredVariants.map((variant, index) => {
-        const colorHex = variant.color; 
+        // ⭐ FIX 2: Get color from variant.colorHex ⭐
+        const colorHex = variant.colorHex; 
+        
+        // Skip if colorHex is somehow missing (e.g., if fallback was needed but not handled earlier)
+        if (!colorHex) return '';
+
         const style = `background-color: ${colorHex};`;
         const safeColor = String(colorHex).toUpperCase(); 
         
+        // This is primarily for white colors so the swatch is visible
         const extraClass = (safeColor === '#FFFFFF' || safeColor === '#FFF') ? 'border-gray-400' : 'border-gray-200';
         
         return `
-            <label for="color-${collectionId}-${colorHex}" class="color-label cursor-pointer p-[1px] rounded-full border border-transparent hover:border-ash-red transition-all has-[:checked]:border-ash-red">
+            <label for="color-${collectionId}-${colorHex.substring(1)}" class="color-label cursor-pointer p-[1px] rounded-full border border-transparent hover:border-ash-red transition-all has-[:checked]:border-ash-red" title="Color: ${colorHex}">
                 <input 
                     type="radio" 
-                    id="color-${collectionId}-${colorHex}" 
+                    id="color-${collectionId}-${colorHex.substring(1)}" 
                     name="color-${collectionId}" 
                     value="${colorHex}" 
                     class="hidden" 
                     onchange="changeVariantImage('${collectionId}', this.value)" 
                     ${index === 0 ? 'checked' : ''}
+                    data-variation-index="${variant.variationIndex}"
                 >
                 <span class="block w-4 h-4 rounded-full border ${extraClass}" style="${style}"></span>
             </label>
@@ -838,6 +845,11 @@ function createColorList(collectionId, variants) {
 
     return mapHtml + buttonsHtml;
 }
+
+// NOTE: The changeVariantImage function (not provided here) must be updated to 
+// 1. Look up the images by the HEX code.
+// 2. Also update the hidden size/variation selection inputs (or cart payload data)
+//    to include the selected colorHex and variationIndex.
 
 function createCollectionCard(collection, size = 'default') {
     const currencySymbol = '₦';

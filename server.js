@@ -4538,6 +4538,7 @@ app.get('/api/collections/caps', async (req, res) => {
         res.status(500).json({ message: 'Server error while fetching cap collections for homepage.', details: error.message });
     }
 });
+
 // GET /api/collections/preorder (For Homepage Display)
 app.get('/api/collections/preorder', async (req, res) => {
     try {

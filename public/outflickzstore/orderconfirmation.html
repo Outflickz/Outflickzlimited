@@ -352,6 +352,7 @@ async function updateProfileIconStatus() {
         }
     }
 }
+    
 /**
  * Fetches the full order details (items, final amount) from the server.
  * @param {string} orderId - The MongoDB _id or reference of the order.
@@ -367,7 +368,7 @@ async function fetchOrderCollection(orderId) {
     // Helper function to render login prompt (omitted for brevity)
     const renderLoginPrompt = (isExpired = false) => {
         // ... (function body remains the same)
-        // Construct the full URL for redirection
+         // Construct the full URL for redirection
         const currentUrl = window.location.pathname + window.location.search;
         const redirectUrl = `useraccount.html?redirect=${encodeURIComponent(currentUrl)}`;
         const message = isExpired 
@@ -385,6 +386,7 @@ async function fetchOrderCollection(orderId) {
 
     if (!isLoggedIn) {
         console.warn('[OrderFetch] User is NOT logged in (Cookie invalid). Displaying login prompt.');
+        // If the cookie session is NOT valid (server says logged out), show the login prompt.
         itemsListEl.innerHTML = renderLoginPrompt(false);
         priceSummaryEl.innerHTML = '';
         return;
@@ -392,16 +394,22 @@ async function fetchOrderCollection(orderId) {
 
     if (isLoggedIn && !token) {
         console.error('[OrderFetch] 🛑 Session Mismatch Detected: Cookie is valid, but JWT token is missing.');
+        // If the cookie is valid but the JWT (needed for the order API call) is missing, 
+        // display a specific error and guide the user to re-authenticate.
         itemsListEl.innerHTML = `<div class="text-center py-4 text-orange-500">
             <i class="fas fa-exclamation-circle mr-2"></i> **Session Mismatch:** Your login status is confirmed, but the token required to fetch order data is missing. Please **log out and log back in** to resolve this.
         </div>`;
         priceSummaryEl.innerHTML = '';
+        // We stop here because the API call (which requires the JWT token) will fail anyway.
         return;
     }
     
+    // Log the successful pre-check before the API call
     console.log('[OrderFetch] Pre-check passed: Logged in (Cookie valid) and JWT token present. Proceeding to API call.');
 
     try {
+        // We proceed because isLoggedIn is true AND token is present.
+        // CALLING BACKEND ENDPOINT: GET /api/orders/:orderId
         const fetchUrl = `${API_BASE_URL}/api/orders/${orderId}`;
         console.log(`[OrderFetch] Calling API: ${fetchUrl}`);
         
@@ -416,19 +424,25 @@ async function fetchOrderCollection(orderId) {
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({ message: 'Server error' }));
             
+            // 🛑 SECONDARY CHECK: If the JWT token is invalid or expired
             if (response.status === 401 || response.status === 403) {
                 console.error(`[OrderFetch] API call failed with status ${response.status}: JWT Token expired/invalid. Clearing token.`);
-                localStorage.removeItem('outflickzAuthToken');
-                updateProfileIconStatus(); 
-                itemsListEl.innerHTML = renderLoginPrompt(true);
-                priceSummaryEl.innerHTML = '';
-                return;
+                 // Clear the invalid JWT token immediately
+                 localStorage.removeItem('outflickzAuthToken');
+                 // Also ensure the header icon updates based on cookie status if it was relying on the JWT
+                 updateProfileIconStatus(); 
+                 
+                 itemsListEl.innerHTML = renderLoginPrompt(true);
+                 priceSummaryEl.innerHTML = '';
+                 return;
             }
 
+            // Other errors (e.g., 404 order not found)
             console.error(`[OrderFetch] Other API error (Status: ${response.status}):`, errorData.message);
             throw new Error(errorData.message || `Failed to retrieve order details (Status: ${response.status}).`);
         }
 
+        // The backend endpoint GET /api/orders/:orderId returns the populated order object
         const orderDetails = await response.json(); 
         console.log('[OrderFetch] Order details successfully retrieved:', orderDetails);
         
@@ -438,7 +452,7 @@ async function fetchOrderCollection(orderId) {
             return;
         }
 
-        // Price calculations
+        // Price calculations (amounts are already fetched from the backend, use them)
         const subtotal = orderDetails.subtotal || 0.00;
         const shippingFee = orderDetails.shippingFee || 0.00;
         const tax = orderDetails.tax || 0.00; 
@@ -451,27 +465,18 @@ async function fetchOrderCollection(orderId) {
 
         // 1. Render Collection Details
         itemsListEl.innerHTML = `
-            ${orderDetails.items.map(item => {
-                // Determine if a meaningful color is present.
-                // It should be non-null/non-empty and not 'N/A' (or any other default placeholder).
-                const hasColor = item.color && item.color.trim() !== '' && item.color.toUpperCase() !== 'N/A';
-                
-                // Conditionally construct the color details HTML, including the separator.
-                const colorDetailHtml = hasColor 
-                    ? `<span class="mx-1 text-gray-300">|</span> <span class="font-medium">Color:</span> ${item.color}`
-                    : '';
-
-                return `
+            ${orderDetails.items.map(item => `
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center py-3 border-b border-gray-100 last:border-b-0 transition duration-150 hover:bg-gray-50 rounded-md px-2">
                     <div class="flex items-start flex-grow">
                         <img src="${item.imageUrl || 'https://placehold.co/60x60/f8f8f8/999999?text=NO+IMG'}" alt="${item.name}" class="w-16 h-16 rounded-lg border mr-4 object-cover">
                         <div class="text-sm">
                             <p class="font-bold text-gray-900">${item.name}</p>
                             <p class="text-xs text-gray-500 mt-1">
-                                <span class="font-medium">Size:</span> ${item.size} 
-                                ${colorDetailHtml}
+                                <span class="font-medium">Size:</span> ${item.size} <span class="mx-1 text-gray-300">|</span> 
+                                <span class="font-medium">Color:</span> ${item.color || 'N/A'}
                             </p>
                             <p class="text-xs text-gray-500"><span class="font-medium">Qty:</span> ${item.quantity}</p>
+                            
                         </div>
                     </div>
                     <div class="mt-2 sm:mt-0 text-right sm:pl-4 w-full sm:w-auto">
@@ -479,8 +484,7 @@ async function fetchOrderCollection(orderId) {
                         <p class="text-xs text-gray-400">@ ${CURRENCY_SYMBOL}${formatNaira(item.priceAtTimeOfPurchase)} each</p>
                     </div>
                 </div>
-                `;
-            }).join('')}
+            `).join('')}
         `;
 
         // 2. Render Price Summary
@@ -491,6 +495,7 @@ async function fetchOrderCollection(orderId) {
             <p class="text-xl font-extrabold text-primary-indigo border-t pt-2 mt-4">Order Total: ${CURRENCY_SYMBOL}${formatNaira(total)}</p>
         `;
 
+        // Log confirmation of email send
         console.log(`[OrderFetch] Order details loaded successfully.`);
 
     } catch (error) {

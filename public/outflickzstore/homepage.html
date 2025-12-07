@@ -791,22 +791,21 @@ function toggleImage(collectionId) {
 
 // --- UTILITY FOR COLOR LIST (Stock-Aware) ---
 function createColorList(collectionId, variants) {
-   
+    // 1. Initial Safety Check
+    // 'variants' now only includes colors with total stock > 0 (filtered by backend)
     if (!variants || variants.length === 0) return '';
-   
+    
+    // NOTE: The previous 'pre-order' filter is removed because the backend should 
+    // already ensure that every variant passed here is intended to be displayed.
     const coloredVariants = variants; 
 
     // If there are no colored variants, return empty.
     if (coloredVariants.length === 0) return ''; 
 
     // 2. Create a map for the image switching logic
-    // ⭐ FIX 1: Use variant.colorHex as the key and the value (for image switching) ⭐
     const colorMap = coloredVariants.reduce((acc, v) => {
-        // We only map the necessary image URLs, keyed by the hex code
-        const colorHexKey = v.colorHex;
-        if (colorHexKey) {
-            acc[colorHexKey] = { frontImageUrl: v.frontImageUrl, backImageUrl: v.backImageUrl, variationIndex: v.variationIndex };
-        }
+        // We only map the necessary image URLs
+        acc[v.color] = { frontImageUrl: v.frontImageUrl, backImageUrl: v.backImageUrl };
         return acc;
     }, {});
 
@@ -815,29 +814,22 @@ function createColorList(collectionId, variants) {
 
     // 4. Generate the color swatch buttons
     const buttonsHtml = coloredVariants.map((variant, index) => {
-        // ⭐ FIX 2: Get color from variant.colorHex ⭐
-        const colorHex = variant.colorHex; 
-        
-        // Skip if colorHex is somehow missing (e.g., if fallback was needed but not handled earlier)
-        if (!colorHex) return '';
-
+        const colorHex = variant.color; 
         const style = `background-color: ${colorHex};`;
         const safeColor = String(colorHex).toUpperCase(); 
         
-        // This is primarily for white colors so the swatch is visible
         const extraClass = (safeColor === '#FFFFFF' || safeColor === '#FFF') ? 'border-gray-400' : 'border-gray-200';
         
         return `
-            <label for="color-${collectionId}-${colorHex.substring(1)}" class="color-label cursor-pointer p-[1px] rounded-full border border-transparent hover:border-ash-red transition-all has-[:checked]:border-ash-red" title="Color: ${colorHex}">
+            <label for="color-${collectionId}-${colorHex}" class="color-label cursor-pointer p-[1px] rounded-full border border-transparent hover:border-ash-red transition-all has-[:checked]:border-ash-red">
                 <input 
                     type="radio" 
-                    id="color-${collectionId}-${colorHex.substring(1)}" 
+                    id="color-${collectionId}-${colorHex}" 
                     name="color-${collectionId}" 
                     value="${colorHex}" 
                     class="hidden" 
                     onchange="changeVariantImage('${collectionId}', this.value)" 
                     ${index === 0 ? 'checked' : ''}
-                    data-variation-index="${variant.variationIndex}"
                 >
                 <span class="block w-4 h-4 rounded-full border ${extraClass}" style="${style}"></span>
             </label>
@@ -847,20 +839,13 @@ function createColorList(collectionId, variants) {
     return mapHtml + buttonsHtml;
 }
 
-// NOTE: The changeVariantImage function (not provided here) must be updated to 
-// 1. Look up the images by the HEX code.
-// 2. Also update the hidden size/variation selection inputs (or cart payload data)
-//    to include the selected colorHex and variationIndex.
-
-// NOTE: createColorList is correct and remains unchanged.
-
 function createCollectionCard(collection, size = 'default') {
     const currencySymbol = '₦';
     const PLACEHOLDER_URL = 'https://s3.us-west-1.idrivee2.com/outflickz/public/placeholder-image-v1.jpg';
     const defaultFrontImage = PLACEHOLDER_URL;
     const defaultBackImage = PLACEHOLDER_URL;
 
-    // --- Conditional Sizing Classes (omitted for brevity) ---
+    // --- Conditional Sizing Classes ---
     const reducedSizes = ['reduced', 'caps', 'wears', 'newarrivals', 'preorder'];
     const isReduced = reducedSizes.includes(size);
     const isCaps = size === 'caps'; 
@@ -883,6 +868,9 @@ function createCollectionCard(collection, size = 'default') {
     const quantityButtonSize = isReduced ? 'w-7 h-7' : 'w-8 h-8'; 
     const quantityInputTextSize = isReduced ? 'text-[0.6rem] sm:text-xs' : 'text-xs sm:text-sm';
     
+    // BUTTON SIZING
+    // Removed specific button flex classes here, relying on w-full/flex-1 in the return HTML
+    
     // --- FINAL FIX: Ensure 'variants'/'variations' is accessed correctly and safely ---
     const primaryVariant = (Array.isArray(collection.variants) && collection.variants.length > 0)
         ? collection.variants[0]
@@ -898,10 +886,11 @@ function createCollectionCard(collection, size = 'default') {
     const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
 
 
-    // --- CRITICAL FRONTEND FIX START (Size List) ---
-    // Assuming createSizeList is defined elsewhere and returns size radio buttons
+    // --- CRITICAL FRONTEND FIX START ---
+    // 1. Generate the inner HTML for size selection options.
     const innerSizeOptions = createSizeList(collection._id, collection.sizeStockMap, isReduced);
 
+    // 2. Generate the surrounding div/label structure.
     const sizeListHtml = (innerSizeOptions && !isCaps)
         ? `
             <div class="flex flex-col items-start w-full flex-1">
@@ -914,22 +903,26 @@ function createCollectionCard(collection, size = 'default') {
         : ''; 
     // --- CRITICAL FRONTEND FIX END ---
 
-    // Uses the corrected createColorList which uses 'colorHex'
     const colorListHtml = createColorList(collection._id, collection.variants || collection.variations); 
 
     const maxStock = collection.availableStock > 0 ? collection.availableStock : 0;
 
-    // ... (omitted stock status and badge/button class logic) ...
+    // *** Check Stock Status ***
     const isOutOfStock = maxStock === 0 || collection.availableStock === 0;
+
     const description = collection.tag || (isPreorder ? 'Secure your exclusive item before it sells out' : 'Exclusive limited edition item.');
+
+    // --- Pre-Order specific badge and text ---
     const preorderAvailableDate = collection.availableDate
         ? new Date(collection.availableDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
         : 'TBA';
+
     let stockBadge = '';
     let cartButtonText = 'ADD TO CART'; 
     let buyNowButtonText = 'BUY NOW';
     let cartButtonClasses = 'bg-ash-dark text-white hover:bg-ash-red';
     let buyNowButtonClasses = 'bg-ash-red text-white hover:bg-red-700';
+
     if (isPreorder) {
         stockBadge = `<span class="absolute top-2 left-2 bg-ash-dark text-white text-[0.6rem] sm:text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">PRE-ORDER</span>`;
         cartButtonText = 'ADD TO CART';
@@ -943,14 +936,10 @@ function createCollectionCard(collection, size = 'default') {
         cartButtonClasses = 'bg-gray-500 text-white cursor-not-allowed opacity-75';
         buyNowButtonClasses = 'bg-gray-500 text-white cursor-not-allowed opacity-75';
     }
+
+    // *** Define Buttons/Labels based on Stock Status ***
     const isButtonDisabled = isOutOfStock && !isPreorder;
     const safeProductTypeInHtml = collection.collectionName || collection.productType;
-
-    // --- Dynamic Getter for Button Payloads ---
-    const getSelectedColorValue = `document.querySelector('input[name="color-${collection._id}"]:checked')?.value || 'N/A'`;
-    const getSelectedSizeValue = `document.querySelector('input[name="size-${collection._id}"]:checked')?.value || 'N/A'`;
-    const getSelectedVariationIndex = `document.querySelector('input[name="color-${collection._id}"]:checked')?.getAttribute('data-variation-index') || '${primaryVariant?.variationIndex || 1}'`;
-    // ------------------------------------------
 
     // Get current quantity value for the button click
     const quantityGetter = `document.getElementById('quantity-input-${collection._id}').value`;
@@ -959,21 +948,13 @@ function createCollectionCard(collection, size = 'default') {
     const cartButtonHtml = `
         <button
             ${isButtonDisabled ? 'disabled' : ''}
-            onclick="
-                simulateAddToCart({
-                    productId: '${collection._id}',
-                    name: '${collection.name.replace(/'/g, "\\'")}',
-                    price: ${itemPrice},
-                    imageUrl: '${frontImageUrl}',
-                    quantity: parseInt(${quantityGetter}),
-                    
-                    // ⭐ CRITICAL PAYLOAD FIXES: Pass the dynamic colorHex and variationIndex ⭐
-                    color: ${getSelectedColorValue}, // color field is the hex code
-                    size: ${getSelectedSizeValue}, 
-                    variationIndex: parseInt(${getSelectedVariationIndex}),
-                    variation: ${getSelectedSizeValue} // variation field typically maps to size
-                })
-            "
+            onclick="simulateAddToCart({
+                productId: '${collection._id}',
+                name: '${collection.name.replace(/'/g, "\\'")}',
+                price: ${itemPrice},
+                imageUrl: '${frontImageUrl}',
+                quantity: parseInt(${quantityGetter})
+            })"
             class="${controlTextSize} ${cartButtonClasses} ${controlHeight} rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center w-full md:flex-1">
             ${cartButtonText}
         </button>
@@ -982,22 +963,17 @@ function createCollectionCard(collection, size = 'default') {
     const buyNowButtonHtml = `
         <button 
             ${isButtonDisabled ? 'disabled' : ''} 
-            onclick="
-                simulateBuyNow({
-                    productId: '${collection._id}',
-                    name: '${collection.name.replace(/'/g, "\\'")}',
-                    productType: '${safeProductTypeInHtml}', 
-                    price: ${itemPrice},
-                    quantity: parseInt(${quantityGetter}),
-                    imageUrl: '${frontImageUrl}',
-                    
-                    // ⭐ CRITICAL PAYLOAD FIXES: Pass the dynamic colorHex and variationIndex ⭐
-                    color: ${getSelectedColorValue}, // color field is the hex code
-                    size: ${getSelectedSizeValue},
-                    variationIndex: parseInt(${getSelectedVariationIndex}),
-                    variation: ${getSelectedSizeValue} // variation field typically maps to size
-                })
-            "
+            onclick="simulateBuyNow({
+                productId: '${collection._id}',
+                name: '${collection.name.replace(/'/g, "\\'")}',
+                
+                // ⭐ FIX 1: Explicitly pass a safe productType
+                productType: '${safeProductTypeInHtml}', 
+                
+                price: ${itemPrice},
+                quantity: parseInt(${quantityGetter}),
+                imageUrl: '${frontImageUrl}'
+            })"
             class="${controlTextSize} ${buyNowButtonClasses} ${controlHeight} rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center w-full md:flex-1">
             ${buyNowButtonText}
         </button>
@@ -1063,13 +1039,14 @@ function createCollectionCard(collection, size = 'default') {
 
                 <p class="${priceFontSize} text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
 
+                                
                 <div class="flex items-center gap-2 mt-2">
                     <span class="text-xs font-medium text-gray-700">Color:</span>
                     <div class="flex gap-1 text-gray-700">
                         ${colorListHtml}
                     </div>
                 </div>
-                
+                                
                 <div class="flex flex-col md:flex-row items-start md:items-center justify-between w-full mt-2 gap-2">
                     ${sizeListHtml} 
                     ${quantityControlHtml}

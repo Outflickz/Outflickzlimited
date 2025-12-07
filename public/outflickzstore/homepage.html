@@ -459,7 +459,6 @@ function addToCart(collectionId, quantity) {
 
     console.log(`Added ${quantity} of item ${collectionId}. New cart total: ${newCount}`);
 }
-
 /**
  * Handles adding an item to the cart. 
  * Tries API (permanent cart via secure cookie) first.
@@ -475,8 +474,16 @@ async function simulateAddToCart(productDetails) {
     const selectedSizeInput = card.querySelector(`input[name="size-${productDetails.productId}"]:checked`);
     const selectedColorInput = card.querySelector(`input[name="color-${productDetails.productId}"]:checked`);
     
-    const size = selectedSizeInput ? selectedSizeInput.value : 'N/A';
-    const color = selectedColorInput ? selectedColorInput.value : 'N/A';
+    // 🎯 CRITICAL FIX: Robust value checking to prevent "undefined" string from payload
+    const rawColorValue = selectedColorInput ? selectedColorInput.value : null;
+    const color = (rawColorValue && rawColorValue !== 'undefined' && rawColorValue.length > 0) 
+        ? rawColorValue 
+        : 'N/A';
+        
+    const rawSizeValue = selectedSizeInput ? selectedSizeInput.value : null;
+    const size = (rawSizeValue && rawSizeValue !== 'undefined' && rawSizeValue.length > 0) 
+        ? rawSizeValue 
+        : 'N/A';
     
     // 🚀 CRITICAL FIX 1: Initialize variationIndex. Default to 1 (server compatibility).
     let variationIndex = 1; 
@@ -485,11 +492,13 @@ async function simulateAddToCart(productDetails) {
     let selectedImageUrl = productDetails.imageUrl; // Default to the initial URL passed
 
     if (selectedColorInput) {
-        const colorHex = selectedColorInput.value;
+        // Use the validated color variable here, but the value will be the same
+        const colorHex = color; 
         const colorMapContainer = card.querySelector(`#color-map-${productDetails.productId}`);
         
         if (colorMapContainer) {
             const colorMap = JSON.parse(colorMapContainer.getAttribute('data-color-map'));
+            // Use the validated color here
             const newImageUrls = colorMap[colorHex];
             
             if (newImageUrls && newImageUrls.frontImageUrl) {
@@ -519,7 +528,7 @@ async function simulateAddToCart(productDetails) {
         productId: productDetails.productId,
         name: productDetails.name, 
         size: size,
-        color: color, // The color can be 'N/A' but is defined
+        color: color, // The color can be 'N/A' but is now validated
         price: productDetails.price,
         productType: productDetails.productType || productDetails.name,
         imageUrl: selectedImageUrl, 

@@ -829,7 +829,6 @@ function createColorList(collectionId, variants) {
     return mapHtml + buttonsHtml;
 }
 
-
 function createCollectionCard(collection, size = 'default') {
     const currencySymbol = '₦';
     const PLACEHOLDER_URL = 'https://s3.us-west-1.idrivee2.com/outflickz/public/placeholder-image-v1.jpg';
@@ -885,6 +884,7 @@ function createCollectionCard(collection, size = 'default') {
     const innerSizeOptions = createSizeList(collection._id, collection.sizeStockMap, isReduced);
 
     // 2. Only generate the surrounding div/label structure if there are actual options AND it is NOT a cap collection.
+    // The inner container for size options does not need the 'items-center space-x-2' classes since the parent flex handles alignment.
     const sizeListHtml = (innerSizeOptions && !isCaps) // <--- 🔥 FIX 2: Added !isCaps check
         ? `
             <div class="flex items-center space-x-2">
@@ -1041,7 +1041,7 @@ function createCollectionCard(collection, size = 'default') {
                     </div>
                 </div>
 
-                <div class="flex items-start justify-start flex-wrap gap-2 mt-2">
+                <div class="flex items-start justify-between w-full mt-2">
                     ${sizeListHtml}
                     ${quantityControlHtml}
                 </div>

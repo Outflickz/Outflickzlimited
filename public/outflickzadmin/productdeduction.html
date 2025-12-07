@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Management | Commerce Hub</title>
+    <title>Stock Deduction Log | Commerce Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="icon" type="image/png" href="https://i.imgur.com/ioWFyQB.png">
@@ -65,16 +65,6 @@
                 User Orders
             </a>
 
-            <a href="javascript:void(0)" onclick="setViewMode('stock')" id="btn-available-stock" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 11v10"></path></svg>
-                Available Stock
-            </a>
-
-            <a href="javascript:void(0)" onclick="setViewMode('deduction')" id="btn-deduction-log" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-emerald-600 text-white hover:bg-emerald-700">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V6m0 10v2M3 12h2.25M18.75 12H21m-2.25-4.5H19.5m-15 9H4.5"></path></svg>
-                Stock Deduction Log
-            </a>
-
             <a href="./wearscollection.html" id="btn-wearscollection" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
                 Wears Collection
@@ -120,19 +110,35 @@
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
         </button>
 
-        <section id="stock-content" class="p-6 pt-16 lg:pt-6">
+        <section id="deduction-log-content" class="p-6 pt-16 lg:pt-6">
             <h2 id="page-title" class="text-2xl font-semibold text-gray-800 mb-6">Stock Deduction Log 📦</h2>
 
-            <div id="category-filter-buttons" class="flex flex-wrap space-x-2 space-y-2 sm:space-y-0 mb-6">
-                </div>
+            <div class="flex flex-wrap space-x-2 space-y-2 sm:space-y-0 mb-6">
+                <button onclick="loadDeductionLog('all')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition" data-category="all">All Deductions</button>
+                <button onclick="loadDeductionLog('wears')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition" data-category="wears">Wears</button>
+                <button onclick="loadDeductionLog('caps')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition" data-category="caps">Caps</button>
+                <button onclick="loadDeductionLog('newarrivals')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition" data-category="newarrivals">New Arrivals</button>
+                <button onclick="loadDeductionLog('preorders')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition" data-category="preorders">Pre-Orders</button>
+            </div>
 
             <div class="bg-white p-6 rounded-xl shadow-lg overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
-                    <thead id="stock-table-head" class="bg-gray-50">
-                        </thead>
-                    <tbody id="stock-table-body" class="bg-white divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
                         <tr>
-                            <td colspan="7" class="px-6 py-4 text-center text-gray-500">Loading data...</td>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Qty.</th>
+                            
+                            <th scope="col" class="lg-only px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product ID</th>
+                            <th scope="col" class="lg-only px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                            <th scope="col" class="lg-only px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deduction Date</th>
+
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th> 
+                        </tr>
+                    </thead>
+                    <tbody id="deduction-table-body" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="7" class="px-6 py-4 text-center text-gray-500">Loading deduction data...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -166,24 +172,9 @@
     </div>
 </div>
 
-    <script>
-    // --- Configuration ---
+   <script>
+   // --- Configuration ---
 const API_BASE_URL = 'https://outflickz.netlify.app'; 
-// MOCK/EXAMPLE API ENDPOINTS (The actual ones would need to be confirmed by the backend)
-const API_ROUTES = {
-    DEDUCTIONS: '/api/admin/inventory/deductions',
-    INVENTORY: '/api/admin/inventory/available-stock', // New mock route for available stock
-    ORDER_DETAILS: '/api/admin/orders'
-};
-const CATEGORIES = [
-    { value: 'all', label: 'All' },
-    { value: 'wears', label: 'Wears', dbValue: 'Wears' },
-    { value: 'caps', label: 'Caps', dbValue: 'Caps' },
-    { value: 'newarrivals', label: 'New Arrivals', dbValue: 'New Arrivals' },
-    { value: 'preorders', label: 'Pre-Orders', dbValue: 'Pre-Orders' }
-];
-
-let currentView = 'deduction'; // 'deduction' or 'stock'
 
 // --- Utility Functions ---
 function logoutAdmin() {
@@ -220,9 +211,9 @@ function getCategoryBadge(category) {
     }
 }
 
-function getQueryParam(param) {
+function getCategoryFromURL() {
     const params = new URLSearchParams(window.location.search);
-    return params.get(param);
+    return params.get('category') || 'all'; 
 }
 
 // --- Sidebar Toggling for Responsiveness ---
@@ -285,19 +276,24 @@ async function viewOrderDetails(orderId) {
     const orderIdPlaceholder = document.getElementById('modal-order-id-placeholder');
     const adminToken = localStorage.getItem('adminToken');
     
+    // --- FIX: Check if placeholder elements exist before using them ---
     if (!modalBody || !orderIdPlaceholder) {
-        console.error("Critical HTML elements for modal not found. Cannot display details.");
+        console.error("Critical HTML elements for modal not found (modal-details-body or modal-order-id-placeholder). Cannot display details.");
+        // This stops the execution and prevents the TypeError.
         return;
     }
     
+    // These lines are where the original error occurred (line 276 and 277)
     orderIdPlaceholder.textContent = orderId;
     modalBody.innerHTML = `<div class="text-center py-8"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 inline-block"></div><p class="mt-3 text-emerald-600">Fetching order details...</p></div>`;
 
     openModal();
 
-    const fullApiUrl = `${API_BASE_URL}${API_ROUTES.ORDER_DETAILS}/${orderId}`; 
+    // Construct the full URL using the globally defined API_BASE_URL
+    const fullApiUrl = `${API_BASE_URL}/api/admin/orders/${orderId}`; 
 
     try {
+        // ... (rest of the fetch logic is unchanged)
         const response = await fetch(fullApiUrl, {
             method: 'GET',
             headers: {
@@ -308,7 +304,7 @@ async function viewOrderDetails(orderId) {
 
         if (response.status === 401) {
             closeModal();
-            // logoutAdmin(); 
+            logoutAdmin(); 
             return;
         }
 
@@ -317,17 +313,21 @@ async function viewOrderDetails(orderId) {
         }
 
         const data = await response.json();
+        
+        // Extract the actual order details from the nested 'order' key
         const orderDetails = data.order; 
         
         if (!orderDetails) {
              throw new Error("Invalid response format: 'order' property missing.");
         }
         
+        // Render the fetched details
         renderOrderDetails(orderDetails, modalBody);
 
     } catch (error) {
         console.error('Error fetching order details:', error);
         
+        // Display actual error message
         modalBody.innerHTML = `
             <p class="text-red-600 font-semibold mb-2">Error Loading Details</p>
             <p>Failed to load collection details for Order ID: ${orderId}. Please check the console for API error details.</p>
@@ -343,22 +343,32 @@ function renderOrderDetails(details, modalBody) {
     // --- Fallbacks for Order-Level Details ---
     const orderId = details.orderId || details._id || 'N/A';
     
+    // Customer name is likely nested, check common locations
     const customerName = details.customerName || 
-                         (details.user ? details.user.name : 'N/A') || 
-                         (details.shippingAddress ? details.shippingAddress.name : 'N/A');
+                             (details.user ? details.user.name : 'N/A') || 
+                             (details.shippingAddress ? details.shippingAddress.name : 'N/A');
     
+    // Total quantity: Use the explicit totalQuantity from the augmented backend response, 
+    // or recalculate if the items array is present (robust fallback).
     const totalQuantity = details.totalQuantity || details.totalItems || 
                               (details.items ? details.items.reduce((sum, item) => sum + (item.quantity || 0), 0) : 0);
     
+    // Date is often stored as 'confirmedAt', 'updatedAt', or 'date'
     const confirmationDate = details.confirmationDate || details.confirmedAt || details.updatedAt || details.date;
     const dateDisplay = confirmationDate ? new Date(confirmationDate).toLocaleString() : 'Date Not Available';
 
 
     // --- 🖼️ Corrected Fallbacks for Product Items (Image & Variant) ---
     let productsHtml = (details.items || []).map(item => {
+        // Product name: Check the denormalized 'name' first
         const productName = item.name || (item.product ? item.product.name : 'Unknown Product');
+        
+        // Variant/Size: Check the denormalized 'variation' first, then 'size'
         const variant = item.variation || item.size || 'N/A';
+        
+        // Get Image URL: Check the denormalized 'imageUrl' field
         const imageUrl = item.imageUrl || 'https://via.placeholder.com/60x60?text=No+Image'; // Fallback placeholder
+        
         const quantity = item.quantity || 1;
         
         return `
@@ -398,63 +408,20 @@ function renderOrderDetails(details, modalBody) {
     `;
 }
 
-// --- View Rendering Logic ---
-
-/**
- * Handles toggling between the 'deduction' and 'stock' views.
- */
-function setViewMode(mode, category = 'all') {
-    currentView = mode;
-    // Update URL to reflect the new view
-    history.pushState(null, '', `?view=${mode}&category=${category}`);
-
-    if (mode === 'deduction') {
-        loadDeductionLog(category);
-    } else {
-        loadAvailableStock(category);
-    }
-}
-
-/**
- * Updates the main sidebar links to reflect the current active view (Deduction Log vs. Available Stock).
- */
-function updateSidebarActiveView(view) {
-    const deductionBtn = document.getElementById('btn-deduction-log');
-    const stockBtn = document.getElementById('btn-available-stock');
-
-    [deductionBtn, stockBtn].forEach(btn => {
-        btn.classList.remove('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
-        btn.classList.add('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
-    });
-
-    if (view === 'deduction' && deductionBtn) {
-        deductionBtn.classList.remove('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
-        deductionBtn.classList.add('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
-    } else if (view === 'stock' && stockBtn) {
-        stockBtn.classList.remove('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
-        stockBtn.classList.add('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
-    }
-
-    // Also update the collection links if the view is not 'all'
-    updateSidebarActiveCollection(getQueryParam('category') || 'all');
-}
-
-
 /**
  * Logic to highlight the appropriate collection link in the sidebar 
  * based on the currently loaded deduction category filter.
  */
-function updateSidebarActiveCollection(currentCategory) {
-    const links = document.querySelectorAll('#sidebar nav a:not(#btn-deduction-log):not(#btn-available-stock):not(#btn-dashboard):not(#btn-userorders):not(#btn-membership):not(#btn-settings)');
+function updateSidebarActiveLink(currentCategory) {
+    const links = document.querySelectorAll('#sidebar nav a');
     
-    // Remove active state from all collection links
+    // 1. Remove active state from all links
     links.forEach(link => {
         link.classList.remove('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
-        // Ensure they have the default inactive style
         link.classList.add('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
     });
     
-    // Determine which link to activate based on the category for the collection pages
+    // 2. Determine which link to activate based on the category
     let activeLink = null;
     
     switch(currentCategory) {
@@ -471,51 +438,36 @@ function updateSidebarActiveCollection(currentCategory) {
             activeLink = document.getElementById('btn-preorders');
             break;
         default:
+            // 'all' or 'dashboard', etc. should not highlight a collection link.
             break;
     }
 
-    // Apply active state
-    // NOTE: This logic assumes the user is navigating to a *collection* page 
-    // when clicking a collection button, not that the deduction log itself is the collection page.
-    // We are only maintaining the visual state for the main deduction/stock buttons now.
+    // 3. Apply active state
+    if (activeLink) {
+        activeLink.classList.remove('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
+        activeLink.classList.add('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
+    }
 }
 
 /**
- * Renders the category filter buttons based on the current view mode.
+ * Fetches and renders the stock deduction log for the specified category.
+ * MOVED HERE to ensure it is defined before the DOMContentLoaded listener calls it.
  */
-function renderCategoryButtons(currentCategory, currentView) {
-    const container = document.getElementById('category-filter-buttons');
-    container.innerHTML = '';
-    
-    CATEGORIES.forEach(cat => {
-        const isActive = cat.value === currentCategory;
-        const button = document.createElement('button');
-        button.className = `category-btn px-4 py-2 text-sm font-medium rounded-full transition ${
-            isActive 
-                ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-        }`;
-        button.textContent = cat.label + (cat.label !== 'All' ? 's' : '');
-        button.dataset.category = cat.value;
-        button.onclick = () => setViewMode(currentView, cat.value);
-        container.appendChild(button);
-    });
-}
-
-// --- Load Deduction Log (Original Functionality) ---
-
 async function loadDeductionLog(category) {
-    const tableBody = document.getElementById('stock-table-body');
-    const tableHead = document.getElementById('stock-table-head');
+    const tableBody = document.getElementById('deduction-table-body');
     const pageTitle = document.getElementById('page-title');
+    const categoryBtns = document.querySelectorAll('.category-btn');
     const adminToken = localStorage.getItem('adminToken');
 
-    // 1. Update URL/Active State
-    history.pushState(null, '', `?view=deduction&category=${category}`);
-    updateSidebarActiveView('deduction');
-    renderCategoryButtons(category, 'deduction');
+    if (!adminToken) {
+        // logoutAdmin(); 
+        // return;
+    }
 
-    // 2. Update Title
+    // 1. Update URL for deep linking
+    history.pushState(null, '', `?category=${category}`);
+
+    // 2. Update Title and Active Tab Styling
     const titleMap = {
         'all': 'Stock Deduction Log 📦',
         'wears': 'Wears Deducted from Stock 👕',
@@ -525,27 +477,26 @@ async function loadDeductionLog(category) {
     };
     pageTitle.textContent = titleMap[category] || 'Stock Deduction Log 📦';
 
-    // 3. Update Table Head for Deduction Log
-    tableHead.innerHTML = `
-        <tr>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Name</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Qty.</th>
-            
-            <th scope="col" class="lg-only px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product ID</th>
-            <th scope="col" class="lg-only px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-            <th scope="col" class="lg-only px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deduction Date</th>
+    categoryBtns.forEach(btn => {
+        btn.classList.remove('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
+        btn.classList.add('bg-gray-200', 'text-gray-700', 'hover:bg-gray-300');
+        
+        if (btn.dataset.category === category) { 
+            btn.classList.remove('bg-gray-200', 'text-gray-700', 'hover:bg-gray-300');
+            btn.classList.add('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
+        }
+    });
 
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th> 
-        </tr>
-    `;
+    // 3. Update Sidebar Active Link
+    updateSidebarActiveLink(category);
+
 
     // 4. Display Loading State
-    tableBody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600 inline-block"></div> Fetching deduction data...</td></tr>';
+    tableBody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600 inline-block"></div> Fetching data...</td></tr>';
     
     let deductionData = [];
     
-    const apiUrl = `${API_BASE_URL}${API_ROUTES.DEDUCTIONS}?category=${category}`; 
+    const apiUrl = `${API_BASE_URL}/api/admin/inventory/deductions?category=${category}`; 
 
     try {
         // 5. Fetch Real Data
@@ -558,8 +509,8 @@ async function loadDeductionLog(category) {
         });
 
         if (response.status === 401) {
-             // logoutAdmin(); 
-             // return;
+            //logoutAdmin(); 
+            //return;
         }
         
         if (!response.ok) {
@@ -571,7 +522,7 @@ async function loadDeductionLog(category) {
 
     } catch (error) {
         console.error('Error fetching deduction log:', error);
-        tableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 text-center text-red-500">Failed to load deduction data: ${error.message}</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 text-center text-red-500">Failed to load data: ${error.message}</td></tr>`;
         return;
     }
 
@@ -593,8 +544,6 @@ async function loadDeductionLog(category) {
         const row = document.createElement('tr');
         row.className = 'hover:bg-gray-50 transition duration-150';
         
-        const categoryDisplayValue = CATEGORIES.find(c => c.value === item.category.toLowerCase())?.dbValue || item.category;
-
         // Optimized column rendering for mobile/desktop
         row.innerHTML = `
             <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-medium truncate-mobile">${item.orderId}</td>
@@ -603,8 +552,8 @@ async function loadDeductionLog(category) {
             
             <td class="lg-only px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 truncate-mobile">${item.productId}</td>
             <td class="lg-only px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getCategoryBadge(categoryDisplayValue)}">
-                    ${categoryDisplayValue}
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getCategoryBadge(item.category)}">
+                    ${item.category}
                 </span>
             </td>
             <td class="lg-only px-6 py-4 whitespace-nowrap text-sm text-gray-500">${date} (${timeAgo})</td>
@@ -620,139 +569,14 @@ async function loadDeductionLog(category) {
 }
 
 
-// --- Load Available Stock (NEW Functionality) ---
-
-/**
- * Fetches and renders the currently available stock for the specified category.
- */
-async function loadAvailableStock(category) {
-    const tableBody = document.getElementById('stock-table-body');
-    const tableHead = document.getElementById('stock-table-head');
-    const pageTitle = document.getElementById('page-title');
-    const adminToken = localStorage.getItem('adminToken');
-
-    // 1. Update URL/Active State
-    history.pushState(null, '', `?view=stock&category=${category}`);
-    updateSidebarActiveView('stock');
-    renderCategoryButtons(category, 'stock');
-
-    // 2. Update Title
-    const titleMap = {
-        'all': 'Current Available Stock 🟢',
-        'wears': 'Available Wears Stock 👕',
-        'caps': 'Available Caps Stock 🧢',
-        'newarrivals': 'Available New Arrivals Stock ✨',
-        'preorders': 'Available Pre-Order Stock ⏳'
-    };
-    pageTitle.textContent = titleMap[category] || 'Current Available Stock 🟢';
-
-    // 3. Update Table Head for Available Stock
-    tableHead.innerHTML = `
-        <tr>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Name</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product ID</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Variant/Size</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Stock</th>
-            
-            <th scope="col" class="lg-only px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-            <th scope="col" class="lg-only px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Update</th>
-
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th> 
-        </tr>
-    `;
-
-    // 4. Display Loading State
-    tableBody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600 inline-block"></div> Fetching stock data...</td></tr>';
-    
-    let stockData = [];
-    
-    // MOCK DATA - Replace with actual API fetch if available
-    const apiUrl = `${API_BASE_URL}${API_ROUTES.INVENTORY}?category=${category}`; 
-
-    try {
-        // Mocking the fetch operation for available stock
-        // In a real application, you would fetch from the backend here.
-        // const response = await fetch(apiUrl, { ... });
-        // const data = await response.json();
-        // stockData = data || []; 
-
-        await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
-
-        // --- MOCK DATA STRUCTURE ---
-        const allMockStock = [
-            { productId: 'W001-SM', name: 'Vintage Tee', variant: 'Small/Black', quantity: 50, category: 'Wears', lastUpdate: new Date(Date.now() - 3600000) },
-            { productId: 'W001-MD', name: 'Vintage Tee', variant: 'Medium/Black', quantity: 12, category: 'Wears', lastUpdate: new Date(Date.now() - 7200000) },
-            { productId: 'C105-BL', name: 'Sport Cap', variant: 'Adjustable/Blue', quantity: 5, category: 'Caps', lastUpdate: new Date(Date.now() - 18000000) },
-            { productId: 'N203-RD', name: 'Hoodie Pro', variant: 'Large/Red', quantity: 100, category: 'New Arrivals', lastUpdate: new Date(Date.now() - 60000) },
-            { productId: 'P010-GR', name: 'Sweater Knit', variant: 'Medium/Grey', quantity: 3, category: 'Pre-Orders', lastUpdate: new Date(Date.now() - 1000000) },
-        ];
-        
-        if (category === 'all') {
-            stockData = allMockStock;
-        } else {
-            const catDbValue = CATEGORIES.find(c => c.value === category)?.dbValue;
-            stockData = allMockStock.filter(item => item.category === catDbValue);
-        }
-
-    } catch (error) {
-        console.error('Error fetching available stock:', error);
-        tableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 text-center text-red-500">Failed to load available stock: ${error.message}</td></tr>`;
-        return;
-    }
-
-    // 5. Render Table Data
-    tableBody.innerHTML = ''; 
-
-    if (stockData.length === 0) {
-        const categoryDisplay = category === 'all' ? 'any collection' : category.replace('s', '');
-        tableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">No available stock recorded for ${categoryDisplay}.</td></tr>`;
-        return;
-    }
-
-    stockData.forEach(item => {
-        const date = new Date(item.lastUpdate).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
-        const timeAgo = formatTimeAgo(item.lastUpdate);
-        const lowStock = item.quantity < 10;
-        
-        const row = document.createElement('tr');
-        row.className = 'hover:bg-gray-50 transition duration-150';
-
-        row.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium truncate-mobile">${item.name}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 truncate-mobile">${item.productId}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.variant}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold ${lowStock ? 'text-red-600' : 'text-emerald-600'}">
-                ${item.quantity} ${lowStock ? '<span class="text-xs font-normal ml-1 bg-red-100 text-red-800 px-2 py-0.5 rounded-full">LOW</span>' : ''}
-            </td>
-            
-            <td class="lg-only px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getCategoryBadge(item.category)}">
-                    ${item.category}
-                </span>
-            </td>
-            <td class="lg-only px-6 py-4 whitespace-nowrap text-sm text-gray-500">${date} (${timeAgo})</td>
-            
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                <button onclick="alert('Viewing stock history for ${item.productId}')" class="text-blue-600 hover:text-blue-900 font-semibold transition duration-150 ease-in-out underline bg-transparent border-none p-0 cursor-pointer">
-                    View History
-                </button>
-            </td>
-        `;
-        tableBody.appendChild(row);
-    });
-}
-
-
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Determine initial view (deduction or stock) and category from URL
-    const initialView = getQueryParam('view') || 'deduction';
-    const initialCategory = getQueryParam('category') || 'all';
-
-    // 2. Load the appropriate view
-    setViewMode(initialView.toLowerCase(), initialCategory.toLowerCase());
+    // Load the category specified in the URL, or default to 'all'
+    const initialCategory = getCategoryFromURL();
+    // This call now succeeds because loadDeductionLog is defined above
+    loadDeductionLog(initialCategory.toLowerCase()); 
     
-    // 3. Close modal when clicking outside of it
+    // Close modal when clicking outside of it
     const modal = document.getElementById('orderDetailsModal');
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {

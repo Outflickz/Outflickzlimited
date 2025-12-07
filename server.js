@@ -546,6 +546,18 @@ async function sendDeliveredEmail(customerEmail, orderDetails) {
     }
 }
 
+// ADD THIS PLACEHOLDER FUNCTION to server.js near your other functions
+async function logActivity(type, message, userId, context = {}) {
+    // Check if the ActivityLog Model is defined and use it if available.
+    // Otherwise, just log to the console to prevent crashing.
+    if (typeof ActivityLog !== 'undefined' && ActivityLog.create) {
+        // You would save the log to the database here
+        // await ActivityLog.create({ type, message, userId, ...context });
+    } else {
+        // Fallback to console log
+        console.log(`[ACTIVITY LOG - ${type}] User ${userId}: ${message}`, context);
+    }
+}
 
 // --- CONFIGURATION ---
 const MONGODB_URI = process.env.MONGODB_URI
@@ -1932,6 +1944,7 @@ async function logAdminStatusUpdate(order, adminId, eventType) {
         console.error(`[ActivityLog] FAILED to log status update (${eventType}):`, error);
     }
 }
+
 // Assuming VisitorLog is accessible
 async function getVisitorAnalytics(period = 'daily') {
     let dateRange = 30; // Default to last 30 days for daily chart

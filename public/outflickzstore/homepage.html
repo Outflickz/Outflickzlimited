@@ -878,6 +878,23 @@ function createCollectionCard(collection, size = 'default') {
     const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
 
 
+    // --- CRITICAL FRONTEND FIX START ---
+    // 1. Generate the inner HTML for size selection options.
+    const innerSizeOptions = createSizeList(collection._id, collection.sizeStockMap, isReduced);
+
+    // 2. Only generate the surrounding div/label structure if there are actual options AND it is NOT a cap collection.
+    const sizeListHtml = (innerSizeOptions && !isCaps) // <--- 🔥 FIX 2: Added !isCaps check
+        ? `
+            <div class="flex items-center space-x-2 mt-2 mb-3">
+                <span class="text-xs font-medium text-gray-700">Size:</span>
+                <div class="flex gap-1 text-gray-700 flex-wrap">
+                    ${innerSizeOptions}
+                </div>
+            </div>
+        `
+        : ''; // If innerSizeOptions is empty (''), OR it is a Cap collection, the entire size block is skipped.
+    // --- CRITICAL FRONTEND FIX END ---
+
     const colorListHtml = createColorList(collection._id, collection.variants || collection.variations); // 🔥 FIX 3: Pass variants OR variations for color list
 
     const maxStock = collection.availableStock > 0 ? collection.availableStock : 0;

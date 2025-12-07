@@ -4539,11 +4539,11 @@ app.get('/api/collections/caps', async (req, res) => {
         res.status(500).json({ message: 'Server error while fetching cap collections for homepage.', details: error.message });
     }
 });
-
 // GET /api/collections/preorder (For Homepage Display)
 app.get('/api/collections/preorder', async (req, res) => {
     try {
-        // 1. Select the new 'variations.colorName' field
+        // 1. Ensure all necessary fields, including the new color fields, are selected.
+        // Mongoose will just return 'undefined' for fields that don't exist on the documents.
         const collections = await PreOrderCollection.find({ isActive: true })
             .select('_id name tag price totalStock availableDate variations.colorName variations.colorHex variations.variationIndex variations.frontImageUrl variations.backImageUrl variations.sizes')
             .sort({ createdAt: -1 })
@@ -4570,10 +4570,14 @@ app.get('/api/collections/preorder', async (req, res) => {
                     });
 
                     // Map and prepare the public variant object
+                    // 🌟 FIX: Use fallback values for color fields if they are missing from the DB 🌟
+                    const fallbackColorName = v.colorName || 'Default';
+                    const fallbackColorHex = v.colorHex || '#000000'; // Using black as a visual fallback
+
                     filteredVariants.push({
-                        // ✅ FIX: Include both color name (for payload) and hex (for swatch)
-                        colorName: v.colorName || 'Default', // Use name for client payload value
-                        colorHex: v.colorHex || '#FFFFFF',   // Use hex for swatch rendering
+                        // Send fallback values if the DB document is missing color fields
+                        colorName: fallbackColorName, 
+                        colorHex: fallbackColorHex,   
                         
                         variationIndex: v.variationIndex, 
                         frontImageUrl: await generateSignedUrl(v.frontImageUrl) || null,
@@ -4583,10 +4587,11 @@ app.get('/api/collections/preorder', async (req, res) => {
             }
             // --- END CRITICAL FILTERING ---
             
-            // Extract primary image from the first available variant
+            // ... (rest of the mapping remains the same)
+
             const firstVariant = filteredVariants.length > 0 ? filteredVariants[0] : {};
-            const frontImageUrl = firstVariant.frontImageUrl || null;
-            const backImageUrl = firstVariant.backImageUrl || null;
+            const frontImageUrl = firstVariant.frontImageUrl || collection.frontImageUrl || null;
+            const backImageUrl = firstVariant.backImageUrl || collection.backImageUrl || null;
 
             return {
                 _id: collection._id,
@@ -4602,7 +4607,7 @@ app.get('/api/collections/preorder', async (req, res) => {
                 frontImageUrl: frontImageUrl, 
                 backImageUrl: backImageUrl, 
                 
-                variants: filteredVariants 
+                variants: filteredVariants // This now contains the 'colorName' field
             };
         }));
 

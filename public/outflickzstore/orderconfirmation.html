@@ -352,7 +352,6 @@ async function updateProfileIconStatus() {
         }
     }
 }
-    
 /**
  * Fetches the full order details (items, final amount) from the server.
  * @param {string} orderId - The MongoDB _id or reference of the order.
@@ -368,7 +367,6 @@ async function fetchOrderCollection(orderId) {
     // Helper function to render login prompt (omitted for brevity)
     const renderLoginPrompt = (isExpired = false) => {
         // ... (function body remains the same)
-         // Construct the full URL for redirection
         const currentUrl = window.location.pathname + window.location.search;
         const redirectUrl = `useraccount.html?redirect=${encodeURIComponent(currentUrl)}`;
         const message = isExpired 
@@ -465,15 +463,24 @@ async function fetchOrderCollection(orderId) {
 
         // 1. Render Collection Details
         itemsListEl.innerHTML = `
-            ${orderDetails.items.map(item => `
+            ${orderDetails.items.map(item => {
+                // Check if color is present and meaningful
+                const hasColor = item.color && item.color !== 'N/A';
+                
+                // Build the optional color detail HTML block
+                const colorDetailHtml = hasColor 
+                    ? `<span class="mx-1 text-gray-300">|</span> <span class="font-medium">Color:</span> ${item.color}`
+                    : '';
+                
+                return `
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center py-3 border-b border-gray-100 last:border-b-0 transition duration-150 hover:bg-gray-50 rounded-md px-2">
                     <div class="flex items-start flex-grow">
                         <img src="${item.imageUrl || 'https://placehold.co/60x60/f8f8f8/999999?text=NO+IMG'}" alt="${item.name}" class="w-16 h-16 rounded-lg border mr-4 object-cover">
                         <div class="text-sm">
                             <p class="font-bold text-gray-900">${item.name}</p>
                             <p class="text-xs text-gray-500 mt-1">
-                                <span class="font-medium">Size:</span> ${item.size} <span class="mx-1 text-gray-300">|</span> 
-                                <span class="font-medium">Color:</span> ${item.color || 'N/A'}
+                                <span class="font-medium">Size:</span> ${item.size} 
+                                ${colorDetailHtml}
                             </p>
                             <p class="text-xs text-gray-500"><span class="font-medium">Qty:</span> ${item.quantity}</p>
                             
@@ -484,7 +491,8 @@ async function fetchOrderCollection(orderId) {
                         <p class="text-xs text-gray-400">@ ${CURRENCY_SYMBOL}${formatNaira(item.priceAtTimeOfPurchase)} each</p>
                     </div>
                 </div>
-            `).join('')}
+                `;
+            }).join('')}
         `;
 
         // 2. Render Price Summary
@@ -504,7 +512,6 @@ async function fetchOrderCollection(orderId) {
         priceSummaryEl.innerHTML = '';
     }
 }
-
 
 /**
  * Parses the URL parameters and displays the appropriate confirmation message.

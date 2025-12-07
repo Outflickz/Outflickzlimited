@@ -996,7 +996,7 @@ const cartItemSchema = new mongoose.Schema({
     // Variant Details
     size: { type: String, required: true },
     color: { type: String }, 
-    variationIndex: { type: Number, required: true, min: 0 },
+    variationIndex: { type: Number, required: true, min: 1 },
     
     // 🌟 FIX: Added 'variation' field to store user-friendly name for Order mapping 🌟
     variation: { type: String },

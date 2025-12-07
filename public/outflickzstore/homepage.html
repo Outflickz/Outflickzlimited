@@ -790,19 +790,24 @@ function toggleImage(collectionId) {
 }
 
 // --- UTILITY FOR COLOR LIST (Stock-Aware) ---
-function createColorList(collectionId, variants) {
+function createColorList(collectionId, variants, isPreorder = false) { // 👈 ADD isPreorder parameter
     // 1. Initial Safety Check
     // 'variants' now only includes colors with total stock > 0 (filtered by backend)
     if (!variants || variants.length === 0) return '';
     
-    // NOTE: The previous 'pre-order' filter is removed because the backend should 
-    // already ensure that every variant passed here is intended to be displayed.
-    const coloredVariants = variants; 
+    // 👇 CRITICAL FIX: IF pre-order, treat all variants as 'displayable'
+    const coloredVariants = isPreorder 
+        ? variants // Include all variants for pre-order, regardless of stock
+        : variants.filter(v => (v.totalStock > 0 || v.availableStock > 0)); // Existing stock-aware filter for non-pre-order
 
     // If there are no colored variants, return empty.
     if (coloredVariants.length === 0) return ''; 
 
     // 2. Create a map for the image switching logic
+    // ... (rest of the function is unchanged)
+    // ...
+    
+    // The rest of the function remains the same, as it only uses `coloredVariants`
     const colorMap = coloredVariants.reduce((acc, v) => {
         // We only map the necessary image URLs
         acc[v.color] = { frontImageUrl: v.frontImageUrl, backImageUrl: v.backImageUrl };
@@ -838,7 +843,6 @@ function createColorList(collectionId, variants) {
 
     return mapHtml + buttonsHtml;
 }
-
 function createCollectionCard(collection, size = 'default') {
     const currencySymbol = '₦';
     const PLACEHOLDER_URL = 'https://s3.us-west-1.idrivee2.com/outflickz/public/placeholder-image-v1.jpg';
@@ -850,7 +854,7 @@ function createCollectionCard(collection, size = 'default') {
     const isReduced = reducedSizes.includes(size);
     const isCaps = size === 'caps'; 
     const isWears = size === 'wears'; 
-    const isPreorder = size === 'preorder'; 
+    const isPreorder = size === 'preorder'; // Correctly identified if the card is for a 'preorder' collection
     const isnewrrivals = size === 'newarrivals';
 
     // Card Padding
@@ -888,6 +892,7 @@ function createCollectionCard(collection, size = 'default') {
 
     // --- CRITICAL FRONTEND FIX START ---
     // 1. Generate the inner HTML for size selection options.
+    // NOTE: Requires 'createSizeList' definition, assumed to exist.
     const innerSizeOptions = createSizeList(collection._id, collection.sizeStockMap, isReduced);
 
     // 2. Generate the surrounding div/label structure.
@@ -903,7 +908,9 @@ function createCollectionCard(collection, size = 'default') {
         : ''; 
     // --- CRITICAL FRONTEND FIX END ---
 
-    const colorListHtml = createColorList(collection._id, collection.variants || collection.variations); 
+    // 🎯 FIX: Pass 'isPreorder' to ensure colors are displayed even if stock is 0.
+    // NOTE: Requires 'createColorList' to be updated to accept a third parameter.
+    const colorListHtml = createColorList(collection._id, collection.variants || collection.variations, isPreorder); 
 
     const maxStock = collection.availableStock > 0 ? collection.availableStock : 0;
 
@@ -938,7 +945,7 @@ function createCollectionCard(collection, size = 'default') {
     }
 
     // *** Define Buttons/Labels based on Stock Status ***
-    const isButtonDisabled = isOutOfStock && !isPreorder;
+    const isButtonDisabled = isOutOfStock && !isPreorder; // Buttons are disabled ONLY if Out of Stock AND NOT Pre-Order.
     const safeProductTypeInHtml = collection.collectionName || collection.productType;
 
     // Get current quantity value for the button click
@@ -980,6 +987,7 @@ function createCollectionCard(collection, size = 'default') {
     `;
 
     // Quantity control 
+    // Show N/A if Out of Stock AND NOT Pre-order. Otherwise, show the controller.
     const quantityControlHtml = isOutOfStock && !isPreorder
         ? `<div class="flex-shrink-0 ${controlHeight} border border-gray-300 rounded-sm flex items-center justify-center text-xs text-gray-500 w-20 mt-1 md:mt-0">N/A</div>`
         : `
@@ -1039,7 +1047,6 @@ function createCollectionCard(collection, size = 'default') {
 
                 <p class="${priceFontSize} text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
 
-                                
                 <div class="flex items-center gap-2 mt-2">
                     <span class="text-xs font-medium text-gray-700">Color:</span>
                     <div class="flex gap-1 text-gray-700">

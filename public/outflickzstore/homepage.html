@@ -903,7 +903,10 @@ function createCollectionCard(collection, size = 'default') {
         : ''; 
     // --- CRITICAL FRONTEND FIX END ---
 
-    const colorListHtml = createColorList(collection._id, collection.variants || collection.variations); 
+
+    const colorListHtml = isPreorder 
+        ? '' // Empty string if it's a pre-order collection
+        : createColorList(collection._id, collection.variants || collection.variations);
 
     const maxStock = collection.availableStock > 0 ? collection.availableStock : 0;
 

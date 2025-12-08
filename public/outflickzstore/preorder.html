@@ -4,34 +4,58 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pre-Order Collection | Outflickz</title>
-    <link rel="stylesheet" href="path/to/your/styles.css"> 
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
     <style>
+        /* Custom styles based on your color palette */
         .bg-ash-red { background-color: #A52A2A; }
         .text-ash-red { color: #A52A2A; }
         .hover\:border-ash-red:hover { border-color: #A52A2A; }
-        .has-\[\:checked\]\:border-ash-red:has(input:checked) { border-color: #A52A2A; }
+        .has-\[:checked\]\:border-ash-red:has(input:checked) { border-color: #A52A2A; }
         .focus\:border-ash-red:focus { border-color: #A52A2A; }
         .focus\:ring-ash-red:focus { --tw-ring-color: #A52A2A; }
         .hover\:bg-ash-red:hover { background-color: #8B1A1A; }
         .bg-ash-dark { background-color: #1a1a1a; }
         .text-ash-dark { color: #1a1a1a; }
         .hover\:bg-ash-dark:hover { background-color: #000000; }
-        /* Hero specific styles */
+        /* Using simplified color names for the final output */
+        .bg-color-white { background-color: #ffffff; }
+        .text-color-black { color: #1a1a1a; }
+
+        /* Hero specific styles for background image */
         .page-hero-bg {
-            background-image: url('https://i.imgur.com/gA0XCdQ.jpeg'); /* Placeholder/Example image */
+            background-image: url('https://i.imgur.com/gA0XCdQ.jpeg');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
         }
+
+        /* Responsive image box for product cards (ensures 1:1 aspect ratio) */
+        .card-image-box {
+            position: relative;
+            padding-top: 100%; /* Creates a 1:1 aspect ratio container for images */
+        }
+        .card-image-box img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
     </style>
 </head>
-<body class="bg-color-white text-color-black min-h-screen">
+<body class="bg-color-white text-color-black min-h-screen antialiased">
+
+    <div id="cart-alert" class="hidden fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 bg-green-500 text-white text-sm px-4 py-2 rounded-lg shadow-xl z-50 transition-all duration-500 opacity-0 -translate-y-10">
+        Item(s) added to cart!
+    </div>
 
     <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
             <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
-                <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-10 sm:h-12 lg:h-10">
+                <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-8 sm:h-10 lg:h-10">
             </a>
 
             <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
@@ -50,24 +74,20 @@
                 </button>
                 <a href="cart.html" class="relative p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" aria-label="Shopping Bag">
                     <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
-                    <span id="cart-badge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-ash-red rounded-full hidden">
+                    <span id="cart-badge" class="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-ash-red rounded-full hidden">
                         0
                     </span>
                 </a>
                 <button class="md:hidden p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
-                    <i class="fas fa-bars w-5 h-5 sm:w-6 sm:h-6"></i>
+                    <i class="fas fa-bars w-5 h-5"></i>
                 </button>
             </div>
         </div>
     </header>
 
-    <div id="cart-alert" class="hidden fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 bg-green-500 text-white text-sm px-4 py-2 rounded-lg shadow-xl z-50 transition-all duration-500 opacity-0 -translate-y-10">
-        Item(s) added to cart!
-    </div>
-
     <div id="mobile-menu" class="hidden md:hidden bg-color-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
         <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
-            <a href="homepage.html" class="block px-3 py-2 font-medium text-ash-red hover:bg-gray-100 rounded-md">Homepage</a>
+            <a href="homepage.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Homepage</a>
             <a href="preorder.html" class="block px-3 py-2 font-medium text-ash-red hover:bg-gray-100 rounded-md">Pre Order</a>
             <a href="newarrivals.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">New Arrivals</a>
             <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Wears Collection</a>
@@ -87,7 +107,7 @@
     <main>
         <div class="page-hero-bg h-48 sm:h-64 flex items-center justify-center relative">
             <div class="absolute inset-0 bg-black bg-opacity-50"></div>
-            <div class="relative z-10 text-center">
+            <div class="relative z-10 text-center px-4">
                 <h1 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold uppercase text-white tracking-widest">
                     Pre-Order Collections
                 </h1>
@@ -99,11 +119,14 @@
 
         <section id="full-preorder-grid-section" class="py-10 sm:py-14 bg-color-white text-color-black">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <h2 class="text-xl font-bold text-center text-ash-dark mb-8">
+                <h2 class="text-xl sm:text-2xl font-bold text-center text-ash-dark mb-8">
                     Available Pre-Orders
                 </h2>
                 <div id="full-preorder-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
+                    <div class="col-span-full text-center py-10 text-gray-700">
+                        Loading items...
                     </div>
+                </div>
             </div>
         </section>
     </main>

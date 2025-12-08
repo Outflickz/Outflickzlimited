@@ -525,20 +525,23 @@ function createColorList(collectionId, variants) {
 
     return mapHtml + buttonsHtml;
 }
-
-// --- UTILITY FOR SIZE LIST (Stock-Aware) ---
 function createSizeList(collectionId, sizeStockMap, isReduced = false) {
     if (!sizeStockMap) {
         return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
     }
 
+    // Standard sizes list (used for ordering or ensuring only valid sizes are processed)
     const standardSizes = ['S', 'M', 'L', 'XL'];
     
+    // 1. **FILTERING LOGIC:** Convert the map to an array and filter by stock > 0
     const sizesWithStock = Object.entries(sizeStockMap)
         .filter(([size, stock]) => 
+            // 1a. Check if the size is one of the standard sizes
             standardSizes.includes(size.toUpperCase().trim()) && 
+            // 1b. CRITICAL: Check if stock is greater than zero
             stock > 0
         )
+        // 2. Map back to just the size string for easy HTML generation
         .map(([size]) => size); 
 
     if (sizesWithStock.length === 0) {
@@ -546,11 +549,12 @@ function createSizeList(collectionId, sizeStockMap, isReduced = false) {
     }
 
     const sizeClasses = isReduced 
-        ? 'text-[0.6rem] px-1.5 py-0.5' 
-        : 'text-xs px-2 py-0.5 md:px-2 md:py-1'; 
+        ? 'text-[0.6rem] px-1.5 py-0.5' // Smaller for reduced card
+        : 'text-xs px-2 py-0.5 md:px-2 md:py-1'; // Default size
 
-    const groupName = `size-${collectionId}`;
+    const groupName = `size-${collectionId}`; // Use the same name for all radios in this group
     
+    // 3. Generate HTML using the filtered list (sizesWithStock)
     return sizesWithStock.map((size, index) => {
         const safeSize = size.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
         const inputId = `size-${collectionId}-${safeSize}`;
@@ -571,7 +575,6 @@ function createSizeList(collectionId, sizeStockMap, isReduced = false) {
     }).join('');
 }
 
-// --- MAIN CARD RENDERING FUNCTION ---
 function createCollectionCard(collection, size = 'default') {
     const currencySymbol = '₦';
     const PLACEHOLDER_URL = 'https://s3.us-west-1.idrivee2.com/outflickz/public/placeholder-image-v1.jpg';
@@ -584,12 +587,13 @@ function createCollectionCard(collection, size = 'default') {
     const isCaps = size === 'caps'; 
     const isWears = size === 'wears'; 
     const isPreorder = size === 'preorder'; 
+    const isnewrrivals = size === 'newarrivals';
 
     // Card Padding
     const cardPadding = isReduced ? 'p-1 sm:p-2' : 'p-2 sm:p-3';
     const nameFontSize = isReduced ? 'text-xs sm:text-sm' : 'text-sm sm:text-base';
     const descriptionFontSize = isReduced ? 'text-[0.6rem] sm:text-xs' : 'text-xs sm:text-sm';
-    const priceFontSize = isReduced ? 'text-xs font-bold sm:text-sm' : 'text-base font-semibold';
+    const priceFontSize = isReduced ? 'text-sm font-bold sm:text-sm' : 'text-base font-semibold';
     
     // CONTROL SIZING
     const controlHeight = isReduced ? 'h-6' : 'h-7'; 
@@ -599,6 +603,9 @@ function createCollectionCard(collection, size = 'default') {
     const quantityInputWidth = isReduced ? 'w-5 sm:w-7' : 'w-7 sm:w-9';
     const quantityButtonSize = isReduced ? 'w-7 h-7' : 'w-8 h-8'; 
     const quantityInputTextSize = isReduced ? 'text-[0.6rem] sm:text-xs' : 'text-xs sm:text-sm';
+    
+    // BUTTON SIZING
+    // Removed specific button flex classes here, relying on w-full/flex-1 in the return HTML
     
     // --- FINAL FIX: Ensure 'variants'/'variations' is accessed correctly and safely ---
     const primaryVariant = (Array.isArray(collection.variants) && collection.variants.length > 0)
@@ -695,7 +702,10 @@ function createCollectionCard(collection, size = 'default') {
             onclick="simulateBuyNow({
                 productId: '${collection._id}',
                 name: '${collection.name.replace(/'/g, "\\'")}',
+                
+                // ⭐ FIX 1: Explicitly pass a safe productType
                 productType: '${safeProductTypeInHtml}', 
+                
                 price: ${itemPrice},
                 quantity: parseInt(${quantityGetter}),
                 imageUrl: '${frontImageUrl}'
@@ -733,7 +743,6 @@ function createCollectionCard(collection, size = 'default') {
                         alt="${collection.name} (Front View)"
                         onerror="this.onerror=null;this.src='${defaultFrontImage}';"
                         style="opacity: 1;"
-                        onclick="openModal('${frontImageUrl}', '${collection.name.replace(/'/g, "\\'")}')"
                     >
                     <img
                         class="w-full h-full object-cover bg-gray-50 absolute transition-opacity duration-300"
@@ -742,7 +751,6 @@ function createCollectionCard(collection, size = 'default') {
                         alt="${collection.name} (Back View)"
                         onerror="this.onerror=null;this.src='${defaultBackImage}';"
                         style="opacity: 0;"
-                        onclick="openModal('${backImageUrl}', '${collection.name.replace(/'/g, "\\'")}')"
                     >
                 </div>
 
@@ -767,13 +775,14 @@ function createCollectionCard(collection, size = 'default') {
 
                 <p class="${priceFontSize} text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
 
+                                
                 <div class="flex items-center gap-2 mt-2">
                     <span class="text-xs font-medium text-gray-700">Color:</span>
                     <div class="flex gap-1 text-gray-700">
                         ${colorListHtml}
                     </div>
                 </div>
-                            
+                                
                 <div class="flex flex-col md:flex-row items-start md:items-center justify-between w-full mt-2 gap-2">
                     ${sizeListHtml} 
                     ${quantityControlHtml}
@@ -787,6 +796,7 @@ function createCollectionCard(collection, size = 'default') {
         </div>
     `;
 }
+
 // --- CAP COLLECTION JS ---
 async function fetchAndRenderCapsCollection() {
     // Using the same grid container ID pattern

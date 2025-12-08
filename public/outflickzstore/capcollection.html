@@ -463,28 +463,99 @@ function changeVariantImage(collectionId, colorHex) {
     }
 }
 
-// --- NEW FUNCTION TO TOGGLE BETWEEN FRONT AND BACK IMAGE VIEWS ---
-function toggleImage(collectionId) {
-    const frontImage = document.getElementById(`front-image-${collectionId}`);
-    const backImage = document.getElementById(`back-image-${collectionId}`);
-    const toggleButton = document.getElementById(`image-toggle-btn-${collectionId}`);
 
-    if (frontImage.classList.contains('active')) {
-        frontImage.classList.remove('active');
-        frontImage.style.opacity = '0';
-        backImage.classList.add('active');
-        backImage.style.opacity = '1';
-        toggleButton.innerHTML = `<i class="fas fa-undo"></i> Front View`;
-        toggleButton.title = "Show Front View";
-    } else {
-        backImage.classList.remove('active');
-        backImage.style.opacity = '0';
-        frontImage.classList.add('active');
-        frontImage.style.opacity = '1';
-        toggleButton.innerHTML = `<i class="fas fa-sync-alt"></i> Back View`;
-        toggleButton.title = "Show Back View";
-    }
-}
+        // --- IMAGE VIEW & VARIANT SWITCHING ---
+        function toggleImage(collectionId) {
+            const frontImage = document.getElementById(`front-image-${collectionId}`);
+            const backImage = document.getElementById(`back-image-${collectionId}`);
+            const toggleButton = document.getElementById(`image-toggle-btn-${collectionId}`);
+
+            if (frontImage.classList.contains('active')) {
+                frontImage.classList.remove('active');
+                frontImage.style.opacity = '0';
+                backImage.classList.add('active');
+                backImage.style.opacity = '1';
+                toggleButton.innerHTML = `<i class="fas fa-undo"></i> Front View`;
+                toggleButton.title = "Show Front View";
+            } else {
+                backImage.classList.remove('active');
+                backImage.style.opacity = '0';
+                frontImage.classList.add('active');
+                frontImage.style.opacity = '1';
+                toggleButton.innerHTML = `<i class="fas fa-sync-alt"></i> Back View`;
+                toggleButton.title = "Show Back View";
+            }
+        }
+
+        function changeVariantImage(collectionId, colorHex) {
+            const mapElement = document.getElementById(`color-map-${collectionId}`);
+            const frontImage = document.getElementById(`front-image-${collectionId}`);
+            const backImage = document.getElementById(`back-image-${collectionId}`);
+            const toggleButton = document.getElementById(`image-toggle-btn-${collectionId}`);
+            
+            if (!mapElement || !frontImage || !backImage) return;
+
+            const colorMap = JSON.parse(mapElement.getAttribute('data-color-map'));
+            const newVariant = colorMap[colorHex];
+
+            if (newVariant) {
+                // Determine which image is currently showing (front or back)
+                const isFrontActive = frontImage.classList.contains('active');
+
+                // Update both image sources
+                frontImage.src = newVariant.frontImageUrl;
+                backImage.src = newVariant.backImageUrl;
+
+                // Ensure the correct image is visible after the source update
+                if (isFrontActive) {
+                    // Front was active, ensure front is visible and button is "Back View"
+                    frontImage.style.opacity = '1';
+                    backImage.style.opacity = '0';
+                    frontImage.classList.add('active');
+                    backImage.classList.remove('active');
+                    toggleButton.innerHTML = `<i class="fas fa-sync-alt"></i> Back View`;
+                    toggleButton.title = "Show Back View";
+                } else {
+                    // Back was active, ensure back is visible and button is "Front View"
+                    frontImage.style.opacity = '0';
+                    backImage.style.opacity = '1';
+                    frontImage.classList.remove('active');
+                    backImage.classList.add('active');
+                    toggleButton.innerHTML = `<i class="fas fa-undo"></i> Front View`;
+                    toggleButton.title = "Show Front View";
+                }
+            }
+        }
+        
+        // --- MODAL IMAGE VIEWERS (NEW UTILITY) ---
+        function openModal(imageSrc, itemName) {
+            const modal = document.getElementById('image-modal');
+            const modalImage = document.getElementById('modal-image');
+            const modalTitle = document.getElementById('modal-item-title');
+
+            modalImage.src = imageSrc;
+            modalTitle.textContent = itemName;
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.classList.add('opacity-100');
+            document.body.style.overflow = 'hidden'; // Prevent scrolling
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('image-modal');
+            modal.classList.remove('opacity-100');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            document.body.style.overflow = ''; // Restore scrolling
+        }
+
+        // Add event listeners to card images for modal
+        document.addEventListener('click', (event) => {
+            if (event.target.tagName === 'IMG' && event.target.closest('.card-image-box')) {
+                const imgElement = event.target;
+                const cardElement = imgElement.closest('.collection-card');
+                const itemName = cardElement ? cardElement.querySelector('h3').textContent : 'Product Image';
+                openModal(imgElement.src, itemName);
+            }
+        });
 
 // --- UTILITY FOR COLOR LIST (Stock-Aware) ---
 function createColorList(collectionId, variants) {

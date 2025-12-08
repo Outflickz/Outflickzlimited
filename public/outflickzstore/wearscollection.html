@@ -844,7 +844,7 @@ async function fetchAndRenderAllWearsCollections() {
         if (collectionsToRender.length > 0) {
             collectionsToRender.forEach(collection => {
                 if (collection.price !== undefined && collection.price !== null) {
-                    container.innerHTML += createCollectionCard(collection, 'default');
+                    container.innerHTML += createCollectionCard(collection, 'wears');
                 }
             });
 

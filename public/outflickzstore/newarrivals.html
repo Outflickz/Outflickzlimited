@@ -878,7 +878,7 @@ async function fetchAndRenderNewArrivals() {
             productsToRender.forEach(product => {
                 if (product.price !== undefined && product.price !== null) {
                     // Pass 'reduced' size for New Arrivals card rendering
-                    container.innerHTML += createCollectionCard(product, 'reduced'); 
+                    container.innerHTML += createCollectionCard(product, 'newarrivals'); 
                 }
             });
 

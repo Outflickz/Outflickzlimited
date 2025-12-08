@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cap Collections - Outflickz</title>
+    <title>New Arrivals - Outflickz</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     
@@ -21,13 +21,169 @@
         .hero-bg-slider-container { display: none; } /* Hide homepage hero for this collection page */
         
         /* Ensure the main grid displays products correctly */
-        #caps-collections-grid .collection-card {
+        #new-arrivals-grid .collection-card {
             /* Styles for the default size card */
         }
     </style>
+</head>
+<body class="bg-color-white text-color-black min-h-screen">
 
+    <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
+            <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
+                <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-10 sm:h-12 lg:h-10">
+            </a>
+
+            <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
+                <a href="preorder.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
+                <a href="newarrivals.html" class="font-medium text-ash-red font-bold transition">New Arrivals</a>
+                <a href="wearscollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Wears Collections</a>
+                <a href="capcollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Cap Collections</a>
+            </nav>
+
+            <div class="flex items-center space-x-2 sm:space-x-4">
+                <button id="profile-icon" 
+                    class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" 
+                    aria-label="User Account"
+                    onclick="redirectToProfileOrLogin()">
+                    <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
+                </button>
+                <a href="cart.html" class="relative p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" aria-label="Shopping Bag">
+                    <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
+                    <span id="cart-badge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-ash-red rounded-full hidden">
+                        0
+                    </span>
+                </a>
+                <button class="md:hidden p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
+                    <i class="fas fa-bars w-5 h-5 sm:w-6 sm:h-6"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+    <div id="cart-alert" class="hidden fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 bg-green-500 text-white text-sm px-4 py-2 rounded-lg shadow-xl z-50 transition-all duration-500 opacity-0 -translate-y-10">
+        Item(s) added to cart!
+    </div>
+
+    <div id="mobile-menu" class="hidden md:hidden bg-color-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
+        <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
+            <a href="preorder.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
+            <a href="newarrivals.html" class="block px-3 py-2 font-medium text-ash-red bg-gray-100 rounded-md">New Arrivals</a>
+            <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Wears Collection</a>
+            <a href="capcollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cap Collection</a>
+            
+            <button 
+                id="mobile-profile-login-button" 
+                class="w-full flex items-center px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md text-left"
+                aria-label="User Account or Login"
+                onclick="redirectToProfileOrLogin()">
+                <i class="fas fa-user w-4 h-4 mr-3"></i>
+                Account / Login
+            </button>
+        </div>
+    </div>
+    <main class="min-h-screen bg-color-white">
+        <div class="bg-gray-900 py-16 sm:py-24 mb-8">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                <h1 class="text-5xl sm:text-6xl font-extrabold text-white uppercase tracking-wider">
+                    NEW ARRIVALS ⚡️
+                </h1>
+                <p class="mt-4 text-lg text-gray-300">
+                    The latest drops from Outflickz. Shop them before they're gone.
+                </p>
+            </div>
+        </div>
+
+        <section id="main-new-arrivals-collection" class="py-10 sm:py-12 bg-color-white text-color-black">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div id="new-arrivals-grid-main" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
+                    </div>
+            </div>
+        </section>
+
+    </main>
+
+    <div id="image-modal" class="modal fixed inset-0 z-[100] bg-black bg-opacity-90 flex items-center justify-center opacity-0 pointer-events-none" onclick="closeModal()" role="dialog" aria-modal="true" aria-labelledby="modal-item-title">
+        <div class="relative max-w-xs sm:max-w-4xl w-full mx-4 p-2 bg-white rounded-lg shadow-2xl" onclick="event.stopPropagation()">
+            <button onclick="closeModal()" class="absolute top-0 right-0 m-2 text-gray-700 hover:text-ash-red transition z-50" aria-label="Close modal">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+            <h3 id="modal-item-title" class="text-base sm:text-xl font-bold text-center text-ash-dark pt-2 pb-2">
+                Item Name
+            </h3>
+            <div class="w-full max-h-[70vh] overflow-hidden">
+                <img id="modal-image" src="" alt="Full view of product" class="w-full h-full object-contain">
+            </div>
+        </div>
+    </div>
+    <footer class="bg-gray-900 text-gray-300 py-10 sm:py-14 border-t border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
+                
+                <div class="col-span-2 lg:col-span-1">
+                    <a href="homepage.html" class="flex items-center mb-4">
+                        <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-8 filter grayscale invert">
+                    </a>
+                    <p class="text-sm text-gray-500">
+                        The home of exclusive street wear and limited edition drops. Elevate your style.
+                    </p>
+                    <div class="flex space-x-4 mt-4 text-gray-400">
+                        <a href="#" aria-label="Instagram" class="hover:text-ash-red transition"><i class="fab fa-instagram"></i></a>
+                        <a href="#" aria-label="Twitter" class="hover:text-ash-red transition"><i class="fab fa-twitter"></i></a>
+                        <a href="#" aria-label="Facebook" class="hover:text-ash-red transition"><i class="fab fa-facebook-f"></i></a>
+                    </div>
+                </div>
+
+                <div class="col-span-1">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Quick Links</h3>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="wearscollection.html" class="text-gray-400 hover:text-ash-red transition">Wears</a></li>
+                        <li><a href="capcollection.html" class="text-gray-400 hover:text-ash-red transition">Caps</a></li>
+                        <li><a href="newarrivals.html" class="text-gray-400 hover:text-ash-red transition">New Arrivals</a></li>
+                        <li><a href="preorder.html" class="text-gray-400 hover:text-ash-red transition">Pre-Order</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-span-1">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Customer Care</h3>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Contact Us</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Shipping & Returns</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">FAQ</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Size Guide</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-span-2 md:col-span-1">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Get In Touch</h3>
+                    <address class="text-sm not-italic space-y-2">
+                        <p class="text-gray-400">
+                            <i class="fas fa-map-marker-alt mr-2 text-ash-red"></i> Lagos , Nigeria
+                        </p>
+                        <p class="text-gray-400">
+                            <i class="fas fa-envelope mr-2 text-ash-red"></i> outflickzlimited@gmailcom
+                        </p>
+                        <p class="text-gray-400">
+                            <i class="fas fa-phone mr-2 text-ash-red"></i> +234 7042882706
+                        </p>
+                    </address>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-800 mt-10 pt-6">
+                <p class="text-center text-xs text-gray-500">
+                    &copy; 2025 Outflickz. All rights reserved. | <a href="#" class="hover:text-ash-red">Privacy Policy</a> | <a href="#" class="hover:text-ash-red">Terms of Use</a>
+                </p>
+            </div>
+        </div>
+    </footer>
+    <a href="https://wa.me/2347042882706?text=HELLO!%20WELCOME%20TO%20OUTFLICKZ!%20HOW%20CAN%20WE%20HELP%20YOU" 
+        target="_blank" 
+        class="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-3 sm:p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105" 
+        aria-label="Chat with us on WhatsApp">
+        <i class="fab fa-whatsapp text-2xl sm:text-3xl"></i>
+    </a>
     <script>
-        // --- GLOBAL API CONFIG ---
+    // --- GLOBAL API CONFIG ---
     const API_BASE_URL = 'https://outflickz.netlify.app';
 
     // --- CRITICAL FIX: GLOBAL STORAGE KEYS DEFINITION ---
@@ -791,30 +947,29 @@ function createCollectionCard(collection, size = 'default') {
         </div>
     `;
 }
-// --- CAP COLLECTION JS ---
-async function fetchAndRenderCapsCollection() {
-    // Using the same grid container ID pattern
-    const container = document.getElementById('caps-collections-grid');
+
+// --- NEW ARRIVALS COLLECTION JS ---
+async function fetchAndRenderNewArrivals() {
+    const container = document.getElementById('new-arrivals-grid');
     if (!container) return;
 
     const spinnerColor = 'text-gray-900';
     const textColor = 'text-gray-700';
 
-    // Initial loading state for Caps Collection
+    // Initial loading state for New Arrivals
     container.innerHTML = `
         <div class="col-span-full text-center ${textColor} py-10 w-full">
             <svg class="animate-spin -ml-1 mr-3 h-5 w-5 ${spinnerColor} inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            Loading Caps Collections...
+            Loading New Arrivals...
         </div>`;
 
     try {
-        // NEW ENDPOINT: /api/collections/caps
-        const capsApiUrl = `${API_BASE_URL}/api/collections/caps`; 
+        const newArrivalsApiUrl = `${API_BASE_URL}/api/collections/newarrivals`; 
 
-        const response = await fetch(capsApiUrl, {
+        const response = await fetch(newArrivalsApiUrl, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -822,202 +977,45 @@ async function fetchAndRenderCapsCollection() {
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to load caps collections from server. Status: ${response.status}`);
+            throw new Error(`Failed to load new arrivals from server. Status: ${response.status}`);
         }
 
-        const collections = await response.json();
+        const products = await response.json();
 
         container.innerHTML = '';
         
-        let collectionsToRender = collections && collections.length > 0 ? collections : [];
+        let productsToRender = products && products.length > 0 ? products : [];
 
-        if (collectionsToRender && collectionsToRender.length > 0) {
-            // Limit to the first 4 collections for the homepage view
-            const limitedCollections = collectionsToRender.slice(0, 4);
+        if (productsToRender && productsToRender.length > 0) {
+            // Limit to the first 2 products for a more exclusive homepage view
+            const limitedProducts = productsToRender.slice(0, 2);
             
-            limitedCollections.forEach(collection => {
-                if (collection.price !== undefined && collection.price !== null) {
-                    // IMPORTANT: Pass 'caps' size to remove size selection UI
-                    container.innerHTML += createCollectionCard(collection, 'caps');
+            limitedProducts.forEach(product => {
+                if (product.price !== undefined && product.price !== null) {
+                    // Pass 'reduced' size for New Arrivals
+                    container.innerHTML += createCollectionCard(product, 'reduced'); 
                 }
             });
 
             if (container.innerHTML === '') {
-                container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Caps Collections are currently available.</p>`;
+                container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No New Arrivals are currently available.</p>`;
             }
         } else {
-            container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Caps Collections are currently available.</p>`;
+            container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No New Arrivals are currently available.</p>`;
         }
     } catch (error) {
-        console.error('Error fetching caps collections:', error);
+        console.error('Error fetching new arrivals:', error);
         
         // Clean error message on API failure
         container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server (502/Down).</p>';
     }
 }
 
-            
+
 document.addEventListener('DOMContentLoaded', () => {
     updateCartBadge(); // Initialize cart count
-fetchAndRenderCapsCollection(); // Call the specialized function for this page
-        });
-    </script>
-</head>
-<body class="bg-color-white text-color-black min-h-screen">
-
-    <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
-            <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
-                <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-10 sm:h-12 lg:h-10">
-            </a>
-
-            <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
-                <a href="preorder.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
-                <a href="newarrivals.html" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
-                <a href="wearscollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Wears Collections</a>
-                <a href="capcollection.html" class="font-medium text-ash-red font-bold transition flex items-center">Cap Collections</a>
-            </nav>
-
-            <div class="flex items-center space-x-2 sm:space-x-4">
-                <button id="profile-icon" 
-                    class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" 
-                    aria-label="User Account"
-                    onclick="redirectToProfileOrLogin()">
-                    <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
-                </button>
-                <a href="cart.html" class="relative p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" aria-label="Shopping Bag">
-                    <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
-                    <span id="cart-badge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-ash-red rounded-full hidden">
-                        0
-                    </span>
-                </a>
-                <button class="md:hidden p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
-                    <i class="fas fa-bars w-5 h-5 sm:w-6 sm:h-6"></i>
-                </button>
-            </div>
-        </div>
-    </header>
-    <div id="cart-alert" class="hidden fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 bg-green-500 text-white text-sm px-4 py-2 rounded-lg shadow-xl z-50 transition-all duration-500 opacity-0 -translate-y-10">
-        Item(s) added to cart!
-    </div>
-
-    <div id="mobile-menu" class="hidden md:hidden bg-color-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
-        <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
-            <a href="preorder.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
-            <a href="newarrivals.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">New Arrivals</a>
-            <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Wears Collection</a>
-            <a href="capcollection.html" class="block px-3 py-2 font-medium text-ash-red bg-gray-100 rounded-md">Cap Collection</a>
-            
-            <button 
-                id="mobile-profile-login-button" 
-                class="w-full flex items-center px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md text-left"
-                aria-label="User Account or Login"
-                onclick="redirectToProfileOrLogin()">
-                <i class="fas fa-user w-4 h-4 mr-3"></i>
-                Account / Login
-            </button>
-        </div>
-    </div>
-    <main class="min-h-screen bg-color-white">
-        <div class="bg-gray-900 py-16 sm:py-24 mb-8">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-                <h1 class="text-5xl sm:text-6xl font-extrabold text-white uppercase tracking-wider">
-                    CAP COLLECTIONS 🧢
-                </h1>
-                <p class="mt-4 text-lg text-gray-300">
-                    Find the perfect fit. Limited edition headwear, ready to ship.
-                </p>
-            </div>
-        </div>
-
-        <section id="main-caps-collection" class="py-10 sm:py-12 bg-color-white text-color-black">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div id="caps-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
-                    </div>
-            </div>
-        </section>
-
-    </main>
-
-    <div id="image-modal" class="modal fixed inset-0 z-[100] bg-black bg-opacity-90 flex items-center justify-center opacity-0 pointer-events-none" onclick="closeModal()" role="dialog" aria-modal="true" aria-labelledby="modal-item-title">
-        <div class="relative max-w-xs sm:max-w-4xl w-full mx-4 p-2 bg-white rounded-lg shadow-2xl" onclick="event.stopPropagation()">
-            <button onclick="closeModal()" class="absolute top-0 right-0 m-2 text-gray-700 hover:text-ash-red transition z-50" aria-label="Close modal">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-            <h3 id="modal-item-title" class="text-base sm:text-xl font-bold text-center text-ash-dark pt-2 pb-2">
-                Item Name
-            </h3>
-            <div class="w-full max-h-[70vh] overflow-hidden">
-                <img id="modal-image" src="" alt="Full view of product" class="w-full h-full object-contain">
-            </div>
-        </div>
-    </div>
-    <footer class="bg-gray-900 text-gray-300 py-10 sm:py-14 border-t border-gray-800">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
-                
-                <div class="col-span-2 lg:col-span-1">
-                    <a href="homepage.html" class="flex items-center mb-4">
-                        <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-8 filter grayscale invert">
-                    </a>
-                    <p class="text-sm text-gray-500">
-                        The home of exclusive street wear and limited edition drops. Elevate your style.
-                    </p>
-                    <div class="flex space-x-4 mt-4 text-gray-400">
-                        <a href="#" aria-label="Instagram" class="hover:text-ash-red transition"><i class="fab fa-instagram"></i></a>
-                        <a href="#" aria-label="Twitter" class="hover:text-ash-red transition"><i class="fab fa-twitter"></i></a>
-                        <a href="#" aria-label="Facebook" class="hover:text-ash-red transition"><i class="fab fa-facebook-f"></i></a>
-                    </div>
-                </div>
-
-                <div class="col-span-1">
-                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Quick Links</h3>
-                    <ul class="space-y-2 text-sm">
-                        <li><a href="wearscollection.html" class="text-gray-400 hover:text-ash-red transition">Wears</a></li>
-                        <li><a href="capcollection.html" class="text-gray-400 hover:text-ash-red transition">Caps</a></li>
-                        <li><a href="newarrivals.html" class="text-gray-400 hover:text-ash-red transition">New Arrivals</a></li>
-                        <li><a href="preorder.html" class="text-gray-400 hover:text-ash-red transition">Pre-Order</a></li>
-                    </ul>
-                </div>
-
-                <div class="col-span-1">
-                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Customer Care</h3>
-                    <ul class="space-y-2 text-sm">
-                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Contact Us</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Shipping & Returns</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">FAQ</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Size Guide</a></li>
-                    </ul>
-                </div>
-
-                <div class="col-span-2 md:col-span-1">
-                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Get In Touch</h3>
-                    <address class="text-sm not-italic space-y-2">
-                        <p class="text-gray-400">
-                            <i class="fas fa-map-marker-alt mr-2 text-ash-red"></i> Lagos , Nigeria
-                        </p>
-                        <p class="text-gray-400">
-                            <i class="fas fa-envelope mr-2 text-ash-red"></i> outflickzlimited@gmailcom
-                        </p>
-                        <p class="text-gray-400">
-                            <i class="fas fa-phone mr-2 text-ash-red"></i> +234 7042882706
-                        </p>
-                    </address>
-                </div>
-            </div>
-
-            <div class="border-t border-gray-800 mt-10 pt-6">
-                <p class="text-center text-xs text-gray-500">
-                    &copy; 2025 Outflickz. All rights reserved. | <a href="#" class="hover:text-ash-red">Privacy Policy</a> | <a href="#" class="hover:text-ash-red">Terms of Use</a>
-                </p>
-            </div>
-        </div>
-    </footer>
-    <a href="https://wa.me/2347042882706?text=HELLO!%20WELCOME%20TO%20OUTFLICKZ!%20HOW%20CAN%20WE%20HELP%20YOU" 
-        target="_blank" 
-        class="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-3 sm:p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105" 
-        aria-label="Chat with us on WhatsApp">
-        <i class="fab fa-whatsapp text-2xl sm:text-3xl"></i>
-    </a>
-    </body>
+fetchAndRenderNewArrivals();
+});
+</script>
+</body>
 </html>

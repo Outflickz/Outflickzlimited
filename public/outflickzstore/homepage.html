@@ -788,55 +788,55 @@ function toggleImage(collectionId) {
         toggleButton.title = "Show Back View";
     }
 }
-
 // --- UTILITY FOR COLOR LIST (Stock-Aware) ---
 function createColorList(collectionId, variants) {
-    // 1. Initial Safety Check
-    // 'variants' now only includes colors with total stock > 0 (filtered by backend)
-    if (!variants || variants.length === 0) return '';
-    
-    // NOTE: The previous 'pre-order' filter is removed because the backend should 
-    // already ensure that every variant passed here is intended to be displayed.
-    const coloredVariants = variants; 
+    // 1. Initial Safety Check
+    if (!variants || variants.length === 0) return '';
+    
+    const coloredVariants = variants; 
 
-    // If there are no colored variants, return empty.
-    if (coloredVariants.length === 0) return ''; 
+    if (coloredVariants.length === 0) return ''; 
 
-    // 2. Create a map for the image switching logic
-    const colorMap = coloredVariants.reduce((acc, v) => {
-        // We only map the necessary image URLs
-        acc[v.color] = { frontImageUrl: v.frontImageUrl, backImageUrl: v.backImageUrl };
-        return acc;
-    }, {});
+    // 2. Create a map for the image switching logic
+    const colorMap = coloredVariants.reduce((acc, v) => {
+        // ⭐ FIX 1: Use v.colorHex instead of v.color for the map key
+        acc[v.colorHex] = { frontImageUrl: v.frontImageUrl, backImageUrl: v.backImageUrl };
+        return acc;
+    }, {});
 
-    // 3. Store the map in the DOM
-    const mapHtml = `<div id="color-map-${collectionId}" data-color-map='${JSON.stringify(colorMap)}' class="hidden"></div>`;
+    // 3. Store the map in the DOM
+    const mapHtml = `<div id="color-map-${collectionId}" data-color-map='${JSON.stringify(colorMap)}' class="hidden"></div>`;
 
-    // 4. Generate the color swatch buttons
-    const buttonsHtml = coloredVariants.map((variant, index) => {
-        const colorHex = variant.color; 
-        const style = `background-color: ${colorHex};`;
-        const safeColor = String(colorHex).toUpperCase(); 
-        
-        const extraClass = (safeColor === '#FFFFFF' || safeColor === '#FFF') ? 'border-gray-400' : 'border-gray-200';
-        
-        return `
-            <label for="color-${collectionId}-${colorHex}" class="color-label cursor-pointer p-[1px] rounded-full border border-transparent hover:border-ash-red transition-all has-[:checked]:border-ash-red">
-                <input 
-                    type="radio" 
-                    id="color-${collectionId}-${colorHex}" 
-                    name="color-${collectionId}" 
-                    value="${colorHex}" 
-                    class="hidden" 
-                    onchange="changeVariantImage('${collectionId}', this.value)" 
-                    ${index === 0 ? 'checked' : ''}
-                >
-                <span class="block w-4 h-4 rounded-full border ${extraClass}" style="${style}"></span>
-            </label>
-        `;
-    }).join('');
+    // 4. Generate the color swatch buttons
+    const buttonsHtml = coloredVariants.map((variant, index) => {
+        // ⭐ FIX 2: Use variant.colorHex instead of variant.color
+        const colorHex = variant.colorHex; 
+        
+        // Handle case where colorHex might be null/undefined (though backend should prevent this)
+        if (!colorHex) return ''; 
+        
+        const style = `background-color: ${colorHex};`;
+        const safeColor = String(colorHex).toUpperCase(); 
+        
+        const extraClass = (safeColor === '#FFFFFF' || safeColor === '#FFF') ? 'border-gray-400' : 'border-gray-200';
+        
+        return `
+            <label for="color-${collectionId}-${colorHex}" class="color-label cursor-pointer p-[1px] rounded-full border border-transparent hover:border-ash-red transition-all has-[:checked]:border-ash-red">
+                <input 
+                    type="radio" 
+                    id="color-${collectionId}-${colorHex}" 
+                    name="color-${collectionId}" 
+                    value="${colorHex}" 
+                    class="hidden" 
+                    onchange="changeVariantImage('${collectionId}', this.value)" 
+                    ${index === 0 ? 'checked' : ''}
+                >
+                <span class="block w-4 h-4 rounded-full border ${extraClass}" style="${style}"></span>
+            </label>
+        `;
+    }).join('');
 
-    return mapHtml + buttonsHtml;
+    return mapHtml + buttonsHtml;
 }
 
 function createCollectionCard(collection, size = 'default') {

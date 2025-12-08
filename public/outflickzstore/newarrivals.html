@@ -1053,6 +1053,9 @@ async function fetchAndRenderNewArrivals() {
 
         const products = await response.json();
 
+        console.log('--- API Response for NEw Arrivals ---');
+        console.log(collections); // <--- CHECK THIS OBJECT IN YOUR BROWSER CONSOLE
+
         container.innerHTML = '';
         
         let productsToRender = products && products.length > 0 ? products : [];

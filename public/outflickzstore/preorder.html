@@ -313,34 +313,346 @@ async function redirectToProfileOrLogin() {
             }
         }
         
-        // --- ACTION BUTTONS (MOCK IMPLEMENTATIONS) ---
-        function simulateAddToCart(product) {
-            console.log('Adding to Cart:', product);
-            let items = getCartItems();
-            let existingItem = items.find(item => item.productId === product.productId);
+      /**
+ * Retrieves the total number of items (or item types) in the local storage cart.
+ * NOTE: This is simplistic and might return item *count* or item *types* based on your badge display preference.
+ * The robust simulateAddToCart uses localCart.length (number of unique variant types).
+ */
+function getCartCount() {
+    // This function must return a number, defaulting to 0.
+    const count = parseInt(localStorage.getItem(CART_STORAGE_KEY)) || 0;
+    return count;
+}
 
-            if (existingItem) {
-                existingItem.quantity += product.quantity;
+/**
+ * Retrieves the current cart array from Local Storage.
+ */
+function getCartItems() {
+    return JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
+}
+
+/**
+ * Updates the visual cart badge (assumes 'cart-badge' ID exists in HTML).
+ * The badge text is set to the total quantity across all cart items.
+ */
+function updateCartBadge() {
+    const badge = document.getElementById('cart-badge');
+    if (!badge) return;
+
+    // Calculate total quantity of items
+    const localCart = getCartItems();
+    const totalQuantity = localCart.reduce((sum, item) => sum + (item.quantity || 1), 0);
+
+    if (totalQuantity > 0) {
+        badge.textContent = totalQuantity.toString();
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+}
+
+// --- Local Cart Fallback Helper (Used by simulateAddToCart) ---
+
+const handleLocalCartFallback = (details) => {
+    let localCart = getCartItems();
+    
+    // 🚀 CRITICAL FIX: Include variationIndex in the findIndex check for local cart
+    const existingItemIndex = localCart.findIndex(item => 
+        item.productId === details.productId && 
+        item.size === details.size &&
+        item.color === details.color &&
+        item.variationIndex === details.variationIndex 
+    );
+
+    if (existingItemIndex > -1) {
+        localCart[existingItemIndex].quantity += details.quantity;
+    } else {
+        localCart.push(details);
+    }
+
+    localStorage.setItem(LOCAL_CART_KEY, JSON.stringify(localCart));
+    
+    // Update the counter key to reflect the *number of unique items/variants*
+    localStorage.setItem(CART_STORAGE_KEY, localCart.length.toString()); 
+    updateCartBadge();
+    
+    // Display info alert for local cart (Blue background)
+    const alertMessage = document.getElementById('cart-alert');
+    if (alertMessage) {
+        alertMessage.textContent = `"${details.name}" added to your bag! (Sign in to save permanently)`;
+        // NOTE: Ensure your HTML has this alert div styled correctly and hidden initially
+        alertMessage.className = 'fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 p-3 rounded shadow-xl transition-all duration-300 ease-in-out bg-blue-500 text-white opacity-100 translate-y-0';
+        
+        setTimeout(() => {
+            alertMessage.classList.add('opacity-0', 'translate-y-10');
+            // Remove color/positioning after transition for clean reset
+            setTimeout(() => {
+                alertMessage.classList.remove('bg-blue-500', 'translate-y-10');
+                alertMessage.classList.add('hidden');
+            }, 300); 
+        }, 3000);
+    }
+};
+
+// --- Main Cart Function (The Robust Replacement) ---
+
+/**
+ * Handles adding an item to the cart. 
+ * Tries API (permanent cart via secure cookie) first.
+ * If API fails (401/403 or network error), falls back to local storage.
+ * @param {object} productDetails - The details of the product being added (ID, name, price, quantity, etc.).
+ */
+async function simulateAddToCart(productDetails) {
+    // --- 1. Gather all item details from DOM and input ---
+    const card = document.querySelector(`.collection-card[data-collection-id="${productDetails.productId}"]`);
+    if (!card) return;
+    
+    // Selectors for size and color radio buttons
+    const selectedSizeInput = card.querySelector(`input[name="size-${productDetails.productId}"]:checked`);
+    const selectedColorInput = card.querySelector(`input[name="color-${productDetails.productId}"]:checked`);
+    
+    // 🎯 CRITICAL FIX: Robust value checking
+    const rawColorValue = selectedColorInput ? selectedColorInput.value : null;
+    const color = (rawColorValue && rawColorValue !== 'undefined' && rawColorValue.length > 0) 
+        ? rawColorValue 
+        : 'N/A';
+        
+    const rawSizeValue = selectedSizeInput ? selectedSizeInput.value : null;
+    const size = (rawSizeValue && rawSizeValue !== 'undefined' && rawSizeValue.length > 0) 
+        ? rawSizeValue 
+        : 'N/A';
+    
+    let variationIndex = 1; 
+    let selectedImageUrl = productDetails.imageUrl; 
+
+    if (selectedColorInput) {
+        const colorHex = color; 
+        const colorMapContainer = card.querySelector(`#color-map-${productDetails.productId}`);
+        
+        if (colorMapContainer) {
+            try {
+                const colorMap = JSON.parse(colorMapContainer.getAttribute('data-color-map'));
+                const newImageUrls = colorMap[colorHex];
+                
+                if (newImageUrls && newImageUrls.frontImageUrl) {
+                    selectedImageUrl = newImageUrls.frontImageUrl; 
+                    
+                    const colorMapKeys = Object.keys(colorMap);
+                    const inferredIndex = colorMapKeys.indexOf(colorHex);
+                    
+                    if (inferredIndex !== -1) {
+                        variationIndex = inferredIndex + 1; // 1-based index for server
+                    }
+                }
+            } catch (e) {
+                console.error("Error parsing color map data:", e);
+                // Continue with default variationIndex=1 and default image
+            }
+        }
+    }
+
+    // 🌟 FIX FOR ReferenceError: variation is not defined 🌟
+    const variation = (color !== 'N/A' && size !== 'N/A')
+        ? `${color} / ${size}`
+        : (color !== 'N/A' ? color : (size !== 'N/A' ? size : 'Default Variant'));
+    
+    const requiredDetails = {
+        productId: productDetails.productId,
+        name: productDetails.name, 
+        size: size,
+        color: color, 
+        price: productDetails.price,
+        productType: productDetails.productType || productDetails.name,
+        imageUrl: selectedImageUrl, 
+        quantity: productDetails.quantity || 1,
+        variationIndex: variationIndex, 
+        variation: variation
+    };
+    
+    // Construct minimal data for API call (same structure as requiredDetails)
+    const itemDataForAPI = requiredDetails; 
+    
+    console.log('Sending API Payload:', itemDataForAPI);
+    
+    // --- 3. Attempt Authenticated API Call ---
+    try {
+        const response = await fetch('/api/users/cart', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(itemDataForAPI),
+            credentials: 'include' // Sends the HTTP-only cookie
+        });
+
+        let data;
+        try {
+            data = await response.json();
+        } catch (e) {
+            console.warn(`Could not parse JSON response for status ${response.status}. Falling back if needed.`);
+            data = { message: `Server Error (${response.status}) received. Item added to local cart.`, status: response.status };
+        }
+
+        if (response.ok) {
+            // 3a. Success: Item added to permanent cart
+            if (data.items && Array.isArray(data.items)) {
+                // Update based on the definitive server response
+                localStorage.setItem(CART_STORAGE_KEY, data.items.length.toString()); 
+                updateCartBadge();
             } else {
-                items.push(product);
+                console.error("API success but data.items missing. Updating badge with local count.");
+                updateCartBadge();
+            }
+            
+            // Display success alert (Green background)
+            const alertMessage = document.getElementById('cart-alert');
+            if (alertMessage) {
+                alertMessage.textContent = 'Item added to your permanent shopping bag!';
+                alertMessage.className = 'fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 p-3 rounded shadow-xl transition-all duration-300 ease-in-out bg-green-500 text-white opacity-100 translate-y-0';
+                setTimeout(() => {
+                    alertMessage.classList.add('opacity-0', 'translate-y-10');
+                    setTimeout(() => {
+                        alertMessage.classList.remove('bg-green-500', 'translate-y-10');
+                        alertMessage.classList.add('hidden');
+                    }, 300);
+                }, 3000);
             }
 
-            saveCartItems(items);
-            showCartAlert();
-            // In a real app, also call an API to update the server cart.
-        }
+        } else if (response.status === 401 || response.status === 403 || response.status >= 500) {
+            // 3b. Unauthorized or Server Error (5xx) -> FALLBACK TO LOCAL CART
+            console.log(`Fallback triggered due to status ${response.status}.`);
+            handleLocalCartFallback(requiredDetails);
 
-        function simulateBuyNow(product) {
-            console.log('Simulating Buy Now / Pre-Order:', product);
+        } else {
+            // 3c. Other Client-side API Errors (e.g., 400 Bad Request, 409 Conflict/Stock)
             
-            // For simplicity, this mock redirects directly to checkout after adding to cart
-            simulateAddToCart(product); 
-            
-            setTimeout(() => {
-                window.location.href = 'checkout.html';
-            }, 500); 
-            // In a real app, this should clear the cart and proceed to checkout with only this item.
+            // Use the flashing alert for generic error (Red background)
+            const alertMessage = document.getElementById('cart-alert');
+            if (alertMessage) {
+                alertMessage.textContent = data.message || `Failed to add item (Status ${response.status}).`;
+                alertMessage.className = 'fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 p-3 rounded shadow-xl transition-all duration-300 ease-in-out bg-red-500 text-white opacity-100 translate-y-0';
+                setTimeout(() => {
+                    alertMessage.classList.add('opacity-0', 'translate-y-10');
+                    setTimeout(() => {
+                        alertMessage.classList.remove('bg-red-500', 'translate-y-10');
+                        alertMessage.classList.add('hidden');
+                    }, 300); 
+                }, 3000);
+            }
         }
+        
+    } catch (error) {
+        // --- 4. Network or Fetch Error -> FALLBACK TO LOCAL CART ---
+        console.error('Error in addToCart API (Network or Fetch Error):', error);
+        
+        // Use the fallback function
+        handleLocalCartFallback(requiredDetails);
+
+        // Display error alert (Red background)
+        const alertMessage = document.getElementById('cart-alert');
+        if (alertMessage) {
+            alertMessage.textContent = 'Could not reach server. Item added to local cart.';
+            alertMessage.className = 'fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 p-3 rounded shadow-xl transition-all duration-300 ease-in-out bg-red-500 text-white opacity-100 translate-y-0';
+            setTimeout(() => {
+                alertMessage.classList.add('opacity-0', 'translate-y-10');
+                setTimeout(() => {
+                    alertMessage.classList.remove('bg-red-500', 'translate-y-10');
+                    alertMessage.classList.add('hidden');
+                }, 300);
+            }, 3000);
+        }
+    }
+}
+/**
+ * Handles the logic for a "Buy Now" action.
+ * It bypasses the cart and immediately redirects to checkout with the selected item.
+ * @param {object} itemDetails - The product object passed from the button's onclick.
+ */
+function simulateBuyNow(itemDetails) {
+    
+    // Locate the card to find the input elements
+    const card = document.querySelector(`.collection-card[data-collection-id="${itemDetails.productId}"]`);
+    if (!card) return; // Exit if product card not found
+
+    // --- 1. Gather Quantity ---
+    // Use a unified approach to get the quantity input
+    const quantityInput = card.querySelector(`#quantity-input-${itemDetails.productId}`);
+    const selectedQuantity = parseInt(quantityInput?.value) || 1; // Use optional chaining for safety
+
+    // --- 2. Gather Size & Color (Standardized Approach) ---
+    // Use the reliable selectors from simulateAddToCart
+    const selectedSizeInput = card.querySelector(`input[name="size-${itemDetails.productId}"]:checked`);
+    const selectedColorInput = card.querySelector(`input[name="color-${itemDetails.productId}"]:checked`);
+    
+    // Assign the values
+    const selectedSize = selectedSizeInput ? selectedSizeInput.value : '';
+    const selectedColor = selectedColorInput ? selectedColorInput.value : '';
+
+
+    // --- 3. Determine variationIndex and Image (ENHANCED LOGIC) ---
+    let variationIndex = 1; 
+    let selectedImageUrl = itemDetails.imageUrl;
+    
+    // The logic to find colorMapContainer using `card` is now available here:
+    if (selectedColor) { 
+        const colorMapContainer = card.querySelector(`#color-map-${itemDetails.productId}`);
+        
+        if (colorMapContainer) {
+            try {
+                const colorMap = JSON.parse(colorMapContainer.getAttribute('data-color-map'));
+                const colorHex = selectedColor; 
+                
+                const colorMapKeys = Object.keys(colorMap);
+                const inferredIndex = colorMapKeys.indexOf(colorHex);
+                
+                if (inferredIndex !== -1) {
+                    // ⭐ CRITICAL FIX: Convert 0-based client index to 1-based server index! ⭐
+                    variationIndex = inferredIndex + 1; 
+                    
+                    const newImageUrls = colorMap[colorHex];
+                    if (newImageUrls && newImageUrls.frontImageUrl) {
+                        selectedImageUrl = newImageUrls.frontImageUrl;
+                    }
+                }
+            } catch (e) {
+                console.error("Error parsing color map data:", e);
+            }
+        }
+    }
+
+    
+    // ⭐ CRITICAL FIX: Standardize fallback to 'Uncategorized' or product name ⭐
+    const safeProductType = itemDetails.productType || itemDetails.name;
+
+    // --- CONSTRUCT THE FINAL CHECKOUT ITEM ---
+    const itemToCheckout = {
+        productId: itemDetails.productId, 
+        name: itemDetails.name,
+        productType: safeProductType, 
+        price: itemDetails.price,
+        imageUrl: selectedImageUrl, 
+        quantity: selectedQuantity,
+        size: selectedSize, 
+        color: selectedColor, 
+        variationIndex: variationIndex,
+        variation: (selectedColor !== '' && selectedSize !== '') 
+            ? `${selectedColor} / ${selectedSize}`
+            : (selectedColor !== '' ? selectedColor : (selectedSize !== '' ? selectedSize : 'Default Variant')),
+        checkout: true // Flag to indicate this is a "Buy Now" item for the checkout page
+    };
+
+    // 🌟 Console Log 1 (The original log)
+    console.log("Preparing for Buy Now Checkout:", itemToCheckout);
+    
+    // 🌟 Console Log 2 (Detailed diagnostic log for the 400 error)
+    console.log(`[BUY NOW DIAGNOSTIC] Product: ${itemToCheckout.name} | Type: ${itemToCheckout.productType} | Variation Index: ${itemToCheckout.variationIndex} | Color: ${itemToCheckout.color}`);
+    
+    // 🎯 CRITICAL STEP: Store the single item in Session Storage for checkout.html to retrieve
+    sessionStorage.setItem('buyNowItem', JSON.stringify(itemToCheckout));
+    
+    // Redirect the user to the checkout page
+    window.location.href = 'checkout.html';
+}
 
         // --- IMAGE VIEW & VARIANT SWITCHING ---
         function toggleImage(collectionId) {

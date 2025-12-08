@@ -116,8 +116,6 @@ function updateCartBadge() {
  * Handles adding an item to the local cart for unauthenticated users.
  * NOTE: This function is now the robust version used in simulateAddToCart, 
  * accepting a full details object including variationIndex.
- * * 🚀 UPDATE: Removed reliance on and update of the legacy 'CART_STORAGE_KEY'
- * to ensure cart badge count is calculated solely and correctly by updateCartBadge().
  */
 const handleLocalCartFallback = (details) => {
     let localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
@@ -136,15 +134,9 @@ const handleLocalCartFallback = (details) => {
         localCart.push({ ...details, id: Date.now() }); // Use a temp local ID
     }
 
-    // 1. Store the detailed cart object
     localStorage.setItem(LOCAL_CART_KEY, JSON.stringify(localCart));
-    
-    // ⚠️ REMOVED: The line below that updated the legacy 'CART_STORAGE_KEY' has been 
-    // removed/commented out to prevent display issues caused by old logic.
-    // localStorage.setItem(CART_STORAGE_KEY, localCart.length.toString()); 
-
-    // 2. Call the update function which now correctly reads the quantity sum 
-    // from LOCAL_CART_KEY and handles showing/hiding the badge.
+    // NOTE: This now stores the count of distinct items, matching the legacy code.
+    localStorage.setItem(CART_STORAGE_KEY, localCart.length.toString()); 
     updateCartBadge();
     
     // Display info alert for local cart (Blue background)

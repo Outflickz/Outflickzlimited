@@ -832,48 +832,52 @@ function createCollectionCard(collection, size = 'default') {
             </div>
         `;
 }
-
-// --- DEDICATED FETCHING FUNCTION FOR NEWARRIVALS.HTML (No changes needed here) ---
-async function fetchAndRenderAllNewArrivalsCollections() {
-    const container = document.getElementById('full-new-arrivals-grid');
+// --- NEW ARRIVALS COLLECTION JS ---
+async function fetchAndRenderNewArrivals() {
+    const container = document.getElementById('new-arrivals-grid');
     if (!container) return;
 
     const spinnerColor = 'text-gray-900';
     const textColor = 'text-gray-700';
 
+    // Initial loading state for New Arrivals
     container.innerHTML = `
-            <div class="col-span-full text-center ${textColor} py-10 w-full">
-                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 ${spinnerColor} inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Loading Full New Arrivals Collection...
-            </div>`;
+        <div class="col-span-full text-center ${textColor} py-10 w-full">
+            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 ${spinnerColor} inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Loading New Arrivals...
+        </div>`;
 
     try {
-        // New Arrivals endpoint
-        const newArrivalsApiUrl = `${API_BASE_URL}/api/collections/newarrivals?limit=all`;
+        const newArrivalsApiUrl = `${API_BASE_URL}/api/collections/newarrivals`; 
 
         const response = await fetch(newArrivalsApiUrl, {
             method: 'GET',
-            headers: { 'Content-Type': 'application/json' }
+            headers: {
+                'Content-Type': 'application/json',
+            }
         });
 
         if (!response.ok) {
-            throw new Error(`[NEW ARRIVALS FETCH] Failed to load collections from server. Status: ${response.status}`);
+            throw new Error(`Failed to load new arrivals from server. Status: ${response.status}`);
         }
 
-        const collections = await response.json();
+        const products = await response.json();
 
         container.innerHTML = '';
+        
+        let productsToRender = products && products.length > 0 ? products : [];
 
-        let collectionsToRender = collections && collections.length > 0 ? collections : [];
-
-        if (collectionsToRender.length > 0) {
-            collectionsToRender.forEach(collection => {
-                if (collection.price !== undefined && collection.price !== null) {
-                    // Pass 'default' size for full page view
-                    container.innerHTML += createCollectionCard(collection, 'default');
+        if (productsToRender && productsToRender.length > 0) {
+            // Limit to the first 2 products for a more exclusive homepage view
+            const limitedProducts = productsToRender.slice(0, 4);
+            
+            limitedProducts.forEach(product => {
+                if (product.price !== undefined && product.price !== null) {
+                    // Pass 'reduced' size for New Arrivals
+                    container.innerHTML += createCollectionCard(product, 'reduced'); 
                 }
             });
 
@@ -884,15 +888,16 @@ async function fetchAndRenderAllNewArrivalsCollections() {
             container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No New Arrivals are currently available.</p>`;
         }
     } catch (error) {
-        console.error('Error fetching full New Arrivals collections:', error);
-        container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server.</p>';
+        console.error('Error fetching new arrivals:', error);
+        
+        // Clean error message on API failure
+        container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server (502/Down).</p>';
     }
 }
 
-
 document.addEventListener('DOMContentLoaded', () => {
     updateCartBadge(); // Initialize cart count
-    fetchAndRenderAllNewArrivalsCollections(); // Fetch and render the full collection
+    fetchAndRenderNewArrivals(); // Fetch and render the full collection
 });
 </script>
 </head>
@@ -963,7 +968,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 Be the first to get the freshest drops. These limited edition items just landed and won't last long.
             </p>
 
-            <div id="full-new-arrivals-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
+            <div id="new-arrivals-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
                 </div>
             
         </div>

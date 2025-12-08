@@ -3,7 +3,8 @@
   publish = "public"
   # The directory where Netlify will find your functions
   functions = "netlify/functions"
-  command = "npm install"
+  # **CRITICAL CHANGE HERE**
+  command = "npm run build" 
 
 [[redirects]]
   # This maps all requests starting with /api/ to the Netlify function handler
@@ -15,5 +16,4 @@
   # This redirects all other root requests to the static index.html file
   from = "/"
   to = "/index.html"
-  status = 200 
-  
+  status = 200

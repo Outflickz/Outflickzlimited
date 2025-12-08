@@ -1,84 +1,176 @@
 <!DOCTYPE html>
-<html lang="en" class="text-[90%] sm:text-[95%] md:text-[100%]">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Outflickz - New Arrivals</title>
+    <title>New Arrivals - Outflickz</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="icon" type="image/png" href="https://i.imgur.com/ioWFyQB.png">
     <style>
-        /* Load Inter (main font) and Playfair Display (for "OUTFLICKZ") */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
-
-        /* Using Inter as the main font */
-        body {
-            font-family: 'Inter', sans-serif;
+        /* Custom styles based on the homepage code */
+        :root {
+            --color-black: #1a1a1a;
+            --ash-red: #c0392b; 
+            --ash-dark: #34495e;
+            --color-white: #ffffff;
         }
+        .text-color-black { color: var(--color-black); }
+        .bg-color-white { background-color: var(--color-white); }
+        .bg-ash-red { background-color: var(--ash-red); }
+        .hover\:bg-ash-red:hover { background-color: var(--ash-red); }
+        .border-ash-red { border-color: var(--ash-red); }
+        .text-ash-red { color: var(--ash-red); }
+        .text-ash-dark { color: var(--ash-dark); }
+        .bg-ash-dark { background-color: var(--ash-dark); }
+        .hover\:bg-ash-dark:hover { background-color: var(--ash-dark); }
         
-        /* --- MODAL STYLES --- */
-        .modal {
-            transition: opacity 0.3s ease-in-out;
-        }
-
-        /* --- CARD STYLES --- */
         .card-image-box {
-            aspect-ratio: 1/1.1;
-            overflow: hidden;
+            position: relative;
+            padding-top: 150%; /* 2:3 aspect ratio */
         }
         .card-image-box img {
-            object-fit: cover !important;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
         }
-
-        /* Custom style for active size/color selection */
-        .size-label input:checked + span {
-            border-color: #a80000; /* ash-red */
-            color: #a80000;
-            font-weight: 600;
-        }
-
-        .color-label input:checked + span {
-            border-width: 2px; /* Thicker border for selected state */
-            border-color: #a80000; /* ash-red */
-        }
-        
-        /* Ensuring full width for mobile view to display a list/grid elegantly */
-        @media (max-width: 767px) {
-            #new-arrivals-grid {
-                /* Resetting the flex/scroll behavior used on the homepage */
-                display: grid;
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-                gap: 1rem;
-            }
-            .collection-card {
-                 width: 100% !important; /* Ensure cards utilize the grid columns */
-                 margin-right: 0 !important;
-            }
+        .has-\[:checked\]\:border-ash-red:has(input:checked) {
+            border-color: var(--ash-red);
         }
     </style>
-    <script>
-    // Customizing Tailwind colors to match the theme
-    tailwind.config = {
-        theme: {
-            extend: {
-                colors: {
-                    'ash-dark': '#111111',
-                    'ash-red': '#a80000',
-                    'color-white': '#FFFFFF',
-                    'color-black': '#000000',
-                    'racing-grey': '#333333',
-                    'racing-silver': '#AAAAAA',
+
+<script>
+    // --- GLOBAL API CONFIG ---
+    const API_BASE_URL = 'https://outflickz.netlify.app'; 
+
+    // NOTE: This file assumes all utility functions (simulateAddToCart, handleLocalCartFallback, updateCartBadge, 
+    // changeQuantity, changeVariantImage, toggleImage, createColorList, createSizeList, createCollectionCard) 
+    // and global functions (redirectToProfileOrLogin, toggleMenu) are defined here for completeness, 
+    // even though they were passed in blocks.
+
+    // --- RE-DECLARATION OF KEY UTILITY FUNCTIONS (FOR STANDALONE FILE) ---
+    // (In a real project, these would be in a separate utility.js file)
+    function redirectToProfileOrLogin() { console.log('Redirecting to profile or login...'); window.location.href = '/login.html'; }
+    function toggleMenu() { 
+        const menu = document.getElementById('mobile-menu');
+        menu.classList.toggle('hidden');
+    }
+    function updateCartBadge() { 
+        const badge = document.getElementById('cart-badge');
+        // Placeholder logic: retrieve local cart count
+        const localCart = JSON.parse(localStorage.getItem('outflickzCart') || '[]');
+        const totalItems = localCart.reduce((sum, item) => sum + item.quantity, 0);
+        
+        if (totalItems > 0) {
+            badge.textContent = totalItems;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+    
+    // Placeholder implementations for Cart Actions
+    function handleLocalCartFallback(details) {
+        let cart = JSON.parse(localStorage.getItem('outflickzCart') || '[]');
+        const existingItemIndex = cart.findIndex(item => item.productId === details.productId);
+
+        if (existingItemIndex > -1) {
+            cart[existingItemIndex].quantity += details.quantity;
+        } else {
+            cart.push({ ...details, id: Date.now() }); // Use a temp local ID
+        }
+
+        localStorage.setItem('outflickzCart', JSON.stringify(cart));
+        updateCartBadge();
+    }
+
+    async function simulateAddToCart(requiredDetails) {
+        console.log('Attempting to add to cart:', requiredDetails);
+        
+        // --- 1. Client-Side Validation (Simulated) ---
+        if (requiredDetails.quantity < 1) {
+            alert('Quantity must be at least 1.');
+            return;
+        }
+
+        // --- 2. API Call Simulation ---
+        try {
+            // NOTE: In a production app, this would be a POST to /api/cart/add
+            const response = await fetch(`${API_BASE_URL}/api/cart/add`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    // Authorization: `Bearer ${userToken}`,
+                },
+                body: JSON.stringify(requiredDetails),
+            });
+
+            if (response.status === 401) {
+                // Not authenticated/session expired
+                alert('Session expired or not logged in. Redirecting to login.');
+                redirectToProfileOrLogin();
+                return;
+            }
+
+            const result = await response.json();
+
+            if (!response.ok || result.success === false) {
+                // --- 3. Server-Side Error (e.g., Stock Error, Invalid ID) -> FALLBACK TO LOCAL CART ---
+                console.error('Error in addToCart API (Server Error):', result.message || 'Unknown Server Error');
+                handleLocalCartFallback(requiredDetails);
+
+                // Display error alert (Red background)
+                const alertMessage = document.getElementById('cart-alert');
+                if (alertMessage) {
+                    alertMessage.textContent = 'Server error. Item added to local cart.';
+                    alertMessage.className = 'absolute top-16 left-1/2 transform -translate-x-1/2 mt-4 p-3 rounded-lg shadow-xl z-50 transition-all duration-300 ease-in-out bg-red-500 text-white opacity-100 translate-y-0';
+                    setTimeout(() => {
+                        alertMessage.classList.add('opacity-0', '-translate-y-10');
+                        setTimeout(() => alertMessage.classList.remove('bg-red-500'), 300);
+                    }, 3000);
                 }
+                return;
+            }
+
+            // --- 5. Success ---
+            updateCartBadge(); // Update badge with actual server cart count
+            const alertMessage = document.getElementById('cart-alert');
+            if (alertMessage) {
+                alertMessage.textContent = 'Item(s) added to cart!';
+                alertMessage.className = 'absolute top-16 left-1/2 transform -translate-x-1/2 mt-4 p-3 rounded-lg shadow-xl z-50 transition-all duration-300 ease-in-out bg-green-500 text-white opacity-100 translate-y-0';
+                setTimeout(() => {
+                    alertMessage.classList.add('opacity-0', '-translate-y-10');
+                    setTimeout(() => alertMessage.classList.remove('bg-green-500'), 300);
+                }, 3000);
+            }
+
+        } catch (error) {
+            // --- 4. Network or Fetch Error -> FALLBACK TO LOCAL CART ---
+            console.error('Error in addToCart API (Network or Fetch Error):', error);
+            
+            // Use the fallback function
+            handleLocalCartFallback(requiredDetails);
+
+            // Display error alert (Red background)
+            const alertMessage = document.getElementById('cart-alert');
+            if (alertMessage) {
+                alertMessage.textContent = 'Could not reach server. Item added to local cart.';
+                alertMessage.className = 'absolute top-16 left-1/2 transform -translate-x-1/2 mt-4 p-3 rounded-lg shadow-xl z-50 transition-all duration-300 ease-in-out bg-red-500 text-white opacity-100 translate-y-0';
+                setTimeout(() => {
+                    alertMessage.classList.add('opacity-0', '-translate-y-10');
+                    setTimeout(() => alertMessage.classList.remove('bg-red-500'), 300);
+                }, 3000);
             }
         }
     }
-
-    // Simple JS for Toggling Mobile Menu
-    function toggleMenu() {
-        document.getElementById('mobile-menu').classList.toggle('hidden');
+    
+    function simulateBuyNow(details) {
+        console.log('Simulating Buy Now for:', details);
+        alert(`Initiating immediate purchase for ${details.quantity} x ${details.name}. (Price: ₦${details.price * details.quantity})`);
+        // In a real app, this would redirect to a checkout page with only this item.
+        window.location.href = '/checkout.html'; 
     }
-
-    const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
-    const API_BASE_URL = ''; 
 
     // --- MODAL CONTROL FUNCTIONS ---
     function openModal(imageUrl, itemName) {
@@ -119,24 +211,6 @@
 
         input.value = newValue;
     }
-    
-    // --- UTILITY FOR SIZE LIST ---
-    function createSizeList(collectionId, sizes, isReduced = false) {
-        if (!sizes || sizes.length === 0) {
-            sizes = ['S', 'M', 'L', 'XL'];
-        }
-
-        const sizeClasses = isReduced 
-            ? 'text-[0.6rem] px-1.5 py-0.5' // Not used here, but kept for consistency
-            : 'text-xs px-2 py-0.5 md:px-2 md:py-1'; // Default size
-        
-        return sizes.map(size => `
-            <label for="size-${collectionId}-${size}" class="size-label border border-gray-300 cursor-pointer hover:border-ash-dark transition-all rounded-sm">
-                <input type="radio" id="size-${collectionId}-${size}" name="size-${collectionId}" value="${size}" class="hidden" ${size === sizes[0] ? 'checked' : ''}>
-                <span class="${sizeClasses}">${size}</span>
-            </label>
-        `).join('');
-    }
 
     // --- NEW FUNCTION TO HANDLE IMAGE SWITCHING (Uses Color Hex/Code as Identifier) ---
     function changeVariantImage(collectionId, colorHex) {
@@ -157,7 +231,7 @@
             if (frontImageElement) {
                 frontImageElement.src = newImageUrls.frontImageUrl;
             }
-             // Update Back Image
+                // Update Back Image
             if (backImageElement) {
                 backImageElement.src = newImageUrls.backImageUrl;
             }
@@ -187,25 +261,33 @@
         }
     }
 
-
-    // --- UTILITY FOR COLOR LIST ---
+    // --- UTILITY FOR COLOR LIST (Stock-Aware) ---
     function createColorList(collectionId, variants) {
         if (!variants || variants.length === 0) return '';
         
-        const colorMap = variants.reduce((acc, v) => {
+        const coloredVariants = variants; 
+
+        if (coloredVariants.length === 0) return ''; 
+
+        // 2. Create a map for the image switching logic
+        const colorMap = coloredVariants.reduce((acc, v) => {
             acc[v.color] = { frontImageUrl: v.frontImageUrl, backImageUrl: v.backImageUrl };
             return acc;
         }, {});
 
+        // 3. Store the map in the DOM
         const mapHtml = `<div id="color-map-${collectionId}" data-color-map='${JSON.stringify(colorMap)}' class="hidden"></div>`;
 
-        const buttonsHtml = variants.map((variant, index) => {
+        // 4. Generate the color swatch buttons
+        const buttonsHtml = coloredVariants.map((variant, index) => {
             const colorHex = variant.color; 
             const style = `background-color: ${colorHex};`;
-            const extraClass = (colorHex.toUpperCase() === '#FFFFFF' || colorHex.toUpperCase() === '#FFF') ? 'border-gray-400' : 'border-gray-200';
+            const safeColor = String(colorHex).toUpperCase(); 
+            
+            const extraClass = (safeColor === '#FFFFFF' || safeColor === '#FFF') ? 'border-gray-400' : 'border-gray-200';
             
             return `
-                <label for="color-${collectionId}-${colorHex}" class="color-label cursor-pointer p-[1px] rounded-full border border-transparent hover:border-ash-red transition-all">
+                <label for="color-${collectionId}-${colorHex}" class="color-label cursor-pointer p-[1px] rounded-full border border-transparent hover:border-ash-red transition-all has-[:checked]:border-ash-red">
                     <input 
                         type="radio" 
                         id="color-${collectionId}-${colorHex}" 
@@ -222,85 +304,198 @@
 
         return mapHtml + buttonsHtml;
     }
+    
+    // --- UTILITY FOR SIZE LIST (Stock-Aware) ---
+    function createSizeList(collectionId, sizeStockMap, isReduced = false) {
+        if (!sizeStockMap) {
+            return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
+        }
 
+        const standardSizes = ['S', 'M', 'L', 'XL'];
+        
+        const sizesWithStock = Object.entries(sizeStockMap)
+            .filter(([size, stock]) => 
+                standardSizes.includes(size.toUpperCase().trim()) && 
+                stock > 0
+            )
+            .map(([size]) => size); 
 
-    // --- COLLECTION CARD CREATION FUNCTION (Default Size) ---
+        if (sizesWithStock.length === 0) {
+            return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
+        }
+
+        const sizeClasses = isReduced 
+            ? 'text-[0.6rem] px-1.5 py-0.5' 
+            : 'text-xs px-2 py-0.5 md:px-2 md:py-1'; 
+
+        const groupName = `size-${collectionId}`;
+        
+        return sizesWithStock.map((size, index) => {
+            const safeSize = size.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
+            const inputId = `size-${collectionId}-${safeSize}`;
+            
+            return `
+                <label for="${inputId}" class="size-label border border-gray-300 cursor-pointer hover:border-ash-dark transition-all rounded-sm has-[:checked]:border-ash-dark has-[:checked]:bg-gray-100">
+                    <input 
+                        type="radio" 
+                        id="${inputId}" 
+                        name="${groupName}" 
+                        value="${size}" 
+                        class="hidden" 
+                        ${index === 0 ? 'checked' : ''}
+                    >
+                    <span class="${sizeClasses}">${size}</span>
+                </label>
+            `;
+        }).join('');
+    }
+
+    // --- MAIN CARD RENDERING FUNCTION ---
     function createCollectionCard(collection, size = 'default') {
-        const currencySymbol = '₦'; 
-        const defaultFrontImage = 'https://i.imgur.com/RFkkvwa.jpeg'; 
-        const defaultBackImage = 'https://i.imgur.com/S74DrsC.jpeg'; 
-        
-        // --- Conditional Sizing Classes (Using Default/Larger size for this page) ---
-        // Note: isReduced logic is kept for function consistency but is false here.
-        const isReduced = size === 'reduced'; 
-        
-        const cardPadding = 'p-2 md:p-3'; 
-        const nameFontSize = 'text-sm md:text-base';
-        const descriptionFontSize = 'text-xs';
-        const priceFontSize = 'text-lg font-extrabold';
-        const controlHeight = 'h-7 md:h-8';
-        const controlTextSize = 'text-xs md:text-sm';
-        const quantityControlWidth = 'w-6 md:w-8';
-        const quantityButtonSize = 'w-7 h-7 md:w-8 md:h-8';
-        const quantityInputWidth = 'w-6 md:w-8';
-        const quantityInputTextSize = 'text-xs md:text-sm';
-        // --- End Conditional Sizing Classes ---
+        const currencySymbol = '₦';
+        const PLACEHOLDER_URL = 'https://s3.us-west-1.idrivee2.com/outflickz/public/placeholder-image-v1.jpg';
+        const defaultFrontImage = PLACEHOLDER_URL;
+        const defaultBackImage = PLACEHOLDER_URL;
 
-        const primaryVariant = collection.variants && collection.variants.length > 0 ? collection.variants[0] : null;
+        // --- Conditional Sizing Classes ---
+        const reducedSizes = ['reduced', 'caps', 'wears', 'newarrivals', 'preorder'];
+        const isReduced = reducedSizes.includes(size);
+        const isCaps = size === 'caps'; 
+        const isWears = size === 'wears'; 
+        const isPreorder = size === 'preorder'; 
+
+        // Card Padding
+        const cardPadding = isReduced ? 'p-1 sm:p-2' : 'p-2 sm:p-3';
+        const nameFontSize = isReduced ? 'text-xs sm:text-sm' : 'text-sm sm:text-base';
+        const descriptionFontSize = isReduced ? 'text-[0.6rem] sm:text-xs' : 'text-xs sm:text-sm';
+        const priceFontSize = isReduced ? 'text-xs font-bold sm:text-sm' : 'text-base font-semibold';
         
-        const frontImageUrl = primaryVariant?.frontImageUrl || defaultFrontImage;
-        const backImageUrl = primaryVariant?.backImageUrl || defaultBackImage;
+        // CONTROL SIZING
+        const controlHeight = isReduced ? 'h-6' : 'h-7'; 
+        const controlTextSize = isReduced ? 'text-[0.6rem] sm:text-xs' : 'text-xs'; 
         
-        const itemPrice = collection.price; 
+        // QUANTITY CONTROL WIDTH
+        const quantityInputWidth = isReduced ? 'w-5 sm:w-7' : 'w-7 sm:w-9';
+        const quantityButtonSize = isReduced ? 'w-7 h-7' : 'w-8 h-8'; 
+        const quantityInputTextSize = isReduced ? 'text-[0.6rem] sm:text-xs' : 'text-xs sm:text-sm';
+        
+        // --- FINAL FIX: Ensure 'variants'/'variations' is accessed correctly and safely ---
+        const primaryVariant = (Array.isArray(collection.variants) && collection.variants.length > 0)
+            ? collection.variants[0]
+            : (Array.isArray(collection.variations) && collection.variations.length > 0)
+                ? collection.variations[0]
+                : null;
+
+        const frontImageUrl = primaryVariant?.frontImageUrl || collection.frontImageUrl || defaultFrontImage;
+        const backImageUrl = primaryVariant?.backImageUrl || collection.backImageUrl || defaultBackImage;
+        // --- END FINAL FIX ---
+
+        const itemPrice = collection.price;
         const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
 
-        const sizeListHtml = createSizeList(collection._id, collection.availableSizes, isReduced); 
-        const colorListHtml = createColorList(collection._id, collection.variants); 
-        const maxStock = collection.availableStock > 0 ? collection.availableStock : 0; 
+
+        // --- CRITICAL FRONTEND FIX START ---
+        // 1. Generate the inner HTML for size selection options.
+        const innerSizeOptions = createSizeList(collection._id, collection.sizeStockMap, isReduced);
+
+        // 2. Generate the surrounding div/label structure.
+        const sizeListHtml = (innerSizeOptions && !isCaps)
+            ? `
+                <div class="flex flex-col items-start w-full flex-1">
+                    <span class="text-xs font-medium text-gray-700">Size:</span>
+                    <div class="flex gap-1 text-gray-700 flex-wrap mt-1">
+                        ${innerSizeOptions}
+                    </div>
+                </div>
+            `
+            : ''; 
+        // --- CRITICAL FRONTEND FIX END ---
+
+        const colorListHtml = createColorList(collection._id, collection.variants || collection.variations); 
+
+        const maxStock = collection.availableStock > 0 ? collection.availableStock : 0;
 
         // *** Check Stock Status ***
         const isOutOfStock = maxStock === 0 || collection.availableStock === 0;
 
-        const description = collection.tag || 'Exclusive limited edition wear.';
+        const description = collection.tag || (isPreorder ? 'Secure your exclusive item before it sells out' : 'Exclusive limited edition item.');
+
+        // --- New Arrivals specific badge and text ---
+        let stockBadge = '';
+        let cartButtonText = 'ADD TO CART'; 
+        let buyNowButtonText = 'BUY NOW';
+        let cartButtonClasses = 'bg-ash-dark text-white hover:bg-ash-red';
+        let buyNowButtonClasses = 'bg-ash-red text-white hover:bg-red-700';
+
+        if (isOutOfStock) {
+            stockBadge = '<span class="absolute top-2 left-2 bg-ash-red text-white text-[0.6rem] sm:text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">Out of Stock</span>';
+            cartButtonText = 'N/A';
+            buyNowButtonText = 'N/A';
+            cartButtonClasses = 'bg-gray-500 text-white cursor-not-allowed opacity-75';
+            buyNowButtonClasses = 'bg-gray-500 text-white cursor-not-allowed opacity-75';
+        } else {
+            stockBadge = `<span class="absolute top-2 left-2 bg-green-600 text-white text-[0.6rem] sm:text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">NEW DROP</span>`;
+        }
 
         // *** Define Buttons/Labels based on Stock Status ***
-        const stockBadge = isOutOfStock
-            ? '<span class="absolute top-2 left-2 bg-ash-red text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">OUT OF STOCK</span>'
-            : '';
-            
-        const cartButtonHtml = isOutOfStock
-            ? `
-                <button disabled class="flex-1 ${controlTextSize} bg-gray-500 text-white ${controlHeight} rounded-sm font-semibold uppercase tracking-widest flex items-center justify-center cursor-not-allowed opacity-75">
-                    Out Of Stock
-                </button>
-            `
-            : `
-                <button class="flex-1 ${controlTextSize} bg-ash-dark text-white ${controlHeight} rounded-sm hover:bg-ash-red transition font-semibold uppercase tracking-widest flex items-center justify-center">
-                    Add To Cart
-                </button>
-            `;
+        const isButtonDisabled = isOutOfStock;
+        const safeProductTypeInHtml = collection.collectionName || collection.productType;
 
+        // Get current quantity value for the button click
+        const quantityGetter = `document.getElementById('quantity-input-${collection._id}').value`;
+
+        // Button to add to cart
+        const cartButtonHtml = `
+            <button
+                ${isButtonDisabled ? 'disabled' : ''}
+                onclick="simulateAddToCart({
+                    productId: '${collection._id}',
+                    name: '${collection.name.replace(/'/g, "\\'")}',
+                    price: ${itemPrice},
+                    imageUrl: '${frontImageUrl}',
+                    quantity: parseInt(${quantityGetter})
+                })"
+                class="${controlTextSize} ${cartButtonClasses} ${controlHeight} rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center w-full md:flex-1">
+                ${cartButtonText}
+            </button>
+        `;
+
+        const buyNowButtonHtml = `
+            <button 
+                ${isButtonDisabled ? 'disabled' : ''} 
+                onclick="simulateBuyNow({
+                    productId: '${collection._id}',
+                    name: '${collection.name.replace(/'/g, "\\'")}',
+                    productType: '${safeProductTypeInHtml}', 
+                    price: ${itemPrice},
+                    quantity: parseInt(${quantityGetter}),
+                    imageUrl: '${frontImageUrl}'
+                })"
+                class="${controlTextSize} ${buyNowButtonClasses} ${controlHeight} rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center w-full md:flex-1">
+                ${buyNowButtonText}
+            </button>
+        `;
+
+        // Quantity control 
         const quantityControlHtml = isOutOfStock
-            ? `<div class="w-20 md:w-24 ${controlHeight} border border-gray-300 rounded-sm flex items-center justify-center text-xs text-gray-500">N/A</div>`
+            ? `<div class="flex-shrink-0 ${controlHeight} border border-gray-300 rounded-sm flex items-center justify-center text-xs text-gray-500 w-20 mt-1 md:mt-0">N/A</div>`
             : `
-                <div class="flex items-center border border-gray-300 rounded-sm">
-                    <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-l-sm font-semibold">
+                <div class="flex items-center border border-gray-300 rounded-sm flex-shrink-0 mt-1 md:mt-0">
+                    <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-l-sm font-semibold flex-shrink-0">
                         &minus;
                     </button>
-                    <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock}" aria-label="Quantity" class="${quantityInputWidth} ${controlHeight} text-center ${quantityInputTextSize} border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
-                    <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-r-sm font-semibold">
+                    <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock || 999}" aria-label="Quantity" class="${quantityInputWidth} ${controlHeight} text-center ${quantityInputTextSize} border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
+                    <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-r-sm font-semibold flex-shrink-0">
                         &plus;
                     </button>
                 </div>
             `;
-        // *** END NEW LOGIC ***
-
 
         return `
             <div class="collection-card border border-gray-100 rounded-lg overflow-hidden bg-white hover:shadow-lg transition duration-300" data-collection-id="${collection._id}">
                 <div class="relative card-image-box">
                     ${stockBadge}
-                    
+
                     <div class="absolute inset-0 transition-opacity duration-300">
                         <img
                             class="w-full h-full object-cover bg-gray-50 absolute transition-opacity duration-300 active"
@@ -309,6 +504,7 @@
                             alt="${collection.name} (Front View)"
                             onerror="this.onerror=null;this.src='${defaultFrontImage}';"
                             style="opacity: 1;"
+                            onclick="openModal('${frontImageUrl}', '${collection.name.replace(/'/g, "\\'")}')"
                         >
                         <img
                             class="w-full h-full object-cover bg-gray-50 absolute transition-opacity duration-300"
@@ -317,56 +513,54 @@
                             alt="${collection.name} (Back View)"
                             onerror="this.onerror=null;this.src='${defaultBackImage}';"
                             style="opacity: 0;"
+                            onclick="openModal('${backImageUrl}', '${collection.name.replace(/'/g, "\\'")}')"
                         >
                     </div>
 
                     <div class="absolute inset-0 bg-black bg-opacity-10 opacity-0 hover:opacity-100 transition duration-300 flex items-end justify-center p-3">
-                        <button 
+                        <button
                             id="image-toggle-btn-${collection._id}"
-                            onclick="toggleImage('${collection._id}')" 
-                            class="bg-color-white text-ash-dark text-xs font-semibold py-1 px-3 rounded-full shadow-md hover:bg-gray-200 transition"
+                            onclick="toggleImage('${collection._id}')"
+                            class="bg-color-white text-ash-dark text-[0.6rem] sm:text-xs font-semibold py-1 px-3 rounded-full shadow-md hover:bg-gray-200 transition"
                             title="Show Back View"
                         >
                             <i class="fas fa-sync-alt"></i> Back View
                         </button>
                     </div>
                 </div>
-
                 <div class="${cardPadding}">
                     <p class="text-[0.6rem] text-gray-500 uppercase font-semibold">Outflickz</p>
                     <h3 class="${nameFontSize} font-semibold text-color-black truncate">${collection.name}</h3>
-                    
-                    <p class="${descriptionFontSize} text-red-700 mt-0.5 mb-1 truncate">${description}</p>
+
+                    <p class="${descriptionFontSize} text-gray-700 mt-0.5 mb-1 truncate">${description}</p>
                     
                     <p class="${priceFontSize} text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
-                    
+
+                                        
                     <div class="flex items-center gap-2 mt-2">
                         <span class="text-xs font-medium text-gray-700">Color:</span>
                         <div class="flex gap-1 text-gray-700">
                             ${colorListHtml}
                         </div>
                     </div>
-
-                    <div class="flex flex-wrap items-center gap-1 mt-2 mb-3">
-                        <span class="text-xs font-medium text-gray-700">Size:</span>
-                        <div class="flex flex-wrap gap-1 text-gray-700">
-                            ${sizeListHtml}
-                        </div>
-                    </div>
-
-                    <div class="flex items-center space-x-2">
+                                        
+                    <div class="flex flex-col md:flex-row items-start md:items-center justify-between w-full mt-2 gap-2">
+                        ${sizeListHtml} 
                         ${quantityControlHtml}
-
+                    </div>
+                    
+                    <div class="flex space-x-2 mt-3">
                         ${cartButtonHtml}
+                        ${buyNowButtonHtml}
                     </div>
                 </div>
             </div>
         `;
     }
 
-    // --- FETCH AND RENDER ALL NEW ARRIVALS ---
-    async function fetchAndRenderAllNewArrivals() {
-        const container = document.getElementById('new-arrivals-grid');
+    // --- DEDICATED FETCHING FUNCTION FOR NEWARRIVALS.HTML ---
+    async function fetchAndRenderAllNewArrivalsCollections() {
+        const container = document.getElementById('full-new-arrivals-grid');
         if (!container) return;
 
         const spinnerColor = 'text-gray-900';
@@ -378,131 +572,124 @@
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Loading New Arrivals...
+                Loading Full New Arrivals Collection...
             </div>`;
 
         try {
-            const newArrivalsApiUrl = `${API_BASE_URL}/api/collections/newarrivals`; 
+            // New Arrivals endpoint
+            const newArrivalsApiUrl = `${API_BASE_URL}/api/collections/newarrivals?limit=all`; 
 
             const response = await fetch(newArrivalsApiUrl, {
                 method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
+                headers: { 'Content-Type': 'application/json' }
             });
 
             if (!response.ok) {
-                throw new Error(`Failed to load new arrivals from server. Status: ${response.status}`);
+                throw new Error(`[NEW ARRIVALS FETCH] Failed to load collections from server. Status: ${response.status}`);
             }
 
-            const products = await response.json();
+            const collections = await response.json();
 
             container.innerHTML = '';
+            
+            let collectionsToRender = collections && collections.length > 0 ? collections : [];
 
-            if (products && products.length > 0) {
-                products.forEach(product => {
-                    if (product.price !== undefined && product.price !== null) {
-                        // Use default size (full-size card) for the dedicated page
-                        container.innerHTML += createCollectionCard(product, 'default'); 
+            if (collectionsToRender.length > 0) {
+                collectionsToRender.forEach(collection => {
+                    if (collection.price !== undefined && collection.price !== null) {
+                        // Pass 'default' size for full page view
+                        container.innerHTML += createCollectionCard(collection, 'default');
                     }
                 });
 
                 if (container.innerHTML === '') {
-                        container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No New Arrivals are currently available.</p>`;
+                    container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No New Arrivals are currently available.</p>`;
                 }
             } else {
                 container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No New Arrivals are currently available.</p>`;
             }
         } catch (error) {
-            console.error('Error fetching new arrivals:', error);
-            container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full">Error loading new arrivals. Please ensure the API server is running and accessible.</p>';
+            console.error('Error fetching full New Arrivals collections:', error);
+            container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server.</p>';
         }
     }
 
 
     document.addEventListener('DOMContentLoaded', () => {
-        fetchAndRenderAllNewArrivals();
+        updateCartBadge(); // Initialize cart count
+        fetchAndRenderAllNewArrivalsCollections(); // Fetch and render the full collection
     });
 </script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body class="bg-gray-50 text-color-black min-h-screen">
 
-    <!-- Header Section (Copied from Homepage for consistency) -->
     <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
-        <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
-            <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-10 sm:h-12 lg:h-10">
-        </a>
-
-        <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
-            <a href="homepage.html" class="font-medium text-color-black hover:text-gray-600 transition">Homepage</a>
-            <a href="preorder.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
-            <a href="newarrivals.html" class="font-bold text-ash-red transition border-b-2 border-ash-red">New Arrivals</a>
-            <a href="wearscollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Wears Collections</a>
-            <a href="capcollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Cap Collections</a>
-        </nav>
-
-        <div class="flex items-center space-x-2 sm:space-x-4">
-            <a href="useraccount.html" class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" aria-label="User Account">
-             <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
+            <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
+                <img src="[https://i.imgur.com/PZLMws6.jpeg](https://i.imgur.com/PZLMws6.jpeg)" alt="Outflickz Logo" class="w-auto h-10 sm:h-12 lg:h-10">
             </a>
-            <button class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" aria-label="Shopping Bag">
-                <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
+
+            <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
+                <a href="preorder.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
+                <a href="newarrivals.html" class="font-bold text-ash-red transition flex items-center border-b-2 border-ash-red">New Arrivals</a>
+                <a href="wearscollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Wears Collections</a>
+                <a href="capcollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Cap Collections</a>
+            </nav>
+
+          <div class="flex items-center space-x-2 sm:space-x-4">
+            <button id="profile-icon" 
+            class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" 
+            aria-label="User Account"
+            onclick="redirectToProfileOrLogin()">
+                <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
             </button>
+            <a href="cart.html" class="relative p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" aria-label="Shopping Bag">
+                <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
+                <span id="cart-badge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-ash-red rounded-full hidden">
+                    0
+                </span>
+            </a>
             <button class="md:hidden p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
                 <i class="fas fa-bars w-5 h-5 sm:w-6 sm:h-6"></i>
             </button>
         </div>
-    </div>
-</header>
-
-    <div id="mobile-menu" class="hidden md:hidden bg-color-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
-        <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
-            <a href="homepage.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Homepage</a>
-            <a href="preorder.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
-            <a href="newarrivals.html" class="block px-3 py-2 font-medium text-ash-red bg-gray-100 rounded-md">New Arrivals</a>
-            <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Wears Collection</a>
-            <a href="capcollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cap Collection</a>
-            <a href="useraccount.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Account</a>
-        </div>
+    </header>
+    <div id="cart-alert" class="hidden fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 bg-green-500 text-white text-sm px-4 py-2 rounded-lg shadow-xl z-50 transition-all duration-500 opacity-0 -translate-y-10">
+        Item(s) added to cart!
     </div>
     
-    <!-- Main Collection Content -->
-    <section id="full-new-arrivals-collection" class="py-10 sm:py-16">
+    <div id="mobile-menu" class="hidden md:hidden bg-color-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
+        <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
+            <a href="preorder.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
+            <a href="newarrivals.html" class="block px-3 py-2 font-bold text-ash-red bg-gray-100 rounded-md">New Arrivals</a>
+            <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Wears Collection</a>
+            <a href="capcollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cap Collection</a>
+            
+            <button 
+                id="mobile-profile-login-button" 
+                class="w-full flex items-center px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md text-left"
+                aria-label="User Account or Login"
+                onclick="redirectToProfileOrLogin()">
+                <i class="fas fa-user w-4 h-4 mr-3"></i>
+                Account / Login
+            </button>
+            </div>
+    </div>
+    
+    <main class="py-10 sm:py-16">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="text-center mb-8 sm:mb-12">
-                <p class="text-sm font-semibold uppercase text-ash-red tracking-wider">Fresh Drops</p>
-                <h1 class="text-2xl sm:text-2xl font-extrabold text-ash-dark mt-1">
-                    The New Arrivals Collection
-                </h1>
-                <p class="mt-3 text-xm text-gray-600 max-w-2xl mx-auto">
-                    Be the first to see and shop our latest releases. Limited stock available.
-                </p>
-            </div>
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-color-black uppercase mb-2 text-center">
+                New Arrivals
+            </h1>
+            <p class="text-sm sm:text-base font-medium text-gray-700 mb-10 text-center max-w-2xl mx-auto">
+                Be the first to get the freshest drops. These limited edition items just landed and won't last long.
+            </p>
 
-            <!-- New Arrivals Grid: Displays all items in a standard collection layout -->
-            <div id="new-arrivals-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
-                <!-- Products will be injected here by JavaScript -->
-            </div>
+            <div id="full-new-arrivals-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
+                </div>
+            
         </div>
-    </section>
-
-
-    <!-- Footer (Simple for a collection page) -->
-    <footer class="bg-ash-dark text-white py-8 mt-10">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <p class="text-xs">&copy; 2024 Outflickz. All rights reserved.</p>
-            <div class="flex justify-center space-x-4 mt-3 text-lg">
-                <a href="#" class="hover:text-ash-red transition"><i class="fab fa-instagram"></i></a>
-                <a href="#" class="hover:text-ash-red transition"><i class="fab fa-twitter"></i></a>
-                <a href="#" class="hover:text-ash-red transition"><i class="fab fa-facebook-f"></i></a>
-            </div>
-        </div>
-    </footer>
-
-
-    <!-- Image Modal -->
+    </main>
     <div id="image-modal" class="modal fixed inset-0 z-[100] bg-black bg-opacity-90 flex items-center justify-center opacity-0 pointer-events-none" onclick="closeModal()" role="dialog" aria-modal="true" aria-labelledby="modal-item-title">
 
         <div class="relative max-w-xs sm:max-w-4xl w-full mx-4 p-2 bg-white rounded-lg shadow-2xl" onclick="event.stopPropagation()">
@@ -521,5 +708,73 @@
 
         </div>
     </div>
+    <footer class="bg-gray-900 text-gray-300 py-10 sm:py-14 border-t border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
+                
+                <div class="col-span-2 lg:col-span-1">
+                    <a href="homepage.html" class="flex items-center mb-4">
+                        <img src="[https://i.imgur.com/PZLMws6.jpeg](https://i.imgur.com/PZLMws6.jpeg)" alt="Outflickz Logo" class="w-auto h-8 filter grayscale invert">
+                    </a>
+                    <p class="text-sm text-gray-500">
+                        The home of exclusive street wear and limited edition drops. Elevate your style.
+                    </p>
+                    <div class="flex space-x-4 mt-4 text-gray-400">
+                        <a href="#" aria-label="Instagram" class="hover:text-ash-red transition"><i class="fab fa-instagram"></i></a>
+                        <a href="#" aria-label="Twitter" class="hover:text-ash-red transition"><i class="fab fa-twitter"></i></a>
+                        <a href="#" aria-label="Facebook" class="hover:text-ash-red transition"><i class="fab fa-facebook-f"></i></a>
+                    </div>
+                </div>
+
+                <div class="col-span-1">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Quick Links</h3>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="wearscollection.html" class="text-gray-400 hover:text-ash-red transition">Wears</a></li>
+                        <li><a href="capcollection.html" class="text-gray-400 hover:text-ash-red transition">Caps</a></li>
+                        <li><a href="newarrivals.html" class="text-gray-400 hover:text-ash-red transition">New Arrivals</a></li>
+                        <li><a href="preorder.html" class="text-gray-400 hover:text-ash-red transition">Pre-Order</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-span-1">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Customer Care</h3>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Contact Us</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Shipping & Returns</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">FAQ</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Size Guide</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-span-2 md:col-span-1">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Get In Touch</h3>
+                    <address class="text-sm not-italic space-y-2">
+                        <p class="text-gray-400">
+                            <i class="fas fa-map-marker-alt mr-2 text-ash-red"></i> Lagos , Nigeria
+                        </p>
+                        <p class="text-gray-400">
+                            <i class="fas fa-envelope mr-2 text-ash-red"></i> outflickzlimited@gmailcom
+                        </p>
+                        <p class="text-gray-400">
+                            <i class="fas fa-phone mr-2 text-ash-red"></i> +234 7042882706
+                        </p>
+                    </address>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-800 mt-10 pt-6">
+                <p class="text-center text-xs text-gray-500">
+                    &copy; 2025 Outflickz. All rights reserved. | <a href="#" class="hover:text-ash-red">Privacy Policy</a> | <a href="#" class="hover:text-ash-red">Terms of Use</a>
+                </p>
+            </div>
+        </div>
+    </footer>
+    <a href="[https://wa.me/2347042882706?text=HELLO!%20WELCOME%20TO%20OUTFLICKZ!%20HOW%20CAN%20WE%20HELP%20YOU](https://wa.me/2347042882706?text=HELLO!%20WELCOME%20TO%20OUTFLICKZ!%20HOW%20CAN%20WE%20HELP%20YOU)" 
+        target="_blank" 
+        class="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-3 sm:p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105" 
+        aria-label="Chat with us on WhatsApp">
+        <i class="fab fa-whatsapp text-2xl sm:text-3xl"></i>
+    </a>
+    
 </body>
 </html>

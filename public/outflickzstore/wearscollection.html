@@ -85,20 +85,15 @@ function toggleMenu() {
 }
 
 /**
- * Safely retrieves the cart items array from localStorage.
- * @returns {Array} The cart items array, or an empty array if not found or invalid.
+ * Reads the current cart item count from Local Storage. (Keep this one)
+ * @returns {number} The total number of items in the cart.
  */
-function getCartItems() {
-    try {
-        const cartData = localStorage.getItem(LOCAL_CART_KEY);
-        // Return parsed data if it exists and is an array, otherwise return an empty array.
-        const parsedCart = cartData ? JSON.parse(cartData) : [];
-        return Array.isArray(parsedCart) ? parsedCart : [];
-    } catch (error) {
-        console.error('Error reading or parsing local cart data:', error);
-        return [];
-    }
+function getCartCount() {
+    // This function remains the same and relies on CART_STORAGE_KEY
+    const count = localStorage.getItem(CART_STORAGE_KEY);
+    return parseInt(count) || 0;
 }
+
 
 /**
  * Updates the cart badge count based on the local cart.

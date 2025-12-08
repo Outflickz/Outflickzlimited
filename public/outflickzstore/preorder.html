@@ -321,15 +321,14 @@ async function redirectToProfileOrLogin() {
             }
         }
         
-      /**
- * Retrieves the total number of items (or item types) in the local storage cart.
- * NOTE: This is simplistic and might return item *count* or item *types* based on your badge display preference.
- * The robust simulateAddToCart uses localCart.length (number of unique variant types).
+/**
+ * Reads the current cart item count from Local Storage. (Keep this one)
+ * @returns {number} The total number of items in the cart.
  */
 function getCartCount() {
-    // This function must return a number, defaulting to 0.
-    const count = parseInt(localStorage.getItem(CART_STORAGE_KEY)) || 0;
-    return count;
+    // This function remains the same and relies on CART_STORAGE_KEY
+    const count = localStorage.getItem(CART_STORAGE_KEY);
+    return parseInt(count) || 0;
 }
 
 /**

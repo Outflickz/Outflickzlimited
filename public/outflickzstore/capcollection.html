@@ -521,6 +521,8 @@ function createColorList(collectionId, variants) {
 
     return mapHtml + buttonsHtml;
 }
+
+
 function createSizeList(collectionId, sizeStockMap, isReduced = false) {
     if (!sizeStockMap) {
         return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
@@ -570,7 +572,6 @@ function createSizeList(collectionId, sizeStockMap, isReduced = false) {
         `;
     }).join('');
 }
-
 function createCollectionCard(collection, size = 'default') {
     const currencySymbol = '₦';
     const PLACEHOLDER_URL = 'https://s3.us-west-1.idrivee2.com/outflickz/public/placeholder-image-v1.jpg';
@@ -603,16 +604,27 @@ function createCollectionCard(collection, size = 'default') {
     // BUTTON SIZING
     // Removed specific button flex classes here, relying on w-full/flex-1 in the return HTML
     
-    // --- FINAL FIX: Ensure 'variants'/'variations' is accessed correctly and safely ---
+    // --- CRITICAL IMAGE RESOLUTION FIX START (MODIFIED) ---
     const primaryVariant = (Array.isArray(collection.variants) && collection.variants.length > 0)
         ? collection.variants[0]
         : (Array.isArray(collection.variations) && collection.variations.length > 0)
             ? collection.variations[0]
             : null;
 
-    const frontImageUrl = primaryVariant?.frontImageUrl || collection.frontImageUrl || defaultFrontImage;
-    const backImageUrl = primaryVariant?.backImageUrl || collection.backImageUrl || defaultBackImage;
-    // --- END FINAL FIX ---
+    // Use a chain of possible property names for robust image URL fetching
+    const variantFrontImage = primaryVariant?.frontImageUrl 
+        || primaryVariant?.imageUrl 
+        || primaryVariant?.image; 
+        
+    const variantBackImage = primaryVariant?.backImageUrl 
+        || primaryVariant?.backImage 
+        || primaryVariant?.imageUrl // Fallback to a single image if no back image exists
+        || primaryVariant?.image; 
+
+    // Final URL assignment - prioritize variant, then collection top-level, then default placeholder
+    const frontImageUrl = variantFrontImage || collection.frontImageUrl || collection.imageUrl || defaultFrontImage;
+    const backImageUrl = variantBackImage || collection.backImageUrl || collection.imageUrl || defaultBackImage;
+    // --- CRITICAL IMAGE RESOLUTION FIX END ---
 
     const itemPrice = collection.price;
     const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
@@ -737,7 +749,7 @@ function createCollectionCard(collection, size = 'default') {
                         id="front-image-${collection._id}"
                         src="${frontImageUrl}"
                         alt="${collection.name} (Front View)"
-                        onerror="this.onerror=null;this.src='${defaultFrontImage}';"
+                        onerror="this.onerror=null;this.src='${defaultFrontImage}'; console.error('FRONT IMAGE URL FAILED:', '${frontImageUrl}')"
                         style="opacity: 1;"
                     >
                     <img
@@ -745,7 +757,7 @@ function createCollectionCard(collection, size = 'default') {
                         id="back-image-${collection._id}"
                         src="${backImageUrl}"
                         alt="${collection.name} (Back View)"
-                        onerror="this.onerror=null;this.src='${defaultBackImage}';"
+                        onerror="this.onerror=null;this.src='${defaultBackImage}'; console.error('BACK IMAGE URL FAILED:', '${backImageUrl}')"
                         style="opacity: 0;"
                     >
                 </div>
@@ -771,14 +783,13 @@ function createCollectionCard(collection, size = 'default') {
 
                 <p class="${priceFontSize} text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
 
-                                
                 <div class="flex items-center gap-2 mt-2">
                     <span class="text-xs font-medium text-gray-700">Color:</span>
                     <div class="flex gap-1 text-gray-700">
                         ${colorListHtml}
                     </div>
                 </div>
-                                
+                
                 <div class="flex flex-col md:flex-row items-start md:items-center justify-between w-full mt-2 gap-2">
                     ${sizeListHtml} 
                     ${quantityControlHtml}

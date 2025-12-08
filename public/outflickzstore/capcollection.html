@@ -809,7 +809,7 @@ async function fetchAndRenderCapsCollection() {
     try {
         // NEW ENDPOINT: /api/collections/caps
         // The API request still includes 'limit=all' which is correct for fetching all data.
-        const capsApiUrl = `${API_BASE_URL}/api/collections/caps?limit=all`; 
+        const capsApiUrl = `${API_BASE_URL}/api/collections/caps`; 
 
         const response = await fetch(capsApiUrl, {
             method: 'GET',
@@ -825,7 +825,7 @@ async function fetchAndRenderCapsCollection() {
         const collections = await response.json();
         console.log('--- API Response for Caps Collection ---');
         console.log(collections); // <--- CHECK THIS OBJECT IN YOUR BROWSER CONSOLE
-        
+
         container.innerHTML = '';
         
         let collectionsToRender = collections && collections.length > 0 ? collections : [];

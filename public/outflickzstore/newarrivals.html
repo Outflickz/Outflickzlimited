@@ -1038,7 +1038,7 @@ async function fetchAndRenderNewArrivals() {
     try {
         // Updated API call to include limit=all if the endpoint supports it, 
         // ensuring maximum data is fetched.
-        const newArrivalsApiUrl = `${API_BASE_URL}/api/collections/newarrivals?limit=all`; 
+        const newArrivalsApiUrl = `${API_BASE_URL}/api/collections/newarrivals`; 
 
         const response = await fetch(newArrivalsApiUrl, {
             method: 'GET',

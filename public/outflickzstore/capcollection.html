@@ -42,7 +42,11 @@
 
 <script>
     // --- GLOBAL API CONFIG (Requested change) ---
+    // Using the defined constant for all API calls
     const API_BASE_URL = 'https://outflickz.netlify.app'; 
+    const LOCAL_CART_KEY = 'outflickzCart';
+    const CART_STORAGE_KEY = 'outflickzCartItemCount'; 
+
 
 
 /**
@@ -52,6 +56,7 @@
 async function redirectToProfileOrLogin() {
     try {
         // Fetch status - the browser automatically sends the secure HTTP-only cookie.
+        // NOTE: Uses relative path, assuming this is served from the same domain as the API.
         const response = await fetch('/api/auth/status', {
             method: 'GET'
         });
@@ -114,7 +119,7 @@ async function redirectToProfileOrLogin() {
 
         // --- 2. API Call Simulation ---
         try {
-            // NOTE: In a production app, this would be a POST to /api/cart/add
+            // NOTE: Using API_BASE_URL as requested
             const response = await fetch(`${API_BASE_URL}/api/cart/add`, {
                 method: 'POST',
                 headers: {
@@ -152,7 +157,9 @@ async function redirectToProfileOrLogin() {
             }
 
             // --- 5. Success ---
-            updateCartBadge(); // Update badge with actual server cart count
+            // In a real app, 'result' would contain the new cart count from the server.
+            // Since this is a simulation, we just update the badge.
+            updateCartBadge(); 
             const alertMessage = document.getElementById('cart-alert');
             if (alertMessage) {
                 alertMessage.textContent = 'Item(s) added to cart!';
@@ -185,7 +192,7 @@ async function redirectToProfileOrLogin() {
     
     function simulateBuyNow(details) {
         console.log('Simulating Buy Now for:', details);
-        alert(`Initiating immediate purchase for ${details.quantity} x ${details.name}. (Price: ₦${details.price * details.quantity})`);
+        alert(`Initiating immediate purchase for ${details.quantity} x ${details.name} (Size: ${details.size}). (Price: ₦${details.price * details.quantity})`);
         // In a real app, this would redirect to a checkout page with only this item.
         window.location.href = '/checkout.html'; 
     }
@@ -324,6 +331,7 @@ async function redirectToProfileOrLogin() {
     }
     
     // --- UTILITY FOR SIZE LIST (Stock-Aware) ---
+    // UPDATED: Added a hidden input to track the selected size for cart actions.
     function createSizeList(collectionId, sizeStockMap, isReduced = false) {
         if (!sizeStockMap) {
             return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
@@ -339,7 +347,8 @@ async function redirectToProfileOrLogin() {
             .map(([size]) => size); 
 
         if (sizesWithStock.length === 0) {
-            return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
+            // Include hidden input with a default size if no stock, just to avoid errors on click
+            return `<input type="hidden" id="selected-size-${collectionId}" value="N/A"><span class="text-xs font-medium text-gray-400">N/A</span>`;
         }
 
         const sizeClasses = isReduced 
@@ -348,7 +357,10 @@ async function redirectToProfileOrLogin() {
 
         const groupName = `size-${collectionId}`;
         
-        return sizesWithStock.map((size, index) => {
+        // Hidden input to hold the *currently selected* size for cart functions
+        const hiddenSelectedSizeInput = `<input type="hidden" id="selected-size-${collectionId}" value="${sizesWithStock[0]}">`;
+        
+        const buttonsHtml = sizesWithStock.map((size, index) => {
             const safeSize = size.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
             const inputId = `size-${collectionId}-${safeSize}`;
             
@@ -360,15 +372,19 @@ async function redirectToProfileOrLogin() {
                         name="${groupName}" 
                         value="${size}" 
                         class="hidden" 
+                        onchange="document.getElementById('selected-size-${collectionId}').value = this.value;"
                         ${index === 0 ? 'checked' : ''}
                     >
                     <span class="${sizeClasses}">${size}</span>
                 </label>
             `;
         }).join('');
+        
+        return hiddenSelectedSizeInput + buttonsHtml;
     }
 
     // --- MAIN CARD RENDERING FUNCTION ---
+    // UPDATED: Added selected size retrieval logic for simulateAddToCart/simulateBuyNow
     function createCollectionCard(collection, size = 'default') {
         const currencySymbol = '₦';
         const PLACEHOLDER_URL = 'https://s3.us-west-1.idrivee2.com/outflickz/public/placeholder-image-v1.jpg';
@@ -410,20 +426,18 @@ async function redirectToProfileOrLogin() {
 
         // --- CRITICAL FRONTEND FIX START ---
         // 1. Generate the inner HTML for size selection options.
-        // For caps, we expect 'One Size' or similar, but often size selection is visually omitted
         const innerSizeOptions = createSizeList(collection._id, collection.sizeStockMap, isCaps);
 
         // 2. Generate the surrounding div/label structure.
-        const sizeListHtml = (innerSizeOptions && !isCaps)
-            ? `
-                <div class="flex flex-col items-start w-full flex-1">
-                    <span class="text-xs font-medium text-gray-700">Size:</span>
-                    <div class="flex gap-1 text-gray-700 flex-wrap mt-1">
-                        ${innerSizeOptions}
-                    </div>
+        // NOTE: Even for caps, we now use the size selection list, but for 'One Size' items, it will just contain the hidden input and the 'N/A' or 'One Size' button, allowing the size tracking input to be correctly set.
+        const sizeListHtml = `
+            <div class="flex flex-col items-start w-full flex-1">
+                <span class="text-xs font-medium text-gray-700">Size:</span>
+                <div class="flex gap-1 text-gray-700 flex-wrap mt-1">
+                    ${innerSizeOptions}
                 </div>
-            `
-            : `<div class="flex flex-col items-start w-full flex-1"><span class="text-xs font-medium text-gray-700">Size: One Size</span></div>`; // Simplify size display for caps
+            </div>
+        `;
         // --- CRITICAL FRONTEND FIX END ---
 
         const colorListHtml = createColorList(collection._id, collection.variants || collection.variations); 
@@ -458,6 +472,9 @@ async function redirectToProfileOrLogin() {
 
         // Get current quantity value for the button click
         const quantityGetter = `document.getElementById('quantity-input-${collection._id}').value`;
+        // NEW: Get the selected size
+        const selectedSizeGetter = `document.getElementById('selected-size-${collection._id}').value`;
+
 
         // Button to add to cart
         const cartButtonHtml = `
@@ -468,6 +485,7 @@ async function redirectToProfileOrLogin() {
                     name: '${collection.name.replace(/'/g, "\\'")}',
                     price: ${itemPrice},
                     imageUrl: '${frontImageUrl}',
+                    size: ${selectedSizeGetter}, // ADDED SIZE
                     quantity: parseInt(${quantityGetter})
                 })"
                 class="${controlTextSize} ${cartButtonClasses} ${controlHeight} rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center w-full md:flex-1">
@@ -483,6 +501,7 @@ async function redirectToProfileOrLogin() {
                     name: '${collection.name.replace(/'/g, "\\'")}',
                     productType: '${safeProductTypeInHtml}', 
                     price: ${itemPrice},
+                    size: ${selectedSizeGetter}, // ADDED SIZE
                     quantity: parseInt(${quantityGetter}),
                     imageUrl: '${frontImageUrl}'
                 })"
@@ -551,14 +570,13 @@ async function redirectToProfileOrLogin() {
                     
                     <p class="${priceFontSize} text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
 
-                                        
                     <div class="flex items-center gap-2 mt-2">
                         <span class="text-xs font-medium text-gray-700">Color:</span>
                         <div class="flex gap-1 text-gray-700">
                             ${colorListHtml}
                         </div>
                     </div>
-                                        
+                    
                     <div class="flex flex-col md:flex-row items-start md:items-center justify-between w-full mt-2 gap-2">
                         ${sizeListHtml} 
                         ${quantityControlHtml}
@@ -591,7 +609,7 @@ async function redirectToProfileOrLogin() {
             </div>`;
 
         try {
-            // Cap Collection endpoint
+            // Cap Collection endpoint - using API_BASE_URL
             const capCollectionApiUrl = `${API_BASE_URL}/api/collections/caps?limit=all`; 
 
             const response = await fetch(capCollectionApiUrl, {
@@ -641,10 +659,11 @@ async function redirectToProfileOrLogin() {
     <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
             <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
-                <img src="[https://i.imgur.com/PZLMws6.jpeg](https://i.imgur.com/PZLMws6.jpeg)" alt="Outflickz Logo" class="w-auto h-10 sm:h-12 lg:h-10">
+                <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-10 sm:h-12 lg:h-10">
             </a>
 
             <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
+                 <a href="homepage.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
                 <a href="preorder.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
                 <a href="newarrivals.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">New Arrivals</a>
                 <a href="wearscollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Wears Collections</a>
@@ -729,7 +748,7 @@ async function redirectToProfileOrLogin() {
                 
                 <div class="col-span-2 lg:col-span-1">
                     <a href="homepage.html" class="flex items-center mb-4">
-                        <img src="[https://i.imgur.com/PZLMws6.jpeg](https://i.imgur.com/PZLMws6.jpeg)" alt="Outflickz Logo" class="w-auto h-8 filter grayscale invert">
+                        <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-8 filter grayscale invert">
                     </a>
                     <p class="text-sm text-gray-500">
                         The home of exclusive street wear and limited edition drops. Elevate your style.
@@ -784,7 +803,7 @@ async function redirectToProfileOrLogin() {
             </div>
         </div>
     </footer>
-    <a href="[https://wa.me/2347042882706?text=HELLO!%20WELCOME%20TO%20OUTFLICKZ!%20HOW%20CAN%20WE%20HELP%20YOU](https://wa.me/2347042882706?text=HELLO!%20WELCOME%20TO%20OUTFLICKZ!%20HOW%20CAN%20WE%20HELP%20YOU)" 
+   <a href="https://wa.me/2347042882706?text=HELLO!%20WELCOME%20TO%20OUTFLICKZ!%20HOW%20CAN%20WE%20HELP%20YOU" 
         target="_blank" 
         class="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-3 sm:p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105" 
         aria-label="Chat with us on WhatsApp">

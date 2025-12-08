@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node netlify/functions/api.js",
     "dev": "nodemon netlify/functions/api.js",
-    "build": "npm install"
+   "build": "netlify-lambda build netlify/functions"
   },
   "dependencies": {
     "@aws-sdk/s3-request-presigner": "^3.932.0",
@@ -22,7 +22,7 @@
     "serverless-http": "^3.2.0"
   },
   "devDependencies": {
-    "netlify-lambda": "^2.0.16",
-    "nodemon": "^3.1.11"
+    "nodemon": "^3.1.11",
+   "netlify-lambda": "^2.0.16"
   }
 }

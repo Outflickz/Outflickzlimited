@@ -78,6 +78,23 @@ async function redirectToProfileOrLogin() {
         const menu = document.getElementById('mobile-menu');
         menu.classList.toggle('hidden');
     }
+
+    /**
+ * Safely retrieves the cart items array from localStorage.
+ * @returns {Array} The cart items array, or an empty array if not found or invalid.
+ */
+function getCartItems() {
+    try {
+        const cartData = localStorage.getItem(LOCAL_CART_KEY);
+        // Return parsed data if it exists and is an array, otherwise return an empty array.
+        const parsedCart = cartData ? JSON.parse(cartData) : [];
+        return Array.isArray(parsedCart) ? parsedCart : [];
+    } catch (error) {
+        console.error('Error reading or parsing local cart data:', error);
+        return [];
+    }
+}
+
    /**
  * Updates the visual cart badge (assumes 'cart-badge' ID exists in HTML).
  * The badge text is set to the total quantity across all cart items.

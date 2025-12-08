@@ -812,7 +812,8 @@ async function fetchAndRenderCapsCollection() {
 
     try {
         // NEW ENDPOINT: /api/collections/caps
-        const capsApiUrl = `${API_BASE_URL}/api/collections/caps`; 
+        // The API request still includes 'limit=all' which is correct for fetching all data.
+        const capsApiUrl = `${API_BASE_URL}/api/collections/caps?limit=all`; 
 
         const response = await fetch(capsApiUrl, {
             method: 'GET',
@@ -832,10 +833,9 @@ async function fetchAndRenderCapsCollection() {
         let collectionsToRender = collections && collections.length > 0 ? collections : [];
 
         if (collectionsToRender && collectionsToRender.length > 0) {
-            // Limit to the first 4 collections for the homepage view
-            const limitedCollections = collectionsToRender.slice(0, 4);
             
-            limitedCollections.forEach(collection => {
+            // 🚀 FIX: Removed '.slice(0, 4)' to ensure all fetched items are rendered.
+            collectionsToRender.forEach(collection => {
                 if (collection.price !== undefined && collection.price !== null) {
                     // IMPORTANT: Pass 'caps' size to remove size selection UI
                     container.innerHTML += createCollectionCard(collection, 'caps');
@@ -855,7 +855,6 @@ async function fetchAndRenderCapsCollection() {
         container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server (502/Down).</p>';
     }
 }
-
             
 document.addEventListener('DOMContentLoaded', () => {
     updateCartBadge(); // Initialize cart count

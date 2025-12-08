@@ -186,8 +186,6 @@
     // --- GLOBAL API CONFIG ---
     const API_BASE_URL = 'https://outflickz.netlify.app';
 
-    // --- CRITICAL FIX: GLOBAL STORAGE KEYS DEFINITION ---
-    // These keys are required by the handleLocalCartFallback logic.
     const LOCAL_CART_KEY = 'outflickzCart';
     const CART_STORAGE_KEY = 'outflickzCartItemCount'; 
     // --- END GLOBAL STORAGE KEYS ---
@@ -967,7 +965,9 @@ async function fetchAndRenderNewArrivals() {
         </div>`;
 
     try {
-        const newArrivalsApiUrl = `${API_BASE_URL}/api/collections/newarrivals`; 
+        // Updated API call to include limit=all if the endpoint supports it, 
+        // ensuring maximum data is fetched.
+        const newArrivalsApiUrl = `${API_BASE_URL}/api/collections/newarrivals?limit=all`; 
 
         const response = await fetch(newArrivalsApiUrl, {
             method: 'GET',
@@ -987,12 +987,13 @@ async function fetchAndRenderNewArrivals() {
         let productsToRender = products && products.length > 0 ? products : [];
 
         if (productsToRender && productsToRender.length > 0) {
-            // Limit to the first 2 products for a more exclusive homepage view
-            const limitedProducts = productsToRender.slice(0, 2);
             
-            limitedProducts.forEach(product => {
+            // 🚀 FIX: Removed the limiting line to render all available new products.
+            // const limitedProducts = productsToRender.slice(0, 2); 
+            
+            productsToRender.forEach(product => {
                 if (product.price !== undefined && product.price !== null) {
-                    // Pass 'reduced' size for New Arrivals
+                    // Pass 'reduced' size for New Arrivals, which seems correct for its display style
                     container.innerHTML += createCollectionCard(product, 'reduced'); 
                 }
             });

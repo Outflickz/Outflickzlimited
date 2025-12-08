@@ -1224,7 +1224,7 @@ async function fetchAndRenderNewArrivals() {
 
         if (productsToRender && productsToRender.length > 0) {
             // Limit to the first 2 products for a more exclusive homepage view
-            const limitedProducts = productsToRender.slice(0, 2);
+            const limitedProducts = productsToRender.slice(0, 4);
             
             limitedProducts.forEach(product => {
                 if (product.price !== undefined && product.price !== null) {

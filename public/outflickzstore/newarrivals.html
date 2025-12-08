@@ -1017,7 +1017,6 @@ function createCollectionCard(collection, size = 'default') {
         </div>
     `;
 }
-
 // --- NEW ARRIVALS COLLECTION JS ---
 async function fetchAndRenderNewArrivals() {
     const container = document.getElementById('new-arrivals-grid');
@@ -1026,7 +1025,7 @@ async function fetchAndRenderNewArrivals() {
     const spinnerColor = 'text-gray-900';
     const textColor = 'text-gray-700';
 
-    // Initial loading state for New Arrivals
+    // Initial loading state...
     container.innerHTML = `
         <div class="col-span-full text-center ${textColor} py-10 w-full">
             <svg class="animate-spin -ml-1 mr-3 h-5 w-5 ${spinnerColor} inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -1037,8 +1036,6 @@ async function fetchAndRenderNewArrivals() {
         </div>`;
 
     try {
-        // Updated API call to include limit=all if the endpoint supports it, 
-        // ensuring maximum data is fetched.
         const newArrivalsApiUrl = `${API_BASE_URL}/api/collections/newarrivals`; 
 
         const response = await fetch(newArrivalsApiUrl, {
@@ -1054,8 +1051,9 @@ async function fetchAndRenderNewArrivals() {
 
         const products = await response.json();
 
-        console.log('--- API Response for NEw Arrivals ---');
-        console.log(collections); // <--- CHECK THIS OBJECT IN YOUR BROWSER CONSOLE
+        console.log('--- API Response for New Arrivals ---');
+        // 👇 FIX IS HERE: Changed 'collections' to 'products'
+        console.log(products); 
 
         container.innerHTML = '';
         
@@ -1063,12 +1061,8 @@ async function fetchAndRenderNewArrivals() {
 
         if (productsToRender && productsToRender.length > 0) {
             
-            // 🚀 FIX: Removed the limiting line to render all available new products.
-            // const limitedProducts = productsToRender.slice(0, 2); 
-            
             productsToRender.forEach(product => {
                 if (product.price !== undefined && product.price !== null) {
-                    // Pass 'reduced' size for New Arrivals, which seems correct for its display style
                     container.innerHTML += createCollectionCard(product, 'reduced'); 
                 }
             });
@@ -1086,7 +1080,6 @@ async function fetchAndRenderNewArrivals() {
         container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server (502/Down).</p>';
     }
 }
-
 
 document.addEventListener('DOMContentLoaded', () => {
     updateCartBadge(); // Initialize cart count

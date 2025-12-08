@@ -851,6 +851,7 @@ async function fetchAndRenderNewArrivals() {
         </div>`;
 
     try {
+        // NOTE: API_BASE_URL is assumed to be defined in the global scope.
         const newArrivalsApiUrl = `${API_BASE_URL}/api/collections/newarrivals`; 
 
         const response = await fetch(newArrivalsApiUrl, {
@@ -868,30 +869,33 @@ async function fetchAndRenderNewArrivals() {
 
         container.innerHTML = '';
         
-        let productsToRender = products && products.length > 0 ? products : [];
+        let productsToRender = products && Array.isArray(products) ? products : [];
 
-        if (productsToRender && productsToRender.length > 0) {
-            // Limit to the first 2 products for a more exclusive homepage view
-            const limitedProducts = productsToRender.slice(0, 4);
+        if (productsToRender.length > 0) {
             
-            limitedProducts.forEach(product => {
+            // ⭐ CRITICAL FIX: Iterate over ALL fetched products (productsToRender), 
+            // not a hard-coded limited slice, as this is the dedicated New Arrivals page.
+            productsToRender.forEach(product => {
                 if (product.price !== undefined && product.price !== null) {
-                    // Pass 'reduced' size for New Arrivals
+                    // Pass 'reduced' size for New Arrivals card rendering
                     container.innerHTML += createCollectionCard(product, 'reduced'); 
                 }
             });
 
-            if (container.innerHTML === '') {
-                container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No New Arrivals are currently available.</p>`;
+            // Check if products were fetched but none were added (e.g., all had null price)
+            if (container.innerHTML.trim() === '') {
+                 container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No product data available for rendering (Check price/data integrity).</p>`;
             }
+            
         } else {
+            // No products received from the API (productsToRender is empty)
             container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No New Arrivals are currently available.</p>`;
         }
     } catch (error) {
         console.error('Error fetching new arrivals:', error);
         
-        // Clean error message on API failure
-        container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server (502/Down).</p>';
+        // Ensure the error message spans the grid layout
+        container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server or retrieve data.</p>';
     }
 }
 

@@ -4415,6 +4415,7 @@ app.get('/api/collections/wears', async (req, res) => {
         res.status(500).json({ message: 'Server error while fetching collections for homepage.', details: error.message });
     }
 });
+
 // GET /api/collections/newarrivals (For Homepage Display)
 app.get('/api/collections/newarrivals', async (req, res) => {
     try {
@@ -4543,7 +4544,7 @@ app.get('/api/collections/caps', async (req, res) => {
 app.get('/api/collections/preorder', async (req, res) => {
     try {
         // 1. Ensure all necessary fields are selected.
-        // NOTE: Removed 'variations.colorName' since the admin form only supplies colorHex.
+        // NOTE: The 'colorHex' is selected from the database.
         const collections = await PreOrderCollection.find({ isActive: true })
             .select('_id name tag price totalStock availableDate variations.colorHex variations.variationIndex variations.frontImageUrl variations.backImageUrl variations.sizes')
             .sort({ createdAt: -1 })
@@ -4572,12 +4573,11 @@ app.get('/api/collections/preorder', async (req, res) => {
                     });
 
                     // Map and prepare the public variant object
-                    // 🌟 CRITICAL FIX: Only use colorHex as colorName is not provided by admin
-                    const fallbackColorHex = v.colorHex || '#000000'; // Using black as a visual fallback
+                    const fallbackColorHex = v.colorHex || '#000000'; 
 
                     filteredVariants.push({
-                        // colorName: fallbackColorName, // REMOVED: Not supplied by admin form
-                        colorHex: fallbackColorHex,   
+                        // ⭐ FIX: Change 'colorHex' to 'color' to match the 'NewArrivals' format
+                        color: fallbackColorHex, 
                         
                         variationIndex: v.variationIndex, 
                         frontImageUrl: await generateSignedUrl(v.frontImageUrl) || null,
@@ -4607,7 +4607,7 @@ app.get('/api/collections/preorder', async (req, res) => {
                 frontImageUrl: frontImageUrl, 
                 backImageUrl: backImageUrl, 
                 
-                variants: filteredVariants // This now contains the 'colorHex' field
+                variants: filteredVariants // This now contains the correct 'color' field
             };
         }));
 

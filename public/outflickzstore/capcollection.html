@@ -20,10 +20,6 @@
         /* Placeholder for hero slider styling */
         .hero-bg-slider-container { display: none; } /* Hide homepage hero for this collection page */
         
-        /* Ensure the main grid displays products correctly */
-        #caps-collections-grid .collection-card {
-            /* Styles for the default size card */
-        }
     </style>
 
     <script>
@@ -946,7 +942,7 @@ fetchAndRenderCapsCollection(); // Call the specialized function for this page
 
     </main>
 
-    <div id="image-modal" class="modal fixed inset-0 z-[100] bg-black bg-opacity-90 flex items-center justify-center opacity-0 pointer-events-none" onclick="closeModal()" role="dialog" aria-modal="true" aria-labelledby="modal-item-title">
+   <div id="image-modal" class="modal fixed inset-0 z-[100] bg-black bg-opacity-90 flex items-center justify-center opacity-0 pointer-events-none" onclick="closeModal()" role="dialog" aria-modal="true" aria-labelledby="modal-item-title">
         <div class="relative max-w-xs sm:max-w-4xl w-full mx-4 p-2 bg-white rounded-lg shadow-2xl" onclick="event.stopPropagation()">
             <button onclick="closeModal()" class="absolute top-0 right-0 m-2 text-gray-700 hover:text-ash-red transition z-50" aria-label="Close modal">
                 <i class="fas fa-times text-xl"></i>
@@ -959,6 +955,7 @@ fetchAndRenderCapsCollection(); // Call the specialized function for this page
             </div>
         </div>
     </div>
+
     <footer class="bg-gray-900 text-gray-300 py-10 sm:py-14 border-t border-gray-800">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">

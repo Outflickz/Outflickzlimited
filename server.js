@@ -1037,10 +1037,8 @@ const OrderItemSchema = new mongoose.Schema({
         required: true, 
         enum: ['WearsCollection', 'CapCollection', 'NewArrivals', 'PreOrderCollection'] 
     },
-    // *** 🚨 ADDED fields for display consistency with cart 🚨 ***
     name: { type: String, required: true },
     imageUrl: { type: String },
-    // *************************************************************
     quantity: { type: Number, required: true, min: 1 },
     priceAtTimeOfPurchase: { type: Number, required: true, min: 0.01 },
     variationIndex: { 
@@ -1048,10 +1046,8 @@ const OrderItemSchema = new mongoose.Schema({
         required: [true, 'Variation index is required for inventory deduction.'],
         min: 1 
     },    size: { type: String },
-    
-    // 🌟 FIX: Added 'variation' field to store user-friendly name for Admin UI 🌟
+    color: { type: String },
     variation: { type: String } 
-    
 }, { _id: false });
 
 const OrderSchema = new mongoose.Schema({

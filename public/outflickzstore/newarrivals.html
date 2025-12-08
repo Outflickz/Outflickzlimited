@@ -79,99 +79,220 @@ function toggleMenu() {
     const menu = document.getElementById('mobile-menu');
     menu.classList.toggle('hidden');
 }
+/**
+ * Updates the visual cart badge (assumes 'cart-badge' ID exists in HTML).
+ * The badge text is set to the total quantity across all cart items.
+ */
 function updateCartBadge() {
     const badge = document.getElementById('cart-badge');
-    // Placeholder logic: retrieve local cart count
-    const localCart = JSON.parse(localStorage.getItem('outflickzCart') || '[]');
-    const totalItems = localCart.reduce((sum, item) => sum + item.quantity, 0);
+    if (!badge) return;
 
-    if (totalItems > 0) {
-        badge.textContent = totalItems;
+    // Calculate total quantity of items
+    const localCart = getCartItems();
+    const totalQuantity = localCart.reduce((sum, item) => sum + (item.quantity || 1), 0);
+
+    if (totalQuantity > 0) {
+        badge.textContent = totalQuantity.toString();
         badge.classList.remove('hidden');
     } else {
         badge.classList.add('hidden');
     }
 }
 
-// Placeholder implementations for Cart Actions
-function handleLocalCartFallback(details) {
-    let cart = JSON.parse(localStorage.getItem('outflickzCart') || '[]');
-    const existingItemIndex = cart.findIndex(item => item.productId === details.productId && item.color === details.color && item.size === details.size);
+// --- Local Cart Fallback Helper (Used by simulateAddToCart) ---
+
+const handleLocalCartFallback = (details) => {
+    let localCart = getCartItems();
+    
+    // 🚀 CRITICAL FIX: Include variationIndex in the findIndex check for local cart
+    const existingItemIndex = localCart.findIndex(item => 
+        item.productId === details.productId && 
+        item.size === details.size &&
+        item.color === details.color &&
+        item.variationIndex === details.variationIndex 
+    );
 
     if (existingItemIndex > -1) {
-        cart[existingItemIndex].quantity += details.quantity;
+        localCart[existingItemIndex].quantity += details.quantity;
     } else {
-        cart.push({ ...details, id: Date.now() }); // Use a temp local ID
+        localCart.push(details);
     }
 
-    localStorage.setItem('outflickzCart', JSON.stringify(cart));
+    localStorage.setItem(LOCAL_CART_KEY, JSON.stringify(localCart));
+    
+    // Update the counter key to reflect the *number of unique items/variants*
+    localStorage.setItem(CART_STORAGE_KEY, localCart.length.toString()); 
     updateCartBadge();
-}
+    
+    // Display info alert for local cart (Blue background)
+    const alertMessage = document.getElementById('cart-alert');
+    if (alertMessage) {
+        alertMessage.textContent = `"${details.name}" added to your bag! (Sign in to save permanently)`;
+        // NOTE: Ensure your HTML has this alert div styled correctly and hidden initially
+        alertMessage.className = 'fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 p-3 rounded shadow-xl transition-all duration-300 ease-in-out bg-blue-500 text-white opacity-100 translate-y-0';
+        
+        setTimeout(() => {
+            alertMessage.classList.add('opacity-0', 'translate-y-10');
+            // Remove color/positioning after transition for clean reset
+            setTimeout(() => {
+                alertMessage.classList.remove('bg-blue-500', 'translate-y-10');
+                alertMessage.classList.add('hidden');
+            }, 300); 
+        }, 3000);
+    }
+};
 
-async function simulateAddToCart(requiredDetails) {
-    console.log('Attempting to add to cart:', requiredDetails);
+// --- Main Cart Function (The Robust Replacement) ---
 
-    // --- 1. Client-Side Validation (Simulated) ---
-    if (requiredDetails.quantity < 1) {
-        alert('Quantity must be at least 1.');
-        return;
+/**
+ * Handles adding an item to the cart. 
+ * Tries API (permanent cart via secure cookie) first.
+ * If API fails (401/403 or network error), falls back to local storage.
+ * @param {object} productDetails - The details of the product being added (ID, name, price, quantity, etc.).
+ */
+async function simulateAddToCart(productDetails) {
+    // --- 1. Gather all item details from DOM and input ---
+    const card = document.querySelector(`.collection-card[data-collection-id="${productDetails.productId}"]`);
+    if (!card) return;
+    
+    // Selectors for size and color radio buttons
+    const selectedSizeInput = card.querySelector(`input[name="size-${productDetails.productId}"]:checked`);
+    const selectedColorInput = card.querySelector(`input[name="color-${productDetails.productId}"]:checked`);
+    
+    // 🎯 CRITICAL FIX: Robust value checking
+    const rawColorValue = selectedColorInput ? selectedColorInput.value : null;
+    const color = (rawColorValue && rawColorValue !== 'undefined' && rawColorValue.length > 0) 
+        ? rawColorValue 
+        : 'N/A';
+        
+    const rawSizeValue = selectedSizeInput ? selectedSizeInput.value : null;
+    const size = (rawSizeValue && rawSizeValue !== 'undefined' && rawSizeValue.length > 0) 
+        ? rawSizeValue 
+        : 'N/A';
+    
+    let variationIndex = 1; 
+    let selectedImageUrl = productDetails.imageUrl; 
+
+    if (selectedColorInput) {
+        const colorHex = color; 
+        const colorMapContainer = card.querySelector(`#color-map-${productDetails.productId}`);
+        
+        if (colorMapContainer) {
+            try {
+                const colorMap = JSON.parse(colorMapContainer.getAttribute('data-color-map'));
+                const newImageUrls = colorMap[colorHex];
+                
+                if (newImageUrls && newImageUrls.frontImageUrl) {
+                    selectedImageUrl = newImageUrls.frontImageUrl; 
+                    
+                    const colorMapKeys = Object.keys(colorMap);
+                    const inferredIndex = colorMapKeys.indexOf(colorHex);
+                    
+                    if (inferredIndex !== -1) {
+                        variationIndex = inferredIndex + 1; // 1-based index for server
+                    }
+                }
+            } catch (e) {
+                console.error("Error parsing color map data:", e);
+                // Continue with default variationIndex=1 and default image
+            }
+        }
     }
 
-    // --- 2. API Call Simulation ---
+    // 🌟 FIX FOR ReferenceError: variation is not defined 🌟
+    const variation = (color !== 'N/A' && size !== 'N/A')
+        ? `${color} / ${size}`
+        : (color !== 'N/A' ? color : (size !== 'N/A' ? size : 'Default Variant'));
+    
+    const requiredDetails = {
+        productId: productDetails.productId,
+        name: productDetails.name, 
+        size: size,
+        color: color, 
+        price: productDetails.price,
+        productType: productDetails.productType || productDetails.name,
+        imageUrl: selectedImageUrl, 
+        quantity: productDetails.quantity || 1,
+        variationIndex: variationIndex, 
+        variation: variation
+    };
+    
+    // Construct minimal data for API call (same structure as requiredDetails)
+    const itemDataForAPI = requiredDetails; 
+    
+    console.log('Sending API Payload:', itemDataForAPI);
+    
+    // --- 3. Attempt Authenticated API Call ---
     try {
-        // NOTE: In a production app, this would be a POST to /api/cart/add
-        const response = await fetch(`${API_BASE_URL}/api/cart/add`, {
+        const response = await fetch('/api/users/cart', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                // Authorization: `Bearer ${userToken}`,
+                'Content-Type': 'application/json'
             },
-            body: JSON.stringify(requiredDetails),
+            body: JSON.stringify(itemDataForAPI),
+            credentials: 'include' // Sends the HTTP-only cookie
         });
 
-        if (response.status === 401) {
-            // Not authenticated/session expired
-            alert('Session expired or not logged in. Redirecting to login.');
-            redirectToProfileOrLogin();
-            return;
+        let data;
+        try {
+            data = await response.json();
+        } catch (e) {
+            console.warn(`Could not parse JSON response for status ${response.status}. Falling back if needed.`);
+            data = { message: `Server Error (${response.status}) received. Item added to local cart.`, status: response.status };
         }
 
-        const result = await response.json();
-
-        if (!response.ok || result.success === false) {
-            // --- 3. Server-Side Error (e.g., Stock Error, Invalid ID) -> FALLBACK TO LOCAL CART ---
-            console.error('Error in addToCart API (Server Error):', result.message || 'Unknown Server Error');
-            handleLocalCartFallback(requiredDetails);
-
-            // Display error alert (Red background)
+        if (response.ok) {
+            // 3a. Success: Item added to permanent cart
+            if (data.items && Array.isArray(data.items)) {
+                // Update based on the definitive server response
+                localStorage.setItem(CART_STORAGE_KEY, data.items.length.toString()); 
+                updateCartBadge();
+            } else {
+                console.error("API success but data.items missing. Updating badge with local count.");
+                updateCartBadge();
+            }
+            
+            // Display success alert (Green background)
             const alertMessage = document.getElementById('cart-alert');
             if (alertMessage) {
-                alertMessage.textContent = 'Server error. Item added to local cart.';
-                alertMessage.className = 'absolute top-16 left-1/2 transform -translate-x-1/2 mt-4 p-3 rounded-lg shadow-xl z-50 transition-all duration-300 ease-in-out bg-red-500 text-white opacity-100 translate-y-0';
+                alertMessage.textContent = 'Item added to your permanent shopping bag!';
+                alertMessage.className = 'fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 p-3 rounded shadow-xl transition-all duration-300 ease-in-out bg-green-500 text-white opacity-100 translate-y-0';
                 setTimeout(() => {
-                    alertMessage.classList.add('opacity-0', '-translate-y-10');
-                    setTimeout(() => alertMessage.classList.remove('bg-red-500'), 300);
+                    alertMessage.classList.add('opacity-0', 'translate-y-10');
+                    setTimeout(() => {
+                        alertMessage.classList.remove('bg-green-500', 'translate-y-10');
+                        alertMessage.classList.add('hidden');
+                    }, 300);
                 }, 3000);
             }
-            return;
-        }
 
-        // --- 5. Success ---
-        updateCartBadge(); // Update badge with actual server cart count
-        const alertMessage = document.getElementById('cart-alert');
-        if (alertMessage) {
-            alertMessage.textContent = 'Item(s) added to cart!';
-            alertMessage.className = 'absolute top-16 left-1/2 transform -translate-x-1/2 mt-4 p-3 rounded-lg shadow-xl z-50 transition-all duration-300 ease-in-out bg-green-500 text-white opacity-100 translate-y-0';
-            setTimeout(() => {
-                alertMessage.classList.add('opacity-0', '-translate-y-10');
-                setTimeout(() => alertMessage.classList.remove('bg-green-500'), 300);
-            }, 3000);
-        }
+        } else if (response.status === 401 || response.status === 403 || response.status >= 500) {
+            // 3b. Unauthorized or Server Error (5xx) -> FALLBACK TO LOCAL CART
+            console.log(`Fallback triggered due to status ${response.status}.`);
+            handleLocalCartFallback(requiredDetails);
 
+        } else {
+            // 3c. Other Client-side API Errors (e.g., 400 Bad Request, 409 Conflict/Stock)
+            
+            // Use the flashing alert for generic error (Red background)
+            const alertMessage = document.getElementById('cart-alert');
+            if (alertMessage) {
+                alertMessage.textContent = data.message || `Failed to add item (Status ${response.status}).`;
+                alertMessage.className = 'fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 p-3 rounded shadow-xl transition-all duration-300 ease-in-out bg-red-500 text-white opacity-100 translate-y-0';
+                setTimeout(() => {
+                    alertMessage.classList.add('opacity-0', 'translate-y-10');
+                    setTimeout(() => {
+                        alertMessage.classList.remove('bg-red-500', 'translate-y-10');
+                        alertMessage.classList.add('hidden');
+                    }, 300); 
+                }, 3000);
+            }
+        }
+        
     } catch (error) {
         // --- 4. Network or Fetch Error -> FALLBACK TO LOCAL CART ---
         console.error('Error in addToCart API (Network or Fetch Error):', error);
-
+        
         // Use the fallback function
         handleLocalCartFallback(requiredDetails);
 
@@ -179,16 +300,18 @@ async function simulateAddToCart(requiredDetails) {
         const alertMessage = document.getElementById('cart-alert');
         if (alertMessage) {
             alertMessage.textContent = 'Could not reach server. Item added to local cart.';
-            alertMessage.className = 'absolute top-16 left-1/2 transform -translate-x-1/2 mt-4 p-3 rounded-lg shadow-xl z-50 transition-all duration-300 ease-in-out bg-red-500 text-white opacity-100 translate-y-0';
+            alertMessage.className = 'fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 p-3 rounded shadow-xl transition-all duration-300 ease-in-out bg-red-500 text-white opacity-100 translate-y-0';
             setTimeout(() => {
-                alertMessage.classList.add('opacity-0', '-translate-y-10');
-                setTimeout(() => alertMessage.classList.remove('bg-red-500'), 300);
+                alertMessage.classList.add('opacity-0', 'translate-y-10');
+                setTimeout(() => {
+                    alertMessage.classList.remove('bg-red-500', 'translate-y-10');
+                    alertMessage.classList.add('hidden');
+                }, 300);
             }, 3000);
         }
     }
 }
 
-// --- NEW, ROBUST simulateBuyNow FUNCTION (For use in wearscollection.html) ---
 
 /**
  * Handles the logic for a "Buy Now" action.

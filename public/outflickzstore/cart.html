@@ -387,11 +387,12 @@ async function fetchAndRenderCart() {
     };
 
     try {
-        const response = await fetch('/api/users/cart', {
+       const response = await fetch('/api/users/cart', {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
-            }
+            },
+            credentials: 'include' 
         });
 
         if (response.status === 401 || response.status === 403) {

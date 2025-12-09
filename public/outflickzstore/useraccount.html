@@ -679,30 +679,47 @@ async function handleLogin(event) {
     }
 }
 
-// --- NEW REQUIRED FUNCTION (Placeholder) ---
-/**
- * TODO: Implement this function. It must:
- * 1. Call a protected GET /api/user/cart endpoint.
- * 2. Receive the user's permanent cart items from the database.
- * 3. Store these items in a global variable or cache (e.g., globalCartState) 
- * that your homepage product components can read.
- */
 async function fetchAndSetPermanentCartState() {
-    // Example conceptual implementation:
-    const token = localStorage.getItem(AUTH_TOKEN_KEY); 
-    if (!token) throw new Error('No token found after login.');
-
+    // 1. Prepare the fetch request
+    // We rely on the HTTP-only cookie set by the server, so an Authorization header is optional
+    // but the 'credentials' option is CRITICAL for cross-origin requests.
     const response = await fetch('/api/user/cart', {
-        headers: { 'Authorization': `Bearer ${token}` }
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        // ✅ CRITICAL: Include the HTTP-only cookie in the request
+        credentials: 'include' 
     });
 
+    // 2. Handle non-OK response (401, 403, 500)
     if (!response.ok) {
+        // Log the failure but don't crash the application
+        console.error(`Failed to retrieve permanent cart. Status: ${response.status}`);
+        // Ensure the frontend cart state is cleared/empty if fetching the permanent cart fails
+        globalCartItems = [];
+        localStorage.setItem(CART_STORAGE_KEY, '0');
+        updateCartBadge();
+        
         throw new Error('Could not retrieve permanent cart from server.');
     }
+    
+    // 3. Process the successful response (HTTP 200)
     const cartData = await response.json();
     
-    // Assuming you have a global function/variable to store the cart data
-    // updateGlobalCartState(cartData.items); 
+    // Ensure the data structure is an array of items (or an empty array)
+    const permanentItems = cartData.items && Array.isArray(cartData.items) 
+                           ? cartData.items 
+                           : [];
+
+    // 4. Store the items in the global state/cache
+    // Assuming 'globalCartItems' is the variable read by your product page buttons and cart view
+    window.globalCartItems = permanentItems; 
+    console.log(`Permanent cart loaded with ${permanentItems.length} unique items.`);
+    
+    // 5. Update the local storage item count and UI badge
+    localStorage.setItem(CART_STORAGE_KEY, permanentItems.length.toString()); 
+    updateCartBadge();
 }
 
     /**

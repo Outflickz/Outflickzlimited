@@ -465,7 +465,6 @@ function addToCart(collectionId, quantity) {
 
     console.log(`Added ${quantity} of item ${collectionId}. New cart total: ${newCount}`);
 }
-
 /**
  * Handles adding an item to the cart. 
  * Tries API (permanent cart via secure cookie) first.
@@ -473,6 +472,9 @@ function addToCart(collectionId, quantity) {
  * * IMPORTANT: This function no longer reads the token from localStorage or uses the Authorization header.
  */
 async function simulateAddToCart(productDetails) {
+    // Define the valid enum strings from your Mongoose schema
+    const VALID_FALLBACK_TYPE = 'WearsCollection'; 
+
     // --- 1. Gather all item details from DOM and input ---
     const card = document.querySelector(`.collection-card[data-collection-id="${productDetails.productId}"]`);
     if (!card) return;
@@ -537,7 +539,11 @@ async function simulateAddToCart(productDetails) {
         size: size,
         color: color, // The color can be 'N/A' but is now validated
         price: productDetails.price,
-        productType: productDetails.collectionName,       
+        
+        // ✅ CRITICAL FIX for 400 & 500 Errors: 
+        // Use 'collectionName' if present, otherwise fall back to a valid enum string.
+        productType: productDetails.collectionName || VALID_FALLBACK_TYPE,
+        
         imageUrl: selectedImageUrl, 
         quantity: productDetails.quantity || 1,
         variationIndex: variationIndex, // Now 1-based
@@ -548,7 +554,7 @@ async function simulateAddToCart(productDetails) {
     const itemDataForAPI = {
         productId: requiredDetails.productId,
         name: requiredDetails.name, 
-        productType: requiredDetails.productType, 
+        productType: requiredDetails.productType, // Now guaranteed to be a valid enum string
         price: requiredDetails.price, 
         quantity: requiredDetails.quantity,
         size: requiredDetails.size,

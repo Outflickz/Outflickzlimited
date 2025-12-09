@@ -797,8 +797,7 @@ async function fetchAndSetPermanentCartState() {
     localStorage.setItem(CART_STORAGE_KEY, permanentItems.length.toString()); 
     updateCartBadge();
 }
-
-   /**
+/**
  * Handles create account form submission and transitions to verification view.
  */
 async function handleCreateAccount(event) {
@@ -881,9 +880,9 @@ async function handleCreateAccount(event) {
         // END ROBUST PARSING
 
 
-        // ⭐ FIX: Check for response.ok (200-299) OR response.status === 202 (Accepted)
+        // ⭐ CHECK 1: Successful/Accepted path (201 Created or 202 Accepted)
         if (response.ok || response.status === 202) {
-            // Success (201) or Accepted (202): Account created, or code successfully sent/re-sent.
+            
             pendingVerificationEmail = email;
             document.getElementById('verify-email-display').textContent = email;
 
@@ -902,9 +901,31 @@ async function handleCreateAccount(event) {
             }, 2000);
 
         } else {
-            // Handle API errors (4xx, 5xx with JSON body)
-            const errorMessage = data.message || `API Error (${response.status}): An unexpected error occurred.`;
-            displayMessage(`Registration Failed: ${errorMessage}`, 'error');
+            // ERROR PATH (400, 409, 503, etc.)
+
+            // ⭐ CRITICAL FIX: CHECK 2: If the account exists (409 Conflict, 503 Service Unavailable) 
+            // AND the server provided a userId, force the transition to verification.
+            if ((response.status === 409 || response.status === 503) && data.userId) {
+                pendingVerificationEmail = email;
+                document.getElementById('verify-email-display').textContent = email;
+
+                // Use the server's message but display it as a less alarming 'warning' or 'info'
+                displayMessage(data.message || `Account already registered or verification code re-send failed. Please check your email and proceed to verification.`, 'warning');
+                
+                form.reset();
+                document.getElementById('create-state').disabled = true;
+                document.getElementById('create-state').innerHTML = '<option value="" disabled selected>Select State</option>';
+
+                setTimeout(() => {
+                    showView('verify');
+                    // Do not setResendCooldown here, rely on the user to click Resend if needed.
+                }, 2000);
+                
+            } else {
+                // TRUE FAILURE PATH (400 Bad Request, unhandled 500/503 without userId, etc.)
+                const errorMessage = data.message || `API Error (${response.status}): An unexpected error occurred.`;
+                displayMessage(`Registration Failed: ${errorMessage}`, 'error');
+            }
         }
 
     } catch (error) {

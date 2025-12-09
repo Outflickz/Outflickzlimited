@@ -4828,7 +4828,7 @@ app.post('/api/users/register', async (req, res) => {
                     const verificationHtml = `
                         <div style="background-color: #ffffffff; padding: 30px; border: 1px solid #ffffffff; max-width: 500px; margin: 0 auto; font-family: sans-serif; border-radius: 8px;">
                             <div style="text-align: center; padding-bottom: 20px;">
-                                <img src="[https://i.imgur.com/6Bvu8yB.png](https://i.imgur.com/6Bvu8yB.png)" alt="Outflickz Limited Logo" style="max-width: 120px; height: auto; display: block; margin: 0 auto;">
+                                <img src="https://i.imgur.com/6Bvu8yB.png" alt="Outflickz Limited Logo" style="max-width: 120px; height: auto; display: block; margin: 0 auto;">
                             </div>
                             
                             <h2 style="color: #000000; font-weight: 600; text-align: center;">Verify Your Account</h2>

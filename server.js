@@ -2213,10 +2213,14 @@ const verifyUserToken = (req, res, next) => {
  * (This middleware is generally not needed for a protected route like /api/orders/:orderId)
  */
 const verifyOptionalToken = (req, res, next) => {
-    // This function is unchanged as it seems designed specifically for cookies
-    // but should be reviewed if other frontend pages start using Authorization headers optionally.
-    const token = req.cookies.outflickzToken; 
-
+    // 1. Check for token in the HTTP-only cookie
+    let token = req.cookies.outflickzToken; 
+    
+    // 2. Fallback: Check for token in the 'Authorization: Bearer <token>' header
+    const authHeader = req.headers.authorization;
+    if (!token && authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.split(' ')[1];
+    }
     if (!token) {
         req.userId = null; 
         return next();
@@ -2224,18 +2228,27 @@ const verifyOptionalToken = (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
-        if (decoded.role !== 'user') {
+                if (decoded.role !== 'user') {
             req.userId = null;
-            return next();
+            return next(); 
         }
-        req.userId = decoded.id; 
+                req.userId = decoded.id; 
         next();
+        
     } catch (err) {
-        res.clearCookie('outflickzToken');
+        if (req.cookies.outflickzToken) {
+            const isProduction = process.env.NODE_ENV === 'production';
+            res.clearCookie('outflickzToken', {
+                httpOnly: true,
+                secure: isProduction,
+                sameSite: isProduction ? 'strict' : 'lax',
+            });
+        }
+        console.warn("Optional JWT Verification Failed (token ignored):", err.message);
         req.userId = null; 
-        next();
+        next(); // Proceed as if unauthenticated
     }
-}; 
+};
 
 // --- GENERAL ADMIN API ROUTES ---d
 app.post('/api/admin/register', async (req, res) => {

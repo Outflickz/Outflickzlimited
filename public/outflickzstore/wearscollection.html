@@ -43,12 +43,9 @@
 <script>
     // --- GLOBAL API CONFIG ---
     const API_BASE_URL = 'https://outflickz.netlify.app';
+    const CART_STORAGE_KEY = 'outflickzCartCount';
+    const LOCAL_CART_KEY = 'outflickzLocalCart';
 
-    // --- CRITICAL FIX: GLOBAL STORAGE KEYS DEFINITION ---
-    // These keys are required by the handleLocalCartFallback logic.
-    const LOCAL_CART_KEY = 'outflickzCart';
-    const CART_STORAGE_KEY = 'outflickzCartItemCount'; 
-    // --- END GLOBAL STORAGE KEYS ---
 
 
 /**

@@ -926,22 +926,21 @@ function createCollectionCard(collection, size = 'default') {
     // Get current quantity value for the button click
     const quantityGetter = `document.getElementById('quantity-input-${collection._id}').value`;
 
-// Button to add to cart
-    const cartButtonHtml = `
-        <button
-            ${isButtonDisabled ? 'disabled' : ''}
-            onclick="simulateAddToCart({
-                productId: '${collection._id}',
-                name: '${collection.name.replace(/'/g, "\\'")}',
-                price: ${itemPrice},
-                imageUrl: '${frontImageUrl}',
-                // ⭐ CRITICAL FIX: Dynamically read quantity from the input field on click.
-                quantity: parseInt(document.getElementById('quantity-input-${collection._id}').value) || 1
-            })"
-            class="${controlTextSize} ${cartButtonClasses} ${controlHeight} rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center w-full md:flex-1">
-            ${cartButtonText}
-        </button>
-    `;
+    // Button to add to cart
+    const cartButtonHtml = `
+        <button
+            ${isButtonDisabled ? 'disabled' : ''}
+            onclick="simulateAddToCart({
+                productId: '${collection._id}',
+                name: '${collection.name.replace(/'/g, "\\'")}',
+                price: ${itemPrice},
+                imageUrl: '${frontImageUrl}',
+                quantity: parseInt(${quantityGetter})
+            })"
+            class="${controlTextSize} ${cartButtonClasses} ${controlHeight} rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center w-full md:flex-1">
+            ${cartButtonText}
+        </button>
+    `;
 
     const buyNowButtonHtml = `
         <button 

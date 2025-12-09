@@ -4738,6 +4738,9 @@ app.post('/api/users/register', async (req, res) => {
         // Generate and store the verification code (this updates the user again)
         verificationCode = await generateHashAndSaveVerificationCode(newUser);
 
+        // 🟢 TRACE LOG 1: The primary request is about to send the first code.
+        console.log(`[PRIMARY SUCCESS PATH] Code GENERATED for ${email}: ${verificationCode}. Sending email now...`);
+
         // --- Send Verification Code Email Logic (UNMODIFIED) ---
         const verificationSubject = 'Outflickz: Your Account Verification Code';
         const verificationHtml = `
@@ -4760,7 +4763,7 @@ app.post('/api/users/register', async (req, res) => {
         `;
 
         await sendMail(email, verificationSubject, verificationHtml);
-        console.log(`Verification email sent to ${email} with code ${verificationCode}`);
+        console.log(`[PRIMARY SUCCESS PATH] Verification email SENT to ${email} with code ${verificationCode}`);
         
         res.status(201).json({ 
             message: 'Registration successful. Please check your email for the 6-digit verification code.',
@@ -4771,36 +4774,43 @@ app.post('/api/users/register', async (req, res) => {
     } catch (error) {
         
         if (error.code === 11000) { 
+            // 🟡 TRACE LOG 2: The secondary request hit the unique index error.
+            console.log(`[DUPLICATE ERROR PATH] Request for ${email} hit 11000 error (Duplicate). Checking existing user...`);
+            
             // Handle duplicate key error (email already exists)
             const existingUser = await User.findOne({ email });
             
-            // ⭐ RACE CONDITION FIX: Define a time window (e.g., 5 minutes = 5 * 60 * 1000 milliseconds)
-            const RECENT_WINDOW_MS = 5 * 60 * 1000;
-            const fiveMinutesAgo = new Date(Date.now() - RECENT_WINDOW_MS); 
+            // ⭐ DEFINITIVE RACE CONDITION FIX: Use a very tight window (10 seconds)
+            const GRACE_PERIOD_MS = 10 * 1000; 
+            const gracePeriodLimit = new Date(Date.now() - GRACE_PERIOD_MS); 
 
             // Check if the existing user is NOT verified
             if (existingUser && existingUser.status && !existingUser.status.isVerified) { 
                 
-                // 🛑 CHECK 1: If the user was created very recently, assume the initial registration request 
-                // succeeded and sent the code. Suppress the resend to avoid race condition overwrite.
-                if (existingUser.createdAt > fiveMinutesAgo) {
-                     console.log(`Duplicate registration attempt detected for unverified user ${email}. Suppressing re-send to avoid race condition.`);
+                // 🛑 CRITICAL CHECK: If the user was created very recently (within 10 seconds), 
+                // assume the first parallel request has already sent the code and updated the DB.
+                if (existingUser.createdAt > gracePeriodLimit) {
+                     // 🟠 TRACE LOG 3: The request was caught by the 10-second grace period. This request WILL NOT re-send the code.
+                     console.log(`[DUPLICATE ERROR PATH] User ${email} created at ${existingUser.createdAt.toISOString()}. Suppressing re-send due to 10s grace period.`);
                      return res.status(202).json({ 
-                        message: 'This email is already registered, and a code was just sent. Check your inbox for the most recent 6-digit code.',
+                        message: 'This email is already registered, and a code was just sent. Please check your inbox for the initial 6-digit code.',
                         userId: existingUser._id,
                         needsVerification: true
                     });
                 }
 
 
-                // 🛑 CHECK 2: If the user was created before the time window, it's a legitimate request
-                // or a very old unverified account, so we re-send the code.
+                // 🛑 CHECK 2: If the user was created before the 10-second window, 
+                // this is a legitimate *re-registration* attempt for an old unverified account.
                 try {
+                    // 🔴 TRACE LOG 4: The request passed the 10-second check and IS proceeding to re-send the code.
+                    console.log(`[DUPLICATE ERROR PATH] User ${email} created at ${existingUser.createdAt.toISOString()}. OUTSIDE 10s grace. Re-generating and re-sending code.`);
+                    
                     // Re-trigger the code generation and email send for the existing user
                     const newVerificationCode = await generateHashAndSaveVerificationCode(existingUser);
                     
                     // Re-use HTML template structure from the try block
-                    const verificationSubject = 'Outflickz: Your Account Verification Code';
+                    const verificationSubject = 'Outflickz: Your Account Verification Code (Resent)';
                     const verificationHtml = `
                         <div style="background-color: #ffffffff; padding: 30px; border: 1px solid #ffffffff; max-width: 500px; margin: 0 auto; font-family: sans-serif; border-radius: 8px;">
                             <div style="text-align: center; padding-bottom: 20px;">
@@ -4821,7 +4831,7 @@ app.post('/api/users/register', async (req, res) => {
                     `;
 
                     await sendMail(email, verificationSubject, verificationHtml);
-                    console.log(`Verification code re-sent to unverified existing user ${email}`);
+                    console.log(`[DUPLICATE ERROR PATH] Verification code RE-SENT to old unverified existing user ${email} with code ${newVerificationCode}`);
 
                     return res.status(202).json({ 
                         message: 'This email is already registered but unverified. A new verification code has been sent.',

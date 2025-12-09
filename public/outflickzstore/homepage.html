@@ -951,12 +951,13 @@ function createCollectionCard(collection, size = 'default') {
         buyNowButtonClasses = 'bg-gray-500 text-white cursor-not-allowed opacity-75';
     }
 
+        const SAFE_PRODUCT_TYPE_FALLBACK = 'WearsCollection';
+
     // *** Define Buttons/Labels based on Stock Status ***
     const isButtonDisabled = isOutOfStock && !isPreorder;
     const safeProductTypeInHtml = collection.collectionName || collection.productType;
 
-    console.log(`[Card Debug] Product ID: ${collection._id}, collectionName: ${collection.collectionName}, productType: ${collection.productType}, safeProductTypeInHtml: ${safeProductTypeInHtml}`);
-
+console.log(`[Card Debug] Product ID: ${collection._id}, collectionName: ${collection.collectionName}, productType: ${collection.productType}, safeProductTypeInHtml: ${safeProductTypeInHtml}`);
     // Get current quantity value for the button click
     const quantityGetter = `document.getElementById('quantity-input-${collection._id}').value`;
 

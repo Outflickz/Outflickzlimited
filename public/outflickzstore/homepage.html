@@ -401,19 +401,19 @@ function simulateBuyNow(itemDetails) {
     window.location.href = 'checkout.html';
 }
 
-/**
- * Reads the current cart item count from Local Storage. (Keep this one)
- * @returns {number} The total number of items in the cart.
- */
 function getCartCount() {
-    // This function remains the same and relies on CART_STORAGE_KEY
-    const count = localStorage.getItem(CART_STORAGE_KEY);
-    return parseInt(count) || 0;
+    try {
+        const localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
+        const actualCount = localCart.length;
+        localStorage.setItem(CART_STORAGE_KEY, actualCount.toString()); 
+        return actualCount;
+    } catch (e) {
+        localStorage.setItem(CART_STORAGE_KEY, '0');
+        localStorage.setItem(LOCAL_CART_KEY, '[]');
+        return 0;
+    }
 }
 
-/**
- * Updates the Shopping Bag icon badge with the current cart count.
- */
 function updateCartBadge() {
     const count = getCartCount();
     const badge = document.getElementById('cart-badge');

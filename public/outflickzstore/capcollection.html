@@ -589,8 +589,8 @@ function createSizeList(collectionId, sizeStockMap, isReduced = false) {
     }).join('');
 }
 
-// --- MAIN CARD RENDERING FUNCTION ---
-function createCollectionCard(collection, size = 'default') {
+
+function createCollectionCard(collection, size = 'caps') {
     const currencySymbol = '₦';
     const PLACEHOLDER_URL = 'https://s3.us-west-1.idrivee2.com/outflickz/public/placeholder-image-v1.jpg';
     const defaultFrontImage = PLACEHOLDER_URL;
@@ -602,12 +602,13 @@ function createCollectionCard(collection, size = 'default') {
     const isCaps = size === 'caps'; 
     const isWears = size === 'wears'; 
     const isPreorder = size === 'preorder'; 
+    const isnewrrivals = size === 'newarrivals';
 
-    // Card Padding - Adjusted default padding from sm:p-3 to sm:p-2 for a slightly narrower look
-    const cardPadding = isReduced ? 'p-1 sm:p-2' : 'p-2 sm:p-2';
+    // Card Padding
+    const cardPadding = isReduced ? 'p-1 sm:p-2' : 'p-2 sm:p-3';
     const nameFontSize = isReduced ? 'text-xs sm:text-sm' : 'text-sm sm:text-base';
     const descriptionFontSize = isReduced ? 'text-[0.6rem] sm:text-xs' : 'text-xs sm:text-sm';
-    const priceFontSize = isReduced ? 'text-xs font-bold sm:text-sm' : 'text-base font-semibold';
+    const priceFontSize = isReduced ? 'text-sm font-bold sm:text-sm' : 'text-base font-semibold';
     
     // CONTROL SIZING
     const controlHeight = isReduced ? 'h-6' : 'h-7'; 
@@ -617,6 +618,9 @@ function createCollectionCard(collection, size = 'default') {
     const quantityInputWidth = isReduced ? 'w-5 sm:w-7' : 'w-7 sm:w-9';
     const quantityButtonSize = isReduced ? 'w-7 h-7' : 'w-8 h-8'; 
     const quantityInputTextSize = isReduced ? 'text-[0.6rem] sm:text-xs' : 'text-xs sm:text-sm';
+    
+    // BUTTON SIZING
+    // Removed specific button flex classes here, relying on w-full/flex-1 in the return HTML
     
     // --- FINAL FIX: Ensure 'variants'/'variations' is accessed correctly and safely ---
     const primaryVariant = (Array.isArray(collection.variants) && collection.variants.length > 0)
@@ -713,7 +717,10 @@ function createCollectionCard(collection, size = 'default') {
             onclick="simulateBuyNow({
                 productId: '${collection._id}',
                 name: '${collection.name.replace(/'/g, "\\'")}',
+                
+                // ⭐ FIX 1: Explicitly pass a safe productType
                 productType: '${safeProductTypeInHtml}', 
+                
                 price: ${itemPrice},
                 quantity: parseInt(${quantityGetter}),
                 imageUrl: '${frontImageUrl}'
@@ -740,7 +747,7 @@ function createCollectionCard(collection, size = 'default') {
 
     return `
         <div class="collection-card border border-gray-100 rounded-lg overflow-hidden bg-white hover:shadow-lg transition duration-300" data-collection-id="${collection._id}">
-            <div class="relative card-image-box pb-[100%] md:pb-[133%]">
+            <div class="relative card-image-box">
                 ${stockBadge}
 
                 <div class="absolute inset-0 transition-opacity duration-300">
@@ -751,7 +758,6 @@ function createCollectionCard(collection, size = 'default') {
                         alt="${collection.name} (Front View)"
                         onerror="this.onerror=null;this.src='${defaultFrontImage}';"
                         style="opacity: 1;"
-                        onclick="openModal('${frontImageUrl}', '${collection.name.replace(/'/g, "\\'")}')"
                     >
                     <img
                         class="w-full h-full object-cover bg-gray-50 absolute transition-opacity duration-300"
@@ -760,7 +766,6 @@ function createCollectionCard(collection, size = 'default') {
                         alt="${collection.name} (Back View)"
                         onerror="this.onerror=null;this.src='${defaultBackImage}';"
                         style="opacity: 0;"
-                        onclick="openModal('${backImageUrl}', '${collection.name.replace(/'/g, "\\'")}')"
                     >
                 </div>
 
@@ -785,14 +790,15 @@ function createCollectionCard(collection, size = 'default') {
 
                 <p class="${priceFontSize} text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
 
+                                
                 <div class="flex items-center gap-2 mt-2">
                     <span class="text-xs font-medium text-gray-700">Color:</span>
                     <div class="flex gap-1 text-gray-700">
                         ${colorListHtml}
                     </div>
                 </div>
-                
-                <div class="flex flex-col md:flex-row items-start md:items-center justify-between w-full mt-2 gap-1"> 
+                                
+                <div class="flex flex-col md:flex-row items-start md:items-center justify-between w-full mt-2 gap-2">
                     ${sizeListHtml} 
                     ${quantityControlHtml}
                 </div>
@@ -805,6 +811,7 @@ function createCollectionCard(collection, size = 'default') {
         </div>
     `;
 }
+
 // --- CAP COLLECTION JS ---
 async function fetchAndRenderAllCapsCollection() {
     // Using the same grid container ID pattern
@@ -937,14 +944,16 @@ document.addEventListener('DOMContentLoaded', () => {
     
     <main class="py-10 sm:py-16">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h1 class="text-2xl sm:text-2xl font-bold text-color-black uppercase mb-2 text-center">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-color-black uppercase mb-2 text-center">
                 Caps Collections
             </h1>
             <p class="text-sm sm:text-base font-medium text-gray-700 mb-10 text-center max-w-2xl mx-auto">
                 Find the perfect cap to top off your outfit. Our curated selection of caps combines style and comfort for every occasion.
             </p>
 
-        <div id="full-caps-collections-grid" class="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4"></div>
+            <div id="full-caps-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
+                </div>
+            
         </div>
     </main>
     <div id="image-modal" class="modal fixed inset-0 z-[100] bg-black bg-opacity-90 flex items-center justify-center opacity-0 pointer-events-none" onclick="closeModal()" role="dialog" aria-modal="true" aria-labelledby="modal-item-title">

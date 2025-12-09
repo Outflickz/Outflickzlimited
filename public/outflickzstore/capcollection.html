@@ -605,13 +605,13 @@ function createCollectionCard(collection, size = 'default') {
     const isnewrrivals = size === 'newarrivals';
 
     // Card Padding
-    const cardPadding = isReduced ? 'p-1 sm:p-2' : 'p-2 sm:p-3';
+    const cardPadding = isReduced ? 'p-1 sm:p-4' : 'p-2 sm:p-5';
     const nameFontSize = isReduced ? 'text-xs sm:text-sm' : 'text-sm sm:text-base';
     const descriptionFontSize = isReduced ? 'text-[0.6rem] sm:text-xs' : 'text-xs sm:text-sm';
     const priceFontSize = isReduced ? 'text-sm font-bold sm:text-sm' : 'text-base font-semibold';
     
     // CONTROL SIZING
-    const controlHeight = isReduced ? 'h-6' : 'h-7'; 
+    const controlHeight = isReduced ? 'h-5' : 'h-6'; 
     const controlTextSize = isReduced ? 'text-[0.6rem] sm:text-xs' : 'text-xs'; 
     
     // QUANTITY CONTROL WIDTH
@@ -897,7 +897,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <a href="homepage.html" class="font-medium text-color-black hover:text-gray-600 transition">Homepage</a>
                 <a href="preorder.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
                 <a href="newarrivals.html" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
-                <a href="wearscollection.html" class="font-bold text-ash-red transition flex items-center border-b-2 border-ash-red">Wears Collections</a>
+                <a href="wearscollection.html" class="font-medium text-ash-red transition flex items-center border-b-2 border-ash-red">Wears Collections</a>
                 <a href="capcollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Cap Collections</a>
             </nav>
 

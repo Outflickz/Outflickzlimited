@@ -354,6 +354,7 @@
     const LOGOUT_ENDPOINT = `${API_BASE_URL}/users/logout`; 
     // ⭐ NEW GLOBAL CONSTANT: KEY for the JWT token
     const AUTH_TOKEN_KEY = 'outflickzAuthToken';
+    const LOCAL_CART_KEY = 'outflickzLocalCart'; // Use one consistent key!
 
     let pendingVerificationEmail = '';
 
@@ -953,7 +954,38 @@
         }, 5000);
     }
 
+// Add this helper function to your <script> block
 
+/**
+ * Helper function for authenticated API requests.
+ * Automatically adds the JWT token to the Authorization header.
+ */
+async function authenticatedFetch(url, options = {}) {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY);
+    
+    // Add Authorization header if a token exists
+    if (token) {
+        options.headers = {
+            ...options.headers, // Preserve any existing headers (like 'Content-Type')
+            'Authorization': `Bearer ${token}` 
+        };
+    }
+    
+    // Set credentials to include cookies, especially important for HTTP-only cookie flow
+    options.credentials = 'include'; 
+
+    const response = await fetch(url, options);
+    
+    // OPTIONAL: If the API returns 401 Unauthenticated/Expired, force a client-side logout
+    if (response.status === 401) {
+        console.warn("Received 401 Unauthorized. Forcing client-side logout.");
+        await handleLogout(); // Use your existing cleanup function
+        // Throw an error to stop further processing in the original calling function
+        throw new Error('Session expired or unauthorized.'); 
+    }
+    
+    return response;
+}
     // ------------------------------------------------------------------
     // ⭐ NEW FUNCTION: HANDLE LOGOUT
     // ------------------------------------------------------------------

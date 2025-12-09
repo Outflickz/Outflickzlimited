@@ -2090,6 +2090,73 @@ app.use(session({
     }
 }));
 
+/**
+ * Merges an array of local cart items into a user's permanent database cart.
+ * This is called internally during the user login process.
+ * @param {string} userId - The ID of the authenticated user.
+ * @param {Array<Object>} localCartItems - The array of items from the client's localStorage.
+ */
+const mergeLocalCart = async (userId, localCartItems) => {
+    // Basic check for data
+    if (!localCartItems || localCartItems.length === 0) {
+        return;
+    }
+
+    // 1. Find the user's permanent cart or initialize a new one
+    let userCart = await Cart.findOne({ userId });
+
+    if (!userCart) {
+        // If the user logs in and has a local cart but no database cart, create one
+        userCart = new Cart({ userId, items: [] });
+    }
+
+    for (const localItem of localCartItems) {
+        // Ensure required fields for comparison are present (matching the logic in POST /api/users/cart)
+        const { productId, size, color, quantity, variationIndex } = localItem;
+        
+        // Basic validation before merging
+        if (!productId || !size || !quantity || variationIndex === undefined || variationIndex === null) {
+            console.warn('Skipping invalid local cart item during merge:', localItem);
+            continue; // Skip items that don't meet the minimum data requirements
+        }
+        
+        // 2. Look for the EXACT variant match in the permanent cart
+        const existingItemIndex = userCart.items.findIndex(item => 
+            // Use .toString() for comparison if localItem.productId is a string and item.productId is a Mongoose ObjectId
+            item.productId.toString() === productId.toString() && 
+            item.size === size &&
+            item.color === color &&
+            item.variationIndex === variationIndex
+        );
+
+        const quantityToAdd = parseInt(quantity) || 0; // Ensure quantity is a number
+        
+        if (existingItemIndex > -1) {
+            // 3a. Item exists: Increase the quantity
+            userCart.items[existingItemIndex].quantity += quantityToAdd;
+            userCart.items[existingItemIndex].updatedAt = Date.now();
+        } else {
+            // 3b. Item is new: Add the full item object to the cart
+            // NOTE: We assume the local cart item contains all necessary fields like name, price, imageUrl, etc.
+            userCart.items.push({
+                ...localItem, // Spread the item details
+                quantity: quantityToAdd, // Use the parsed quantity
+                productId: productId // Ensure the productId is explicitly included/handled
+            });
+        }
+    }
+
+    // 4. Save the updated cart to the database
+    // Use findOneAndUpdate for atomic operation
+    await Cart.findOneAndUpdate(
+        { userId },
+        { items: userCart.items, updatedAt: Date.now() },
+        { new: true, upsert: true } // upsert: true ensures it creates a new cart if not found (though we handle this above)
+    );
+    
+    console.log(`Cart merge completed for user ${userId}. ${localCartItems.length} local items processed.`);
+};
+
 app.use(visitorLogger);
 
 app.use(express.static(path.join(__dirname, 'public')));

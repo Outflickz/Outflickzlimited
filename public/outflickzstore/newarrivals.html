@@ -846,12 +846,14 @@ async function fetchAndRenderAllNewArrivals() {
 
         if (productsToRender && productsToRender.length > 0) {
             // Limit to the first 2 products for a more exclusive homepage view
-          //  const limitedProducts = productsToRender.slice(0, 4);
+            // const limitedProducts = productsToRender.slice(0, 4); // Line is kept commented
             
-            limitedProducts.forEach(product => {
+            // CORRECTION 1: Use productsToRender to show all items
+            // CORRECTION 2: Use 'product' in the createCollectionCard call
+            productsToRender.forEach(product => { 
                 if (product.price !== undefined && product.price !== null) {
                     // Pass 'reduced' size for New Arrivals
-                    container.innerHTML += createCollectionCard(collection, 'default'); 
+                    container.innerHTML += createCollectionCard(product, 'default'); 
                 }
             });
 

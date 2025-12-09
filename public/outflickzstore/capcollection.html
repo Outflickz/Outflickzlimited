@@ -848,9 +848,10 @@ async function fetchAndRenderAllCapsCollection() {
 
         if (collectionsToRender && collectionsToRender.length > 0) {
             // Limit to the first 4 collections for the homepage view
-           // const limitedCollections = collectionsToRender.slice(0, 4);
+            // const limitedCollections = collectionsToRender.slice(0, 4); // Line is kept commented/removed
             
-            limitedCollections.forEach(collection => {
+            // CORRECTED: Use collectionsToRender to show all items
+            collectionsToRender.forEach(collection => {
                 if (collection.price !== undefined && collection.price !== null) {
                     // IMPORTANT: Pass 'caps' size to remove size selection UI
                     container.innerHTML += createCollectionCard(collection, 'caps');

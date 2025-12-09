@@ -4689,7 +4689,6 @@ app.get('/api/collections/preorder', async (req, res) => {
         });
     }
 });
-
 // 1. POST /api/users/register (Create Account and Send Verification Code)
 app.post('/api/users/register', async (req, res) => {
     // 🔔 CRITICAL UPDATE: Destructure all fields, including the structured 'address' object
@@ -4774,9 +4773,28 @@ app.post('/api/users/register', async (req, res) => {
         if (error.code === 11000) { 
             // Handle duplicate key error (email already exists)
             const existingUser = await User.findOne({ email });
+            
+            // ⭐ RACE CONDITION FIX: Define a time window (e.g., 5 minutes = 5 * 60 * 1000 milliseconds)
+            const RECENT_WINDOW_MS = 5 * 60 * 1000;
+            const fiveMinutesAgo = new Date(Date.now() - RECENT_WINDOW_MS); 
 
             // Check if the existing user is NOT verified
             if (existingUser && existingUser.status && !existingUser.status.isVerified) { 
+                
+                // 🛑 CHECK 1: If the user was created very recently, assume the initial registration request 
+                // succeeded and sent the code. Suppress the resend to avoid race condition overwrite.
+                if (existingUser.createdAt > fiveMinutesAgo) {
+                     console.log(`Duplicate registration attempt detected for unverified user ${email}. Suppressing re-send to avoid race condition.`);
+                     return res.status(202).json({ 
+                        message: 'This email is already registered, and a code was just sent. Check your inbox for the most recent 6-digit code.',
+                        userId: existingUser._id,
+                        needsVerification: true
+                    });
+                }
+
+
+                // 🛑 CHECK 2: If the user was created before the time window, it's a legitimate request
+                // or a very old unverified account, so we re-send the code.
                 try {
                     // Re-trigger the code generation and email send for the existing user
                     const newVerificationCode = await generateHashAndSaveVerificationCode(existingUser);

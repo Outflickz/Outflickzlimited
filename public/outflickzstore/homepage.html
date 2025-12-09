@@ -540,7 +540,7 @@ async function simulateAddToCart(productDetails) {
         size: size,
         color: color, // The color can be 'N/A' but is now validated
         price: productDetails.price,
-        productType: productDetails.collectionName || productDetails.productType || VALID_FALLBACK_TYPE,
+        productType: productDetails.productType || productDetails.name,       
         imageUrl: selectedImageUrl, 
         quantity: productDetails.quantity || 1,
         variationIndex: variationIndex, // Now 1-based
@@ -950,8 +950,6 @@ function createCollectionCard(collection, size = 'default') {
         cartButtonClasses = 'bg-gray-500 text-white cursor-not-allowed opacity-75';
         buyNowButtonClasses = 'bg-gray-500 text-white cursor-not-allowed opacity-75';
     }
-
-        const SAFE_PRODUCT_TYPE_FALLBACK = 'WearsCollection';
 
     // *** Define Buttons/Labels based on Stock Status ***
     const isButtonDisabled = isOutOfStock && !isPreorder;

@@ -420,7 +420,7 @@
     </div>
     
 <script>
- // *** 1. CONFIGURATION ***
+    // *** 1. CONFIGURATION ***
     const API_BASE_URL = 'https://outflickz.netlify.app/api';
     const REGISTER_ENDPOINT = `${API_BASE_URL}/users/register`;
     const VERIFY_ENDPOINT = `${API_BASE_URL}/users/verify`;
@@ -437,18 +437,6 @@
     let headerElement;
     let messageArea;
     let container;
-
-    // <<< BLOCK START: E-COMMERCE PLACEHOLDERS >>>
-    // Placeholder for a global cart state variable
-    let globalCartItems = []; 
-    // Placeholder for the storage key (used in handleLogin and fetchAndSetPermanentCartState)
-    const CART_STORAGE_KEY = 'outflickzCartItemCount'; 
-    // Placeholder for the function that updates the visual cart icon/badge
-    function updateCartBadge() {
-        console.log(`Cart badge updated to reflect ${globalCartItems.length} items.`);
-        // Implementation: document.getElementById('cart-badge').textContent = globalCartItems.length.toString();
-    }
-    // <<< BLOCK END: E-COMMERCE PLACEHOLDERS >>>
 
     // --- NEW: STATE/PROVINCE DATA FOR DROPDOWN ---
     const stateOptions = {
@@ -645,10 +633,9 @@
         messageArea.classList.remove('hidden');
     }
 
-    // <<< BLOCK START: handleLogin Function >>>
-/**
-* Function to handle login form submission with real API call
-*/
+    /**
+ * Function to handle login form submission with real API call
+ */
 async function handleLogin(event) {
     event.preventDefault();
     const email = document.getElementById('login-email').value;
@@ -767,72 +754,49 @@ async function handleLogin(event) {
         loginBtn.disabled = false;
     }
 }
-    // <<< BLOCK END: handleLogin Function >>>
 
-
-    // <<< BLOCK START: fetchAndSetPermanentCartState Function >>>
 async function fetchAndSetPermanentCartState() {
     // 1. Prepare the fetch request
-    // We rely on the JWT token in local storage for the Authorization header
-    const token = localStorage.getItem(AUTH_TOKEN_KEY);
-    if (!token) {
-        console.warn('No JWT token found for cart fetch. Assuming unauthenticated.');
-        // Clear global state if no token exists, but don't throw an error if this is
-        // called from a non-login flow.
-        window.globalCartItems = [];
+    // We rely on the HTTP-only cookie set by the server, so an Authorization header is optional
+    // but the 'credentials' option is CRITICAL for cross-origin requests.
+    const response = await fetch('/api/user/cart', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        // ✅ CRITICAL: Include the HTTP-only cookie in the request
+        credentials: 'include' 
+    });
+
+    // 2. Handle non-OK response (401, 403, 500)
+    if (!response.ok) {
+        // Log the failure but don't crash the application
+        console.error(`Failed to retrieve permanent cart. Status: ${response.status}`);
+        // Ensure the frontend cart state is cleared/empty if fetching the permanent cart fails
+        globalCartItems = [];
         localStorage.setItem(CART_STORAGE_KEY, '0');
         updateCartBadge();
-        throw new Error('User not authenticated for cart retrieval.');
+        
+        throw new Error('Could not retrieve permanent cart from server.');
     }
     
-    try {
-        const response = await fetch(`${API_BASE_URL}/user/cart`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                // CRITICAL: Use the JWT token for API authorization
-                'Authorization': `Bearer ${token}` 
-            }
-            // NOTE: The 'credentials: include' for HTTP-only cookie is NOT needed 
-            // if authorization relies solely on the Authorization header with a JWT.
-            // If the backend requires both, add: credentials: 'include' 
-        });
+    // 3. Process the successful response (HTTP 200)
+    const cartData = await response.json();
+    
+    // Ensure the data structure is an array of items (or an empty array)
+    const permanentItems = cartData.items && Array.isArray(cartData.items) 
+                           ? cartData.items 
+                           : [];
 
-        // 2. Handle non-OK response (401, 403, 500)
-        if (!response.ok) {
-            console.error(`Failed to retrieve permanent cart. Status: ${response.status}`);
-            // On failure, ensure the frontend cart state is cleared/empty 
-            window.globalCartItems = [];
-            localStorage.setItem(CART_STORAGE_KEY, '0');
-            updateCartBadge();
-            
-            throw new Error('Could not retrieve permanent cart from server.');
-        }
-        
-        // 3. Process the successful response (HTTP 200)
-        const cartData = await response.json();
-        
-        // Ensure the data structure is an array of items (or an empty array)
-        const permanentItems = cartData.items && Array.isArray(cartData.items) 
-                                ? cartData.items 
-                                : [];
-
-        // 4. Store the items in the global state/cache
-        window.globalCartItems = permanentItems; 
-        console.log(`Permanent cart loaded with ${permanentItems.length} unique items.`);
-        
-        // 5. Update the local storage item count and UI badge
-        localStorage.setItem(CART_STORAGE_KEY, permanentItems.length.toString()); 
-        updateCartBadge();
-
-    } catch (error) {
-        console.error('Error during permanent cart fetch:', error);
-        // Rethrow the error to be caught in the login flow if needed
-        throw error; 
-    }
+    // 4. Store the items in the global state/cache
+    // Assuming 'globalCartItems' is the variable read by your product page buttons and cart view
+    window.globalCartItems = permanentItems; 
+    console.log(`Permanent cart loaded with ${permanentItems.length} unique items.`);
+    
+    // 5. Update the local storage item count and UI badge
+    localStorage.setItem(CART_STORAGE_KEY, permanentItems.length.toString()); 
+    updateCartBadge();
 }
-    // <<< BLOCK END: fetchAndSetPermanentCartState Function >>>
-
 
     /**
      * Handles create account form submission and transitions to verification view.
@@ -951,111 +915,90 @@ async function fetchAndSetPermanentCartState() {
         }
     }
 
-    // <<< BLOCK START: handleVerification Function >>>
-/**
-* Handles account verification code submission.
-*/
-async function handleVerification(event) {
-    event.preventDefault();
-    // Trim whitespace from the code input immediately
-    const code = document.getElementById('verify-code').value.trim(); 
-    const verifyBtn = document.getElementById('verify-btn');
-    const email = pendingVerificationEmail;
+   /**
+   * Handles account verification code submission.
+   */
+    async function handleVerification(event) {
+        event.preventDefault();
+        // Trim whitespace from the code input immediately
+        const code = document.getElementById('verify-code').value.trim(); 
+        const verifyBtn = document.getElementById('verify-btn');
+        const email = pendingVerificationEmail;
 
-    if (!email) {
-        displayMessage('Error: No pending email found. Please create an account.', 'error');
-        showView('create');
-        return;
-    }
-
-    // ⭐ CLIENT-SIDE VALIDATION: Check if code is present and has expected length
-    if (!code || code.length !== 6) { 
-        displayMessage('Please enter a valid 6-digit verification code.', 'error');
-        return; // Stop execution here if validation fails
-    }
-    // ⭐ END VALIDATION
-
-    verifyBtn.textContent = 'Verifying...';
-    verifyBtn.disabled = true;
-
-    try {
-        const response = await fetch(VERIFY_ENDPOINT, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: email, code: code })
-        });
-
-        // ROBUST JSON PARSING
-        let data = {};
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-            data = await response.json();
-        } else if (!response.ok) {
-            // Handle non-JSON server errors (e.g., 502, 503, Netlify function issue)
-            throw new Error(`Server Error (${response.status}): The server function failed to execute.`);
-        }
-        // END ROBUST PARSING
-
-
-        if (response.ok) {
-            displayMessage('Account verified successfully! You can now sign in.', 'success');
-            
-            // ⭐ FIX: Immediately disable the button and input on success
-            // This prevents the user from clicking again and triggering the 400 'already verified' error.
-            document.getElementById('verify-code').disabled = true;
-            verifyBtn.textContent = 'Verified!';
-
-            pendingVerificationEmail = '';
-            document.getElementById('verify-code').value = '';
-
-            setTimeout(() => {
-                showView('login');
-                document.getElementById('login-email').value = email; // Pre-fill email
-                
-                // Re-enable input for future use after the view switch
-                document.getElementById('verify-code').disabled = false;
-            }, 2000);
-            
-            // We return here to skip any failure/error logic below
+        if (!email) {
+            displayMessage('Error: No pending email found. Please create an account.', 'error');
+            showView('create');
             return;
+        }
 
-        } else {
-            // 🚨 MODIFIED: Enhanced Error Messaging for common verification issues 🚨
-            const serverMessage = data.message || `Verification API Error (${response.status}).`;
-            let displayMsg = serverMessage;
+        // ⭐ CLIENT-SIDE VALIDATION: Check if code is present and has expected length
+        if (!code || code.length !== 6) { 
+            displayMessage('Please enter a valid 6-digit verification code.', 'error');
+            return; // Stop execution here if validation fails
+        }
+        // ⭐ END VALIDATION
 
-            if (response.status === 401 && serverMessage.includes('Invalid')) {
-                // Catches the 'Invalid verification code.' response
-                displayMsg = 'Invalid code. Please ensure you entered the 6-digit code correctly.';
-            } else if (response.status === 400 && serverMessage.includes('expired')) {
-                // Catches the 'Verification code has expired...' response
-                displayMsg = 'Code expired. Please use the "Resend Code" option to get a new one.';
-            } else if (response.status === 400 && serverMessage.includes('No verification code')) {
-                // Catches the 'No verification code is pending...' response
-                displayMsg = 'No pending code found. Please resend the code to continue.';
-            } else if (response.status === 400 && serverMessage.includes('already verified')) {
-                // Catches the 'Account is already verified.' response
-                displayMsg = 'Account is already verified. Redirecting to login...';
-                setTimeout(() => showView('login'), 1000);
+        verifyBtn.textContent = 'Verifying...';
+        verifyBtn.disabled = true;
+
+        try {
+            const response = await fetch(VERIFY_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email, code: code })
+            });
+
+            // ROBUST JSON PARSING
+            let data = {};
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                data = await response.json();
+            } else if (!response.ok) {
+                throw new Error(`Server Error (${response.status}): Netlify could not find the function or the server crashed.`);
             }
+            // END ROBUST PARSING
+
+
+            if (response.ok) {
+                displayMessage('Account verified successfully! You can now sign in.', 'success');
+                
+                // ⭐ FIX: Immediately disable the button and input on success
+                // This prevents the user from clicking again and triggering the 400 'already verified' error.
+                document.getElementById('verify-code').disabled = true;
+                verifyBtn.textContent = 'Verified!';
+
+                pendingVerificationEmail = '';
+                document.getElementById('verify-code').value = '';
+
+                setTimeout(() => {
+                    showView('login');
+                    document.getElementById('login-email').value = email; // Pre-fill email
+                    
+                    // Re-enable input for future use after the view switch
+                    document.getElementById('verify-code').disabled = false;
+                }, 2000);
+                
+                // We return here to skip any failure/error logic below
+                return;
+
+            } else {
+                const errorMessage = data.message || `Verification API Error (${response.status}).`;
+                displayMessage(`Verification Failed: ${errorMessage}`, 'error');
+                
+                // On failure, we re-enable the button so the user can try again
+                verifyBtn.textContent = 'Verify Account';
+                verifyBtn.disabled = false;
+            }
+
+        } catch (error) {
+            console.error('Verification network failed:', error);
+            displayMessage(`Connection Error: ${error.message || 'Could not connect to the verification service.'}`, 'error');
             
-            displayMessage(`Verification Failed: ${displayMsg}`, 'error');
-            
-            // On failure, we re-enable the button so the user can try again
+            // Ensure reset on network/fatal error
             verifyBtn.textContent = 'Verify Account';
             verifyBtn.disabled = false;
         }
-
-    } catch (error) {
-        console.error('Verification network failed:', error);
-        displayMessage(`Connection Error: ${error.message || 'Could not connect to the verification service.'}`, 'error');
-        
-        // Ensure reset on network/fatal error
-        verifyBtn.textContent = 'Verify Account';
-        verifyBtn.disabled = false;
     }
-}
-    // <<< BLOCK END: handleVerification Function >>>
 
     /**
      * Starts a cooldown timer for the Resend Code button.
@@ -1146,7 +1089,6 @@ async function handleVerification(event) {
     // ⭐ NEW FUNCTION: HANDLE LOGOUT
     // ------------------------------------------------------------------
 
-    // <<< BLOCK START: handleLogout Function >>>
     /**
      * Handles user logout by calling the backend to clear the HTTP-only cookie.
      * This is CRITICAL for the secure cookie flow.
@@ -1155,22 +1097,20 @@ async function handleVerification(event) {
         displayMessage('Logging out...', 'info');
 
         try {
-            // The JWT token is read from local storage and included in API calls where needed.
-            // This POST request is primarily to tell the server to invalidate the session/cookie.
+            // The cookie is automatically sent with this request.
+            // The backend should respond by clearing/expiring the cookie.
             const response = await fetch(LOGOUT_ENDPOINT, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
-                // No token needed in header here, as it's assumed the server handles the cookie
             });
 
-            // 1. Clear all client-side authentication/session state
+            // No need to check response.ok strictly, as we assume the server clears the cookie
+            // (even on error, we proceed with client-side cleanup).
+
+            // 1. Clear any local state that might indicate a logged-in user
             localStorage.removeItem('outflickzLocalCart'); 
             // ⭐ CRITICAL FIX: Remove the JWT token from local storage (the token used for API calls)
             localStorage.removeItem(AUTH_TOKEN_KEY); 
-            // Also clear the permanent cart state/count
-            localStorage.removeItem(CART_STORAGE_KEY);
-            window.globalCartItems = [];
-            updateCartBadge();
             
             // 2. Display success message and redirect
             displayMessage('You have been successfully signed out.', 'success');
@@ -1184,11 +1124,8 @@ async function handleVerification(event) {
             // Even if the network call fails, attempt to redirect the user for consistency
             displayMessage('Logout failed, but clearing local state. Redirecting...', 'error');
             
-            // Still clear local tokens/state on network failure for safety
+            // Still clear local tokens on network failure for safety
             localStorage.removeItem(AUTH_TOKEN_KEY); 
-            localStorage.removeItem(CART_STORAGE_KEY);
-            window.globalCartItems = [];
-            updateCartBadge();
             
             setTimeout(() => {
                 window.location.href = 'index.html'; 

@@ -248,7 +248,6 @@ document.addEventListener('click', function(event) {
 // --- END SHOP NOW DROPDOWN JS ---
 
 
-// REMOVED: const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
 const API_BASE_URL = 'https://outflickz.netlify.app'; 
 const CART_STORAGE_KEY = 'outflickzCartCount';
 const LOCAL_CART_KEY = 'outflickzLocalCart';
@@ -434,37 +433,7 @@ function updateCartBadge() {
     }
 }
 
-/**
- * Handles adding an item (or quantity of items) to the cart and updates the badge.
- * @param {string} collectionId - The ID of the item being added (used for logging/future API integration).
- * @param {number} quantity - The number of items to add.
- */
-function addToCart(collectionId, quantity) {
-    let currentCount = getCartCount();
-    let newCount = currentCount + quantity;
-    
-    // Safety clamp
-    if (newCount < 0) newCount = 0;
 
-    localStorage.setItem(CART_STORAGE_KEY, newCount.toString());
-    
-    // Update the visual badge
-    updateCartBadge();
-    
-    // Optional: Add a simple confirmation flash/message
-    const alertMessage = document.getElementById('cart-alert');
-    if (alertMessage) {
-        alertMessage.textContent = `${quantity} item(s) added to cart! Total: ${newCount}`;
-        alertMessage.classList.remove('hidden');
-        alertMessage.classList.add('opacity-100', 'translate-y-0');
-        setTimeout(() => {
-            alertMessage.classList.add('hidden');
-            alertMessage.classList.remove('opacity-100', 'translate-y-0');
-        }, 3000);
-    }
-
-    console.log(`Added ${quantity} of item ${collectionId}. New cart total: ${newCount}`);
-}
 /**
  * Handles adding an item to the cart. 
  * Tries API (permanent cart via secure cookie) first.
@@ -957,21 +926,22 @@ function createCollectionCard(collection, size = 'default') {
     // Get current quantity value for the button click
     const quantityGetter = `document.getElementById('quantity-input-${collection._id}').value`;
 
-    // Button to add to cart
-    const cartButtonHtml = `
-        <button
-            ${isButtonDisabled ? 'disabled' : ''}
-            onclick="simulateAddToCart({
-                productId: '${collection._id}',
-                name: '${collection.name.replace(/'/g, "\\'")}',
-                price: ${itemPrice},
-                imageUrl: '${frontImageUrl}',
-                quantity: parseInt(${quantityGetter})
-            })"
-            class="${controlTextSize} ${cartButtonClasses} ${controlHeight} rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center w-full md:flex-1">
-            ${cartButtonText}
-        </button>
-    `;
+// Button to add to cart
+    const cartButtonHtml = `
+        <button
+            ${isButtonDisabled ? 'disabled' : ''}
+            onclick="simulateAddToCart({
+                productId: '${collection._id}',
+                name: '${collection.name.replace(/'/g, "\\'")}',
+                price: ${itemPrice},
+                imageUrl: '${frontImageUrl}',
+                // ⭐ CRITICAL FIX: Dynamically read quantity from the input field on click.
+                quantity: parseInt(document.getElementById('quantity-input-${collection._id}').value) || 1
+            })"
+            class="${controlTextSize} ${cartButtonClasses} ${controlHeight} rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center w-full md:flex-1">
+            ${cartButtonText}
+        </button>
+    `;
 
     const buyNowButtonHtml = `
         <button 
@@ -1400,6 +1370,7 @@ async function fetchAndRenderPreorderCollections() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    updateCartBadge();
     fetchAndRenderWearsCollections(); 
     fetchAndRenderNewArrivals(); 
     fetchAndRenderCapsCollection();

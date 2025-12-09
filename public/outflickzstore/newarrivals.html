@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wears Collection - Outflickz</title>
+    <title>New Arrivals Collection - Outflickz</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -807,8 +807,8 @@ function createCollectionCard(collection, size = 'default') {
 }
 
 // --- NEW ARRIVALS COLLECTION JS ---
-async function fetchAndRenderNewArrivals() {
-    const container = document.getElementById('new-arrivals-grid');
+async function fetchAndRenderAllNewArrivals() {
+    const container = document.getElementById('full-new-arrivals-grid');
     if (!container) return;
 
     const spinnerColor = 'text-gray-900';
@@ -851,7 +851,7 @@ async function fetchAndRenderNewArrivals() {
             limitedProducts.forEach(product => {
                 if (product.price !== undefined && product.price !== null) {
                     // Pass 'reduced' size for New Arrivals
-                    container.innerHTML += createCollectionCard(product, 'reduced'); 
+                    container.innerHTML += createCollectionCard(collection, 'default'); 
                 }
             });
 
@@ -871,7 +871,7 @@ async function fetchAndRenderNewArrivals() {
 
 document.addEventListener('DOMContentLoaded', () => {
     updateCartBadge(); // Initialize cart count
-    fetchAndRenderAllWearsCollections(); // Fetch and render the full collection
+   fetchAndRenderAllNewArrivals(); // Fetch and render the full collection
 });
 </script>
 
@@ -942,7 +942,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 Discover our full range of exclusive apparel, from t-shirts and hoodies to custom jackets. Limited availability on all drops.
             </p>
 
-            <div id="new-arrivals-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
+            <div id="full-new-arrivals-grid'" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
                 </div>
             
         </div>

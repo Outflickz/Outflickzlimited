@@ -3,30 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cap Collections - Outflickz</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    
+    <title>Cap Collection - Outflickz</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Placeholder for custom/tailwind-extended classes to ensure page structure integrity */
-        .bg-color-white { background-color: #ffffff; }
-        .text-color-black { color: #1a1a1a; }
-        .bg-ash-red { background-color: #D62828; }
-        .text-ash-red { color: #D62828; }
-        .text-ash-dark { color: #333333; }
-        .hover\:border-ash-red:hover { border-color: #D62828; }
-        .has-\[:checked\]\:border-ash-red:has(input:checked) { border-color: #D62828; }
-        .border-racing-grey { border-color: #A9A9A9; }
-        /* Placeholder for hero slider styling */
-        .hero-bg-slider-container { display: none; } /* Hide homepage hero for this collection page */
+        /* Custom styles based on the homepage code */
+        :root {
+            --color-black: #1a1a1a;
+            --ash-red: #c0392b; 
+            --ash-dark: #34495e;
+            --color-white: #ffffff;
+        }
+        .text-color-black { color: var(--color-black); }
+        .bg-color-white { background-color: var(--color-white); }
+        .bg-ash-red { background-color: var(--ash-red); }
+        .hover\:bg-ash-red:hover { background-color: var(--ash-red); }
+        .border-ash-red { border-color: var(--ash-red); }
+        .text-ash-red { color: var(--ash-red); }
+        .text-ash-dark { color: var(--ash-dark); }
+        .bg-ash-dark { background-color: var(--ash-dark); }
+        .hover\:bg-ash-dark:hover { background-color: var(--ash-dark); }
         
+        .card-image-box {
+            position: relative;
+            padding-top: 150%; /* 2:3 aspect ratio */
+        }
+        .card-image-box img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .has-\[:checked\]\:border-ash-red:has(input:checked) {
+            border-color: var(--ash-red);
+        }
     </style>
 
-    <script>
-        // --- GLOBAL API CONFIG ---
+<script>
+    // --- GLOBAL API CONFIG ---
     const API_BASE_URL = 'https://outflickz.netlify.app';
+
+    // --- CRITICAL FIX: GLOBAL STORAGE KEYS DEFINITION ---
+    // These keys are required by the handleLocalCartFallback logic.
     const LOCAL_CART_KEY = 'outflickzCart';
     const CART_STORAGE_KEY = 'outflickzCartItemCount'; 
+    // --- END GLOBAL STORAGE KEYS ---
 
 
 /**
@@ -522,6 +544,52 @@ function createColorList(collectionId, variants) {
     return mapHtml + buttonsHtml;
 }
 
+// --- UTILITY FOR SIZE LIST (Stock-Aware) ---
+function createSizeList(collectionId, sizeStockMap, isReduced = false) {
+    if (!sizeStockMap) {
+        return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
+    }
+
+    const standardSizes = ['S', 'M', 'L', 'XL'];
+    
+    const sizesWithStock = Object.entries(sizeStockMap)
+        .filter(([size, stock]) => 
+            standardSizes.includes(size.toUpperCase().trim()) && 
+            stock > 0
+        )
+        .map(([size]) => size); 
+
+    if (sizesWithStock.length === 0) {
+        return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
+    }
+
+    const sizeClasses = isReduced 
+        ? 'text-[0.6rem] px-1.5 py-0.5' 
+        : 'text-xs px-2 py-0.5 md:px-2 md:py-1'; 
+
+    const groupName = `size-${collectionId}`;
+    
+    return sizesWithStock.map((size, index) => {
+        const safeSize = size.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
+        const inputId = `size-${collectionId}-${safeSize}`;
+        
+        return `
+            <label for="${inputId}" class="size-label border border-gray-300 cursor-pointer hover:border-ash-dark transition-all rounded-sm has-[:checked]:border-ash-dark has-[:checked]:bg-gray-100">
+                <input 
+                    type="radio" 
+                    id="${inputId}" 
+                    name="${groupName}" 
+                    value="${size}" 
+                    class="hidden" 
+                    ${index === 0 ? 'checked' : ''}
+                >
+                <span class="${sizeClasses}">${size}</span>
+            </label>
+        `;
+    }).join('');
+}
+
+// --- MAIN CARD RENDERING FUNCTION ---
 function createCollectionCard(collection, size = 'default') {
     const currencySymbol = '₦';
     const PLACEHOLDER_URL = 'https://s3.us-west-1.idrivee2.com/outflickz/public/placeholder-image-v1.jpg';
@@ -534,13 +602,12 @@ function createCollectionCard(collection, size = 'default') {
     const isCaps = size === 'caps'; 
     const isWears = size === 'wears'; 
     const isPreorder = size === 'preorder'; 
-    const isnewrrivals = size === 'newarrivals';
 
     // Card Padding
     const cardPadding = isReduced ? 'p-1 sm:p-2' : 'p-2 sm:p-3';
     const nameFontSize = isReduced ? 'text-xs sm:text-sm' : 'text-sm sm:text-base';
     const descriptionFontSize = isReduced ? 'text-[0.6rem] sm:text-xs' : 'text-xs sm:text-sm';
-    const priceFontSize = isReduced ? 'text-sm font-bold sm:text-sm' : 'text-base font-semibold';
+    const priceFontSize = isReduced ? 'text-xs font-bold sm:text-sm' : 'text-base font-semibold';
     
     // CONTROL SIZING
     const controlHeight = isReduced ? 'h-6' : 'h-7'; 
@@ -551,30 +618,16 @@ function createCollectionCard(collection, size = 'default') {
     const quantityButtonSize = isReduced ? 'w-7 h-7' : 'w-8 h-8'; 
     const quantityInputTextSize = isReduced ? 'text-[0.6rem] sm:text-xs' : 'text-xs sm:text-sm';
     
-    // BUTTON SIZING
-    // Removed specific button flex classes here, relying on w-full/flex-1 in the return HTML
-    
-    // --- CRITICAL IMAGE RESOLUTION FIX START (MODIFIED) ---
+    // --- FINAL FIX: Ensure 'variants'/'variations' is accessed correctly and safely ---
     const primaryVariant = (Array.isArray(collection.variants) && collection.variants.length > 0)
         ? collection.variants[0]
         : (Array.isArray(collection.variations) && collection.variations.length > 0)
             ? collection.variations[0]
             : null;
 
-    // Use a chain of possible property names for robust image URL fetching
-    const variantFrontImage = primaryVariant?.frontImageUrl 
-        || primaryVariant?.imageUrl 
-        || primaryVariant?.image; 
-        
-    const variantBackImage = primaryVariant?.backImageUrl 
-        || primaryVariant?.backImage 
-        || primaryVariant?.imageUrl // Fallback to a single image if no back image exists
-        || primaryVariant?.image; 
-
-    // Final URL assignment - prioritize variant, then collection top-level, then default placeholder
-    const frontImageUrl = variantFrontImage || collection.frontImageUrl || collection.imageUrl || defaultFrontImage;
-    const backImageUrl = variantBackImage || collection.backImageUrl || collection.imageUrl || defaultBackImage;
-    // --- CRITICAL IMAGE RESOLUTION FIX END ---
+    const frontImageUrl = primaryVariant?.frontImageUrl || collection.frontImageUrl || defaultFrontImage;
+    const backImageUrl = primaryVariant?.backImageUrl || collection.backImageUrl || defaultBackImage;
+    // --- END FINAL FIX ---
 
     const itemPrice = collection.price;
     const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
@@ -660,10 +713,7 @@ function createCollectionCard(collection, size = 'default') {
             onclick="simulateBuyNow({
                 productId: '${collection._id}',
                 name: '${collection.name.replace(/'/g, "\\'")}',
-                
-                // ⭐ FIX 1: Explicitly pass a safe productType
                 productType: '${safeProductTypeInHtml}', 
-                
                 price: ${itemPrice},
                 quantity: parseInt(${quantityGetter}),
                 imageUrl: '${frontImageUrl}'
@@ -690,7 +740,8 @@ function createCollectionCard(collection, size = 'default') {
 
     return `
         <div class="collection-card border border-gray-100 rounded-lg overflow-hidden bg-white hover:shadow-lg transition duration-300" data-collection-id="${collection._id}">
-            <div class="relative card-image-box **aspect-square**"> ${stockBadge}
+            <div class="relative card-image-box">
+                ${stockBadge}
 
                 <div class="absolute inset-0 transition-opacity duration-300">
                     <img
@@ -698,16 +749,18 @@ function createCollectionCard(collection, size = 'default') {
                         id="front-image-${collection._id}"
                         src="${frontImageUrl}"
                         alt="${collection.name} (Front View)"
-                        onerror="this.onerror=null;this.src='${defaultFrontImage}'; console.error('FRONT IMAGE URL FAILED:', '${frontImageUrl}')"
+                        onerror="this.onerror=null;this.src='${defaultFrontImage}';"
                         style="opacity: 1;"
+                        onclick="openModal('${frontImageUrl}', '${collection.name.replace(/'/g, "\\'")}')"
                     >
                     <img
                         class="w-full h-full object-cover bg-gray-50 absolute transition-opacity duration-300"
                         id="back-image-${collection._id}"
                         src="${backImageUrl}"
                         alt="${collection.name} (Back View)"
-                        onerror="this.onerror=null;this.src='${defaultBackImage}'; console.error('BACK IMAGE URL FAILED:', '${backImageUrl}')"
+                        onerror="this.onerror=null;this.src='${defaultBackImage}';"
                         style="opacity: 0;"
+                        onclick="openModal('${backImageUrl}', '${collection.name.replace(/'/g, "\\'")}')"
                     >
                 </div>
 
@@ -738,7 +791,7 @@ function createCollectionCard(collection, size = 'default') {
                         ${colorListHtml}
                     </div>
                 </div>
-                
+                            
                 <div class="flex flex-col md:flex-row items-start md:items-center justify-between w-full mt-2 gap-2">
                     ${sizeListHtml} 
                     ${quantityControlHtml}
@@ -753,60 +806,10 @@ function createCollectionCard(collection, size = 'default') {
     `;
 }
 
-function createSizeList(collectionId, sizeStockMap, isReduced = false) {
-    if (!sizeStockMap) {
-        return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
-    }
-
-    // Standard sizes list (used for ordering or ensuring only valid sizes are processed)
-    const standardSizes = ['S', 'M', 'L', 'XL'];
-    
-    // 1. **FILTERING LOGIC:** Convert the map to an array and filter by stock > 0
-    const sizesWithStock = Object.entries(sizeStockMap)
-        .filter(([size, stock]) => 
-            // 1a. Check if the size is one of the standard sizes
-            standardSizes.includes(size.toUpperCase().trim()) && 
-            // 1b. CRITICAL: Check if stock is greater than zero
-            stock > 0
-        )
-        // 2. Map back to just the size string for easy HTML generation
-        .map(([size]) => size); 
-
-    if (sizesWithStock.length === 0) {
-        return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
-    }
-
-    const sizeClasses = isReduced 
-        ? 'text-[0.6rem] px-1.5 py-0.5' // Smaller for reduced card
-        : 'text-xs px-2 py-0.5 md:px-2 md:py-1'; // Default size
-
-    const groupName = `size-${collectionId}`; // Use the same name for all radios in this group
-    
-    // 3. Generate HTML using the filtered list (sizesWithStock)
-    return sizesWithStock.map((size, index) => {
-        const safeSize = size.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
-        const inputId = `size-${collectionId}-${safeSize}`;
-        
-        return `
-            <label for="${inputId}" class="size-label border border-gray-300 cursor-pointer hover:border-ash-dark transition-all rounded-sm has-[:checked]:border-ash-dark has-[:checked]:bg-gray-100">
-                <input 
-                    type="radio" 
-                    id="${inputId}" 
-                    name="${groupName}" 
-                    value="${size}" 
-                    class="hidden" 
-                    ${index === 0 ? 'checked' : ''}
-                >
-                <span class="${sizeClasses}">${size}</span>
-            </label>
-        `;
-    }).join('');
-}
-
 // --- CAP COLLECTION JS ---
-async function fetchAndRenderCapsCollection() {
+async function fetchAndRenderAllCapsCollection() {
     // Using the same grid container ID pattern
-    const container = document.getElementById('caps-collections-grid');
+    const container = document.getElementById('full-caps-collections-grid');
     if (!container) return;
 
     const spinnerColor = 'text-gray-900';
@@ -824,7 +827,6 @@ async function fetchAndRenderCapsCollection() {
 
     try {
         // NEW ENDPOINT: /api/collections/caps
-        // The API request still includes 'limit=all' which is correct for fetching all data.
         const capsApiUrl = `${API_BASE_URL}/api/collections/caps`; 
 
         const response = await fetch(capsApiUrl, {
@@ -839,19 +841,19 @@ async function fetchAndRenderCapsCollection() {
         }
 
         const collections = await response.json();
-        console.log('--- API Response for Caps Collection ---');
-        console.log(collections); 
 
         container.innerHTML = '';
         
         let collectionsToRender = collections && collections.length > 0 ? collections : [];
 
         if (collectionsToRender && collectionsToRender.length > 0) {
+            // Limit to the first 4 collections for the homepage view
+           // const limitedCollections = collectionsToRender.slice(0, 4);
             
-            collectionsToRender.forEach(collection => {
+            limitedCollections.forEach(collection => {
                 if (collection.price !== undefined && collection.price !== null) {
                     // IMPORTANT: Pass 'caps' size to remove size selection UI
-                    container.innerHTML += createCollectionCard(collection, 'default');
+                    container.innerHTML += createCollectionCard(collection, 'caps');
                 }
             });
 
@@ -868,14 +870,15 @@ async function fetchAndRenderCapsCollection() {
         container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server (502/Down).</p>';
     }
 }
-            
+
 document.addEventListener('DOMContentLoaded', () => {
     updateCartBadge(); // Initialize cart count
-fetchAndRenderCapsCollection(); // Call the specialized function for this page
-        });
-    </script>
+    fetchAndRenderAllCapsCollection(); // Fetch and render the full collection
+});
+</script>
+
 </head>
-<body class="bg-color-white text-color-black min-h-screen">
+<body class="bg-gray-50 text-color-black min-h-screen">
 
     <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
@@ -884,41 +887,42 @@ fetchAndRenderCapsCollection(); // Call the specialized function for this page
             </a>
 
             <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
+                <a href="homepage.html" class="font-medium text-color-black hover:text-gray-600 transition">Homepage</a>
                 <a href="preorder.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
                 <a href="newarrivals.html" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
-                <a href="wearscollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Wears Collections</a>
-                <a href="capcollection.html" class="font-medium text-ash-red font-bold transition flex items-center">Cap Collections</a>
+                <a href="wearscollection.html" class="font-bold text-ash-red transition flex items-center border-b-2 border-ash-red">Wears Collections</a>
+                <a href="capcollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Cap Collections</a>
             </nav>
 
-            <div class="flex items-center space-x-2 sm:space-x-4">
-                <button id="profile-icon" 
-                    class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" 
-                    aria-label="User Account"
-                    onclick="redirectToProfileOrLogin()">
-                    <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
-                </button>
-                <a href="cart.html" class="relative p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" aria-label="Shopping Bag">
-                    <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
-                    <span id="cart-badge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-ash-red rounded-full hidden">
-                        0
-                    </span>
-                </a>
-                <button class="md:hidden p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
-                    <i class="fas fa-bars w-5 h-5 sm:w-6 sm:h-6"></i>
-                </button>
-            </div>
+          <div class="flex items-center space-x-2 sm:space-x-4">
+            <button id="profile-icon" 
+            class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" 
+            aria-label="User Account"
+            onclick="redirectToProfileOrLogin()">
+                <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
+            </button>
+            <a href="cart.html" class="relative p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" aria-label="Shopping Bag">
+                <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
+                <span id="cart-badge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-ash-red rounded-full hidden">
+                    0
+                </span>
+            </a>
+            <button class="md:hidden p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
+                <i class="fas fa-bars w-5 h-5 sm:w-6 sm:h-6"></i>
+            </button>
         </div>
     </header>
     <div id="cart-alert" class="hidden fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 bg-green-500 text-white text-sm px-4 py-2 rounded-lg shadow-xl z-50 transition-all duration-500 opacity-0 -translate-y-10">
         Item(s) added to cart!
     </div>
-
+    
     <div id="mobile-menu" class="hidden md:hidden bg-color-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
         <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
+            <a href="homepage.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Homepage</a>
             <a href="preorder.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
             <a href="newarrivals.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">New Arrivals</a>
-            <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Wears Collection</a>
-            <a href="capcollection.html" class="block px-3 py-2 font-medium text-ash-red bg-gray-100 rounded-md">Cap Collection</a>
+            <a href="wearscollection.html" class="block px-3 py-2 font-bold text-ash-red bg-gray-100 rounded-md">Wears Collection</a>
+            <a href="capcollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cap Collection</a>
             
             <button 
                 id="mobile-profile-login-button" 
@@ -928,36 +932,41 @@ fetchAndRenderCapsCollection(); // Call the specialized function for this page
                 <i class="fas fa-user w-4 h-4 mr-3"></i>
                 Account / Login
             </button>
-        </div>
+            </div>
     </div>
-     <main class="py-10 sm:py-16">
+    
+    <main class="py-10 sm:py-16">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h1 class="text-3xl sm:text-4xl font-extrabold text-color-black uppercase mb-2 text-center">
-                Caps Collections
+                Wears Collections
             </h1>
             <p class="text-sm sm:text-base font-medium text-gray-700 mb-10 text-center max-w-2xl mx-auto">
                 Discover our full range of exclusive apparel, from t-shirts and hoodies to custom jackets. Limited availability on all drops.
             </p>
 
-            <div id="caps-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
+            <div id="full-caps-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
                 </div>
             
         </div>
     </main>
-   <div id="image-modal" class="modal fixed inset-0 z-[100] bg-black bg-opacity-90 flex items-center justify-center opacity-0 pointer-events-none" onclick="closeModal()" role="dialog" aria-modal="true" aria-labelledby="modal-item-title">
+    <div id="image-modal" class="modal fixed inset-0 z-[100] bg-black bg-opacity-90 flex items-center justify-center opacity-0 pointer-events-none" onclick="closeModal()" role="dialog" aria-modal="true" aria-labelledby="modal-item-title">
+
         <div class="relative max-w-xs sm:max-w-4xl w-full mx-4 p-2 bg-white rounded-lg shadow-2xl" onclick="event.stopPropagation()">
+
             <button onclick="closeModal()" class="absolute top-0 right-0 m-2 text-gray-700 hover:text-ash-red transition z-50" aria-label="Close modal">
                 <i class="fas fa-times text-xl"></i>
             </button>
+
             <h3 id="modal-item-title" class="text-base sm:text-xl font-bold text-center text-ash-dark pt-2 pb-2">
                 Item Name
             </h3>
+
             <div class="w-full max-h-[70vh] overflow-hidden">
                 <img id="modal-image" src="" alt="Full view of product" class="w-full h-full object-contain">
             </div>
+
         </div>
     </div>
-
     <footer class="bg-gray-900 text-gray-300 py-10 sm:py-14 border-t border-gray-800">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
@@ -1019,11 +1028,11 @@ fetchAndRenderCapsCollection(); // Call the specialized function for this page
             </div>
         </div>
     </footer>
-    <a href="https://wa.me/2347042882706?text=HELLO!%20WELCOME%20TO%20OUTFLICKZ!%20HOW%20CAN%20WE%20HELP%20YOU" 
+     <a href="https://wa.me/2347042882706?text=HELLO!%20WELCOME%20TO%20OUTFLICKZ!%20HOW%20CAN%20WE%20HELP%20YOU" 
         target="_blank" 
         class="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-3 sm:p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105" 
         aria-label="Chat with us on WhatsApp">
         <i class="fab fa-whatsapp text-2xl sm:text-3xl"></i>
     </a>
-    </body>
+</body>
 </html>

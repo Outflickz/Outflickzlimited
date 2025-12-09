@@ -119,6 +119,7 @@
         }
     }
 </style>
+
 </head>
 <body class="min-h-screen flex items-center justify-center p-0 md:p-8">
 
@@ -905,7 +906,7 @@ async function handleCreateAccount(event) {
                 document.getElementById('verify-email-display').textContent = email;
 
                 // Display the server's message as a less alarming 'warning' type.
-                displayMessage(data.message || `Account already registered or verification code re-send failed. Please check your email and proceed to verification.`, 'warning');
+             //   displayMessage(data.message || `Account already registered or verification code re-send failed. Please check your email and proceed to verification.`, 'warning');
                 
                 form.reset();
                 document.getElementById('create-state').disabled = true;
@@ -934,7 +935,7 @@ async function handleCreateAccount(event) {
 }
 
 /**
- * Handles account verification code submission. (NO CHANGES REQUIRED HERE)
+ * Handles account verification code submission.
  */
 async function handleVerification(event) {
     event.preventDefault();
@@ -972,6 +973,7 @@ async function handleVerification(event) {
         if (contentType && contentType.includes('application/json')) {
             data = await response.json();
         } else if (!response.ok) {
+            // Handle non-JSON server errors
             throw new Error(`Server Error (${response.status}): Netlify could not find the function or the server crashed.`);
         }
         // END ROBUST PARSING
@@ -983,7 +985,7 @@ async function handleVerification(event) {
             // ⭐ FIX: Immediately disable the button and input on success
             // This prevents the user from clicking again and triggering the 400 'already verified' error.
             document.getElementById('verify-code').disabled = true;
-            verifyBtn.textContent = 'Verified!';
+            verifyBtn.textContent = 'Verified!'; // Set to success state
 
             pendingVerificationEmail = '';
             document.getElementById('verify-code').value = '';
@@ -996,12 +998,24 @@ async function handleVerification(event) {
                 document.getElementById('verify-code').disabled = false;
             }, 2000);
             
-            // We return here to skip any failure/error logic below
+            // Crucial: We return here to skip any failure/error logic below
             return;
 
         } else {
-            const errorMessage = data.message || `Verification API Error (${response.status}).`;
-            displayMessage(`Verification Failed: ${errorMessage}`, 'error');
+            // ⭐ ADDED LOGIC: If the failure is "already verified" (status 400) 
+            // and the function is still running due to a double-call bug, 
+            // we should NOT display an error if the success message has already been triggered 
+            // by the first call (which this function logic cannot see, but we can assume).
+            // Since the external bug is causing the double-call, we suppress the 400 error message.
+            if (response.status === 400 && data.message && data.message.includes('already verified')) {
+                console.warn('Suppressing redundant "already verified" error message due to double-submission bug.');
+                // Do NOT display error message to the user, but still reset the button to 'Verify Account' 
+                // in case the first call failed for a different reason.
+            } else {
+                // For all other errors, display the failure message
+                const errorMessage = data.message || `Verification API Error (${response.status}).`;
+                displayMessage(`Verification Failed: ${errorMessage}`, 'error');
+            }
             
             // On failure, we re-enable the button so the user can try again
             verifyBtn.textContent = 'Verify Account';

@@ -119,19 +119,6 @@
         </div>
     </div>
 </section>
-        <section id="full-preorder-grid-section" class="py-10 sm:py-14 bg-color-white text-color-black">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <h2 class="text-xl sm:text-2xl font-bold text-center text-ash-dark mb-8">
-                    Available Pre-Orders
-                </h2>
-                <div id="full-preorder-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
-                    <div class="col-span-full text-center py-10 text-gray-700">
-                        Loading items...
-                    </div>
-                </div>
-            </div>
-        </section>
-    </main>
 
     <div id="image-modal" class="modal fixed inset-0 z-[100] bg-black bg-opacity-90 flex items-center justify-center opacity-0 pointer-events-none" onclick="closeModal()" role="dialog" aria-modal="true" aria-labelledby="modal-item-title">
         <div class="relative max-w-xs sm:max-w-4xl w-full mx-4 p-2 bg-white rounded-lg shadow-2xl" onclick="event.stopPropagation()">
@@ -247,16 +234,24 @@ function getCartItems() {
             localStorage.setItem('cartItems', JSON.stringify(items));
             updateCartBadge();
         }
-        function updateCartBadge() {
-            const items = getCartItems();
-            const badge = document.getElementById('cart-badge');
-            const count = items.reduce((total, item) => total + item.quantity, 0);
-            
-            if (badge) {
-                badge.textContent = count;
-                badge.classList.toggle('hidden', count === 0);
-            }
+
+        /**
+ * Updates the Shopping Bag icon badge with the current cart count.
+ */
+function updateCartBadge() {
+    const count = getCartCount();
+    const badge = document.getElementById('cart-badge');
+    
+    if (badge) {
+        badge.textContent = count;
+        if (count > 0) {
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
         }
+    }
+}
+
         function showCartAlert() {
             const alert = document.getElementById('cart-alert');
             if (alert) {

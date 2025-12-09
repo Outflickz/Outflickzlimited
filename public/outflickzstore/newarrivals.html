@@ -96,22 +96,21 @@ function getCartCount() {
 
 
 /**
- * Updates the cart badge count based on the local cart.
+ * Updates the Shopping Bag icon badge with the current cart count.
  */
-function updateCartBadge() { 
+function updateCartBadge() {
+    const count = getCartCount();
     const badge = document.getElementById('cart-badge');
-    // Use the now-defined LOCAL_CART_KEY
-    const localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
-    const totalItems = localCart.reduce((sum, item) => sum + item.quantity, 0);
     
-    if (totalItems > 0) {
-        badge.textContent = totalItems;
-        badge.classList.remove('hidden');
-    } else {
-        badge.classList.add('hidden');
+    if (badge) {
+        badge.textContent = count;
+        if (count > 0) {
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
     }
 }
-
 /**
  * Handles adding an item to the local cart for unauthenticated users.
  * NOTE: This function is now the robust version used in simulateAddToCart, 

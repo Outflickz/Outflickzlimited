@@ -415,7 +415,7 @@ function getCartCount() {
     } catch (e) {
         // Reset everything if there's an error
         console.error("Error calculating cart count, resetting local storage.", e);
-        localStorage.setItem(CART_STORAGE_KEY, '0');
+        localStorage.setItem(CART_STORAGE_KEY, '[]');
         localStorage.setItem(LOCAL_CART_KEY, '[]');
         return 0;
     }

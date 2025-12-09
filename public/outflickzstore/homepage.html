@@ -537,7 +537,7 @@ async function simulateAddToCart(productDetails) {
         size: size,
         color: color, // The color can be 'N/A' but is now validated
         price: productDetails.price,
-        productType: productDetails.productType || productDetails.name,
+        productType: productDetails.collectionName,       
         imageUrl: selectedImageUrl, 
         quantity: productDetails.quantity || 1,
         variationIndex: variationIndex, // Now 1-based
@@ -1399,7 +1399,6 @@ async function fetchAndRenderPreorderCollections() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    updateCartBadge(); 
     fetchAndRenderWearsCollections(); 
     fetchAndRenderNewArrivals(); 
     fetchAndRenderCapsCollection();

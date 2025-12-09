@@ -887,21 +887,21 @@ document.addEventListener('DOMContentLoaded', () => {
 </head>
 <body class="bg-gray-50 text-color-black min-h-screen">
 
-    <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
-            <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
-                <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-10 sm:h-12 lg:h-10">
-            </a>
+   <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
+        <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
+            <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-10 sm:h-12 lg:h-10">
+        </a>
 
-            <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
-                <a href="homepage.html" class="font-medium text-color-black hover:text-gray-600 transition">Homepage</a>
-                <a href="preorder.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
-                <a href="newarrivals.html" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
-                <a href="wearscollection.html" class="font-medium text-ash-red transition flex items-center border-b-2 border-ash-red">Wears Collections</a>
-                <a href="capcollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Cap Collections</a>
-            </nav>
+        <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
+            <a href="homepage.html" class="font-medium text-color-black hover:text-gray-600 transition">Homepage</a>
+            <a href="preorder.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
+            <a href="newarrivals.html" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
+            <a href="wearscollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Wears Collections</a>
+            <a href="capcollection.html" class="font-medium text-ash-red transition flex items-center border-b-2 border-ash-red">Cap Collections</a>
+        </nav>
 
-          <div class="flex items-center space-x-2 sm:space-x-4">
+        <div class="flex items-center space-x-2 sm:space-x-4">
             <button id="profile-icon" 
             class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" 
             aria-label="User Account"
@@ -918,31 +918,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 <i class="fas fa-bars w-5 h-5 sm:w-6 sm:h-6"></i>
             </button>
         </div>
-    </header>
-    <div id="cart-alert" class="hidden fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 bg-green-500 text-white text-sm px-4 py-2 rounded-lg shadow-xl z-50 transition-all duration-500 opacity-0 -translate-y-10">
-        Item(s) added to cart!
     </div>
-    
-    <div id="mobile-menu" class="hidden md:hidden bg-color-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
-        <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
-            <a href="homepage.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Homepage</a>
-            <a href="preorder.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
-            <a href="newarrivals.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">New Arrivals</a>
-            <a href="wearscollection.html" class="block px-3 py-2 font-bold text-ash-red bg-gray-100 rounded-md">Wears Collection</a>
-            <a href="capcollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cap Collection</a>
-            
-            <button 
-                id="mobile-profile-login-button" 
-                class="w-full flex items-center px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md text-left"
-                aria-label="User Account or Login"
-                onclick="redirectToProfileOrLogin()">
-                <i class="fas fa-user w-4 h-4 mr-3"></i>
-                Account / Login
-            </button>
-            </div>
-    </div>
-    
-    <main class="py-10 sm:py-16">
+</header>
+<div id="cart-alert" class="hidden fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 bg-green-500 text-white text-sm px-4 py-2 rounded-lg shadow-xl z-50 transition-all duration-500 opacity-0 -translate-y-10">
+    Item(s) added to cart!
+</div>
+
+<div id="mobile-menu" class="hidden md:hidden bg-color-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
+    <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
+        <a href="homepage.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Homepage</a>
+        <a href="preorder.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
+        <a href="newarrivals.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">New Arrivals</a>
+        <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Wears Collection</a>
+        <a href="capcollection.html" class="block px-3 py-2 font-bold text-ash-red bg-gray-100 rounded-md">Cap Collection</a>
+        
+        <button 
+            id="mobile-profile-login-button" 
+            class="w-full flex items-center px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md text-left"
+            aria-label="User Account or Login"
+            onclick="redirectToProfileOrLogin()">
+            <i class="fas fa-user w-4 h-4 mr-3"></i>
+            Account / Login
+        </button>
+        </div>
+</div>
+
+<main class="py-10 sm:py-16">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h1 class="text-2xl sm:text-2xl font-extrabold text-color-black uppercase mb-2 text-center">
                 Caps Collections

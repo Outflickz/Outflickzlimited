@@ -540,10 +540,7 @@ async function simulateAddToCart(productDetails) {
         size: size,
         color: color, // The color can be 'N/A' but is now validated
         price: productDetails.price,
-        
-        // ✅ CRITICAL FIX: Use 'collectionName' passed from the card, which holds the accurate type.
-        productType: productDetails.collectionName, 
-        
+        productType: productDetails.collectionName || productDetails.productType || VALID_FALLBACK_TYPE,
         imageUrl: selectedImageUrl, 
         quantity: productDetails.quantity || 1,
         variationIndex: variationIndex, // Now 1-based

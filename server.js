@@ -2960,6 +2960,49 @@ app.put('/api/admin/orders/:orderId/status', verifyToken, async (req, res) => {
 });
 
 
+// GET /api/admin/capscollections - Fetch ALL Cap Collections (Admin List View)
+app.get('/api/admin/capscollections', verifyToken, async (req, res) => {
+    // Note: The admin view usually needs pagination, filtering, and sorting,
+    // but this example provides a basic, unsorted list.
+    try {
+        // Find all collections, sort by creation date (newest first), and use .lean()
+        const collections = await CapCollection.find({})
+            .sort({ createdAt: -1 })
+            .lean(); 
+
+        if (!collections || collections.length === 0) {
+            return res.status(200).json([]); // Return an empty array instead of 404 if no collections exist
+        }
+
+        // --- Prepare Collections for Response (Sign URLs) ---
+        
+        // This process iterates through every collection and every variation 
+        // to generate signed URLs for all images before sending the response.
+        const collectionsWithSignedUrls = await Promise.all(
+            collections.map(async (collection) => {
+                
+                const signedVariations = await Promise.all(
+                    collection.variations.map(async (v) => ({
+                        ...v,
+                        frontImageUrl: await generateSignedUrl(v.frontImageUrl) || v.frontImageUrl, 
+                        backImageUrl: await generateSignedUrl(v.backImageUrl) || v.backImageUrl 
+                    }))
+                );
+
+                return {
+                    ...collection, // Spread the rest of the collection data
+                    variations: signedVariations,
+                };
+            })
+        );
+
+        res.status(200).json(collectionsWithSignedUrls);
+    } catch (error) {
+        console.error('Error fetching all cap collections for admin:', error);
+        res.status(500).json({ message: 'Server error fetching cap collection list.' });
+    }
+});
+
 // GET /api/admin/capscollections/:id - Fetch Single Cap Collection
 app.get('/api/admin/capscollections/:id', verifyToken, async (req, res) => {
     try {

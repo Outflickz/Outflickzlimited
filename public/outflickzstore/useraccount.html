@@ -797,6 +797,8 @@ async function fetchAndSetPermanentCartState() {
     localStorage.setItem(CART_STORAGE_KEY, permanentItems.length.toString()); 
     updateCartBadge();
 }
+
+
 /**
  * Handles create account form submission and transitions to verification view.
  */
@@ -817,10 +819,8 @@ async function handleCreateAccount(event) {
     // --- UPDATED FIELD GATHERING FOR ADDRESS OBJECT ---
     const street = document.getElementById('create-street').value;
     const city = document.getElementById('create-city').value;
-    // The following are now selects
     const state = document.getElementById('create-state').value; 
     const country = document.getElementById('create-country').value;
-    // Zip is optional, gather it but do not require it
     const zip = document.getElementById('create-zip').value;
     // ----------------------------------------------------
 
@@ -858,13 +858,9 @@ async function handleCreateAccount(event) {
                 lastName: form.lastName.value,
                 email: email,
                 password: password,
-                // --- UPDATED PAYLOAD WITH NESTED ADDRESS OBJECT ---
                 phone: phone,
                 whatsapp: whatsapp,
-                address: addressData // Sending the structured object
-                // This matches the requested backend structure: 
-                // address.street: street, address.city: city, etc.
-                // ----------------------------------------------------
+                address: addressData 
             })
         });
 
@@ -874,23 +870,21 @@ async function handleCreateAccount(event) {
         if (contentType && contentType.includes('application/json')) {
             data = await response.json();
         } else if (!response.ok) {
-            // Throwing an error here prevents the "Unexpected end of JSON input" error on 404/500
             throw new Error(`Server Error (${response.status}): Netlify could not find the function or the server crashed.`);
         }
         // END ROBUST PARSING
 
 
-        // ⭐ CHECK 1: Successful/Accepted path (201 Created or 202 Accepted)
+        // ⭐ CHECK 1: SUCCESS/ACCEPTED PATH (HTTP 201 or 202)
         if (response.ok || response.status === 202) {
             
             pendingVerificationEmail = email;
             document.getElementById('verify-email-display').textContent = email;
 
-            // Use the message provided by the server, which explains the success/202 state
+            // Use the message provided by the server (which covers success and 202 cases)
             displayMessage(`Success! ${data.message || 'Check your email for the 6-digit verification code.'}`, 'success');
 
             form.reset();
-            // Re-enable state dropdown (which form.reset may have disabled/cleared)
             document.getElementById('create-state').disabled = true;
             document.getElementById('create-state').innerHTML = '<option value="" disabled selected>Select State</option>';
 
@@ -903,13 +897,14 @@ async function handleCreateAccount(event) {
         } else {
             // ERROR PATH (400, 409, 503, etc.)
 
-            // ⭐ CRITICAL FIX: CHECK 2: If the account exists (409 Conflict, 503 Service Unavailable) 
-            // AND the server provided a userId, force the transition to verification.
+            // ⭐ CRITICAL FIX: CHECK 2: ACCOUNT EXISTS BUT EMAIL FAILED (HTTP 409 or 503 + userId)
+            // If the account exists (409 Conflict, 503 Service Unavailable) AND the server 
+            // provided a userId, we must move the user to the verification screen.
             if ((response.status === 409 || response.status === 503) && data.userId) {
                 pendingVerificationEmail = email;
                 document.getElementById('verify-email-display').textContent = email;
 
-                // Use the server's message but display it as a less alarming 'warning' or 'info'
+                // Display the server's message as a less alarming 'warning' type.
                 displayMessage(data.message || `Account already registered or verification code re-send failed. Please check your email and proceed to verification.`, 'warning');
                 
                 form.reset();
@@ -918,7 +913,7 @@ async function handleCreateAccount(event) {
 
                 setTimeout(() => {
                     showView('verify');
-                    // Do not setResendCooldown here, rely on the user to click Resend if needed.
+                    // Do not setResendCooldown here, so the user can immediately click resend if needed.
                 }, 2000);
                 
             } else {

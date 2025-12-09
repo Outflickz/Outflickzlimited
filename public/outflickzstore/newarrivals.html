@@ -85,18 +85,33 @@ function toggleMenu() {
 }
 
 /**
- * Reads the current cart item count from Local Storage. (Keep this one)
- * @returns {number} The total number of items in the cart.
+ * Reads the current cart item count from Local Storage. (CORRECTED LOGIC)
+ * Synchronizes the simple count (CART_STORAGE_KEY) with the actual cart array (LOCAL_CART_KEY).
+ * @returns {number} The total number of distinct items in the cart (0 or more).
  */
 function getCartCount() {
-    // This function remains the same and relies on CART_STORAGE_KEY
-    const count = localStorage.getItem(CART_STORAGE_KEY);
-    return parseInt(count) || 0;
+    try {
+        // Check the actual cart array for the true count
+        const localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
+        const actualCount = localCart.length;
+
+        // Synchronize the simple count key (CART_STORAGE_KEY)
+        localStorage.setItem(CART_STORAGE_KEY, actualCount.toString()); 
+        
+        return actualCount;
+    } catch (e) {
+        console.error("Error reading local cart during initialization:", e);
+        localStorage.setItem(CART_STORAGE_KEY, '0');
+        // Optionally clear potentially corrupt data
+        // localStorage.removeItem(LOCAL_CART_KEY); 
+        return 0;
+    }
 }
 
 
 /**
  * Updates the Shopping Bag icon badge with the current cart count.
+ * Now uses the robust getCartCount.
  */
 function updateCartBadge() {
     const count = getCartCount();
@@ -111,6 +126,7 @@ function updateCartBadge() {
         }
     }
 }
+
 /**
  * Handles adding an item to the local cart for unauthenticated users.
  * NOTE: This function is now the robust version used in simulateAddToCart, 
@@ -282,8 +298,8 @@ async function simulateAddToCart(productDetails) {
             // 2c. Other API Errors (e.g., 400 Bad Request, 503 Service Unavailable)
             
             if (response.status >= 500) {
-                 console.log(`Server Error ${response.status} received. Falling back to local cart.`);
-                 handleLocalCartFallback(requiredDetails);
+                     console.log(`Server Error ${response.status} received. Falling back to local cart.`);
+                     handleLocalCartFallback(requiredDetails);
             }
 
             // Use the flashing alert for generic error (Red background)
@@ -720,8 +736,8 @@ function createCollectionCard(collection, size = 'default') {
             class="${controlTextSize} ${buyNowButtonClasses} ${controlHeight} rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center w-full md:flex-1">
             ${buyNowButtonText}
         </button>
-    `;
-
+    `; 
+    
     // Quantity control 
     const quantityControlHtml = isOutOfStock && !isPreorder
         ? `<div class="flex-shrink-0 ${controlHeight} border border-gray-300 rounded-sm flex items-center justify-center text-xs text-gray-500 w-20 mt-1 md:mt-0">N/A</div>`
@@ -844,9 +860,6 @@ async function fetchAndRenderAllNewArrivals() {
         let productsToRender = products && products.length > 0 ? products : [];
 
         if (productsToRender && productsToRender.length > 0) {
-            // Limit to the first 2 products for a more exclusive homepage view
-            // const limitedProducts = productsToRender.slice(0, 4); // Line is kept commented
-            
             // CORRECTION 1: Use productsToRender to show all items
             // CORRECTION 2: Use 'product' in the createCollectionCard call
             productsToRender.forEach(product => { 
@@ -872,7 +885,7 @@ async function fetchAndRenderAllNewArrivals() {
 
 document.addEventListener('DOMContentLoaded', () => {
     updateCartBadge(); // Initialize cart count
-   fetchAndRenderAllNewArrivals(); // Fetch and render the full collection
+    fetchAndRenderAllNewArrivals(); // Fetch and render the full collection
 });
 </script>
 
@@ -912,6 +925,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <button class="md:hidden p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
                 <i class="fas fa-bars w-5 h-5 sm:w-6 sm:h-6"></i>
             </button>
+          </div>
         </div>
     </header>
     <div id="cart-alert" class="hidden fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 bg-green-500 text-white text-sm px-4 py-2 rounded-lg shadow-xl z-50 transition-all duration-500 opacity-0 -translate-y-10">
@@ -1033,7 +1047,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         </div>
     </footer>
-     <a href="https://wa.me/2347042882706?text=HELLO!%20WELCOME%20TO%20OUTFLICKZ!%20HOW%20CAN%20WE%20HELP%20YOU" 
+       <a href="https://wa.me/2347042882706?text=HELLO!%20WELCOME%20TO%20OUTFLICKZ!%20HOW%20CAN%20WE%20HELP%20YOU" 
         target="_blank" 
         class="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-3 sm:p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105" 
         aria-label="Chat with us on WhatsApp">

@@ -558,114 +558,152 @@
     }
 
     /**
-     * Function to handle login form submission with real API call
-     */
-    async function handleLogin(event) {
-        event.preventDefault();
-        const email = document.getElementById('login-email').value;
-        const password = document.getElementById('login-password').value;
-        const loginBtn = document.getElementById('login-btn');
+ * Function to handle login form submission with real API call
+ */
+async function handleLogin(event) {
+    event.preventDefault();
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    const loginBtn = document.getElementById('login-btn');
 
-        // --- 🔑 CART MERGE LOGIC - STEP 1: READ LOCAL CART ---
-        let localCartItems = [];
-        try {
-            const localCartJson = localStorage.getItem('outflickzLocalCart');
-            if (localCartJson) {
-                localCartItems = JSON.parse(localCartJson);
-                // Ensure it's an array before sending
-                if (!Array.isArray(localCartItems)) {
-                    localCartItems = [];
-                }
+    // --- 🔑 CART MERGE LOGIC - STEP 1: READ LOCAL CART ---
+    let localCartItems = [];
+    try {
+        const localCartJson = localStorage.getItem('outflickzLocalCart');
+        if (localCartJson) {
+            localCartItems = JSON.parse(localCartJson);
+            // Ensure it's an array before sending
+            if (!Array.isArray(localCartItems)) {
+                localCartItems = [];
             }
-        } catch (e) {
-            console.warn('Could not parse local cart data from localStorage:', e);
-            localCartItems = [];
         }
-        // -----------------------------------------------------
-
-        // 1. Show loading state
-        loginBtn.textContent = 'Signing in...';
-        loginBtn.disabled = true;
-
-        try {
-            // 2. Perform the API call
-            const response = await fetch(LOGIN_ENDPOINT, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                // --- 🔑 CART MERGE LOGIC - STEP 2: INCLUDE IN PAYLOAD ---
-                body: JSON.stringify({
-                    email: email,
-                    password: password,
-                    localCartItems: localCartItems // Pass local cart to the backend
-                })
-                // -------------------------------------------------------
-            });
-
-            // 3. Robust JSON Parsing
-            let data = {};
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-                data = await response.json();
-            } else if (!response.ok) {
-                throw new Error(`Server Error (${response.status}): Could not reach login service.`);
-            }
-
-            // 4. Handle API Responses
-            if (response.ok) {
-                // SUCCESS (HTTP 200): Login successful
-                // Token is now set via HTTP-only cookie by the server response.
-
-                // ⭐ CRITICAL FIX: Save the JWT token received from the server in the response body
-                if (data.token) {
-                    localStorage.setItem(AUTH_TOKEN_KEY, data.token);
-                    console.log('JWT Token successfully stored for API access.');
-                }
-                
-                // --- 🔑 CART MERGE LOGIC - STEP 3: CLEAR LOCAL STORAGE ---
-                if (localCartItems.length > 0) {
-                    localStorage.removeItem('outflickzLocalCart');
-                    console.log('Local cart cleared upon successful merge.');
-                }
-                // ----------------------------------------------------------
-
-                displayMessage('Successfully signed in! Your cart was merged. Redirecting to homepage...', 'success');
-
-                setTimeout(() => {
-                    window.location.href = 'homepage.html'; // Actual redirect activated
-                }, 1000);
-
-            } else if (response.status === 403 && data.needsVerification) {
-                // FAILED (HTTP 403): Account needs verification
-                pendingVerificationEmail = email;
-                document.getElementById('verify-email-display').textContent = email;
-
-                displayMessage(data.message || 'Your account needs to be verified. Please enter the code sent to your email.', 'error');
-
-                setTimeout(() => {
-                    showView('verify');
-                    setResendCooldown(60);
-                }, 1000);
-
-            } else if (response.status === 401) {
-                // FAILED (HTTP 401): Invalid credentials
-                displayMessage(data.message || 'Sign In failed. Please check your email and password.', 'error');
-
-            } else {
-                // OTHER ERRORS (e.g., 500 Server Error)
-                const errorMessage = data.message || `API Error (${response.status}): An unexpected error occurred.`;
-                displayMessage(`Sign In Failed: ${errorMessage}`, 'error');
-            }
-
-        } catch (error) {
-            // 5. Handle Network/Parsing Errors
-            console.error('Login network or API call failed:', error);
-            displayMessage(`Connection Error: ${error.message || 'Could not connect to the login service.'}`, 'error');
-        } finally {
-            // 6. Reset button state
-            loginBtn.textContent = 'Sign In';
-            loginBtn.disabled = false;
-        }
+    } catch (e) {
+        console.warn('Could not parse local cart data from localStorage:', e);
+        localCartItems = [];
     }
+    // -----------------------------------------------------
+
+    // 1. Show loading state
+    loginBtn.textContent = 'Signing in...';
+    loginBtn.disabled = true;
+
+    try {
+        // 2. Perform the API call (Login & Merge Cart)
+        const response = await fetch(LOGIN_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            // --- 🔑 CART MERGE LOGIC - STEP 2: INCLUDE IN PAYLOAD ---
+            body: JSON.stringify({
+                email: email,
+                password: password,
+                localCartItems: localCartItems // Pass local cart to the backend
+            })
+            // -------------------------------------------------------
+        });
+
+        // 3. Robust JSON Parsing
+        let data = {};
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            data = await response.json();
+        } else if (!response.ok) {
+            throw new Error(`Server Error (${response.status}): Could not reach login service.`);
+        }
+
+        // 4. Handle API Responses
+        if (response.ok) {
+            // SUCCESS (HTTP 200): Login successful
+            // Token is now set via HTTP-only cookie by the server response.
+
+            // ⭐ CRITICAL FIX: Save the JWT token received from the server in the response body
+            if (data.token) {
+                localStorage.setItem(AUTH_TOKEN_KEY, data.token);
+                console.log('JWT Token successfully stored for API access.');
+            }
+            
+            // --- 🔑 CART MERGE LOGIC - STEP 3: CLEAR LOCAL STORAGE ---
+            if (localCartItems.length > 0) {
+                localStorage.removeItem('outflickzLocalCart');
+                console.log('Local cart cleared upon successful merge.');
+            }
+            // ----------------------------------------------------------
+            
+            // ⭐ CRITICAL FIX - STEP 4: FETCH PERMANENT CART BEFORE REDIRECTING
+            try {
+                // This function must call the new GET /api/user/cart endpoint
+                // and save the permanent cart items into the frontend's global state/cache.
+                await fetchAndSetPermanentCartState(); 
+                console.log('Permanent cart state updated successfully.');
+            } catch (cartError) {
+                // Log and continue, as successful login is more critical than the cart fetch
+                console.error('Failed to fetch permanent cart state after login:', cartError);
+            }
+            // -------------------------------------------------------------------
+
+            displayMessage('Successfully signed in! Your cart was merged. Redirecting to homepage...', 'success');
+
+            setTimeout(() => {
+                window.location.href = 'homepage.html'; // Actual redirect activated
+            }, 1000);
+
+        } else if (response.status === 403 && data.needsVerification) {
+            // FAILED (HTTP 403): Account needs verification
+            pendingVerificationEmail = email;
+            document.getElementById('verify-email-display').textContent = email;
+
+            displayMessage(data.message || 'Your account needs to be verified. Please enter the code sent to your email.', 'error');
+
+            setTimeout(() => {
+                showView('verify');
+                setResendCooldown(60);
+            }, 1000);
+
+        } else if (response.status === 401) {
+            // FAILED (HTTP 401): Invalid credentials
+            displayMessage(data.message || 'Sign In failed. Please check your email and password.', 'error');
+
+        } else {
+            // OTHER ERRORS (e.g., 500 Server Error)
+            const errorMessage = data.message || `API Error (${response.status}): An unexpected error occurred.`;
+            displayMessage(`Sign In Failed: ${errorMessage}`, 'error');
+        }
+
+    } catch (error) {
+        // 5. Handle Network/Parsing Errors
+        console.error('Login network or API call failed:', error);
+        displayMessage(`Connection Error: ${error.message || 'Could not connect to the login service.'}`, 'error');
+    } finally {
+        // 6. Reset button state
+        loginBtn.textContent = 'Sign In';
+        loginBtn.disabled = false;
+    }
+}
+
+// --- NEW REQUIRED FUNCTION (Placeholder) ---
+/**
+ * TODO: Implement this function. It must:
+ * 1. Call a protected GET /api/user/cart endpoint.
+ * 2. Receive the user's permanent cart items from the database.
+ * 3. Store these items in a global variable or cache (e.g., globalCartState) 
+ * that your homepage product components can read.
+ */
+async function fetchAndSetPermanentCartState() {
+    // Example conceptual implementation:
+    const token = localStorage.getItem(AUTH_TOKEN_KEY); 
+    if (!token) throw new Error('No token found after login.');
+
+    const response = await fetch('/api/user/cart', {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!response.ok) {
+        throw new Error('Could not retrieve permanent cart from server.');
+    }
+    const cartData = await response.json();
+    
+    // Assuming you have a global function/variable to store the cart data
+    // updateGlobalCartState(cartData.items); 
+}
 
     /**
      * Handles create account form submission and transitions to verification view.

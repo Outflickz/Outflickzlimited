@@ -925,20 +925,23 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
     </div>
     
-    <main class="py-10 sm:py-16">
+      <section id="wears-collections-section" class="py-10 sm:py-12 bg-color-white text-color-black border-t border-racing-grey white-section">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h1 class="text-3xl sm:text-4xl font-extrabold text-color-black uppercase mb-2 text-center">
-                Wears Collections
-            </h1>
-            <p class="text-sm sm:text-base font-medium text-gray-700 mb-10 text-center max-w-2xl mx-auto">
-                Discover our full range of exclusive apparel, from t-shirts and hoodies to custom jackets. Limited availability on all drops.
-            </p>
-
-            <div id="full-wears-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
+            <div class="flex justify-between items-start mb-6 sm:mb-8">
+                <div>
+                    <h2 class="text-ms sm:text-ms font-extrabold text-color-black uppercase mb-1">
+                        New In
+                    </h2>
+                    <p class="text-xs sm:text-xm font-medium text-gray-700">
+                        Explore our new collection
+                    </p>
+                </div>
+            </div>
+            <div id="full-wears-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
                 </div>
             
-        </div>
-    </main>
+            </div>
+    </section>
     <div id="image-modal" class="modal fixed inset-0 z-[100] bg-black bg-opacity-90 flex items-center justify-center opacity-0 pointer-events-none" onclick="closeModal()" role="dialog" aria-modal="true" aria-labelledby="modal-item-title">
 
         <div class="relative max-w-xs sm:max-w-4xl w-full mx-4 p-2 bg-white rounded-lg shadow-2xl" onclick="event.stopPropagation()">

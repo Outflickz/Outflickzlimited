@@ -1661,22 +1661,30 @@ function calculateLocalTotals(items) {
  * @param {Array<Object>} localItems - Items from the client's local storage.
  */
 async function mergeLocalCart(userId, localItems) {
-    // We assume productCollectionMap is defined globally or available here
+    // NOTE: This assumes Cart model, mongoose, and getProductModel are available in scope.
     
     try {
         let cart = await Cart.findOne({ userId });
         const mergedItems = [];
 
-        // Helper function to find the actual product type
+        // Helper function to find the actual product type via database lookup
         const findProductType = async (productId) => {
-            for (const type of Object.keys(productCollectionMap)) {
-                const CollectionModel = productCollectionMap[type];
-                const productExists = await CollectionModel.exists({ _id: productId });
-                if (productExists) {
-                    return type; // Return the correct, validated productType
+            // ⭐ FIX 1: Use the global map keys from the definition PRODUCT_MODEL_MAP
+            for (const type of Object.keys(PRODUCT_MODEL_MAP)) {
+                try {
+                    // Use the helper to get the Mongoose model
+                    const CollectionModel = getProductModel(type); 
+                    
+                    // Check if product exists in this collection
+                    const productExists = await CollectionModel.exists({ _id: productId });
+                    if (productExists) {
+                        return type; // Return the correct, validated productType string
+                    }
+                } catch (e) {
+                    // Ignore error if a model isn't properly defined and skip to next type
+                    continue; 
                 }
             }
-            // If the product ID is completely invalid, log an error and return null
             console.error(`Product ID ${productId} not found in any collection.`);
             return null; 
         };
@@ -1685,15 +1693,23 @@ async function mergeLocalCart(userId, localItems) {
         for (const localItem of localItems) {
             let actualProductType = localItem.productType;
 
-            // Check if productType is missing or invalid (if validation is needed here)
-            if (!actualProductType || !productCollectionMap[actualProductType]) {
-                // If missing/invalid, perform a database lookup
+            // Check if productType is missing or invalid 
+            // We use try/catch to ensure getProductModel doesn't crash the loop
+            if (!actualProductType) {
                 actualProductType = await findProductType(localItem.productId);
+            } else {
+                 try {
+                    // Check if the provided type is valid and maps to a model
+                    getProductModel(actualProductType);
+                 } catch(e) {
+                    // If the type is defined but invalid, look it up
+                    actualProductType = await findProductType(localItem.productId);
+                 }
             }
 
-            // CRITICAL: If type is still null, skip the item or throw an error
+            // CRITICAL: If type is still null, skip the corrupted item
             if (!actualProductType) {
-                // Skip the corrupted item instead of causing a downstream validation error
+                console.warn(`Skipping corrupted local cart item: ${localItem.productId}`);
                 continue; 
             }
 
@@ -1701,14 +1717,13 @@ async function mergeLocalCart(userId, localItems) {
             const itemData = {
                 productId: localItem.productId,
                 name: localItem.name,
-                // ⭐ NOW USES THE CORRECTED TYPE 
-                productType: actualProductType, 
+                productType: actualProductType, // ⭐ USES THE CORRECTED TYPE 
                 size: localItem.size,
                 color: localItem.color || 'N/A',
                 price: localItem.price,
                 quantity: localItem.quantity || 1,
                 imageUrl: localItem.imageUrl,
-                variationIndex: localItem.variationIndex, // Ensure this field is present!
+                variationIndex: localItem.variationIndex, 
                 variation: localItem.variation,
             };
 
@@ -1717,7 +1732,9 @@ async function mergeLocalCart(userId, localItems) {
                 const existingItemIndex = cart.items.findIndex(dbItem =>
                     dbItem.productId.equals(itemData.productId) &&
                     dbItem.size === itemData.size &&
-                    dbItem.color === itemData.color
+                    dbItem.color === itemData.color &&
+                    // ⭐ FIX 2: MUST INCLUDE variationIndex for unique merging
+                    dbItem.variationIndex === itemData.variationIndex 
                 );
                 
                 if (existingItemIndex > -1) {
@@ -1726,26 +1743,26 @@ async function mergeLocalCart(userId, localItems) {
                     cart.items.push(itemData);
                 }
             } else {
-                mergedItems.push(itemData); // Add to a temporary array for new cart creation
+                mergedItems.push(itemData); 
             }
         }
         
-        // --- Step B: Final Save/Create ---
+        // --- Step D: Final Save/Create ---
         if (!cart && mergedItems.length > 0) {
-            // Case 1: No cart existed, create a new one with the now-validated items
             await Cart.create({ userId, items: mergedItems });
         } else if (cart) {
-            // Case 2: Cart existed. Save the merged/updated cart.
             cart.updatedAt = Date.now();
             await cart.save();
         }
         
+        console.log(`Successfully merged local cart items for user ${userId}.`);
+        
     } catch (error) {
+        // You should still log the error, but this catch block is correctly placed.
         console.error('CRITICAL: Error during robust cart merge process:', error);
+        // Do NOT throw here, as it might cause the login route to crash entirely.
     }
-}  
-
-
+}
 /**
  * Takes a list of order documents and adds 'name' and 'imageUrl' to each item 
  * by fetching product details from all relevant collections.

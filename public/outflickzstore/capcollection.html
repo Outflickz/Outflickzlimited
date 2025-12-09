@@ -99,22 +99,27 @@ function getCartCount() {
  */
 function updateCartBadge() { 
     const badge = document.getElementById('cart-badge');
+    
+    // 1. Get the actual list of items
     const localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
+    
+    // 2. Calculate the total quantity of ALL items
     const totalItems = localCart.reduce((sum, item) => sum + item.quantity, 0);
     
-    // Check 1: If the cart array is empty, ensure both storage keys reflect zero.
+    // 3. CRITICAL: If the cart is empty (0 items), clean up storage.
     if (localCart.length === 0) {
         localStorage.removeItem(LOCAL_CART_KEY);
-        localStorage.removeItem(CART_STORAGE_KEY); // CRITICAL: Clear the legacy count
+        localStorage.removeItem(CART_STORAGE_KEY); // Clears the potential stale legacy count
     }
 
+    // 4. Update the UI
     if (totalItems > 0) {
         badge.textContent = totalItems;
         badge.classList.remove('hidden');
     } else {
+        // This is what hides the badge when the count is 0
         badge.classList.add('hidden');
-        // Ensure the visual element is hidden
-        badge.textContent = ''; 
+        badge.textContent = '0'; // Optional cleanup of text content
     }
 }
 

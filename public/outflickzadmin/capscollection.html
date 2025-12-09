@@ -504,8 +504,16 @@ function renderCollectionsTable(collections) {
         const statusClass = isActiveAndStocked ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
         const statusText = isActiveAndStocked ? 'Active' : 'Out of Stock / Inactive';
 
-        // FIXED: Use collection.mainImageUrl returned by the list endpoint
-        const imageUrl = collection.mainImageUrl || 'https://via.placeholder.com/64?text=N/A';
+        // --- FIX A: Extract Variation Count ---
+        const variationCount = collection.variations ? collection.variations.length : 0;
+        
+        // --- FIX B: Extract Image URL from the first variation ---
+        const firstVariation = collection.variations && collection.variations.length > 0
+            ? collection.variations[0]
+            : null;
+            
+        // The frontImageUrl from the server is already the signed URL
+        const imageUrl = firstVariation?.frontImageUrl || 'https://via.placeholder.com/64?text=N/A';
         const imagePreview = `<img src="${imageUrl}" alt="Preview" class="w-10 h-10 object-cover rounded-full inline mr-2 shadow-sm">`;
         
         const formattedPrice = `₦${(collection.price || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
@@ -525,7 +533,7 @@ function renderCollectionsTable(collections) {
                 <td class="px-6 py-4 whitespace-nowrap">
                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${tagClass}">${collection.tag}</span>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${collection.variationCount}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${variationCount}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${collection.totalStock}</td>
                 <td class="px-6 py-4 whitespace-nowrap">
                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">

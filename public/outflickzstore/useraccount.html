@@ -420,7 +420,7 @@
     </div>
     
 <script>
-    // *** 1. CONFIGURATION ***
+ // *** 1. CONFIGURATION ***
     const API_BASE_URL = 'https://outflickz.netlify.app/api';
     const REGISTER_ENDPOINT = `${API_BASE_URL}/users/register`;
     const VERIFY_ENDPOINT = `${API_BASE_URL}/users/verify`;
@@ -437,6 +437,18 @@
     let headerElement;
     let messageArea;
     let container;
+
+    // <<< BLOCK START: E-COMMERCE PLACEHOLDERS >>>
+    // Placeholder for a global cart state variable
+    let globalCartItems = []; 
+    // Placeholder for the storage key (used in handleLogin and fetchAndSetPermanentCartState)
+    const CART_STORAGE_KEY = 'outflickzCartItemCount'; 
+    // Placeholder for the function that updates the visual cart icon/badge
+    function updateCartBadge() {
+        console.log(`Cart badge updated to reflect ${globalCartItems.length} items.`);
+        // Implementation: document.getElementById('cart-badge').textContent = globalCartItems.length.toString();
+    }
+    // <<< BLOCK END: E-COMMERCE PLACEHOLDERS >>>
 
     // --- NEW: STATE/PROVINCE DATA FOR DROPDOWN ---
     const stateOptions = {
@@ -633,9 +645,10 @@
         messageArea.classList.remove('hidden');
     }
 
-    /**
- * Function to handle login form submission with real API call
- */
+    // <<< BLOCK START: handleLogin Function >>>
+/**
+* Function to handle login form submission with real API call
+*/
 async function handleLogin(event) {
     event.preventDefault();
     const email = document.getElementById('login-email').value;
@@ -754,49 +767,72 @@ async function handleLogin(event) {
         loginBtn.disabled = false;
     }
 }
+    // <<< BLOCK END: handleLogin Function >>>
 
+
+    // <<< BLOCK START: fetchAndSetPermanentCartState Function >>>
 async function fetchAndSetPermanentCartState() {
     // 1. Prepare the fetch request
-    // We rely on the HTTP-only cookie set by the server, so an Authorization header is optional
-    // but the 'credentials' option is CRITICAL for cross-origin requests.
-    const response = await fetch('/api/user/cart', {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        // ✅ CRITICAL: Include the HTTP-only cookie in the request
-        credentials: 'include' 
-    });
-
-    // 2. Handle non-OK response (401, 403, 500)
-    if (!response.ok) {
-        // Log the failure but don't crash the application
-        console.error(`Failed to retrieve permanent cart. Status: ${response.status}`);
-        // Ensure the frontend cart state is cleared/empty if fetching the permanent cart fails
-        globalCartItems = [];
+    // We rely on the JWT token in local storage for the Authorization header
+    const token = localStorage.getItem(AUTH_TOKEN_KEY);
+    if (!token) {
+        console.warn('No JWT token found for cart fetch. Assuming unauthenticated.');
+        // Clear global state if no token exists, but don't throw an error if this is
+        // called from a non-login flow.
+        window.globalCartItems = [];
         localStorage.setItem(CART_STORAGE_KEY, '0');
         updateCartBadge();
-        
-        throw new Error('Could not retrieve permanent cart from server.');
+        throw new Error('User not authenticated for cart retrieval.');
     }
     
-    // 3. Process the successful response (HTTP 200)
-    const cartData = await response.json();
-    
-    // Ensure the data structure is an array of items (or an empty array)
-    const permanentItems = cartData.items && Array.isArray(cartData.items) 
-                           ? cartData.items 
-                           : [];
+    try {
+        const response = await fetch(`${API_BASE_URL}/user/cart`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                // CRITICAL: Use the JWT token for API authorization
+                'Authorization': `Bearer ${token}` 
+            }
+            // NOTE: The 'credentials: include' for HTTP-only cookie is NOT needed 
+            // if authorization relies solely on the Authorization header with a JWT.
+            // If the backend requires both, add: credentials: 'include' 
+        });
 
-    // 4. Store the items in the global state/cache
-    // Assuming 'globalCartItems' is the variable read by your product page buttons and cart view
-    window.globalCartItems = permanentItems; 
-    console.log(`Permanent cart loaded with ${permanentItems.length} unique items.`);
-    
-    // 5. Update the local storage item count and UI badge
-    localStorage.setItem(CART_STORAGE_KEY, permanentItems.length.toString()); 
-    updateCartBadge();
+        // 2. Handle non-OK response (401, 403, 500)
+        if (!response.ok) {
+            console.error(`Failed to retrieve permanent cart. Status: ${response.status}`);
+            // On failure, ensure the frontend cart state is cleared/empty 
+            window.globalCartItems = [];
+            localStorage.setItem(CART_STORAGE_KEY, '0');
+            updateCartBadge();
+            
+            throw new Error('Could not retrieve permanent cart from server.');
+        }
+        
+        // 3. Process the successful response (HTTP 200)
+        const cartData = await response.json();
+        
+        // Ensure the data structure is an array of items (or an empty array)
+        const permanentItems = cartData.items && Array.isArray(cartData.items) 
+                                ? cartData.items 
+                                : [];
+
+        // 4. Store the items in the global state/cache
+        window.globalCartItems = permanentItems; 
+        console.log(`Permanent cart loaded with ${permanentItems.length} unique items.`);
+        
+        // 5. Update the local storage item count and UI badge
+        localStorage.setItem(CART_STORAGE_KEY, permanentItems.length.toString()); 
+        updateCartBadge();
+
+    } catch (error) {
+        console.error('Error during permanent cart fetch:', error);
+        // Rethrow the error to be caught in the login flow if needed
+        throw error; 
+    }
 }
+    // <<< BLOCK END: fetchAndSetPermanentCartState Function >>>
+
 
     /**
      * Handles create account form submission and transitions to verification view.
@@ -915,9 +951,10 @@ async function fetchAndSetPermanentCartState() {
         }
     }
 
-   /**
- * Handles account verification code submission.
- */
+    // <<< BLOCK START: handleVerification Function >>>
+/**
+* Handles account verification code submission.
+*/
 async function handleVerification(event) {
     event.preventDefault();
     // Trim whitespace from the code input immediately
@@ -1018,6 +1055,7 @@ async function handleVerification(event) {
         verifyBtn.disabled = false;
     }
 }
+    // <<< BLOCK END: handleVerification Function >>>
 
     /**
      * Starts a cooldown timer for the Resend Code button.
@@ -1108,6 +1146,7 @@ async function handleVerification(event) {
     // ⭐ NEW FUNCTION: HANDLE LOGOUT
     // ------------------------------------------------------------------
 
+    // <<< BLOCK START: handleLogout Function >>>
     /**
      * Handles user logout by calling the backend to clear the HTTP-only cookie.
      * This is CRITICAL for the secure cookie flow.
@@ -1116,20 +1155,22 @@ async function handleVerification(event) {
         displayMessage('Logging out...', 'info');
 
         try {
-            // The cookie is automatically sent with this request.
-            // The backend should respond by clearing/expiring the cookie.
+            // The JWT token is read from local storage and included in API calls where needed.
+            // This POST request is primarily to tell the server to invalidate the session/cookie.
             const response = await fetch(LOGOUT_ENDPOINT, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
+                // No token needed in header here, as it's assumed the server handles the cookie
             });
 
-            // No need to check response.ok strictly, as we assume the server clears the cookie
-            // (even on error, we proceed with client-side cleanup).
-
-            // 1. Clear any local state that might indicate a logged-in user
+            // 1. Clear all client-side authentication/session state
             localStorage.removeItem('outflickzLocalCart'); 
             // ⭐ CRITICAL FIX: Remove the JWT token from local storage (the token used for API calls)
             localStorage.removeItem(AUTH_TOKEN_KEY); 
+            // Also clear the permanent cart state/count
+            localStorage.removeItem(CART_STORAGE_KEY);
+            window.globalCartItems = [];
+            updateCartBadge();
             
             // 2. Display success message and redirect
             displayMessage('You have been successfully signed out.', 'success');
@@ -1143,8 +1184,11 @@ async function handleVerification(event) {
             // Even if the network call fails, attempt to redirect the user for consistency
             displayMessage('Logout failed, but clearing local state. Redirecting...', 'error');
             
-            // Still clear local tokens on network failure for safety
+            // Still clear local tokens/state on network failure for safety
             localStorage.removeItem(AUTH_TOKEN_KEY); 
+            localStorage.removeItem(CART_STORAGE_KEY);
+            window.globalCartItems = [];
+            updateCartBadge();
             
             setTimeout(() => {
                 window.location.href = 'index.html'; 

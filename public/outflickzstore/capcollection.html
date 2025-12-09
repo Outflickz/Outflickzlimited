@@ -735,13 +735,13 @@ function createCollectionCard(collection, size = 'default') {
         ? `<div class="flex-shrink-0 ${controlHeight} border border-gray-300 rounded-sm flex items-center justify-center text-xs text-gray-500 w-20 mt-1 md:mt-0">N/A</div>`
         : `
             <div class="flex items-center border border-gray-300 rounded-sm flex-shrink-0 mt-1 md:mt-0">
-                <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-l-sm font-semibold flex-shrink-0">
-                    &minus;
-                </button>
+               <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center rounded-l-sm font-semibold flex-shrink-0 w-8 h-7">
+    &minus;
+</button>
                 <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock || 999}" aria-label="Quantity" class="${quantityInputWidth} ${controlHeight} text-center ${quantityInputTextSize} border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
-                <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-r-sm font-semibold flex-shrink-0">
-                    &plus;
-                </button>
+              <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center rounded-r-sm font-semibold flex-shrink-0 w-8 h-7">
+    &plus;
+</button>
             </div>
         `;
 

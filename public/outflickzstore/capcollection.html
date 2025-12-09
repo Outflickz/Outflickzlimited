@@ -603,8 +603,8 @@ function createCollectionCard(collection, size = 'default') {
     const isWears = size === 'wears'; 
     const isPreorder = size === 'preorder'; 
 
-    // Card Padding
-    const cardPadding = isReduced ? 'p-1 sm:p-2' : 'p-2 sm:p-3';
+    // Card Padding - Adjusted default padding from sm:p-3 to sm:p-2 for a slightly narrower look
+    const cardPadding = isReduced ? 'p-1 sm:p-2' : 'p-2 sm:p-2';
     const nameFontSize = isReduced ? 'text-xs sm:text-sm' : 'text-sm sm:text-base';
     const descriptionFontSize = isReduced ? 'text-[0.6rem] sm:text-xs' : 'text-xs sm:text-sm';
     const priceFontSize = isReduced ? 'text-xs font-bold sm:text-sm' : 'text-base font-semibold';
@@ -791,8 +791,8 @@ function createCollectionCard(collection, size = 'default') {
                         ${colorListHtml}
                     </div>
                 </div>
-                            
-                <div class="flex flex-col md:flex-row items-start md:items-center justify-between w-full mt-2 gap-2">
+                
+                <div class="flex flex-col md:flex-row items-start md:items-center justify-between w-full mt-2 gap-1"> 
                     ${sizeListHtml} 
                     ${quantityControlHtml}
                 </div>
@@ -939,15 +939,13 @@ document.addEventListener('DOMContentLoaded', () => {
     <main class="py-10 sm:py-16">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h1 class="text-3xl sm:text-4xl font-extrabold text-color-black uppercase mb-2 text-center">
-                Wears Collections
+                Caps Collections
             </h1>
             <p class="text-sm sm:text-base font-medium text-gray-700 mb-10 text-center max-w-2xl mx-auto">
-                Discover our full range of exclusive apparel, from t-shirts and hoodies to custom jackets. Limited availability on all drops.
+                Find the perfect cap to top off your outfit. Our curated selection of caps combines style and comfort for every occasion.
             </p>
 
-            <div id="full-caps-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
-                </div>
-            
+        <div id="full-caps-collections-grid" class="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4"></div>
         </div>
     </main>
     <div id="image-modal" class="modal fixed inset-0 z-[100] bg-black bg-opacity-90 flex items-center justify-center opacity-0 pointer-events-none" onclick="closeModal()" role="dialog" aria-modal="true" aria-labelledby="modal-item-title">

@@ -4780,15 +4780,29 @@ app.post('/api/users/register', async (req, res) => {
             // Handle duplicate key error (email already exists)
             const existingUser = await User.findOne({ email });
             
+            // 🛑 CRITICAL FIX: Add a guard for null existingUser immediately after findOne
+            if (!existingUser) {
+                // If the user isn't found immediately after the 11000 error, assume 
+                // it was due to the ongoing primary registration and safely suppress the second request.
+                console.error(`[DUPLICATE ERROR PATH] User ${email} not found after 11000 error. Assuming primary registration is completing. Suppressing.`);
+                // Return a non-error status (202 Accepted) to the client, indicating the registration is still proceeding.
+                return res.status(202).json({ 
+                    message: 'Registration is already in process. Check your inbox for the code that was just sent.',
+                    userId: null, 
+                    needsVerification: true
+                });
+            }
+
             // ⭐ DEFINITIVE RACE CONDITION FIX: Use a very tight window (10 seconds)
             const GRACE_PERIOD_MS = 10 * 1000; 
             const gracePeriodLimit = new Date(Date.now() - GRACE_PERIOD_MS); 
 
             // Check if the existing user is NOT verified
-            if (existingUser && existingUser.status && !existingUser.status.isVerified) { 
+            if (existingUser.status && !existingUser.status.isVerified) { 
                 
-                // 🛑 CRITICAL CHECK: If the user was created very recently (within 10 seconds), 
-                // assume the first parallel request has already sent the code and updated the DB.
+                // 🛑 CRITICAL CHECK 1: RACE CONDITION BLOCK
+                // If the user was created very recently (within 10 seconds), 
+                // assume the first parallel request has already sent the code.
                 if (existingUser.createdAt > gracePeriodLimit) {
                      // 🟠 TRACE LOG 3: The request was caught by the 10-second grace period. This request WILL NOT re-send the code.
                      console.log(`[DUPLICATE ERROR PATH] User ${email} created at ${existingUser.createdAt.toISOString()}. Suppressing re-send due to 10s grace period.`);
@@ -4800,8 +4814,8 @@ app.post('/api/users/register', async (req, res) => {
                 }
 
 
-                // 🛑 CHECK 2: If the user was created before the 10-second window, 
-                // this is a legitimate *re-registration* attempt for an old unverified account.
+                // 🛑 CHECK 2: LEGITIMATE RE-REGISTRATION ATTEMPT (Old Unverified Account)
+                // If the user was created before the 10-second window, proceed to re-send the code.
                 try {
                     // 🔴 TRACE LOG 4: The request passed the 10-second check and IS proceeding to re-send the code.
                     console.log(`[DUPLICATE ERROR PATH] User ${email} created at ${existingUser.createdAt.toISOString()}. OUTSIDE 10s grace. Re-generating and re-sending code.`);

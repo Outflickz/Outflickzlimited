@@ -578,20 +578,14 @@ const adminSchema = new mongoose.Schema({
 const Admin = mongoose.models.Admin || mongoose.model('Admin', adminSchema);
 
 const userSchema = new mongoose.Schema({
-    email: { 
-        type: String, 
-        required: [true, 'Email is required'], 
-        unique: true, 
-        trim: true, 
-        lowercase: true 
-    },
-    password: { 
-        type: String, 
-        required: [true, 'Password is required'], 
-        select: false // Never return password hash by default
-    },
+    email: { type: String, required: [true, 'Email is required'], unique: true, trim: true, lowercase: true },
+    password: { type: String, required: [true, 'Password is required'], select: false },
     
-    // --- PROFILE AND CONTACT INFORMATION ---
+    // --- 🔑 VERIFICATION FIELDS ---
+    verificationCode: { type: String, select: false },
+    verificationCodeExpires: { type: Date, select: false },
+    // -----------------------------
+    
     profile: {
         firstName: { type: String, trim: true },
         lastName: { type: String, trim: true },
@@ -599,19 +593,6 @@ const userSchema = new mongoose.Schema({
         whatsapp: { type: String, trim: true }
     },
     
-    // --- ADDRESS INFORMATION (Nested Schema) ---
-    address: {
-        type: new mongoose.Schema({
-            street: { type: String, required: [true, 'Street is required'], trim: true },
-            city: { type: String, required: [true, 'City is required'], trim: true },
-            state: { type: String, trim: true },
-            zip: { type: String, trim: false },
-            country: { type: String, required: [true, 'Country is required'], trim: true }
-        }),
-        required: [true, 'Address information is required']
-    },
-
-    // --- FILE/AVATAR STORAGE FIELDS ---
     permanentFileKey: { 
         type: String, 
         default: null 
@@ -625,40 +606,36 @@ const userSchema = new mongoose.Schema({
         default: null 
     },
 
-    // --- ACCOUNT STATUS (CRITICAL LOGIC) ---
+    address: {
+        type: new mongoose.Schema({
+            street: { type: String, required: [true, 'Street is required'], trim: true },
+            city: { type: String, required: [true, 'City is required'], trim: true },
+            state: { type: String, trim: true },
+            zip: { type: String, trim: false },
+            country: { type: String, required: [true, 'Country is required'], trim: true }
+        }),
+        required: [true, 'Address information is required']
+    },
+
     status: {
         role: { type: String, default: 'user', enum: ['user', 'vip'] },
         isVerified: { type: Boolean, default: false },
-        isActivated: { type: Boolean, default: true }, // Recommended: For admin-level soft-deactivation
-        
-        // ⭐ MOVED VERIFICATION FIELDS INTO STATUS OBJECT for consistency
-        verificationCode: { type: String, select: false },
-        verificationCodeExpires: { type: Date, select: false },
     },
-    
-    // --- MEMBERSHIP INFORMATION (Retained as requested) ---
     membership: {
-        memberSince: { type: Date, default: Date.now }
+        memberSince: { type: Date, default: Date.now },
+        lastUpdated: { type: Date, default: Date.now }
     }
-}, { 
-    // ⭐ IMPORTANT: Enable Mongoose built-in timestamps
-    // This adds 'createdAt' and 'updatedAt' fields automatically.
-    timestamps: true 
-});
+}, { timestamps: false });
 
-// --- SCHEMA HOOKS (PRE-SAVE) ---
+// Pre-save hook to update lastUpdated and hash password
 userSchema.pre('save', async function(next) {
-    // 1. Hash password only if it has been modified
     if (this.isModified('password')) {
         const salt = await bcrypt.genSalt(BCRYPT_SALT_ROUNDS);
         this.password = await bcrypt.hash(this.password, salt);
     }
-    // ⭐ ACTION: The manual update for lastUpdated is removed because timestamps: true handles it.
-    
+    this.membership.lastUpdated = Date.now();
     next();
 });
-
-userSchema.index({ 'status.isVerified': 1 }); // Optimize login/verification lookups
 
 const User = mongoose.models.User || mongoose.model('User', userSchema);
 

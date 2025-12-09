@@ -915,97 +915,91 @@ async function fetchAndSetPermanentCartState() {
         }
     }
 
-  /**
- * Handles account verification code submission.
- */
-async function handleVerification(event) {
-    event.preventDefault();
-    // Trim whitespace from the code input immediately
-    const code = document.getElementById('verify-code').value.trim();
-    const verifyBtn = document.getElementById('verify-btn');
-    const email = pendingVerificationEmail;
+   /**
+   * Handles account verification code submission.
+   */
+    async function handleVerification(event) {
+        event.preventDefault();
+        // Trim whitespace from the code input immediately
+        const code = document.getElementById('verify-code').value.trim(); 
+        const verifyBtn = document.getElementById('verify-btn');
+        const email = pendingVerificationEmail;
 
-    // --- Pre-flight Checks ---
-    if (!email) {
-        displayMessage('Error: No pending email found. Please create an account.', 'error');
-        showView('create');
-        return;
-    }
-
-    // Client-side validation: Check if code is present and has expected length
-    if (!code || code.length !== 6) {
-        displayMessage('Please enter a valid 6-digit verification code.', 'error');
-        return;
-    }
-
-    // --- Set Loading State ---
-    verifyBtn.textContent = 'Verifying...';
-    verifyBtn.disabled = true;
-
-    // A flag to track if we need to reset the button state
-    let shouldResetButton = true; 
-
-    try {
-        const response = await fetch(VERIFY_ENDPOINT, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: email, code: code })
-        });
-
-        // ROBUST JSON PARSING
-        let data = {};
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-            data = await response.json();
-        } else if (!response.ok) {
-            // This handles non-JSON, non-2xx responses (e.g., Netlify 404, 500 HTML error)
-            throw new Error(`Server Error (${response.status}): Could not process verification request.`);
+        if (!email) {
+            displayMessage('Error: No pending email found. Please create an account.', 'error');
+            showView('create');
+            return;
         }
-        // END ROBUST PARSING
 
-        if (response.ok) {
-            // SUCCESS PATH (HTTP 200)
-            displayMessage('Account verified successfully! You can now sign in.', 'success');
-            
-            // ⭐ CRITICAL: Prevent user interaction and flag that button reset is NOT needed
-            document.getElementById('verify-code').disabled = true;
-            verifyBtn.textContent = 'Verified!';
-            shouldResetButton = false; // Prevents the 'finally' block from resetting the button on success
+        // ⭐ CLIENT-SIDE VALIDATION: Check if code is present and has expected length
+        if (!code || code.length !== 6) { 
+            displayMessage('Please enter a valid 6-digit verification code.', 'error');
+            return; // Stop execution here if validation fails
+        }
+        // ⭐ END VALIDATION
 
-            pendingVerificationEmail = '';
-            document.getElementById('verify-code').value = '';
+        verifyBtn.textContent = 'Verifying...';
+        verifyBtn.disabled = true;
 
-            setTimeout(() => {
-                showView('login');
-                document.getElementById('login-email').value = email; // Pre-fill email
+        try {
+            const response = await fetch(VERIFY_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email, code: code })
+            });
+
+            // ROBUST JSON PARSING
+            let data = {};
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                data = await response.json();
+            } else if (!response.ok) {
+                throw new Error(`Server Error (${response.status}): Netlify could not find the function or the server crashed.`);
+            }
+            // END ROBUST PARSING
+
+
+            if (response.ok) {
+                displayMessage('Account verified successfully! You can now sign in.', 'success');
                 
-                // Re-enable input for future use after the view switch
-                document.getElementById('verify-code').disabled = false;
-            }, 2000);
+                // ⭐ FIX: Immediately disable the button and input on success
+                // This prevents the user from clicking again and triggering the 400 'already verified' error.
+                document.getElementById('verify-code').disabled = true;
+                verifyBtn.textContent = 'Verified!';
+
+                pendingVerificationEmail = '';
+                document.getElementById('verify-code').value = '';
+
+                setTimeout(() => {
+                    showView('login');
+                    document.getElementById('login-email').value = email; // Pre-fill email
+                    
+                    // Re-enable input for future use after the view switch
+                    document.getElementById('verify-code').disabled = false;
+                }, 2000);
+                
+                // We return here to skip any failure/error logic below
+                return;
+
+            } else {
+                const errorMessage = data.message || `Verification API Error (${response.status}).`;
+                displayMessage(`Verification Failed: ${errorMessage}`, 'error');
+                
+                // On failure, we re-enable the button so the user can try again
+                verifyBtn.textContent = 'Verify Account';
+                verifyBtn.disabled = false;
+            }
+
+        } catch (error) {
+            console.error('Verification network failed:', error);
+            displayMessage(`Connection Error: ${error.message || 'Could not connect to the verification service.'}`, 'error');
             
-            return; // CRITICAL: Exit the function to prevent running any error/reset logic
-
-        } else {
-            // API ERROR PATH (e.g., 400, 401: Invalid code, expired code, already verified)
-            const errorMessage = data.message || `Verification API Error (${response.status}).`;
-            displayMessage(`Verification Failed: ${errorMessage}`, 'error');
-            // The button reset will be handled in the finally block
-        }
-
-    } catch (error) {
-        // NETWORK/FATAL ERROR PATH (e.g., connection refused, non-JSON server crash)
-        console.error('Verification network failed:', error);
-        displayMessage(`Connection Error: ${error.message || 'Could not connect to the verification service.'}`, 'error');
-        // The button reset will be handled in the finally block
-        
-    } finally {
-        // Reset the button only if we didn't successfully verify and return
-        if (shouldResetButton) {
+            // Ensure reset on network/fatal error
             verifyBtn.textContent = 'Verify Account';
             verifyBtn.disabled = false;
         }
     }
-}
+
     /**
      * Starts a cooldown timer for the Resend Code button.
      */

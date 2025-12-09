@@ -2090,8 +2090,6 @@ app.use(session({
     }
 }));
 
-
-
 app.use(visitorLogger);
 
 app.use(express.static(path.join(__dirname, 'public')));

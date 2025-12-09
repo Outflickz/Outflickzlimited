@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>New Arrivals - Outflickz</title>
+    <title>Wears Collection - Outflickz</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -41,26 +41,32 @@
     </style>
 
 <script>
-   // --- GLOBAL API CONFIG ---
-const API_BASE_URL = 'https://outflickz.netlify.app';
-const LOCAL_CART_KEY = 'outflickzCart';
-const CART_STORAGE_KEY = 'outflickzCartItemCount'; 
+    // --- GLOBAL API CONFIG ---
+    const API_BASE_URL = 'https://outflickz.netlify.app';
+
+    // --- CRITICAL FIX: GLOBAL STORAGE KEYS DEFINITION ---
+    // These keys are required by the handleLocalCartFallback logic.
+    const LOCAL_CART_KEY = 'outflickzCart';
+    const CART_STORAGE_KEY = 'outflickzCartItemCount'; 
+    // --- END GLOBAL STORAGE KEYS ---
 
 
 /**
- * Checks the user's authentication status via the API (/api/auth/status)
+ * Checks the user's authentication status via the API (/api/auth/status) 
  * and relies on the HTTP-only cookie for proof of session.
  */
 async function redirectToProfileOrLogin() {
     try {
         // Fetch status - the browser automatically sends the secure HTTP-only cookie.
         const response = await fetch('/api/auth/status', {
-            method: 'GET'
+            method: 'GET',
+            // CRITICAL: Ensure credentials are included for the cookie
+            credentials: 'include' 
         });
 
         if (response.status === 200) {
             // Server confirms user is authenticated (Cookie is valid)
-            window.location.href = 'userprofile.html';
+            window.location.href = 'userprofile.html'; 
         } else {
             // Server returned 401/403 (Cookie is missing or expired)
             window.location.href = 'useraccount.html';
@@ -71,10 +77,9 @@ async function redirectToProfileOrLogin() {
         console.error('Authentication status check failed:', error);
         window.location.href = 'useraccount.html';
     }
-}
+}    
 
-
-function toggleMenu() {
+function toggleMenu() { 
     const menu = document.getElementById('mobile-menu');
     menu.classList.toggle('hidden');
 }
@@ -91,31 +96,31 @@ function getCartCount() {
 
 
 /**
- * Updates the visual cart badge (assumes 'cart-badge' ID exists in HTML).
- * The badge text is set to the total quantity across all cart items.
+ * Updates the cart badge count based on the local cart.
  */
-function updateCartBadge() {
+function updateCartBadge() { 
     const badge = document.getElementById('cart-badge');
-    if (!badge) return;
-
-    // Calculate total quantity of items
-    const localCart = getCartItems();
-    const totalQuantity = localCart.reduce((sum, item) => sum + (item.quantity || 1), 0);
-
-    if (totalQuantity > 0) {
-        badge.textContent = totalQuantity.toString();
+    // Use the now-defined LOCAL_CART_KEY
+    const localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
+    const totalItems = localCart.reduce((sum, item) => sum + item.quantity, 0);
+    
+    if (totalItems > 0) {
+        badge.textContent = totalItems;
         badge.classList.remove('hidden');
     } else {
         badge.classList.add('hidden');
     }
 }
 
-// --- Local Cart Fallback Helper (Used by simulateAddToCart) ---
-
+/**
+ * Handles adding an item to the local cart for unauthenticated users.
+ * NOTE: This function is now the robust version used in simulateAddToCart, 
+ * accepting a full details object including variationIndex.
+ */
 const handleLocalCartFallback = (details) => {
-    let localCart = getCartItems();
+    let localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
     
-    // 🚀 CRITICAL FIX: Include variationIndex in the findIndex check for local cart
+    // 🚀 CRITICAL FIX: Check all variant identifiers for existing item
     const existingItemIndex = localCart.findIndex(item => 
         item.productId === details.productId && 
         item.size === details.size &&
@@ -126,12 +131,11 @@ const handleLocalCartFallback = (details) => {
     if (existingItemIndex > -1) {
         localCart[existingItemIndex].quantity += details.quantity;
     } else {
-        localCart.push(details);
+        localCart.push({ ...details, id: Date.now() }); // Use a temp local ID
     }
 
     localStorage.setItem(LOCAL_CART_KEY, JSON.stringify(localCart));
-    
-    // Update the counter key to reflect the *number of unique items/variants*
+    // NOTE: This now stores the count of distinct items, matching the legacy code.
     localStorage.setItem(CART_STORAGE_KEY, localCart.length.toString()); 
     updateCartBadge();
     
@@ -139,37 +143,29 @@ const handleLocalCartFallback = (details) => {
     const alertMessage = document.getElementById('cart-alert');
     if (alertMessage) {
         alertMessage.textContent = `"${details.name}" added to your bag! (Sign in to save permanently)`;
-        // NOTE: Ensure your HTML has this alert div styled correctly and hidden initially
-        alertMessage.className = 'fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 p-3 rounded shadow-xl transition-all duration-300 ease-in-out bg-blue-500 text-white opacity-100 translate-y-0';
-        
+        alertMessage.className = 'absolute top-0 right-0 p-3 m-3 rounded shadow-lg transition-all duration-300 ease-in-out bg-blue-500 text-white opacity-100 translate-y-0';
         setTimeout(() => {
-            alertMessage.classList.add('opacity-0', 'translate-y-10');
-            // Remove color/positioning after transition for clean reset
-            setTimeout(() => {
-                alertMessage.classList.remove('bg-blue-500', 'translate-y-10');
-                alertMessage.classList.add('hidden');
-            }, 300); 
+            alertMessage.classList.add('opacity-0', '-translate-y-10');
+            // Clean up color after transition ends
+            setTimeout(() => alertMessage.classList.remove('bg-blue-500'), 300); 
         }, 3000);
     }
 };
 
-
 /**
  * Handles adding an item to the cart. 
- * Tries API (permanent cart via secure cookie) first.
- * If API fails (401/403 or network error), falls back to local storage.
- * @param {object} productDetails - The details of the product being added (ID, name, price, quantity, etc.).
+ * Tries API (permanent cart via secure cookie) first, falls back to local storage.
+ * @param {object} productDetails - Minimal details passed from the button click.
  */
 async function simulateAddToCart(productDetails) {
     // --- 1. Gather all item details from DOM and input ---
     const card = document.querySelector(`.collection-card[data-collection-id="${productDetails.productId}"]`);
     if (!card) return;
     
-    // Selectors for size and color radio buttons
     const selectedSizeInput = card.querySelector(`input[name="size-${productDetails.productId}"]:checked`);
     const selectedColorInput = card.querySelector(`input[name="color-${productDetails.productId}"]:checked`);
     
-    // 🎯 CRITICAL FIX: Robust value checking
+    // 🎯 CRITICAL FIX: Robust value checking to prevent "undefined" string from payload
     const rawColorValue = selectedColorInput ? selectedColorInput.value : null;
     const color = (rawColorValue && rawColorValue !== 'undefined' && rawColorValue.length > 0) 
         ? rawColorValue 
@@ -180,31 +176,30 @@ async function simulateAddToCart(productDetails) {
         ? rawSizeValue 
         : 'N/A';
     
+    // 🚀 CRITICAL FIX 1: Initialize variationIndex. Default to 1 (server compatibility).
     let variationIndex = 1; 
-    let selectedImageUrl = productDetails.imageUrl; 
+    
+    // ⭐️ CRITICAL FIX: Determine the selected image URL based on the chosen color
+    let selectedImageUrl = productDetails.imageUrl; // Default to the initial URL passed
 
     if (selectedColorInput) {
         const colorHex = color; 
         const colorMapContainer = card.querySelector(`#color-map-${productDetails.productId}`);
         
         if (colorMapContainer) {
-            try {
-                const colorMap = JSON.parse(colorMapContainer.getAttribute('data-color-map'));
-                const newImageUrls = colorMap[colorHex];
+            const colorMap = JSON.parse(colorMapContainer.getAttribute('data-color-map'));
+            const newImageUrls = colorMap[colorHex];
+            
+            if (newImageUrls && newImageUrls.frontImageUrl) {
+                selectedImageUrl = newImageUrls.frontImageUrl; 
                 
-                if (newImageUrls && newImageUrls.frontImageUrl) {
-                    selectedImageUrl = newImageUrls.frontImageUrl; 
-                    
-                    const colorMapKeys = Object.keys(colorMap);
-                    const inferredIndex = colorMapKeys.indexOf(colorHex);
-                    
-                    if (inferredIndex !== -1) {
-                        variationIndex = inferredIndex + 1; // 1-based index for server
-                    }
+                // 🚀 CRITICAL FIX 2: Attempt to determine the index based on color selection.
+                const colorMapKeys = Object.keys(colorMap);
+                const inferredIndex = colorMapKeys.indexOf(colorHex);
+                
+                if (inferredIndex !== -1) {
+                    variationIndex = inferredIndex + 1; // Use 1-based index for server
                 }
-            } catch (e) {
-                console.error("Error parsing color map data:", e);
-                // Continue with default variationIndex=1 and default image
             }
         }
     }
@@ -214,6 +209,7 @@ async function simulateAddToCart(productDetails) {
         ? `${color} / ${size}`
         : (color !== 'N/A' ? color : (size !== 'N/A' ? size : 'Default Variant'));
     
+    // Unified item data structure for both API (minimal fields) and Local Cart (all fields)
     const requiredDetails = {
         productId: productDetails.productId,
         name: productDetails.name, 
@@ -224,104 +220,104 @@ async function simulateAddToCart(productDetails) {
         imageUrl: selectedImageUrl, 
         quantity: productDetails.quantity || 1,
         variationIndex: variationIndex, 
-        variation: variation
+        variation: variation 
     };
     
-    // Construct minimal data for API call (same structure as requiredDetails)
+    // Construct minimal data for API call (same as requiredDetails now)
     const itemDataForAPI = requiredDetails; 
     
     console.log('Sending API Payload:', itemDataForAPI);
     
-    // --- 3. Attempt Authenticated API Call ---
+    // --- 2. Attempt Authenticated API Call ---
     try {
         const response = await fetch('/api/users/cart', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
+                // Authorization header is intentionally omitted, relying on cookie.
             },
             body: JSON.stringify(itemDataForAPI),
-            credentials: 'include' // Sends the HTTP-only cookie
+            credentials: 'include' // ✅ CRITICAL ADDITION: Send the HTTP-only cookie.
         });
 
         let data;
         try {
             data = await response.json();
         } catch (e) {
-            console.warn(`Could not parse JSON response for status ${response.status}. Falling back if needed.`);
-            data = { message: `Server Error (${response.status}) received. Item added to local cart.`, status: response.status };
+            console.warn(`Could not parse JSON response for status ${response.status}. Assuming non-JSON body.`);
+            data = { 
+                message: `Server Error (${response.status}) received. Item added to local cart.`,
+                status: response.status 
+            };
         }
 
+
         if (response.ok) {
-            // 3a. Success: Item added to permanent cart
+            // 2a. Success: Item added to permanent cart
+            // 💥 FIX FOR TypeError: Cannot read properties of undefined (reading 'length') 💥
             if (data.items && Array.isArray(data.items)) {
-                // Update based on the definitive server response
-                localStorage.setItem(CART_STORAGE_KEY, data.items.length.toString()); 
+                localStorage.setItem(CART_STORAGE_KEY, data.items.length.toString());
                 updateCartBadge();
             } else {
-                console.error("API success but data.items missing. Updating badge with local count.");
-                updateCartBadge();
+                console.error("API success but data.items missing. Falling back to simple update.");
+                updateCartBadge(); 
             }
             
             // Display success alert (Green background)
             const alertMessage = document.getElementById('cart-alert');
             if (alertMessage) {
                 alertMessage.textContent = 'Item added to your permanent shopping bag!';
-                alertMessage.className = 'fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 p-3 rounded shadow-xl transition-all duration-300 ease-in-out bg-green-500 text-white opacity-100 translate-y-0';
+                alertMessage.className = 'absolute top-0 right-0 p-3 m-3 rounded shadow-lg transition-all duration-300 ease-in-out bg-green-500 text-white opacity-100 translate-y-0';
                 setTimeout(() => {
-                    alertMessage.classList.add('opacity-0', 'translate-y-10');
-                    setTimeout(() => {
-                        alertMessage.classList.remove('bg-green-500', 'translate-y-10');
-                        alertMessage.classList.add('hidden');
-                    }, 300);
+                    alertMessage.classList.add('opacity-0', '-translate-y-10');
+                    setTimeout(() => alertMessage.classList.remove('bg-green-500'), 300);
                 }, 3000);
             }
 
-        } else if (response.status === 401 || response.status === 403 || response.status >= 500) {
-            // 3b. Unauthorized or Server Error (5xx) -> FALLBACK TO LOCAL CART
-            console.log(`Fallback triggered due to status ${response.status}.`);
+        } else if (response.status === 401 || response.status === 403) {
+            // 2b. Unauthorized (Cookie failed/expired) -> FALLBACK TO LOCAL CART
+            console.log("401/403 received (Unauthenticated). Falling back to local cart.");
             handleLocalCartFallback(requiredDetails);
 
         } else {
-            // 3c. Other Client-side API Errors (e.g., 400 Bad Request, 409 Conflict/Stock)
+            // 2c. Other API Errors (e.g., 400 Bad Request, 503 Service Unavailable)
             
+            if (response.status >= 500) {
+                 console.log(`Server Error ${response.status} received. Falling back to local cart.`);
+                 handleLocalCartFallback(requiredDetails);
+            }
+
             // Use the flashing alert for generic error (Red background)
             const alertMessage = document.getElementById('cart-alert');
             if (alertMessage) {
                 alertMessage.textContent = data.message || `Failed to add item (Status ${response.status}).`;
-                alertMessage.className = 'fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 p-3 rounded shadow-xl transition-all duration-300 ease-in-out bg-red-500 text-white opacity-100 translate-y-0';
+                alertMessage.className = 'absolute top-0 right-0 p-3 m-3 rounded shadow-lg transition-all duration-300 ease-in-out bg-red-500 text-white opacity-100 translate-y-0';
                 setTimeout(() => {
-                    alertMessage.classList.add('opacity-0', 'translate-y-10');
-                    setTimeout(() => {
-                        alertMessage.classList.remove('bg-red-500', 'translate-y-10');
-                        alertMessage.classList.add('hidden');
-                    }, 300); 
+                    alertMessage.classList.add('opacity-0', '-translate-y-10');
+                    setTimeout(() => alertMessage.classList.remove('bg-red-500'), 300); 
                 }, 3000);
             }
         }
         
     } catch (error) {
-        // --- 4. Network or Fetch Error -> FALLBACK TO LOCAL CART ---
+        // --- 3. Network or Fetch Error -> FALLBACK TO LOCAL CART ---
         console.error('Error in addToCart API (Network or Fetch Error):', error);
         
-        // Use the fallback function
         handleLocalCartFallback(requiredDetails);
 
         // Display error alert (Red background)
         const alertMessage = document.getElementById('cart-alert');
         if (alertMessage) {
             alertMessage.textContent = 'Could not reach server. Item added to local cart.';
-            alertMessage.className = 'fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 p-3 rounded shadow-xl transition-all duration-300 ease-in-out bg-red-500 text-white opacity-100 translate-y-0';
+            alertMessage.className = 'absolute top-0 right-0 p-3 m-3 rounded shadow-lg transition-all duration-300 ease-in-out bg-red-500 text-white opacity-100 translate-y-0';
             setTimeout(() => {
-                alertMessage.classList.add('opacity-0', 'translate-y-10');
-                setTimeout(() => {
-                    alertMessage.classList.remove('bg-red-500', 'translate-y-10');
-                    alertMessage.classList.add('hidden');
-                }, 300);
+                alertMessage.classList.add('opacity-0', '-translate-y-10');
+                setTimeout(() => alertMessage.classList.remove('bg-red-500'), 300);
             }, 3000);
         }
     }
 }
-
+    
 
 /**
  * Handles the logic for a "Buy Now" action.
@@ -415,8 +411,6 @@ function simulateBuyNow(itemDetails) {
     window.location.href = './checkout.html';
 }
 
-document.addEventListener('DOMContentLoaded', updateCartBadge);
-
 // --- MODAL CONTROL FUNCTIONS ---
 function openModal(imageUrl, itemName) {
     const modal = document.getElementById('image-modal');
@@ -465,7 +459,6 @@ function changeVariantImage(collectionId, colorHex) {
     const colorMapContainer = card.querySelector(`#color-map-${collectionId}`);
     if (!colorMapContainer) return;
     
-    // Parse the stored map from the data attribute. This map now stores an object {frontImageUrl, backImageUrl}
     const colorMap = JSON.parse(colorMapContainer.getAttribute('data-color-map'));
     const newImageUrls = colorMap[colorHex];
 
@@ -509,20 +502,14 @@ function toggleImage(collectionId) {
 
 // --- UTILITY FOR COLOR LIST (Stock-Aware) ---
 function createColorList(collectionId, variants) {
-    // 1. Initial Safety Check
-    // 'variants' now only includes colors with total stock > 0 (filtered by backend)
     if (!variants || variants.length === 0) return '';
     
-    // NOTE: The previous 'pre-order' filter is removed because the backend should 
-    // already ensure that every variant passed here is intended to be displayed.
     const coloredVariants = variants; 
 
-    // If there are no colored variants, return empty.
     if (coloredVariants.length === 0) return ''; 
 
     // 2. Create a map for the image switching logic
     const colorMap = coloredVariants.reduce((acc, v) => {
-        // We only map the necessary image URLs
         acc[v.color] = { frontImageUrl: v.frontImageUrl, backImageUrl: v.backImageUrl };
         return acc;
     }, {});
@@ -557,6 +544,52 @@ function createColorList(collectionId, variants) {
     return mapHtml + buttonsHtml;
 }
 
+// --- UTILITY FOR SIZE LIST (Stock-Aware) ---
+function createSizeList(collectionId, sizeStockMap, isReduced = false) {
+    if (!sizeStockMap) {
+        return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
+    }
+
+    const standardSizes = ['S', 'M', 'L', 'XL'];
+    
+    const sizesWithStock = Object.entries(sizeStockMap)
+        .filter(([size, stock]) => 
+            standardSizes.includes(size.toUpperCase().trim()) && 
+            stock > 0
+        )
+        .map(([size]) => size); 
+
+    if (sizesWithStock.length === 0) {
+        return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
+    }
+
+    const sizeClasses = isReduced 
+        ? 'text-[0.6rem] px-1.5 py-0.5' 
+        : 'text-xs px-2 py-0.5 md:px-2 md:py-1'; 
+
+    const groupName = `size-${collectionId}`;
+    
+    return sizesWithStock.map((size, index) => {
+        const safeSize = size.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
+        const inputId = `size-${collectionId}-${safeSize}`;
+        
+        return `
+            <label for="${inputId}" class="size-label border border-gray-300 cursor-pointer hover:border-ash-dark transition-all rounded-sm has-[:checked]:border-ash-dark has-[:checked]:bg-gray-100">
+                <input 
+                    type="radio" 
+                    id="${inputId}" 
+                    name="${groupName}" 
+                    value="${size}" 
+                    class="hidden" 
+                    ${index === 0 ? 'checked' : ''}
+                >
+                <span class="${sizeClasses}">${size}</span>
+            </label>
+        `;
+    }).join('');
+}
+
+// --- MAIN CARD RENDERING FUNCTION ---
 function createCollectionCard(collection, size = 'default') {
     const currencySymbol = '₦';
     const PLACEHOLDER_URL = 'https://s3.us-west-1.idrivee2.com/outflickz/public/placeholder-image-v1.jpg';
@@ -569,13 +602,12 @@ function createCollectionCard(collection, size = 'default') {
     const isCaps = size === 'caps'; 
     const isWears = size === 'wears'; 
     const isPreorder = size === 'preorder'; 
-    const isnewrrivals = size === 'newarrivals';
 
     // Card Padding
     const cardPadding = isReduced ? 'p-1 sm:p-2' : 'p-2 sm:p-3';
     const nameFontSize = isReduced ? 'text-xs sm:text-sm' : 'text-sm sm:text-base';
     const descriptionFontSize = isReduced ? 'text-[0.6rem] sm:text-xs' : 'text-xs sm:text-sm';
-    const priceFontSize = isReduced ? 'text-sm font-bold sm:text-sm' : 'text-base font-semibold';
+    const priceFontSize = isReduced ? 'text-xs font-bold sm:text-sm' : 'text-base font-semibold';
     
     // CONTROL SIZING
     const controlHeight = isReduced ? 'h-6' : 'h-7'; 
@@ -585,9 +617,6 @@ function createCollectionCard(collection, size = 'default') {
     const quantityInputWidth = isReduced ? 'w-5 sm:w-7' : 'w-7 sm:w-9';
     const quantityButtonSize = isReduced ? 'w-7 h-7' : 'w-8 h-8'; 
     const quantityInputTextSize = isReduced ? 'text-[0.6rem] sm:text-xs' : 'text-xs sm:text-sm';
-    
-    // BUTTON SIZING
-    // Removed specific button flex classes here, relying on w-full/flex-1 in the return HTML
     
     // --- FINAL FIX: Ensure 'variants'/'variations' is accessed correctly and safely ---
     const primaryVariant = (Array.isArray(collection.variants) && collection.variants.length > 0)
@@ -684,10 +713,7 @@ function createCollectionCard(collection, size = 'default') {
             onclick="simulateBuyNow({
                 productId: '${collection._id}',
                 name: '${collection.name.replace(/'/g, "\\'")}',
-                
-                // ⭐ FIX 1: Explicitly pass a safe productType
                 productType: '${safeProductTypeInHtml}', 
-                
                 price: ${itemPrice},
                 quantity: parseInt(${quantityGetter}),
                 imageUrl: '${frontImageUrl}'
@@ -725,6 +751,7 @@ function createCollectionCard(collection, size = 'default') {
                         alt="${collection.name} (Front View)"
                         onerror="this.onerror=null;this.src='${defaultFrontImage}';"
                         style="opacity: 1;"
+                        onclick="openModal('${frontImageUrl}', '${collection.name.replace(/'/g, "\\'")}')"
                     >
                     <img
                         class="w-full h-full object-cover bg-gray-50 absolute transition-opacity duration-300"
@@ -733,6 +760,7 @@ function createCollectionCard(collection, size = 'default') {
                         alt="${collection.name} (Back View)"
                         onerror="this.onerror=null;this.src='${defaultBackImage}';"
                         style="opacity: 0;"
+                        onclick="openModal('${backImageUrl}', '${collection.name.replace(/'/g, "\\'")}')"
                     >
                 </div>
 
@@ -757,14 +785,13 @@ function createCollectionCard(collection, size = 'default') {
 
                 <p class="${priceFontSize} text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
 
-                                
                 <div class="flex items-center gap-2 mt-2">
                     <span class="text-xs font-medium text-gray-700">Color:</span>
                     <div class="flex gap-1 text-gray-700">
                         ${colorListHtml}
                     </div>
                 </div>
-                                
+                            
                 <div class="flex flex-col md:flex-row items-start md:items-center justify-between w-full mt-2 gap-2">
                     ${sizeListHtml} 
                     ${quantityControlHtml}
@@ -779,64 +806,6 @@ function createCollectionCard(collection, size = 'default') {
     `;
 }
 
-// Function to DELETE (The block-style version)
-/**
- * Generates the HTML for the size selection options within the collection card.
- * CRITICAL FIX: Filters out sizes that have zero or less stock.
- * @param {string} collectionId The unique ID of the collection.
- * @param {Object} sizeStockMap A map of {Size: StockCount} received from the backend (e.g., {S: 10, M: 0, L: 5}).
- * @param {boolean} isReduced Flag for styling.
- * @returns {string} The HTML for the size buttons, or an 'N/A' span if none are in stock.
- */
-function createSizeList(collectionId, sizeStockMap, isReduced = false) {
-    if (!sizeStockMap) {
-        return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
-    }
-
-    // Standard sizes list (used for ordering or ensuring only valid sizes are processed)
-    const standardSizes = ['S', 'M', 'L', 'XL'];
-    
-    // 1. **FILTERING LOGIC:** Convert the map to an array and filter by stock > 0
-    const sizesWithStock = Object.entries(sizeStockMap)
-        .filter(([size, stock]) => 
-            // 1a. Check if the size is one of the standard sizes
-            standardSizes.includes(size.toUpperCase().trim()) && 
-            // 1b. CRITICAL: Check if stock is greater than zero
-            stock > 0
-        )
-        // 2. Map back to just the size string for easy HTML generation
-        .map(([size]) => size); 
-
-    if (sizesWithStock.length === 0) {
-        return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
-    }
-
-    const sizeClasses = isReduced 
-        ? 'text-[0.6rem] px-1.5 py-0.5' // Smaller for reduced card
-        : 'text-xs px-2 py-0.5 md:px-2 md:py-1'; // Default size
-
-    const groupName = `size-${collectionId}`; // Use the same name for all radios in this group
-    
-    // 3. Generate HTML using the filtered list (sizesWithStock)
-    return sizesWithStock.map((size, index) => {
-        const safeSize = size.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
-        const inputId = `size-${collectionId}-${safeSize}`;
-        
-        return `
-            <label for="${inputId}" class="size-label border border-gray-300 cursor-pointer hover:border-ash-dark transition-all rounded-sm has-[:checked]:border-ash-dark has-[:checked]:bg-gray-100">
-                <input 
-                    type="radio" 
-                    id="${inputId}" 
-                    name="${groupName}" 
-                    value="${size}" 
-                    class="hidden" 
-                    ${index === 0 ? 'checked' : ''}
-                >
-                <span class="${sizeClasses}">${size}</span>
-            </label>
-        `;
-    }).join('');
-}
 // --- NEW ARRIVALS COLLECTION JS ---
 async function fetchAndRenderNewArrivals() {
     const container = document.getElementById('new-arrivals-grid');
@@ -856,7 +825,6 @@ async function fetchAndRenderNewArrivals() {
         </div>`;
 
     try {
-        // NOTE: API_BASE_URL is assumed to be defined in the global scope.
         const newArrivalsApiUrl = `${API_BASE_URL}/api/collections/newarrivals`; 
 
         const response = await fetch(newArrivalsApiUrl, {
@@ -874,41 +842,39 @@ async function fetchAndRenderNewArrivals() {
 
         container.innerHTML = '';
         
-        let productsToRender = products && Array.isArray(products) ? products : [];
+        let productsToRender = products && products.length > 0 ? products : [];
 
-        if (productsToRender.length > 0) {
+        if (productsToRender && productsToRender.length > 0) {
+            // Limit to the first 2 products for a more exclusive homepage view
+          //  const limitedProducts = productsToRender.slice(0, 4);
             
-            // ⭐ CRITICAL FIX: Iterate over ALL fetched products (productsToRender), 
-            // not a hard-coded limited slice, as this is the dedicated New Arrivals page.
-            productsToRender.forEach(product => {
+            limitedProducts.forEach(product => {
                 if (product.price !== undefined && product.price !== null) {
-                    // Pass 'reduced' size for New Arrivals card rendering
-                    container.innerHTML += createCollectionCard(product, 'newarrivals'); 
+                    // Pass 'reduced' size for New Arrivals
+                    container.innerHTML += createCollectionCard(product, 'reduced'); 
                 }
             });
 
-            // Check if products were fetched but none were added (e.g., all had null price)
-            if (container.innerHTML.trim() === '') {
-                 container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No product data available for rendering (Check price/data integrity).</p>`;
+            if (container.innerHTML === '') {
+                container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No New Arrivals are currently available.</p>`;
             }
-            
         } else {
-            // No products received from the API (productsToRender is empty)
             container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No New Arrivals are currently available.</p>`;
         }
     } catch (error) {
         console.error('Error fetching new arrivals:', error);
         
-        // Ensure the error message spans the grid layout
-        container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server or retrieve data.</p>';
+        // Clean error message on API failure
+        container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server (502/Down).</p>';
     }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     updateCartBadge(); // Initialize cart count
-    fetchAndRenderNewArrivals(); // Fetch and render the full collection
+    fetchAndRenderAllWearsCollections(); // Fetch and render the full collection
 });
 </script>
+
 </head>
 <body class="bg-gray-50 text-color-black min-h-screen">
 
@@ -918,14 +884,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-10 sm:h-12 lg:h-10">
             </a>
 
-           <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
-                 <a href="homepage.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
+            <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
+                <a href="homepage.html" class="font-medium text-color-black hover:text-gray-600 transition">Homepage</a>
                 <a href="preorder.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
-                <a href="newarrivals.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">New Arrivals</a>
-                <a href="wearscollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Wears Collections</a>
-                <a href="capcollection.html" class="font-bold text-ash-red transition flex items-center border-b-2 border-ash-red">Cap Collections</a>
+                <a href="newarrivals.html" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
+                <a href="wearscollection.html" class="font-bold text-ash-red transition flex items-center border-b-2 border-ash-red">Wears Collections</a>
+                <a href="capcollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Cap Collections</a>
             </nav>
-
 
           <div class="flex items-center space-x-2 sm:space-x-4">
             <button id="profile-icon" 
@@ -951,10 +916,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     <div id="mobile-menu" class="hidden md:hidden bg-color-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
         <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
-            <a href="homepage.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Homepage/a>
+            <a href="homepage.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Homepage</a>
             <a href="preorder.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
-            <a href="newarrivals.html" class="block px-3 py-2 font-bold text-ash-red bg-gray-100 rounded-md">New Arrivals</a>
-            <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Wears Collection</a>
+            <a href="newarrivals.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">New Arrivals</a>
+            <a href="wearscollection.html" class="block px-3 py-2 font-bold text-ash-red bg-gray-100 rounded-md">Wears Collection</a>
             <a href="capcollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cap Collection</a>
             
             <button 
@@ -974,7 +939,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 New Arrivals
             </h1>
             <p class="text-sm sm:text-base font-medium text-gray-700 mb-10 text-center max-w-2xl mx-auto">
-                Be the first to get the freshest drops. These limited edition items just landed and won't last long.
+                Discover our full range of exclusive apparel, from t-shirts and hoodies to custom jackets. Limited availability on all drops.
             </p>
 
             <div id="new-arrivals-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
@@ -1021,7 +986,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="col-span-1">
                     <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Quick Links</h3>
                     <ul class="space-y-2 text-sm">
-                          <li><a href="homepage.html" class="text-gray-400 hover:text-ash-red transition">Homepage</a></li>
                         <li><a href="wearscollection.html" class="text-gray-400 hover:text-ash-red transition">Wears</a></li>
                         <li><a href="capcollection.html" class="text-gray-400 hover:text-ash-red transition">Caps</a></li>
                         <li><a href="newarrivals.html" class="text-gray-400 hover:text-ash-red transition">New Arrivals</a></li>

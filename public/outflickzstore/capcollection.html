@@ -690,8 +690,7 @@ function createCollectionCard(collection, size = 'default') {
 
     return `
         <div class="collection-card border border-gray-100 rounded-lg overflow-hidden bg-white hover:shadow-lg transition duration-300" data-collection-id="${collection._id}">
-            <div class="relative card-image-box">
-                ${stockBadge}
+            <div class="relative card-image-box **aspect-square**"> ${stockBadge}
 
                 <div class="absolute inset-0 transition-opacity duration-300">
                     <img
@@ -852,7 +851,7 @@ async function fetchAndRenderCapsCollection() {
             collectionsToRender.forEach(collection => {
                 if (collection.price !== undefined && collection.price !== null) {
                     // IMPORTANT: Pass 'caps' size to remove size selection UI
-                    container.innerHTML += createCollectionCard(collection, 'caps');
+                    container.innerHTML += createCollectionCard(collection, 'default');
                 }
             });
 

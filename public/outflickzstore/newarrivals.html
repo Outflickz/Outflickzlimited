@@ -99,11 +99,11 @@ function getCartCount() {
         localStorage.setItem(CART_STORAGE_KEY, actualCount.toString()); 
         
         return actualCount;
-    } catch (e) {
+} catch (e) {
+        // If there's an error (e.g., corrupted JSON), reset both keys to 0
         console.error("Error reading local cart during initialization:", e);
         localStorage.setItem(CART_STORAGE_KEY, '0');
-        // Optionally clear potentially corrupt data
-        // localStorage.removeItem(LOCAL_CART_KEY); 
+        localStorage.setItem(LOCAL_CART_KEY, '[]'); // Ensure it's a valid empty array
         return 0;
     }
 }

@@ -955,6 +955,8 @@ function createCollectionCard(collection, size = 'default') {
     const isButtonDisabled = isOutOfStock && !isPreorder;
     const safeProductTypeInHtml = collection.collectionName || collection.productType;
 
+    console.log(`[Card Debug] Product ID: ${collection._id}, collectionName: ${collection.collectionName}, productType: ${collection.productType}, safeProductTypeInHtml: ${safeProductTypeInHtml}`);
+
     // Get current quantity value for the button click
     const quantityGetter = `document.getElementById('quantity-input-${collection._id}').value`;
 

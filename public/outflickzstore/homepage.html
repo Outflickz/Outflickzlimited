@@ -473,9 +473,6 @@ function addToCart(collectionId, quantity) {
  * * IMPORTANT: This function no longer reads the token from localStorage or uses the Authorization header.
  */
 async function simulateAddToCart(productDetails) {
-    // Define the valid enum strings from your Mongoose schema
-    const VALID_FALLBACK_TYPE = 'WearsCollection'; 
-
     // --- 1. Gather all item details from DOM and input ---
     const card = document.querySelector(`.collection-card[data-collection-id="${productDetails.productId}"]`);
     if (!card) return;
@@ -633,21 +630,29 @@ try {
         };
     }
 
-
     if (response.ok) {
         // 3a. Success: Item added to permanent cart
-        // 💥 FIX FOR TypeError: Cannot read properties of undefined (reading 'length') 💥
-        // NOTE: This section for response.ok relies on the backend sending the correct cart count.
-        // We assume data.items.length here reflects the total number of line items from the API.
+        
+        // 🔑 CRITICAL FIX: Correctly calculate the total quantity from the server response.
         if (data.items && Array.isArray(data.items)) {
-            // If the API sends the total item count (sum of quantities), use it directly here instead of data.items.length.
-            // Assuming data.items.length is sufficient for now (number of unique items in DB):
-            localStorage.setItem(CART_STORAGE_KEY, data.items.length.toString());
+            
+            // 1. Calculate the total quantity (sum of all item.quantity values)
+            const totalQuantityFromServer = data.items.reduce((sum, item) => {
+                // Ensure item.quantity is parsed as an integer (or defaults to 0)
+                return sum + (parseInt(item.quantity) || 0); 
+            }, 0);
+            
+            // 2. Store the calculated total quantity in the badge storage key
+            // This is the correct value that updateCartBadge will use.
+            localStorage.setItem(CART_STORAGE_KEY, totalQuantityFromServer.toString());
+            
+            // 3. Update the visual badge immediately
             updateCartBadge();
+            
         } else {
             // If API is OK but returns unexpected data, still alert the user
-            console.error("API success but data.items missing. Falling back to simple update.");
-            updateCartBadge(); // Just ensure the badge is updated with existing count
+            console.error("API success but data.items missing. Relying on current local state.");
+            updateCartBadge(); // Ensure the badge is updated with existing count
         }
         
         // Display success alert (Green background)
@@ -953,7 +958,7 @@ function createCollectionCard(collection, size = 'default') {
 
     // *** Define Buttons/Labels based on Stock Status ***
     const isButtonDisabled = isOutOfStock && !isPreorder;
-    const safeProductTypeInHtml = collection.collectionProduct || collection.productType;
+    const safeProductTypeInHtml = collection.collectionName || collection.productType;
 
 console.log(`[Card Debug] Product ID: ${collection._id}, collectionName: ${collection.collectionName}, productType: ${collection.productType}, safeProductTypeInHtml: ${safeProductTypeInHtml}`);
     // Get current quantity value for the button click

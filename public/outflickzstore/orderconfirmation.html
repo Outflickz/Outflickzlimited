@@ -505,9 +505,9 @@ async function fetchOrderCollection(orderId) {
     }
 }
 
-
 /**
  * Parses the URL parameters and displays the appropriate confirmation message.
+ * Also handles clearing the local cart and badge count upon successful order creation.
  */
 function displayConfirmationDetails() {
     console.log('[Confirmation] Starting displayConfirmationDetails.');
@@ -539,29 +539,54 @@ function displayConfirmationDetails() {
     if (method === 'paystack') {
         console.log('[Confirmation] Processing successful Paystack payment.');
         // Successful Paystack/Card Payment
-        orderRefEl.textContent = `#${orderId}`;
-        payMethodMsgEl.textContent = `Payment was completed successfully via Paystack (Card). Your order will be shipped soon!`;
         
-        // Clear the local storage for the successful order
+        // --- 🎯 CRITICAL CART CLEARING FIXES APPLIED HERE ---
+        
+        // 1. Remove temp checkout data (Shipping/Total)
         localStorage.removeItem('outflickzShippingData'); 
         localStorage.removeItem('outflickzOrderTotal');
-        localStorage.setItem(CART_STORAGE_KEY, '0'); // Reset cart count
-        console.log('[Confirmation] Cleared shipping/total data and reset cart count.');
+        
+        // 2. Remove the actual cart item array (LOCAL_CART_KEY)
+        localStorage.removeItem(LOCAL_CART_KEY); 
+        
+        // 3. Clear the count storage key to zero
+        localStorage.setItem(CART_STORAGE_KEY, '0');
+        
+        console.log('[Confirmation] Cleared shipping/total data, local cart array, and reset cart count.');
+
+        // Update UI elements for successful payment
+        orderRefEl.textContent = `#${orderId}`;
+        payMethodMsgEl.textContent = `Payment was completed successfully via Paystack (Card). Your order will be shipped soon!`;
 
     } else if (method === 'banktransfer') {
         console.log('[Confirmation] Processing pending Bank Transfer order.');
         // Pending Bank Transfer Order
+        
+        // --- 🎯 CRITICAL CART CLEARING FIXES APPLIED HERE ---
+        
+        // 1. Remove the actual cart item array (LOCAL_CART_KEY)
+        // Cart must be cleared as the items are now confirmed as an order on the server.
+        localStorage.removeItem(LOCAL_CART_KEY); 
+        
+        // 2. Clear the count storage key to zero
+        localStorage.setItem(CART_STORAGE_KEY, '0');
+        
+        console.log('[Confirmation] Order created via Bank Transfer. Local cart cleared.');
+
+        // Update UI elements for pending bank transfer
         orderRefEl.textContent = `#${orderId}`;
         confIconEl.classList.remove('fa-check-circle', 'text-green-500', 'animate-pulse');
         confIconEl.classList.add('fa-clock', 'text-yellow-600');
         confTitleEl.textContent = 'Order Created (Payment Pending)';
         confMsgEl.textContent = 'Thank you for your order! We are now waiting for your bank transfer confirmation. You will receive an email once payment is verified.';
         payMethodMsgEl.textContent = `You selected **Bank Transfer**. Please transfer the total amount using the order number above as reference.`;
-        // Assuming 'bank-transfer-details' is correctly hidden/shown
+        
+        // Display bank transfer instructions
         if (bankDetailsEl) {
             bankDetailsEl.classList.remove('hidden');
             console.log('[Confirmation] Displaying bank transfer instructions.');
         }
+
     } else {
         console.warn(`[Confirmation] Unknown payment method: ${method}`);
         // Fallback for unknown method, keep successful state but log warning
@@ -572,10 +597,9 @@ function displayConfirmationDetails() {
     // **CRITICAL**: Call function to fetch collection details using the Order ID.
     fetchOrderCollection(orderId);
 
-    // Ensure the cart badge is updated 
+    // Ensure the cart badge is updated (This runs after both payment clearing paths)
     updateCartBadge();
 }
-
 
 // --- Main Initialization ---
 document.addEventListener('DOMContentLoaded', () => {

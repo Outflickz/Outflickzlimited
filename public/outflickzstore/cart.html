@@ -705,13 +705,17 @@ async function removeItemFromCart(itemId) {
  */
 async function clearCart() {
     // Check if we are clearing the local cart or the API cart
-    if (!isUserLoggedIn()) {
+    if (!await isUserLoggedIn()) { // Assuming isUserLoggedIn() is async
         // Local cart clear logic
-        localStorage.setItem(LOCAL_CART_KEY, '[]');
+        
+        // 🚀 FIX: Ensure the local array is cleared/empty
+        localStorage.setItem(LOCAL_CART_KEY, '[]'); 
+        
         localStorage.setItem(CART_STORAGE_KEY, '0');
         updateCartBadge();
         fetchAndRenderCart();
         displayMessage('Local shopping bag cleared successfully.');
+        console.log('[ClearCart] Logged Out: LOCAL_CART_KEY array reset to [].');
         return;
     }
 
@@ -720,6 +724,7 @@ async function clearCart() {
         const response = await fetch('/api/users/cart', {
             method: 'DELETE',
             headers: {
+                // Assuming headers like 'Authorization' are handled by another layer or getAuthToken()
             }
         });
 
@@ -732,12 +737,16 @@ async function clearCart() {
             throw new Error('Failed to clear cart on server.');
         }
 
+        // 🚀 CRITICAL FIX: After successful server clear, clear the local item array!
+        localStorage.removeItem(LOCAL_CART_KEY); 
+        
         // Update Local Storage count and badge
         localStorage.setItem(CART_STORAGE_KEY, '0');
         updateCartBadge();
         
         fetchAndRenderCart();
         displayMessage('All items removed from your permanent cart. Cart cleared.');
+        console.log('[ClearCart] Logged In: API cleared, local LOCAL_CART_KEY removed.');
     } catch (error) {
         console.error('Error clearing cart:', error);
         displayMessage('Could not clear cart. Please try again.');

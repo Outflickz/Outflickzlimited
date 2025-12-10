@@ -206,65 +206,11 @@
     </a>
 
     <script>
-        // --- API BASE URL ---
-  // --- GLOBAL API CONFIG (Requested change) ---
-    // Using the defined constant for all API calls
-    const API_BASE_URL = 'https://outflickz.netlify.app'; 
-    const LOCAL_CART_KEY = 'outflickzCart';
-    const CART_STORAGE_KEY = 'outflickzCartItemCount'; 
-
-
-        // --- CART UTILITY FUNCTIONS (Placeholder/Mock) ---
-     /**
- * Safely retrieves the cart items array from localStorage.
- * @returns {Array} The cart items array, or an empty array if not found or invalid.
- */
-function getCartItems() {
-    try {
-        const cartData = localStorage.getItem(LOCAL_CART_KEY);
-        // Return parsed data if it exists and is an array, otherwise return an empty array.
-        const parsedCart = cartData ? JSON.parse(cartData) : [];
-        return Array.isArray(parsedCart) ? parsedCart : [];
-    } catch (error) {
-        console.error('Error reading or parsing local cart data:', error);
-        return [];
-    }
-}
-
-        function saveCartItems(items) {
-            localStorage.setItem('cartItems', JSON.stringify(items));
-            updateCartBadge();
-        }
-
-        /**
- * Updates the Shopping Bag icon badge with the current cart count.
- */
-function updateCartBadge() {
-    const count = getCartCount();
-    const badge = document.getElementById('cart-badge');
-    
-    if (badge) {
-        badge.textContent = count;
-        if (count > 0) {
-            badge.classList.remove('hidden');
-        } else {
-            badge.classList.add('hidden');
-        }
-    }
-}
-
-        function showCartAlert() {
-            const alert = document.getElementById('cart-alert');
-            if (alert) {
-                alert.classList.remove('hidden', 'opacity-0', '-translate-y-10');
-                alert.classList.add('opacity-100', 'translate-y-0');
-                setTimeout(() => {
-                    alert.classList.remove('opacity-100', 'translate-y-0');
-                    alert.classList.add('opacity-0', '-translate-y-10');
-                    setTimeout(() => alert.classList.add('hidden'), 500);
-                }, 2000);
-            }
-        }
+  
+// --- GLOBAL API CONFIG ---
+    const API_BASE_URL = 'https://outflickz.netlify.app';
+    const CART_STORAGE_KEY = 'outflickzCartCount';
+    const LOCAL_CART_KEY = 'outflickzLocalCart';
 
        /**
  * Checks the user's authentication status via the API (/api/auth/status) 
@@ -319,95 +265,88 @@ async function redirectToProfileOrLogin() {
             }
         }
 
-        
+
 function getCartCount() {
     try {
         const localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
-        const actualCount = localCart.length;
-        localStorage.setItem(CART_STORAGE_KEY, actualCount.toString()); 
-        return actualCount;
+        
+        // ⭐ CRITICAL FIX: Sum the quantity of all items in the local cart.
+        const totalQuantity = localCart.reduce((sum, item) => sum + (item.quantity || 1), 0);
+        
+        // Store the total quantity for the badge
+       // localStorage.setItem(CART_STORAGE_KEY, totalQuantity.toString()); 
+        
+        return totalQuantity;
     } catch (e) {
+        // Reset everything if there's an error
+        console.error("Error calculating cart count, resetting local storage.", e);
         localStorage.setItem(CART_STORAGE_KEY, '0');
         localStorage.setItem(LOCAL_CART_KEY, '[]');
         return 0;
     }
 }
 
+/**
+ * Updates the visual cart badge (assumes badge element has ID 'cart-badge').
+ */
 function updateCartBadge() {
     const count = getCartCount();
-    const badge = document.getElementById('cart-badge');
+    const badgeElement = document.getElementById('cart-badge');
     
-    if (badge) {
-        badge.textContent = count;
-        if (count > 0) {
-            badge.classList.remove('hidden');
-        } else {
-            badge.classList.add('hidden');
-        }
+    if (badgeElement) {
+        badgeElement.textContent = count > 0 ? count : '';
+        badgeElement.classList.toggle('hidden', count === 0);
     }
 }
 
-// --- Local Cart Fallback Helper (Used by simulateAddToCart) ---
-
-const handleLocalCartFallback = (details) => {
-    let localCart = getCartItems();
+/**
+ * Handles adding an item (or quantity of items) to the cart and updates the badge.
+ * @param {string} collectionId - The ID of the item being added (used for logging/future API integration).
+ * @param {number} quantity - The number of items to add.
+ */
+function addToCart(collectionId, quantity) {
+    let currentCount = getCartCount();
+    let newCount = currentCount + quantity;
     
-    // 🚀 CRITICAL FIX: Include variationIndex in the findIndex check for local cart
-    const existingItemIndex = localCart.findIndex(item => 
-        item.productId === details.productId && 
-        item.size === details.size &&
-        item.color === details.color &&
-        item.variationIndex === details.variationIndex 
-    );
+    // Safety clamp
+    if (newCount < 0) newCount = 0;
 
-    if (existingItemIndex > -1) {
-        localCart[existingItemIndex].quantity += details.quantity;
-    } else {
-        localCart.push(details);
-    }
-
-    localStorage.setItem(LOCAL_CART_KEY, JSON.stringify(localCart));
+    localStorage.setItem(CART_STORAGE_KEY, newCount.toString());
     
-    // Update the counter key to reflect the *number of unique items/variants*
-    localStorage.setItem(CART_STORAGE_KEY, localCart.length.toString()); 
+    // Update the visual badge
     updateCartBadge();
     
-    // Display info alert for local cart (Blue background)
+    // Optional: Add a simple confirmation flash/message
     const alertMessage = document.getElementById('cart-alert');
     if (alertMessage) {
-        alertMessage.textContent = `"${details.name}" added to your bag! (Sign in to save permanently)`;
-        // NOTE: Ensure your HTML has this alert div styled correctly and hidden initially
-        alertMessage.className = 'fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 p-3 rounded shadow-xl transition-all duration-300 ease-in-out bg-blue-500 text-white opacity-100 translate-y-0';
-        
+        alertMessage.textContent = `${quantity} item(s) added to cart! Total: ${newCount}`;
+        alertMessage.classList.remove('hidden');
+        alertMessage.classList.add('opacity-100', 'translate-y-0');
         setTimeout(() => {
-            alertMessage.classList.add('opacity-0', 'translate-y-10');
-            // Remove color/positioning after transition for clean reset
-            setTimeout(() => {
-                alertMessage.classList.remove('bg-blue-500', 'translate-y-10');
-                alertMessage.classList.add('hidden');
-            }, 300); 
+            alertMessage.classList.add('hidden');
+            alertMessage.classList.remove('opacity-100', 'translate-y-0');
         }, 3000);
     }
-};
 
-// --- Main Cart Function (The Robust Replacement) ---
+    console.log(`Added ${quantity} of item ${collectionId}. New cart total: ${newCount}`);
+}
 
 /**
  * Handles adding an item to the cart. 
  * Tries API (permanent cart via secure cookie) first.
- * If API fails (401/403 or network error), falls back to local storage.
- * @param {object} productDetails - The details of the product being added (ID, name, price, quantity, etc.).
+ * If API fails with 401/403 or network error, falls back to local storage.
+ * * IMPORTANT: This function no longer reads the token from localStorage or uses the Authorization header.
  */
 async function simulateAddToCart(productDetails) {
     // --- 1. Gather all item details from DOM and input ---
     const card = document.querySelector(`.collection-card[data-collection-id="${productDetails.productId}"]`);
     if (!card) return;
     
-    // Selectors for size and color radio buttons
+    // The createSizeList function now uses radio buttons again, so this selector is correct.
     const selectedSizeInput = card.querySelector(`input[name="size-${productDetails.productId}"]:checked`);
     const selectedColorInput = card.querySelector(`input[name="color-${productDetails.productId}"]:checked`);
     
-    // 🎯 CRITICAL FIX: Robust value checking
+    // 🎯 CRITICAL FIX: Robust value checking to prevent "undefined" string from payload
     const rawColorValue = selectedColorInput ? selectedColorInput.value : null;
     const color = (rawColorValue && rawColorValue !== 'undefined' && rawColorValue.length > 0) 
         ? rawColorValue 
@@ -418,147 +357,228 @@ async function simulateAddToCart(productDetails) {
         ? rawSizeValue 
         : 'N/A';
     
+    // 🚀 CRITICAL FIX 1: Initialize variationIndex. Default to 1 (server compatibility).
     let variationIndex = 1; 
-    let selectedImageUrl = productDetails.imageUrl; 
+    
+    // ⭐️ CRITICAL FIX: Determine the selected image URL based on the chosen color
+    let selectedImageUrl = productDetails.imageUrl; // Default to the initial URL passed
 
     if (selectedColorInput) {
+        // Use the validated color variable here, but the value will be the same
         const colorHex = color; 
         const colorMapContainer = card.querySelector(`#color-map-${productDetails.productId}`);
         
         if (colorMapContainer) {
-            try {
-                const colorMap = JSON.parse(colorMapContainer.getAttribute('data-color-map'));
-                const newImageUrls = colorMap[colorHex];
+            const colorMap = JSON.parse(colorMapContainer.getAttribute('data-color-map'));
+            // Use the validated color here
+            const newImageUrls = colorMap[colorHex];
+            
+            if (newImageUrls && newImageUrls.frontImageUrl) {
+                // Use the front view of the selected color variant
+                selectedImageUrl = newImageUrls.frontImageUrl; 
                 
-                if (newImageUrls && newImageUrls.frontImageUrl) {
-                    selectedImageUrl = newImageUrls.frontImageUrl; 
-                    
-                    const colorMapKeys = Object.keys(colorMap);
-                    const inferredIndex = colorMapKeys.indexOf(colorHex);
-                    
-                    if (inferredIndex !== -1) {
-                        variationIndex = inferredIndex + 1; // 1-based index for server
-                    }
+                // 🚀 CRITICAL FIX 2: Attempt to determine the index based on color selection.
+                const colorMapKeys = Object.keys(colorMap);
+                // Convert 0-based client index to 1-based server index
+                const inferredIndex = colorMapKeys.indexOf(colorHex);
+                
+                if (inferredIndex !== -1) {
+                    variationIndex = inferredIndex + 1; // Use 1-based index for server
                 }
-            } catch (e) {
-                console.error("Error parsing color map data:", e);
-                // Continue with default variationIndex=1 and default image
             }
         }
     }
 
-    // 🌟 FIX FOR ReferenceError: variation is not defined 🌟
+    // 🌟 FIX FOR ReferenceError: variation is not defined (Line 539) 🌟
+    // Construct a descriptive variation name using the selected size and color.
     const variation = (color !== 'N/A' && size !== 'N/A')
         ? `${color} / ${size}`
         : (color !== 'N/A' ? color : (size !== 'N/A' ? size : 'Default Variant'));
     
+    // Unified item data structure for both API (minimal fields) and Local Cart (all fields)
     const requiredDetails = {
         productId: productDetails.productId,
         name: productDetails.name, 
         size: size,
-        color: color, 
+        color: color, // The color can be 'N/A' but is now validated
         price: productDetails.price,
-        productType: productDetails.productType || productDetails.name,
+        productType: productDetails.productType || productDetails.name,       
         imageUrl: selectedImageUrl, 
         quantity: productDetails.quantity || 1,
-        variationIndex: variationIndex, 
-        variation: variation
+        variationIndex: variationIndex, // Now 1-based
+        variation: variation // Now defined
     };
     
-    // Construct minimal data for API call (same structure as requiredDetails)
-    const itemDataForAPI = requiredDetails; 
+    // Construct minimal data for API call 
+    const itemDataForAPI = {
+        productId: requiredDetails.productId,
+        name: requiredDetails.name, 
+        productType: requiredDetails.productType, // Now guaranteed to be a valid enum string
+        price: requiredDetails.price, 
+        quantity: requiredDetails.quantity,
+        size: requiredDetails.size,
+        color: requiredDetails.color,
+        imageUrl: requiredDetails.imageUrl,
+        variationIndex: requiredDetails.variationIndex,
+        variation: requiredDetails.variation // Now defined
+    };
     
-    console.log('Sending API Payload:', itemDataForAPI);
-    
-    // --- 3. Attempt Authenticated API Call ---
-    try {
-        const response = await fetch('/api/users/cart', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(itemDataForAPI),
-            credentials: 'include' // Sends the HTTP-only cookie
-        });
+    // --- 2. Local Cart Fallback Helper Function (Updated for variationIndex) ---
+const handleLocalCartFallback = (details) => {
+    // NOTE: Assume LOCAL_CART_KEY and CART_STORAGE_KEY are defined globally or elsewhere
+    let localCart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
+    
+    // 🚀 CRITICAL FIX 5: Include variationIndex in the findIndex check for local cart
+    const existingItemIndex = localCart.findIndex(item => 
+        item.productId === details.productId && 
+        item.size === details.size &&
+        item.color === details.color &&
+        item.variationIndex === details.variationIndex // Check the new required field
+    );
 
-        let data;
-        try {
-            data = await response.json();
-        } catch (e) {
-            console.warn(`Could not parse JSON response for status ${response.status}. Falling back if needed.`);
-            data = { message: `Server Error (${response.status}) received. Item added to local cart.`, status: response.status };
-        }
+    if (existingItemIndex > -1) {
+        localCart[existingItemIndex].quantity += details.quantity;
+    } else {
+        localCart.push(details);
+    }
 
-        if (response.ok) {
-            // 3a. Success: Item added to permanent cart
-            if (data.items && Array.isArray(data.items)) {
-                // Update based on the definitive server response
-                localStorage.setItem(CART_STORAGE_KEY, data.items.length.toString()); 
-                updateCartBadge();
-            } else {
-                console.error("API success but data.items missing. Updating badge with local count.");
-                updateCartBadge();
-            }
-            
-            // Display success alert (Green background)
-            const alertMessage = document.getElementById('cart-alert');
-            if (alertMessage) {
-                alertMessage.textContent = 'Item added to your permanent shopping bag!';
-                alertMessage.className = 'fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 p-3 rounded shadow-xl transition-all duration-300 ease-in-out bg-green-500 text-white opacity-100 translate-y-0';
-                setTimeout(() => {
-                    alertMessage.classList.add('opacity-0', 'translate-y-10');
-                    setTimeout(() => {
-                        alertMessage.classList.remove('bg-green-500', 'translate-y-10');
-                        alertMessage.classList.add('hidden');
-                    }, 300);
-                }, 3000);
-            }
+    localStorage.setItem(LOCAL_CART_KEY, JSON.stringify(localCart));
+    
+    // ⭐ FIX 2: DELETE THE INCORRECT LINE. We now rely on updateCartBadge() 
+    // to call the corrected getCartCount() which sums the total quantity.
+    // localStorage.setItem(CART_STORAGE_KEY, localCart.length.toString()); 
+    
+    updateCartBadge();
+    
+    // Display info alert for local cart (Blue background)
+    // **REPLACED MANUAL ALERT WITH CLEAN HELPER FUNCTION**
+    displayCartAlert(`"${details.name}" added to your bag! (Sign in to save permanently)`, 'info');
+};
 
-        } else if (response.status === 401 || response.status === 403 || response.status >= 500) {
-            // 3b. Unauthorized or Server Error (5xx) -> FALLBACK TO LOCAL CART
-            console.log(`Fallback triggered due to status ${response.status}.`);
-            handleLocalCartFallback(requiredDetails);
+console.log('Sending API Payload:', itemDataForAPI);
 
-        } else {
-            // 3c. Other Client-side API Errors (e.g., 400 Bad Request, 409 Conflict/Stock)
-            
-            // Use the flashing alert for generic error (Red background)
-            const alertMessage = document.getElementById('cart-alert');
-            if (alertMessage) {
-                alertMessage.textContent = data.message || `Failed to add item (Status ${response.status}).`;
-                alertMessage.className = 'fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 p-3 rounded shadow-xl transition-all duration-300 ease-in-out bg-red-500 text-white opacity-100 translate-y-0';
-                setTimeout(() => {
-                    alertMessage.classList.add('opacity-0', 'translate-y-10');
-                    setTimeout(() => {
-                        alertMessage.classList.remove('bg-red-500', 'translate-y-10');
-                        alertMessage.classList.add('hidden');
-                    }, 300); 
-                }, 3000);
-            }
-        }
-        
-    } catch (error) {
-        // --- 4. Network or Fetch Error -> FALLBACK TO LOCAL CART ---
-        console.error('Error in addToCart API (Network or Fetch Error):', error);
-        
-        // Use the fallback function
-        handleLocalCartFallback(requiredDetails);
+// --- 3. Attempt Authenticated API Call ---
+try {
+    const response = await fetch('/api/users/cart', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(itemDataForAPI),
+        credentials: 'include' 
+    });
 
-        // Display error alert (Red background)
-        const alertMessage = document.getElementById('cart-alert');
-        if (alertMessage) {
-            alertMessage.textContent = 'Could not reach server. Item added to local cart.';
-            alertMessage.className = 'fixed top-16 left-1/2 transform -translate-x-1/2 mt-4 p-3 rounded shadow-xl transition-all duration-300 ease-in-out bg-red-500 text-white opacity-100 translate-y-0';
-            setTimeout(() => {
-                alertMessage.classList.add('opacity-0', 'translate-y-10');
-                setTimeout(() => {
-                    alertMessage.classList.remove('bg-red-500', 'translate-y-10');
-                    alertMessage.classList.add('hidden');
-                }, 300);
-            }, 3000);
-        }
-    }
+    // 💡 FIX: Safely parse JSON or default to an error object
+    let data;
+    try {
+        data = await response.json();
+    } catch (e) {
+        console.warn(`Could not parse JSON response for status ${response.status}. Assuming non-JSON body.`);
+        data = { 
+            message: `Server Error (${response.status}) received. Item added to local cart.`,
+            status: response.status 
+        };
+    }
+
+    if (response.ok) {
+        // 3a. Success: Item added to permanent cart
+        
+        // 🔑 CRITICAL FIX: Ensure the server response has items
+        if (data.items && Array.isArray(data.items)) {
+            
+            // 1. Store the full permanent cart array in LOCAL_CART_KEY
+            // This is CRITICAL for sync, as getCartCount() will read this array.
+             localStorage.setItem(LOCAL_CART_KEY, JSON.stringify(data.items));
+
+            // ❌ DELETION: The previous logic stored a single number in CART_STORAGE_KEY,
+            // which contradicts the logic relying on LOCAL_CART_KEY array.
+            
+            // 3. Update the visual badge immediately (reads from the synced LOCAL_CART_KEY)
+            updateCartBadge();
+            
+        } else {
+            // If API is OK but returns unexpected data, still alert the user
+            console.error("API success but data.items missing. Relying on current local state.");
+            updateCartBadge(); // Ensure the badge is updated with existing count
+        }
+        
+        // Display success alert (Green background) - Using helper function
+        displayCartAlert('Item added to your permanent shopping bag!', 'success');
+
+    } else if (response.status === 401 || response.status === 403) {
+        // 3b. Unauthorized (Cookie failed/expired) -> FALLBACK TO LOCAL CART
+        console.log("401/403 received (Unauthenticated). Falling back to local cart.");
+        handleLocalCartFallback(requiredDetails);
+
+    } else {
+        // 3c. Other API Errors (e.g., 400 Bad Request, 409 Conflict/Stock, 503 Service Unavailable)
+        
+        // If it's a 5xx error, we should probably treat it like a temporary outage and use the local cart.
+        if (response.status >= 500) {
+                console.log(`Server Error ${response.status} received. Falling back to local cart.`);
+                handleLocalCartFallback(requiredDetails);
+        }
+
+        // Use the flashing alert for generic error (Red background) - Using helper function
+        displayCartAlert(data.message || `Failed to add item (Status ${response.status}).`, 'error');
+    }
+    
+} catch (error) {
+    // --- 4. Network or Fetch Error -> FALLBACK TO LOCAL CART ---
+    console.error('Error in addToCart API (Network or Fetch Error):', error);
+    
+    // Use the fallback function
+    handleLocalCartFallback(requiredDetails);
+
+    // Display error alert (Red background) - Using helper function
+    displayCartAlert('Could not reach server. Item added to local cart.', 'error');
 }
+
+/**
+ * Displays a persistent, self-hiding alert message in the top-center position.
+ * The alert uses the pre-existing fixed positioning in the HTML.
+ * @param {string} message The message content.
+ * @param {string} type 'success', 'error', or 'info'.
+ */
+function displayCartAlert(message, type) {
+    const alertMessage = document.getElementById('cart-alert');
+    if (!alertMessage) return;
+
+    let colorClass;
+    switch (type) {
+        case 'success':
+            colorClass = 'bg-green-500';
+            break;
+        case 'error':
+            colorClass = 'bg-red-500';
+            break;
+        case 'info': // Used for local cart fallback
+        default:
+            colorClass = 'bg-blue-500';
+            break;
+    }
+
+    alertMessage.textContent = message;
+    
+    // Clear all existing background colors, then set the new one
+    alertMessage.classList.remove('bg-green-500', 'bg-red-500', 'bg-blue-500');
+    alertMessage.classList.add(colorClass);
+
+    // 1. Show the alert by translating it down and setting full opacity
+    alertMessage.classList.remove('opacity-0', '-translate-y-full');
+    alertMessage.classList.add('opacity-100', 'translate-y-0');
+
+    // 2. Hide it after 3 seconds
+    setTimeout(() => {
+        alertMessage.classList.remove('opacity-100', 'translate-y-0');
+        alertMessage.classList.add('opacity-0', '-translate-y-full');
+    }, 3000);
+}
+}
+
+// Initialize the cart badge on page load
+// NOTE: Assuming updateCartBadge() is defined elsewhere
+document.addEventListener('DOMContentLoaded', updateCartBadge);
 /**
  * Handles the logic for a "Buy Now" action.
  * It bypasses the cart and immediately redirects to checkout with the selected item.

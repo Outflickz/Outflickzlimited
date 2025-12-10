@@ -5441,106 +5441,91 @@ app.post('/api/orders/calculate-buy-now', verifyUserToken, async (req, res) => {
 // 5. POST /api/users/cart - Add Item to Cart (Protected)
 // =========================================================
 app.post('/api/users/cart', verifyUserToken, async (req, res) => {
-    // ... (gathering and validation remains the same: FIX 1, FIX 2)
-    const { productId, name, productType, size, color, price, quantity, imageUrl, variationIndex, variation } = req.body;
-    const userId = req.userId;
+    // ... (gathering and validation remains the same: FIX 1, FIX 2)
+    const { productId, name, productType, size, color, price, quantity, imageUrl, variationIndex, variation } = req.body;
+    const userId = req.userId;
 
-    // 🚩 TEMPORARY DEBUG LOGIC 🚩
-    if (!productId) console.log('Validation failed: Missing productId');
-    if (!name) console.log('Validation failed: Missing name');
-    if (!productType) console.log('Validation failed: Missing productType'); // LIKELY CULPRIT
-    if (!size) console.log('Validation failed: Missing size'); // LIKELY CULPRIT
-    if (!price || price <= 0) console.log('Validation failed: Invalid price');
-    if (!quantity || quantity < 1) console.log('Validation failed: Invalid quantity');
-    if (variationIndex === undefined || variationIndex === null) console.log('Validation failed: Missing variationIndex');
+    // 🚩 TEMPORARY DEBUG LOGIC 🚩
+    if (!productId) console.log('Validation failed: Missing productId');
+    if (!name) console.log('Validation failed: Missing name');
+    if (!productType) console.log('Validation failed: Missing productType'); // LIKELY CULPRIT
+    if (!size) console.log('Validation failed: Missing size'); // LIKELY CULPRIT
+    if (!price || price <= 0) console.log('Validation failed: Invalid price');
+    if (!quantity || quantity < 1) console.log('Validation failed: Invalid quantity');
+    if (variationIndex === undefined || variationIndex === null) console.log('Validation failed: Missing variationIndex');
 
-    // Basic Input Validation
-    if (!productId || !name || !productType || !size || !price || !quantity || price <= 0 || quantity < 1 || variationIndex === undefined || variationIndex === null) {
-        return res.status(400).json({ message: 'Missing or invalid item details, including variation information.' });
-    }
+    // Basic Input Validation
+    if (!productId || !name || !productType || !size || !price || !quantity || price <= 0 || quantity < 1 || variationIndex === undefined || variationIndex === null) {
+        return res.status(400).json({ message: 'Missing or invalid item details, including variation information.' });
+    }
 
-    const newItem = {
-        productId,
-        name,
-        productType,
-        size,
-        color: color,
-        price,
-        quantity,
-        imageUrl,
-        variationIndex,
-        variation: variation || (color ? `Color: ${color}` : `Var Index: ${variationIndex}`), 
-    };
+    const newItem = {
+        productId,
+        name,
+        productType,
+        size,
+        color: color,
+        price,
+        quantity,
+        imageUrl,
+        variationIndex,
+        variation: variation || (color ? `Color: ${color}` : `Var Index: ${variationIndex}`), 
+    };
 
-    try {
-        let cart = await Cart.findOne({ userId });
+    try {
+        let cart = await Cart.findOne({ userId });
 
-        if (!cart) {
-            cart = await Cart.create({ userId, items: [newItem] });
-            // Simplified return for cart creation
-            const totals = calculateCartTotals(cart.items);
-            return res.status(201).json({ message: 'Cart created and item added.', items: cart.items, ...totals });
-        }
-
-        // 3. Check if the item variant already exists in the cart
-        const existingItemIndex = cart.items.findIndex(item =>
-            item.productId.equals(productId) &&
-            item.size === size &&
-            item.color === newItem.color && 
-            item.variationIndex === variationIndex
-        );
-
-        if (existingItemIndex > -1) {
-            // Item exists: Update quantity
-            cart.items[existingItemIndex].quantity += quantity;
-            cart.items[existingItemIndex].updatedAt = Date.now();
-        } else {
-            // Item does not exist: Add new item
-            cart.items.push(newItem);
-        }
-
-        // 4. Save the updated cart and use Mongoose's ability to return the updated document
-        // 🚀 OPTIMIZATION: Use findOneAndUpdate to save and fetch the final cart in one operation
-        const updatedCart = await Cart.findOneAndUpdate(
-             { userId },
-             { items: cart.items, updatedAt: Date.now() },
-             { new: true, lean: true } // Return the new document, use lean for performance
-        );
-        
-        // 💡 REMOVED: await cart.save(); 
-        // 💡 REMOVED: const updatedCart = await Cart.findOne({ userId }).lean();
-
-        if (!updatedCart) {
-             return res.status(404).json({ message: 'Cart not found during update.' });
-        }
-
-        const totals = calculateCartTotals(updatedCart.items);
-
-        res.status(200).json({ 
-            message: 'Item added/quantity updated successfully.', 
-            items: updatedCart.items, // Return the full updated item list
-            ...totals
-        });
-
-    } catch (error) {
-        console.error('Error adding item to cart:', error);
-        
-        // 🚀 ENHANCEMENT: Handle Mongoose Validation Errors with a 400 status
-        if (error.name === 'ValidationError') {
-            const path = Object.keys(error.errors)[0];
-            const invalidValue = error.errors[path].value;
-            // NOTE: The allowed enum values should be consistent with your Mongoose schema
-            const schemaEnums = ['WearsCollection', 'CapCollection', 'NewArrivals', 'PreOrderCollection'];
-            
-            return res.status(400).json({ 
-                message: `Validation Error: The value '${invalidValue}' is invalid for field '${path}'. It must be one of: ${schemaEnums.join(', ')}.`,
-                errorCode: 'INVALID_ENUM_VALUE'
-            });
+        if (!cart) {
+            cart = await Cart.create({ userId, items: [newItem] });
+            // Simplified return for cart creation
+            const totals = calculateCartTotals(cart.items);
+            return res.status(201).json({ message: 'Cart created and item added.', items: cart.items, ...totals });
         }
 
-        // Default fallback for true server-side failures (e.g., database connection issues)
-        res.status(500).json({ message: 'Failed to add item to shopping bag (Internal Server Error).' });
-    }
+        // 3. Check if the item variant already exists in the cart
+        const existingItemIndex = cart.items.findIndex(item =>
+            item.productId.equals(productId) &&
+            item.size === size &&
+            item.color === newItem.color && 
+            item.variationIndex === variationIndex
+        );
+
+        if (existingItemIndex > -1) {
+            // Item exists: Update quantity
+            cart.items[existingItemIndex].quantity += quantity;
+            cart.items[existingItemIndex].updatedAt = Date.now();
+        } else {
+            // Item does not exist: Add new item
+            cart.items.push(newItem);
+        }
+
+        // 4. Save the updated cart and use Mongoose's ability to return the updated document
+        // 🚀 OPTIMIZATION: Use findOneAndUpdate to save and fetch the final cart in one operation
+        const updatedCart = await Cart.findOneAndUpdate(
+             { userId },
+             { items: cart.items, updatedAt: Date.now() },
+             { new: true, lean: true } // Return the new document, use lean for performance
+        );
+        
+        // 💡 REMOVED: await cart.save(); 
+        // 💡 REMOVED: const updatedCart = await Cart.findOne({ userId }).lean();
+
+        if (!updatedCart) {
+             return res.status(404).json({ message: 'Cart not found during update.' });
+        }
+
+        const totals = calculateCartTotals(updatedCart.items);
+
+        res.status(200).json({ 
+            message: 'Item added/quantity updated successfully.', 
+            items: updatedCart.items, // Return the full updated item list
+            ...totals
+        });
+
+    } catch (error) {
+        console.error('Error adding item to cart:', error);
+        res.status(500).json({ message: 'Failed to add item to shopping bag.' });
+    }
 });
 
 // =========================================================

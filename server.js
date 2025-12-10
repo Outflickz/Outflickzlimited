@@ -989,7 +989,7 @@ const cartItemSchema = new mongoose.Schema({
     productType: { 
         type: String, 
         required: true, 
-        enum: ['WearsCollection', 'CapCollection', 'NewArrivals', 'PreOrderCollection'] 
+      //  enum: ['WearsCollection', 'CapCollection', 'NewArrivals', 'PreOrderCollection'] 
     },
     
     // Variant Details

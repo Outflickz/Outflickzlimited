@@ -535,8 +535,7 @@ async function simulateAddToCart(productDetails) {
         size: size,
         color: color, // The color can be 'N/A' but is now validated
         price: productDetails.price,
-        productType: productDetails.productType || productDetails.name,       
-        imageUrl: selectedImageUrl, 
+        productType: productDetails.productType || (productDetails.name && productDetails.name.toLowerCase().includes('top') ? 'WearsCollection' : 'WearsCollection'), 
         quantity: productDetails.quantity || 1,
         variationIndex: variationIndex, // Now 1-based
         variation: variation // Now defined

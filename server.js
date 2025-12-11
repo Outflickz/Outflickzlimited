@@ -1603,7 +1603,7 @@ async function populateInitialData() {
     }
 }
 
-const SHIPPING_COST = 3000;
+const SHIPPING_COST = 5000;
 const TAX_RATE = 0.00;
 
 /**

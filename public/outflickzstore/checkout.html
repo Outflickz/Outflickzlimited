@@ -236,89 +236,93 @@
     </div>
 
 
-    <div class="ml-3 text-sm flex-1">
-        <label for="payment-bank" class="font-medium text-gray-900">
-            Direct Bank Transfer (Manual)
-        </label>
-        <p id="bank-description" class="text-gray-500">View details below and complete payment manually.</p>
-        
-        <div id="bank-details-info" class="mt-3 p-3 bg-gray-100 rounded-md border border-gray-200" style="display:none;">
-            <h4 class="font-bold text-ash-dark mb-3">Select Account for Transfer:</h4>
+   <div class="ml-3 text-sm flex-1">
+    <label for="payment-bank" class="font-medium text-gray-900">
+        Direct Bank Transfer (Manual)
+    </label>
+    <p id="bank-description" class="text-gray-500">View details below and complete payment manually.</p>
+    
+    <div id="bank-details-info" class="mt-3 p-3 bg-gray-100 rounded-md border border-gray-200" style="display:none;">
+        <h4 class="font-bold text-ash-dark mb-3">Select Account for Transfer:</h4>
 
-            <div id="account-dropdowns" class="space-y-3">
-                
-                <div class="border border-gray-300 rounded-lg overflow-hidden">
-                    <button type="button" 
-                            class="bank-toggle w-full flex justify-between items-center p-3 font-semibold text-left transition duration-150" 
-                            data-target="moniepoint-details" 
-                            data-name="Moniepoint"
-                            aria-expanded="false"
-                            onclick="toggleBankDetails('moniepoint-details')">
-                        Moniepoint MFB 
-                        <svg class="w-4 h-4 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </button>
-                    <div id="moniepoint-details" class="bank-details-content p-3 pt-0 bg-white" style="display: none;">
-                        <hr class="mb-2 border-gray-200">
-                        <p class="text-lg font-mono">
-                            <span class="font-bold block">Account Name: Outflickz Limited</span>
-                            <span class="font-bold block mt-1">Account Number: 6515769257</span>
-                        </p>
-                    </div>
-                </div>
-
-                <div class="border border-gray-300 rounded-lg overflow-hidden">
-                    <button type="button" 
-                            class="bank-toggle w-full flex justify-between items-center p-3 font-semibold text-left transition duration-150" 
-                            data-target="opay-details" 
-                            data-name="OPay"
-                            aria-expanded="false"
-                            onclick="toggleBankDetails('opay-details')">
-                        OPay Digital Services
-                        <svg class="w-4 h-4 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </button>
-                    <div id="opay-details" class="bank-details-content p-3 pt-0 bg-white" style="display: none;">
-                        <hr class="mb-2 border-gray-200">
-                        <p class="text-lg font-mono">
-                            <span class="font-bold block">Account Name: Outflickz Limited</span>
-                            <span class="font-bold block mt-1">Account Number: 8092780718</span>
-                        </p>
-                    </div>
-                </div>
-
-                <div class="border border-gray-300 rounded-lg overflow-hidden">
-                    <button type="button" 
-                            class="bank-toggle w-full flex justify-between items-center p-3 font-semibold text-left transition duration-150" 
-                            data-target="palmpay-details" 
-                            data-name="PalmPay"
-                            aria-expanded="false"
-                            onclick="toggleBankDetails('palmpay-details')">
-                        PalmPay MFB
-                        <svg class="w-4 h-4 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </button>
-                    <div id="palmpay-details" class="bank-details-content p-3 pt-0 bg-white" style="display: none;">
-                        <hr class="mb-2 border-gray-200">
-                        <p class="text-lg font-mono">
-                            <span class="font-bold block">Account Name: Outflickz Limited</span>
-                            <span class="font-bold block mt-1">Account Number: 7083695241</span>
-                        </p>
-                    </div>
-                </div>
-
-            </div>
+        <div id="account-dropdowns" class="space-y-3">
             
-            <p class="text-xs text-ash-red mt-3">
-                IMPORTANT: Contact Customer Service with your payment Order ID as the payment narrative.
-            </p>
+            <div class="border border-gray-300 rounded-lg overflow-hidden">
+                <button type="button" 
+                        class="bank-toggle w-full flex justify-between items-center p-3 font-semibold text-left transition duration-150 **text-lg**" 
+                        data-target="moniepoint-details" 
+                        data-name="Moniepoint"
+                        aria-expanded="false"
+                        onclick="toggleBankDetails('moniepoint-details')">
+                    <span class="flex items-center">
+                        <img src="https://i.imgur.com/GlrvtEQ.png" alt="Moniepoint Logo" class="h-5 w-auto mr-3">
+                        Moniepoint MFB 
+                    </span>
+                    <svg class="w-4 h-4 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
+                <div id="moniepoint-details" class="bank-details-content p-3 pt-0 bg-white" style="display: none;">
+                    <hr class="mb-2 border-gray-200">
+                    <p class="text-lg font-mono">
+                        <span class="font-bold block">Account Name: Outflickz Limited</span>
+                        <span class="font-bold block mt-1">Account Number: 6515769257</span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="border border-gray-300 rounded-lg overflow-hidden">
+                <button type="button" 
+                        class="bank-toggle w-full flex justify-between items-center p-3 font-semibold text-left transition duration-150 **text-lg**" 
+                        data-target="opay-details" 
+                        data-name="OPay"
+                        aria-expanded="false"
+                        onclick="toggleBankDetails('opay-details')">
+                    <span class="flex items-center">
+                        <img src="https://i.imgur.com/3y89SUa.png" alt="OPay Logo" class="h-5 w-auto mr-3">
+                        OPay Digital Services
+                    </span>
+                    <svg class="w-4 h-4 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
+                <div id="opay-details" class="bank-details-content p-3 pt-0 bg-white" style="display: none;">
+                    <hr class="mb-2 border-gray-200">
+                    <p class="text-lg font-mono">
+                        <span class="font-bold block">Account Name: Christopher Ayomide Ajibade</span>
+                        <span class="font-bold block mt-1">Account Number: 6420366169</span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="border border-gray-300 rounded-lg overflow-hidden">
+                <button type="button" 
+                        class="bank-toggle w-full flex justify-between items-center p-3 font-semibold text-left transition duration-150 **text-lg**" 
+                        data-target="palmpay-details" 
+                        data-name="PalmPay"
+                        aria-expanded="false"
+                        onclick="toggleBankDetails('palmpay-details')">
+                    <span class="flex items-center">
+                        <img src="https://i.imgur.com/JuaXLco.png" alt="PalmPay Logo" class="h-5 w-auto mr-3">
+                        PalmPay MFB
+                    </span>
+                    <svg class="w-4 h-4 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
+                <div id="palmpay-details" class="bank-details-content p-3 pt-0 bg-white" style="display: none;">
+                    <hr class="mb-2 border-gray-200">
+                    <p class="text-lg font-mono">
+                        <span class="font-bold block">Account Name: Christoper Ayomide Ajibade</span>
+                        <span class="font-bold block mt-1">Account Number: 8904962460</span>
+                    </p>
+                </div>
+            </div>
+
         </div>
-        <div id="bank-transfer-receipt-upload" class="hidden mt-3">
-            <hr class="my-3 border-gray-300">
-            <h4 class="font-bold text-ash-dark mb-2">Upload Payment Receipt <span class="text-ash-red">*</span></h4>
-            <p class="text-xs text-gray-500 mb-2">Upload a screenshot/proof of payment to proceed with manual verification.</p>
-            <input type="file" id="bank-receipt-upload" name="bank-receipt-upload" accept="image/*" class="w-full text-sm text-gray-900 border border-gray-300 rounded-sm cursor-pointer bg-white file:py-2 file:px-4 file:border-0 file:bg-ash-red file:text-white hover:file:bg-red-700 transition">
-        </div>
+        
+    </div>
+    <div id="bank-transfer-receipt-upload" class="hidden mt-3">
+        <hr class="my-3 border-gray-300">
+        <h4 class="font-bold text-ash-dark mb-2">Upload Payment Receipt <span class="text-ash-red">*</span></h4>
+        <p class="text-xs text-gray-500 mb-2">Upload a screenshot/proof of payment to proceed with manual verification.</p>
+        <input type="file" id="bank-receipt-upload" name="bank-receipt-upload" accept="image/*" class="w-full text-sm text-gray-900 border border-gray-300 rounded-sm cursor-pointer bg-white file:py-2 file:px-4 file:border-0 file:bg-ash-red file:text-white hover:file:bg-red-700 transition">
     </div>
 </div>
-                        
                         
                             <div class="mt-6 border-t border-gray-200 pt-4">
                                 <div class="flex justify-between items-center">
@@ -443,13 +447,16 @@
         </div>
     </footer>
     
-    <a href="https://wa.me/2347042882706?text=HELLO!%20WELCOME%20TO%20OUTFLICKZ!%20HOW%20CAN%20WE%20HELP%20YOU" 
-        target="_blank" 
-        class="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-3 sm:p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105" 
-        aria-label="Chat with us on WhatsApp">
-        <i class="fab fa-whatsapp text-2xl sm:text-3xl"></i>
-    </a>
-
+  <a href="https://wa.me/2347042882706?text=HELLO%20OUTFLICKZ!%20My%20name%20is%20..."
+    target="_blank"
+    class="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-2 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+    aria-label="Chat with us on WhatsApp">
+    
+    <img src="https://i.imgur.com/1Rxhi9q.jpeg" 
+        alt="Outflickz Logo" 
+        class="h-5 w-5 sm:h-6 sm:w-6 object-cover rounded-full" />
+    
+</a>
  <script>
     // Customizing Tailwind colors to match the theme (Unchanged)
     tailwind.config = {

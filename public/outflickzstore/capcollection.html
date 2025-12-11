@@ -581,14 +581,20 @@ function toggleImage(collectionId) {
 
 // --- UTILITY FOR COLOR LIST (Stock-Aware) ---
 function createColorList(collectionId, variants) {
+    // 1. Initial Safety Check
+    // 'variants' now only includes colors with total stock > 0 (filtered by backend)
     if (!variants || variants.length === 0) return '';
     
+    // NOTE: The previous 'pre-order' filter is removed because the backend should 
+    // already ensure that every variant passed here is intended to be displayed.
     const coloredVariants = variants; 
 
+    // If there are no colored variants, return empty.
     if (coloredVariants.length === 0) return ''; 
 
     // 2. Create a map for the image switching logic
     const colorMap = coloredVariants.reduce((acc, v) => {
+        // We only map the necessary image URLs
         acc[v.color] = { frontImageUrl: v.frontImageUrl, backImageUrl: v.backImageUrl };
         return acc;
     }, {});
@@ -623,52 +629,6 @@ function createColorList(collectionId, variants) {
     return mapHtml + buttonsHtml;
 }
 
-// --- UTILITY FOR SIZE LIST (Stock-Aware) ---
-function createSizeList(collectionId, sizeStockMap, isReduced = false) {
-    if (!sizeStockMap) {
-        return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
-    }
-
-    const standardSizes = ['S', 'M', 'L', 'XL'];
-    
-    const sizesWithStock = Object.entries(sizeStockMap)
-        .filter(([size, stock]) => 
-            standardSizes.includes(size.toUpperCase().trim()) && 
-            stock > 0
-        )
-        .map(([size]) => size); 
-
-    if (sizesWithStock.length === 0) {
-        return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
-    }
-
-    const sizeClasses = isReduced 
-        ? 'text-[0.6rem] px-1.5 py-0.5' 
-        : 'text-xs px-2 py-0.5 md:px-2 md:py-1'; 
-
-    const groupName = `size-${collectionId}`;
-    
-    return sizesWithStock.map((size, index) => {
-        const safeSize = size.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
-        const inputId = `size-${collectionId}-${safeSize}`;
-        
-        return `
-            <label for="${inputId}" class="size-label border border-gray-300 cursor-pointer hover:border-ash-dark transition-all rounded-sm has-[:checked]:border-ash-dark has-[:checked]:bg-gray-100">
-                <input 
-                    type="radio" 
-                    id="${inputId}" 
-                    name="${groupName}" 
-                    value="${size}" 
-                    class="hidden" 
-                    ${index === 0 ? 'checked' : ''}
-                >
-                <span class="${sizeClasses}">${size}</span>
-            </label>
-        `;
-    }).join('');
-}
-
-
 function createCollectionCard(collection, size = 'default') {
     const currencySymbol = '₦';
     const PLACEHOLDER_URL = 'https://s3.us-west-1.idrivee2.com/outflickz/public/placeholder-image-v1.jpg';
@@ -676,7 +636,7 @@ function createCollectionCard(collection, size = 'default') {
     const defaultBackImage = PLACEHOLDER_URL;
 
     // --- Conditional Sizing Classes ---
-    const reducedSizes = ['reduced', 'wears', 'newarrivals', 'preorder'];
+    const reducedSizes = ['reduced', 'caps', 'wears', 'newarrivals', 'preorder'];
     const isReduced = reducedSizes.includes(size);
     const isCaps = size === 'caps'; 
     const isWears = size === 'wears'; 
@@ -771,6 +731,7 @@ function createCollectionCard(collection, size = 'default') {
     const isButtonDisabled = isOutOfStock && !isPreorder;
     const safeProductTypeInHtml = collection.collectionName || collection.productType;
 
+console.log(`[Card Debug] Product ID: ${collection._id}, collectionName: ${collection.collectionName}, productType: ${collection.productType}, safeProductTypeInHtml: ${safeProductTypeInHtml}`);
     // Get current quantity value for the button click
     const quantityGetter = `document.getElementById('quantity-input-${collection._id}').value`;
 
@@ -783,7 +744,8 @@ function createCollectionCard(collection, size = 'default') {
                 name: '${collection.name.replace(/'/g, "\\'")}',
                 price: ${itemPrice},
                 imageUrl: '${frontImageUrl}',
-                quantity: parseInt(${quantityGetter})
+                quantity: parseInt(${quantityGetter}),
+                collectionName: '${safeProductTypeInHtml}'
             })"
             class="${controlTextSize} ${cartButtonClasses} ${controlHeight} rounded-sm transition font-semibold uppercase tracking-widest flex items-center justify-center w-full md:flex-1">
             ${cartButtonText}
@@ -796,10 +758,7 @@ function createCollectionCard(collection, size = 'default') {
             onclick="simulateBuyNow({
                 productId: '${collection._id}',
                 name: '${collection.name.replace(/'/g, "\\'")}',
-                
-                // ⭐ FIX 1: Explicitly pass a safe productType
                 productType: '${safeProductTypeInHtml}', 
-                
                 price: ${itemPrice},
                 quantity: parseInt(${quantityGetter}),
                 imageUrl: '${frontImageUrl}'
@@ -814,13 +773,13 @@ function createCollectionCard(collection, size = 'default') {
         ? `<div class="flex-shrink-0 ${controlHeight} border border-gray-300 rounded-sm flex items-center justify-center text-xs text-gray-500 w-20 mt-1 md:mt-0">N/A</div>`
         : `
             <div class="flex items-center border border-gray-300 rounded-sm flex-shrink-0 mt-1 md:mt-0">
-               <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center rounded-l-sm font-semibold flex-shrink-0 w-8 h-7">
-    &minus;
-</button>
+                <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-l-sm font-semibold flex-shrink-0">
+                    &minus;
+                </button>
                 <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock || 999}" aria-label="Quantity" class="${quantityInputWidth} ${controlHeight} text-center ${quantityInputTextSize} border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
-              <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center rounded-r-sm font-semibold flex-shrink-0 w-8 h-7">
-    &plus;
-</button>
+                <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-r-sm font-semibold flex-shrink-0">
+                    &plus;
+                </button>
             </div>
         `;
 
@@ -889,6 +848,65 @@ function createCollectionCard(collection, size = 'default') {
             </div>
         </div>
     `;
+}
+
+// Function to DELETE (The block-style version)
+/**
+ * Generates the HTML for the size selection options within the collection card.
+ * CRITICAL FIX: Filters out sizes that have zero or less stock.
+ * @param {string} collectionId The unique ID of the collection.
+ * @param {Object} sizeStockMap A map of {Size: StockCount} received from the backend (e.g., {S: 10, M: 0, L: 5}).
+ * @param {boolean} isReduced Flag for styling.
+ * @returns {string} The HTML for the size buttons, or an 'N/A' span if none are in stock.
+ */
+function createSizeList(collectionId, sizeStockMap, isReduced = false) {
+    if (!sizeStockMap) {
+        return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
+    }
+
+    // Standard sizes list (used for ordering or ensuring only valid sizes are processed)
+    const standardSizes = ['S', 'M', 'L', 'XL'];
+    
+    // 1. **FILTERING LOGIC:** Convert the map to an array and filter by stock > 0
+    const sizesWithStock = Object.entries(sizeStockMap)
+        .filter(([size, stock]) => 
+            // 1a. Check if the size is one of the standard sizes
+            standardSizes.includes(size.toUpperCase().trim()) && 
+            // 1b. CRITICAL: Check if stock is greater than zero
+            stock > 0
+        )
+        // 2. Map back to just the size string for easy HTML generation
+        .map(([size]) => size); 
+
+    if (sizesWithStock.length === 0) {
+        return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
+    }
+
+    const sizeClasses = isReduced 
+        ? 'text-[0.6rem] px-1.5 py-0.5' // Smaller for reduced card
+        : 'text-xs px-2 py-0.5 md:px-2 md:py-1'; // Default size
+
+    const groupName = `size-${collectionId}`; // Use the same name for all radios in this group
+    
+    // 3. Generate HTML using the filtered list (sizesWithStock)
+    return sizesWithStock.map((size, index) => {
+        const safeSize = size.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
+        const inputId = `size-${collectionId}-${safeSize}`;
+        
+        return `
+            <label for="${inputId}" class="size-label border border-gray-300 cursor-pointer hover:border-ash-dark transition-all rounded-sm has-[:checked]:border-ash-dark has-[:checked]:bg-gray-100">
+                <input 
+                    type="radio" 
+                    id="${inputId}" 
+                    name="${groupName}" 
+                    value="${size}" 
+                    class="hidden" 
+                    ${index === 0 ? 'checked' : ''}
+                >
+                <span class="${sizeClasses}">${size}</span>
+            </label>
+        `;
+    }).join('');
 }
 
 // --- CAP COLLECTION JS ---

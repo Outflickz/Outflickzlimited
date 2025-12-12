@@ -1605,7 +1605,7 @@ async function populateInitialData() {
     }
 }
 
-const SHIPPING_COST = 5000;
+const SHIPPING_COST = 0.00;
 const TAX_RATE = 0.00;
 
 /**
@@ -2120,7 +2120,10 @@ app.get('/capscollection', (req, res) => { res.sendFile(path.join(__dirname, 'pu
 app.get('/newarrivals', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'newarrivals.html')); }); 
 app.get('/wearscollection', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'wearscollection.html')); }); 
 app.get('/preorder', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'preoder.html')); }); 
-
+app.get('/contact', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'contact.html')); }); 
+app.get('/faq', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'faq.html')); }); 
+app.get('/size_guide', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'size_guide.html')); }); 
+app.get('/shipping_returns', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'shipping_returns.html')); }); 
 
 
 //ADMIN ROUTE

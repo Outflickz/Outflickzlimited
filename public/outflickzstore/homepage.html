@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Outflickz</title>
+    <title>Outflickz Limited | Official Streetwear Store</title>
+    <meta name="description" content="Welcome to Outflickz Limited. Redirecting you to our official online store for exclusive streetwear, caps, and limited edition drops. Outflickz"/>
+    <meta name="google-site-verification" content="Z6ROK89ZCUVN1i5qEFeLCyaaeJHYp5-33t4Mi4pxzJs" />
+    <link rel="canonical" href="https://www.outflickz.com/outflickzstore/homepage.html"/>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="icon" type="image/png" href="https://i.imgur.com/ioWFyQB.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -247,7 +250,7 @@ document.addEventListener('click', function(event) {
 
 
 // REMOVED: const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
-const API_BASE_URL = 'https://outflickz.com';
+    const API_BASE_URL = 'https://outflickz.com';
 const CART_STORAGE_KEY = 'outflickzCartCount';
 const LOCAL_CART_KEY = 'outflickzLocalCart';
 
@@ -1776,60 +1779,60 @@ document.addEventListener('DOMContentLoaded', () => {
 <body class="bg-color-white text-color-black min-h-screen">
 
     <header class="bg-color-white sticky top-0 z-50 shadow-md border-b border-gray-100">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
-        <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
-            <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-10 sm:h-12 lg:h-10">
-        </a>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between h-auto">
+            <a href="homepage.html" class="flex items-center" aria-label="Outflickz Home">
+                <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-10 sm:h-12 lg:h-10">
+            </a>
 
-        <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
-            <a href="preorder.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
-            <a href="newarrivals.html" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
-            <a href="wearscollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Wears Collections</a>
-            <a href="capcollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Cap Collections</a>
-        </nav>
+            <nav class="hidden md:flex flex-grow justify-center space-x-8 lg:space-x-12 text-sm lg:text-base" aria-label="Main Navigation">
+                <a href="preorder.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
+                <a href="newarrivals.html" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
+                <a href="wearscollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Wears Collections</a>
+                <a href="capcollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Cap Collections</a>
+            </nav>
 
-      <div class="flex items-center space-x-2 sm:space-x-4">
-    <button id="profile-icon" 
-    class="p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" 
-    aria-label="User Account"
-    onclick="redirectToProfileOrLogin()">
-        <i class="fas fa-user w-4 h-4 sm:w-5 sm:h-5"></i>
-    </button>
-    <a href="cart.html" class="relative p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" aria-label="Shopping Bag">
-        <i class="fas fa-shopping-bag w-4 h-4 sm:w-5 sm:h-5"></i>
-        <span id="cart-badge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-ash-red rounded-full hidden">
-            0
-        </span>
-    </a>
-    <button class="md:hidden p-1 sm:p-2 text-gray-700 hover:text-ash-dark transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
-        <i class="fas fa-bars w-5 h-5 sm:w-6 sm:h-6"></i>
-    </button>
-</div>
-</header>
-<div id="cart-alert" 
-     class="fixed top-0 left-1/2 transform -translate-x-1/2  bg-green-500 text-white text-sm px-4 py-2 rounded-b-lg shadow-xl z-[60] transition-all duration-500   opacity-0 -translate-y-full"
-     style="max-width: 90vw;"> Item(s) added to cart! </div>
+          <div class="flex items-center space-x-3 sm:space-x-5">
+            <button id="profile-icon" 
+            class="p-2 sm:p-3 text-gray-700 hover:text-ash-dark transition rounded-full hidden md:block" 
+            aria-label="User Account"
+            onclick="redirectToProfileOrLogin()">
+                <i class="fas fa-user w-5 h-5"></i>
+            </button>
+            <a href="cart.html" class="relative p-2 sm:p-3 text-gray-700 hover:text-ash-dark transition rounded-full" aria-label="Shopping Bag">
+                <i class="fas fa-shopping-bag w-5 h-5"></i>
+                <span id="cart-badge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-ash-red rounded-full hidden">
+                    0
+                </span>
+            </a>
+            <button class="md:hidden p-2 sm:p-3 text-gray-700 hover:text-ash-dark transition rounded-full" onclick="toggleMenu()" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open main menu">
+                <i class="fas fa-bars w-5 h-5 sm:w-6 sm:h-6"></i>
+            </button>
+        </div>
+    </header>
+    <div id="cart-alert" 
+          class="fixed top-0 left-1/2 transform -translate-x-1/2  bg-green-500 text-white text-sm px-4 py-2 rounded-b-lg shadow-xl z-[60] transition-all duration-500  opacity-0 -translate-y-full"
+          style="max-width: 90vw;"> Item(s) added to cart! </div>
 
     <div id="mobile-menu" class="hidden md:hidden bg-color-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
-    <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
-        <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Wears Collection</a>
-        <a href="newarrivals.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">New Arrivals</a>
-        <a href="capcollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cap Collection</a>
-         <a href="preorder.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
+        <div class="px-4 pt-3 pb-4 space-y-2 text-base">
+            <a href="wearscollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Wears Collection</a>
+            <a href="newarrivals.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">New Arrivals</a>
+            <a href="capcollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cap Collection</a>
+            <a href="preorder.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
 
-        
-        <button 
-            id="mobile-profile-login-button" 
-            class="w-full flex items-center px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md text-left"
-            aria-label="User Account or Login"
-            onclick="redirectToProfileOrLogin()">
-            <i class="fas fa-user w-4 h-4 mr-3"></i>
-            Account / Login
-        </button>
+            
+            <button 
+                id="mobile-profile-login-button" 
+                class="w-full flex items-center px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md text-left mt-2"
+                aria-label="User Account or Login"
+                onclick="redirectToProfileOrLogin()">
+                <i class="fas fa-user w-4 h-4 mr-3"></i>
+                Account / Login
+            </button>
         </div>
-</div>
+    </div>
 
-    <main class="relative h-[60vh] md:h-[calc(100vh-4rem)] overflow-hidden">
+    <main class="relative h-[65vh] md:h-[calc(100vh-6rem)] overflow-hidden">
         <div class="hero-bg-slider-container">
             <div id="slider-cell-1" class="slider-cell slider-cell-1"></div>
             <div id="slider-cell-2" class="slider-cell slider-cell-2"></div>
@@ -1837,268 +1840,280 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
 
         <div class="absolute inset-0 z-30 flex flex-col items-center justify-center p-4">
-            <h1 class="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-extrabold roulette-text mb-2 sm:mb-4 uppercase text-center">
+            <h1 class="text-7xl sm:text-8xl md:text-9xl lg:text-[10rem] font-extrabold roulette-text mb-4 sm:mb-6 uppercase text-center leading-none">
                 OUTFLICKZ
             </h1>
-            <p class="text-xs sm:text-sm font-semibold uppercase tracking-widest mb-4 sm:mb-6 text-center text-white">
+            <p class="text-sm sm:text-base font-semibold uppercase tracking-[0.3em] mb-6 sm:mb-8 text-center text-white">
                 TOP DEAL
             </p>
             <div class="relative inline-block text-center">
-    <button id="shop-now-btn" class="bg-ash-red text-white hover:bg-red-700 transition duration-300 font-semibold py-2.5 px-8 sm:py-3 sm:px-10 rounded-sm shadow-xl uppercase text-xs sm:text-xs tracking-widest" onclick="toggleShopDropdown()">
-        Shop Now
-    </button>
+                <button id="shop-now-btn" class="bg-ash-red text-white hover:bg-red-700 transition duration-300 font-semibold py-3 px-10 sm:py-4 sm:px-12 rounded-sm shadow-xl uppercase text-sm tracking-widest" onclick="toggleShopDropdown()">
+                    Shop Now
+                </button>
 
-    <div id="shop-dropdown-menu" class="hidden absolute top-full mt-2 left-1/2 transform -translate-x-1/2 w-48 bg-white rounded-lg shadow-lg z-40 border border-gray-100 overflow-hidden">
-        <a href="wearscollection.html" class="block px-4 py-2 text-sm font-medium text-ash-dark hover:bg-gray-100 transition duration-150">
-            Wears Collections
-        </a>
-        <a href="capcollection.html" class="block px-4 py-2 text-sm font-medium text-ash-dark hover:bg-gray-100 transition duration-150">
-            Caps Collection
-        </a>
-    </div>
-</div>
+                <div id="shop-dropdown-menu" class="hidden absolute top-full mt-3 left-1/2 transform -translate-x-1/2 w-56 bg-white rounded-lg shadow-2xl z-40 border border-gray-100 overflow-hidden">
+                    <a href="wearscollection.html" class="block px-4 py-3 text-base font-medium text-ash-dark hover:bg-gray-100 transition duration-150">
+                        Wears Collections
+                    </a>
+                    <a href="capcollection.html" class="block px-4 py-3 text-base font-medium text-ash-dark hover:bg-gray-100 transition duration-150">
+                        Caps Collection
+                    </a>
+                </div>
+            </div>
         </div>
     </main>
 
-    <section id="wears-collections-section" class="py-10 sm:py-12 bg-color-white text-color-black border-t border-racing-grey white-section">
+    <section id="wears-collections-section" class="py-12 sm:py-16 bg-color-white text-color-black border-t border-racing-grey white-section">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-start mb-6 sm:mb-8">
+            <div class="flex justify-between items-start mb-8 sm:mb-10">
                 <div>
-                    <h2 class="text-xs sm:text-xm font-extrabold text-color-black uppercase mb-1">
+                    <h2 class="text-lg sm:text-xl font-extrabold text-color-black uppercase mb-1.5">
                         New In
                     </h2>
-                    <p class="text-xs sm:text-xm font-medium text-gray-700">
+                    <p class="text-sm sm:text-base font-medium text-gray-700">
                         Explore our new collection
                     </p>
                 </div>
                 
-                <a href="wearscollection.html" class="border-2 border-ash-red text-ash-red hover:bg-ash-red hover:text-white transition duration-300 font-bold py-1.5 px-4 sm:py-2 sm:px-6 rounded-sm uppercase text-xs sm:text-xm tracking-widest mt-2">
+                <a href="wearscollection.html" class="border-2 border-ash-red text-ash-red hover:bg-ash-red hover:text-white transition duration-300 font-bold py-2 px-6 sm:py-2.5 sm:px-8 rounded-sm uppercase text-xs sm:text-sm tracking-widest mt-2">
                     View All Wears
                 </a>
             </div>
-            <div id="wears-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
-                </div>
-            
+            <div id="wears-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 sm:gap-8 lg:gap-10">
             </div>
+            
+        </div>
     </section>
 
-    <section id="new-arrivals-section" class="py-10 sm:py-12 bg-gray-50 text-color-black border-t border-b border-gray-200">
+    <section id="new-arrivals-section" class="py-12 sm:py-16 bg-gray-50 text-color-black border-t border-b border-gray-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-start mb-6 sm:mb-8">
+            <div class="flex justify-between items-start mb-8 sm:mb-10">
                 <div>
-                    <h2 class="text-xs sm:text-xm font-extrabold text-color-black uppercase mb-1">
+                    <h2 class="text-lg sm:text-xl font-extrabold text-color-black uppercase mb-1.5">
                         New Arrivals
                     </h2>
-                    <p class="text-xs sm:text-xm font-medium text-gray-700">
+                    <p class="text-sm sm:text-base font-medium text-gray-700">
                         Limited edition drops
                     </p>
                 </div>
                 
-                <a href="newarrivals.html" class="border-2 border-ash-red text-ash-red hover:bg-ash-red hover:text-white transition duration-300 font-bold py-1.5 px-4 sm:py-2 sm:px-6 rounded-sm uppercase text-xs sm:text-xm tracking-widest mt-2">
+                <a href="newarrivals.html" class="border-2 border-ash-red text-ash-red hover:bg-ash-red hover:text-white transition duration-300 font-bold py-2 px-6 sm:py-2.5 sm:px-8 rounded-sm uppercase text-xs sm:text-sm tracking-widest mt-2">
                     Shop New Arrivals
                 </a>
             </div>
-            <div id="new-arrivals-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+            <div id="new-arrivals-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 sm:gap-8 lg:gap-10">
             </div>
         </div>
     </section>
 
-    <section id="advertisements-section" class="py-8 sm:py-10 bg-white text-gray-900">
+    <section id="advertisements-section" class="py-12 sm:py-16 bg-white text-gray-900">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 class="text-xs sm:text-sm font-extrabold text-gray-900 uppercase mb-4 text-center tracking-widest">
+            <h2 class="text-sm sm:text-base font-extrabold text-gray-900 uppercase mb-8 text-center tracking-[0.2em]">
                 Exclusive Look
             </h2>
             
-            <div id="advertisements-grid" class="flex overflow-x-scroll snap-x snap-mandatory space-x-3 sm:space-x-4 pb-4">
+            <div id="advertisements-grid" class="flex overflow-x-scroll snap-x snap-mandatory space-x-6 sm:space-x-8 pb-4">
                 
-                <div class="ad-image-box rounded-xl overflow-hidden shadow-lg flex-shrink-0 snap-center w-36 sm:w-56 md:w-72 cursor-pointer transform hover:shadow-xl">
-                    <img src="https://i.imgur.com/3Z36L6D.jpeg" alt="Model wearing Outflickz shirt" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-110">
+                <div class="ad-image-box rounded-xl overflow-hidden shadow-xl flex-shrink-0 snap-center w-40 sm:w-64 md:w-80 cursor-pointer transform hover:shadow-2xl">
+                    <img src="https://i.imgur.com/3Z36L6D.jpeg" alt="Model wearing Outflickz shirt" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-105">
                 </div>
                 
-                <div class="ad-image-box rounded-xl overflow-hidden shadow-lg flex-shrink-0 snap-center w-36 sm:w-56 md:w-72 cursor-pointer transform hover:shadow-xl">
-                    <img src="https://i.imgur.com/yohJHbh.jpeg" alt="Model wearing Outflickz shirt" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-110">
+                <div class="ad-image-box rounded-xl overflow-hidden shadow-xl flex-shrink-0 snap-center w-40 sm:w-64 md:w-80 cursor-pointer transform hover:shadow-2xl">
+                    <img src="https://i.imgur.com/yohJHbh.jpeg" alt="Model wearing Outflickz shirt" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-105">
                 </div>
                 
-                <div class="ad-image-box rounded-xl overflow-hidden shadow-lg flex-shrink-0 snap-center w-36 sm:w-56 md:w-72 cursor-pointer transform hover:shadow-xl">
-                    <img src="https://i.imgur.com/ZTkiU0L.jpeg" alt="Model in dark Outflickz hoodie" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-110">
+                <div class="ad-image-box rounded-xl overflow-hidden shadow-xl flex-shrink-0 snap-center w-40 sm:w-64 md:w-80 cursor-pointer transform hover:shadow-2xl">
+                    <img src="https://i.imgur.com/ZTkiU0L.jpeg" alt="Model in dark Outflickz hoodie" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-105">
                 </div>
                 
-                <div class="ad-image-box rounded-xl overflow-hidden shadow-lg flex-shrink-0 snap-center w-36 sm:w-56 md:w-72 cursor-pointer transform hover:shadow-xl">
-                    <img src="https://i.imgur.com/5MHHtZB.jpeg" alt="Close-up of Outflickz product detail" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-110">
+                <div class="ad-image-box rounded-xl overflow-hidden shadow-xl flex-shrink-0 snap-center w-40 sm:w-64 md:w-80 cursor-pointer transform hover:shadow-2xl">
+                    <img src="https://i.imgur.com/5MHHtZB.jpeg" alt="Close-up of Outflickz product detail" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-105">
                 </div>
                 
-                <div class="ad-image-box rounded-xl overflow-hidden shadow-lg flex-shrink-0 snap-center w-36 sm:w-56 md:w-72 cursor-pointer transform hover:shadow-xl">
-                    <img src="https://i.imgur.com/gA0XCdQ.jpeg" alt="Lifestyle shot of Outflickz collection" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-110">
+                <div class="ad-image-box rounded-xl overflow-hidden shadow-xl flex-shrink-0 snap-center w-40 sm:w-64 md:w-80 cursor-pointer transform hover:shadow-2xl">
+                    <img src="https://i.imgur.com/gA0XCdQ.jpeg" alt="Lifestyle shot of Outflickz collection" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-105">
                 </div>
                 
-                <div class="ad-image-box rounded-xl overflow-hidden shadow-lg flex-shrink-0 snap-center w-36 sm:w-56 md:w-72 cursor-pointer transform hover:shadow-xl">
-                    <img src="https://i.imgur.com/ZgWIhuA.jpeg" alt="Lifestyle shot of Outflickz collection" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-110">
+                <div class="ad-image-box rounded-xl overflow-hidden shadow-xl flex-shrink-0 snap-center w-40 sm:w-64 md:w-80 cursor-pointer transform hover:shadow-2xl">
+                    <img src="https://i.imgur.com/ZgWIhuA.jpeg" alt="Lifestyle shot of Outflickz collection" class="w-full h-full object-cover aspect-[2/3] transition duration-300 hover:scale-105">
                 </div>
 
-                <div class="flex-shrink-0 w-4"></div>
+                <div class="flex-shrink-0 w-8"></div>
             </div>
         </div>
     </section>
 
-      <section id="caps-collections-section" class="py-10 sm:py-12 bg-color-white text-color-black border-t border-b border-gray-200">
+    <section id="caps-collections-section" class="py-12 sm:py-16 bg-color-white text-color-black border-t border-b border-gray-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-start mb-6 sm:mb-8">
+            <div class="flex justify-between items-start mb-8 sm:mb-10">
                 <div>
-                    <h2 class="text-xs sm:text-xm font-extrabold text-color-black uppercase mb-1">
+                    <h2 class="text-lg sm:text-xl font-extrabold text-color-black uppercase mb-1.5">
                         🧢 Cap Collections
                     </h2>
-                    <p class="text-xs sm:text-xm font-medium text-gray-700">
+                    <p class="text-sm sm:text-base font-medium text-gray-700">
                         Find the perfect fit for your headwear game
                     </p>
                 </div>
                 
-                <a href="capcollection.html" class="border-2 border-ash-red text-ash-red hover:bg-ash-red hover:text-white transition duration-300 font-bold py-1.5 px-4 sm:py-2 sm:px-6 rounded-sm uppercase text-xs sm:text-xm tracking-widest mt-2">
+                <a href="capcollection.html" class="border-2 border-ash-red text-ash-red hover:bg-ash-red hover:text-white transition duration-300 font-bold py-2 px-6 sm:py-2.5 sm:px-8 rounded-sm uppercase text-xs sm:text-sm tracking-widest mt-2">
                     Shop All Caps
                 </a>
             </div>
-            <div id="caps-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+            <div id="caps-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 sm:gap-8 lg:gap-10">
             </div>
         </div>
     </section>
 
-    <section id="preorder-collections-section" class="py-10 sm:py-12 bg-gray-50 text-color-black border-t border-b border-gray-200">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between items-start mb-6 sm:mb-8">
-            <div>
-                <h2 class="text-xs sm:text-xm font-extrabold text-color-black uppercase mb-1">
-                    🕒 Pre-Order Drop
-                </h2>
-                <p class="text-xs sm:text-xm font-medium text-gray-700">
-                    Secure your exclusive item before it sells out
-                </p>
-            </div>
-            
-            <a href="preorder.html" class="border-2 border-ash-dark text-ash-dark hover:bg-ash-dark hover:text-white transition duration-300 font-bold py-1.5 px-4 sm:py-2 sm:px-6 rounded-sm uppercase text-xs sm:text-xm tracking-widest mt-2">
-                View Pre-Orders
-            </a>
-        </div>
-        <div id="preorder-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
-        </div>
-    </div>
-</section>
-    
-<div id="image-modal-overlay" class="fixed inset-0 bg-black bg-opacity-90 z-[1000] hidden flex items-center justify-center p-4 transition-opacity duration-300" onclick="closeImageModal()">
-    
-    <div id="modal-content" class="relative max-w-5xl max-h-full" onclick="event.stopPropagation()">
-        
-        <img 
-            id="modal-image-display" 
-            src="" 
-            alt="Product Image" 
-            class="max-h-[90vh] max-w-[90vw] object-contain transition-opacity duration-200"
-            onerror="this.onerror=null;this.src='https://s3.us-west-1.idrivee2.com/outflickz/public/placeholder-image-v1.jpg';"
-        >
-
-        <button 
-            id="modal-prev-btn"
-            onclick="switchModalImage(-1)" 
-            class="absolute left-4 top-1/2 -translate-y-1/2 text-white bg-gray-800 bg-opacity-50 hover:bg-opacity-75 rounded-full w-10 h-10 flex items-center justify-center transition disabled:opacity-30 disabled:cursor-not-allowed"
-            aria-label="Previous Image"
-        >
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-        </button>
-
-        <button 
-            id="modal-next-btn"
-            onclick="switchModalImage(1)" 
-            class="absolute right-4 top-1/2 -translate-y-1/2 text-white bg-gray-800 bg-opacity-50 hover:bg-opacity-75 rounded-full w-10 h-10 flex items-center justify-center transition disabled:opacity-30 disabled:cursor-not-allowed"
-            aria-label="Next Image"
-        >
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-        </button>
-        
-        <div id="modal-image-counter" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white bg-gray-800 bg-opacity-50 px-3 py-1 rounded-full text-sm font-semibold z-10">
-            1 / 2
-        </div>
-
-        <button 
-            onclick="closeImageModal()" 
-            class="absolute top-4 right-4 text-white bg-gray-800 bg-opacity-50 hover:bg-opacity-75 rounded-full w-8 h-8 flex items-center justify-center transition z-10" 
-            aria-label="Close image viewer"
-        >
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-        </button>
-    </div>
-</div>
-
-   <footer class="bg-black text-gray-300 py-6 sm:py-14 border-t border-gray-800">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-8">
-            
-            <div class="col-span-2 lg:col-span-1">
-                <a href="homepage.html" class="flex items-center mb-3 sm:mb-4"> 
-                    <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-8 filter grayscale invert">
-                </a>
-                <p class="text-xs sm:text-sm text-gray-500"> 
-                    The home of exclusive street wear and limited edition drops. Elevate your style.
-                </p>
-                <div class="flex space-x-4 mt-4 text-gray-400">
-                    <a href="#" aria-label="Instagram" class="hover:text-ash-red transition"><i class="fab fa-instagram"></i></a>
-                    <a href="#" aria-label="Twitter" class="hover:text-ash-red transition"><i class="fab fa-twitter"></i></a>
-                    <a href="#" aria-label="Facebook" class="hover:text-ash-red transition"><i class="fab fa-facebook-f"></i></a>
+    <section id="preorder-collections-section" class="py-12 sm:py-16 bg-gray-50 text-color-black border-t border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-start mb-8 sm:mb-10">
+                <div>
+                    <h2 class="text-lg sm:text-xl font-extrabold text-color-black uppercase mb-1.5">
+                        🕒 Pre-Order Drop
+                    </h2>
+                    <p class="text-sm sm:text-base font-medium text-gray-700">
+                        Secure your exclusive item before it sells out
+                    </p>
                 </div>
+                
+                <a href="preorder.html" class="border-2 border-ash-dark text-ash-dark hover:bg-ash-dark hover:text-white transition duration-300 font-bold py-2 px-6 sm:py-2.5 sm:px-8 rounded-sm uppercase text-xs sm:text-sm tracking-widest mt-2">
+                    View Pre-Orders
+                </a>
             </div>
-
-            <div class="col-span-1">
-                <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-3 sm:mb-4">Quick Links</h3> 
-                <ul class="space-y-1.5 sm:space-y-2 text-xs sm:text-sm"> 
-                    <li><a href="wearscollection.html" class="text-gray-400 hover:text-ash-red transition">Wears</a></li>
-                    <li><a href="newarrivals.html" class="text-gray-400 hover:text-ash-red transition">New Arrivals</a></li>
-                    <li><a href="capcollection.html" class="text-gray-400 hover:text-ash-red transition">Caps</a></li>
-                    <li><a href="preorder.html" class="text-gray-400 hover:text-ash-red transition">Pre-Order</a></li>
-                </ul>
+            <div id="preorder-collections-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 sm:gap-8 lg:gap-10">
             </div>
-
-            <div class="col-span-1">
-                <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-3 sm:mb-4">Customer Care</h3> 
-                <ul class="space-y-1.5 sm:space-y-2 text-xs sm:text-sm"> 
-                    <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Contact Us</a></li>
-                    <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Shipping & Returns</a></li>
-                    <li><a href="#" class="text-gray-400 hover:text-ash-red transition">FAQ</a></li>
-                    <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Size Guide</a></li>
-                </ul>
-            </div>
-
-            <div class="col-span-2 md:col-span-1">
-                <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-3 sm:mb-4">Get In Touch</h3> 
-                <address class="text-xs sm:text-sm not-italic space-y-2"> 
-                    <p class="text-gray-400">
-                        <i class="fas fa-map-marker-alt mr-2 text-ash-red"></i> Lagos , Nigeria
-                    </p>
-                    <p class="text-gray-400">
-                        <i class="fas fa-envelope mr-2 text-ash-red"></i> outflickzlimited@gmail.com 
-                    </p>
-                    <p class="text-gray-400">
-                        <i class="fas fa-phone mr-2 text-ash-red"></i> +234 7042882706
-                    </p>
-                </address>
-            </div>
-            
         </div>
+    </section>
+        
+    <div id="image-modal-overlay" class="fixed inset-0 bg-black bg-opacity-90 z-[1000] hidden flex items-center justify-center p-8 transition-opacity duration-300" onclick="closeImageModal()">
+        
+        <div id="modal-content" class="relative max-w-6xl max-h-full" onclick="event.stopPropagation()">
+            
+            <img 
+                id="modal-image-display" 
+                src="" 
+                alt="Product Image" 
+                class="max-h-[85vh] max-w-[85vw] object-contain transition-opacity duration-200"
+                onerror="this.onerror=null;this.src='https://s3.us-west-1.idrivee2.com/outflickz/public/placeholder-image-v1.jpg';"
+            >
 
-        <div class="border-t border-gray-800 mt-6 sm:mt-10 pt-4 sm:pt-6"> 
-            <p class="text-center text-xs text-gray-500">
-                &copy; 2025 Outflickz. All rights reserved. | <a href="#" class="hover:text-ash-red">Privacy Policy</a> | <a href="#" class="hover:text-ash-red">Terms of Use</a>
-            </p>
+            <button 
+                id="modal-prev-btn"
+                onclick="switchModalImage(-1)" 
+                class="absolute left-6 top-1/2 -translate-y-1/2 text-white bg-gray-800 bg-opacity-50 hover:bg-opacity-75 rounded-full w-12 h-12 flex items-center justify-center transition disabled:opacity-30 disabled:cursor-not-allowed"
+                aria-label="Previous Image"
+            >
+                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+            </button>
+
+            <button 
+                id="modal-next-btn"
+                onclick="switchModalImage(1)" 
+                class="absolute right-6 top-1/2 -translate-y-1/2 text-white bg-gray-800 bg-opacity-50 hover:bg-opacity-75 rounded-full w-12 h-12 flex items-center justify-center transition disabled:opacity-30 disabled:cursor-not-allowed"
+                aria-label="Next Image"
+            >
+                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </button>
+            
+            <div id="modal-image-counter" class="absolute bottom-6 left-1/2 transform -translate-x-1/2 text-white bg-gray-800 bg-opacity-50 px-4 py-1.5 rounded-full text-base font-semibold z-10">
+                1 / 2
+            </div>
+
+            <button 
+                onclick="closeImageModal()" 
+                class="absolute top-6 right-6 text-white bg-gray-800 bg-opacity-50 hover:bg-opacity-75 rounded-full w-10 h-10 flex items-center justify-center transition z-10" 
+                aria-label="Close image viewer"
+            >
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
         </div>
     </div>
-</footer>
 
-<a href="https://wa.me/2347042882706?text=HELLO%20OUTFLICKZ!%20My%20name%20is%20..."
-    target="_blank"
-    class="fixed bottom-6 right-6 z-50 
-           bg-[#25D366] text-white 
-           p-3 rounded-full 
-           shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 
-           flex items-center justify-center w-14 h-14" 
-    aria-label="Chat with us on WhatsApp">
+     <footer class="bg-black text-gray-300 py-6 sm:py-14 border-t border-gray-800 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-8">
+                
+                <div class="col-span-2 lg:col-span-1">
+                    <a href="homepage.html" class="flex items-center mb-3 sm:mb-4"> 
+                        <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-8 filter grayscale invert">
+                    </a>
+                    <p class="text-xs sm:text-sm text-gray-500"> 
+                        The home of exclusive street wear and limited edition drops. Elevate your style.
+                    </p>
+                    <div class="flex space-x-4 mt-4 text-gray-400">
+                        <a href="https://www.instagram.com/outflickz01?igsh=Yzl3d3BjaGt5djll" aria-label="Instagram" class="hover:text-ash-red transition"><i class="fab fa-instagram"></i></a>
+                        <a href="https://www.tiktok.com/@outflickz?_r=1&_t=ZS-92AInaYzuTt" aria-label="TikTok" class="hover:text-ash-red transition"><i class="fab fa-tiktok"></i></a>
+                        <a href="https://www.facebook.com/profile.php?id=61584421929170" aria-label="Facebook" class="hover:text-ash-red transition"><i class="fab fa-facebook-f"></i></a>
+                    </div>
+                </div>
+
+                <div class="col-span-1">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-3 sm:mb-4">Quick Links</h3> 
+                    <ul class="space-y-1.5 sm:space-y-2 text-xs sm:text-sm"> 
+                        <li><a href="wearscollection.html" class="text-gray-400 hover:text-ash-red transition">Wears</a></li>
+                        <li><a href="newarrivals.html" class="text-gray-400 hover:text-ash-red transition">New Arrivals</a></li>
+                        <li><a href="capcollection.html" class="text-gray-400 hover:text-ash-red transition">Caps</a></li>
+                        <li><a href="preorder.html" class="text-gray-400 hover:text-ash-red transition">Pre-Order</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-span-1">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-3 sm:mb-4">Customer Care</h3> 
+                    <ul class="space-y-1.5 sm:space-y-2 text-xs sm:text-sm"> 
+                        <li><a href="contact.html" class="text-gray-400 hover:text-ash-red transition">Contact Us</a></li>
+                        <li><a href="shipping_returns.html" class="text-gray-400 hover:text-ash-red transition">Shipping & Returns</a></li>
+                        <li><a href="faq.html" class="text-gray-400 hover:text-ash-red transition">FAQ</a></li>
+                        <li><a href="size_guide.html" class="text-gray-400 hover:text-ash-red transition">Size Guide</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-span-2 md:col-span-1">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-3 sm:mb-4">Get In Touch</h3> 
+                    <address class="text-xs sm:text-sm not-italic space-y-2"> 
+                        <p class="text-gray-400">
+                            <i class="fas fa-map-marker-alt mr-2 text-ash-red"></i> Lagos , Nigeria
+                        </p>
+                        <p class="text-gray-400">
+                            <i class="fas fa-envelope mr-2 text-ash-red"></i> outflickzlimited@gmail.com 
+                        </p>
+                        <p class="text-gray-400">
+                            <i class="fas fa-phone mr-2 text-ash-red"></i> +234 7042882706
+                        </p>
+                    </address>
+                </div>
+                
+            </div>
+
+            <div class="border-t border-gray-800 mt-6 sm:mt-10 pt-4 sm:pt-6"> 
+                <p class="text-center text-xs text-gray-500">
+                    &copy; 2025 Outflickz. All rights reserved. | <a href="#" class="hover:text-ash-red">Privacy Policy</a> | <a href="#" class="hover:text-ash-red">Terms of Use</a>
+                </p>
+            </div>
+        </div>
+    </footer>
     
-    <i class="fab fa-whatsapp fa-2x"></i>
-</a>
+    <a href="https://t.me/+2347042882706" 
+        target="_blank"
+        class="fixed bottom-6 right-24 z-50 
+               bg-[#24A1DE] text-white 
+               p-3 rounded-full 
+               shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 
+               flex items-center justify-center w-14 h-14" 
+        aria-label="Chat with us on Telegram">
+        
+        <i class="fab fa-telegram-plane fa-2x"></i>
+    </a>
+    
+    <a href="https://wa.me/2347042882706?text=HELLO%20OUTFLICKZ!%20My%20name%20is%20..."
+        target="_blank"
+        class="fixed bottom-6 right-6 z-50 
+               bg-[#25D366] text-white 
+               p-3 rounded-full 
+               shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 
+               flex items-center justify-center w-14 h-14" 
+        aria-label="Chat with us on WhatsApp">
+        
+        <i class="fab fa-whatsapp fa-2x"></i>
+    </a>
 </body>
 </html>

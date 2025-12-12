@@ -339,10 +339,8 @@ function generateOrderEmailHtml(order) {
     }).join('');
 
     // --- Amount Calculations (Now assuming input amounts are in NGN) ---
-    // Remove the Kobo to NGN conversion function
-    
     // Use stored amounts where possible. Fallback calculation uses order totals.
-    const totalAmountNgn = order.totalAmount || order.amountPaidNgn || 0; // Renamed amountPaidKobo to amountPaidNgn for clarity
+    const totalAmountNgn = order.totalAmount || order.amountPaidNgn || 0;
     const shippingFeeNgn = order.shippingFee || 0;
     
     // Fallback calculation for subtotal/tax if they aren't explicitly stored
@@ -365,8 +363,12 @@ function generateOrderEmailHtml(order) {
         address.country
     ].filter(Boolean).join(', ');
     
-    // Phone number fallback—assuming a 'phone' field exists or can be derived, or using a placeholder
-    const phoneNumber = address.phone || 'Not provided'; 
+    // 💥 FIX START: Check for multiple common property names for the phone number
+    const phoneNumber = address.phone 
+                        || address.phoneNumber 
+                        || address.contactNumber 
+                        || 'Not provided'; 
+    // 💥 FIX END
 
     return `
         <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #E5E7EB; border-radius: 8px; font-family: Arial, sans-serif; line-height: 1.6; color: #374151;">
@@ -4420,12 +4422,11 @@ app.get('/api/admin/inventory/deductions', verifyToken, async (req, res) => {
     }
 });
 
-
 // GET /api/collections/wears (For Homepage Display)
 app.get('/api/collections/wears', async (req, res) => {
     try {
         const collections = await WearsCollection.find({ isActive: true }) 
-            .select('_id name tag price variations totalStock') 
+            .select('_id name tag price variations totalStock') // Ensure 'variations' is selected!
             .sort({ createdAt: -1 })
             .lean(); 
 
@@ -4433,17 +4434,34 @@ app.get('/api/collections/wears', async (req, res) => {
             
             const sizeStockMap = {}; // Will store {S: 10, M: 0, L: 5}
 
+            // --- CRITICAL: Variables for OOS Image Fallback ---
+            // Stores the image URLs (SIGNED) of the very first variation encountered.
+            let fallbackFrontImageUrl = null;
+            let fallbackBackImageUrl = null;
+            const PLACEHOLDER_S3_PATH = 'public/placeholder-image-v1.jpg'; // Adjust if path is different
+
             // --- CRITICAL: Filter Variants and Aggregate Stock ---
             const filteredVariantsWithStock = [];
 
-            for (const v of collection.variations) {
-                // 1. Calculate total stock for THIS specific color (variant)
+            for (const v of collection.variations || []) { // Added || [] for safe iteration
+                
+                // 1. SIGN THE VARIATION IMAGES (always needed for the frontend variants array or fallback)
+                const signedFrontUrl = await generateSignedUrl(v.frontImageUrl);
+                const signedBackUrl = await generateSignedUrl(v.backImageUrl);
+
+                // 2. Capture the first signed URL encountered for the OOS fallback
+                if (!fallbackFrontImageUrl && signedFrontUrl) {
+                    fallbackFrontImageUrl = signedFrontUrl;
+                    fallbackBackImageUrl = signedBackUrl;
+                }
+                
+                // 3. Calculate total stock for THIS specific color (variant)
                 const variantTotalStock = (v.sizes || []).reduce((sum, s) => sum + (s.stock || 0), 0);
                 
-                // 2. ONLY INCLUDE THE VARIANT IF IT HAS STOCK
+                // 4. ONLY INCLUDE THE VARIANT IF IT HAS STOCK
                 if (variantTotalStock > 0) {
                     
-                    // 3. Aggregate size stock for the top-level sizeStockMap
+                    // 5. Aggregate size stock for the top-level sizeStockMap
                     (v.sizes || []).forEach(s => {
                         const normalizedSize = s.size.toUpperCase().trim();
                         // Only aggregate if the size itself has stock
@@ -4452,29 +4470,37 @@ app.get('/api/collections/wears', async (req, res) => {
                         }
                     });
 
-                    // 4. Map and prepare the public variant object
+                    // 6. Map and prepare the public variant object (FOR IN-STOCK SELECTION)
                     filteredVariantsWithStock.push({
                         color: v.colorHex,
-                        frontImageUrl: await generateSignedUrl(v.frontImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Front+View+Error',
-                        backImageUrl: await generateSignedUrl(v.backImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Back+View+Error',
+                        frontImageUrl: signedFrontUrl || 'https://placehold.co/400x400/111111/FFFFFF?text=Front+View+Error',
+                        backImageUrl: signedBackUrl || 'https://placehold.co/400x400/111111/FFFFFF?text=Back+View+Error',
                         // NOTE: Do NOT include sizes/stock here, as the client filters sizes based on sizeStockMap
                     });
                 }
             }
             // --- END CRITICAL FILTERING ---
 
-            // The frontend only uses sizes that have stock in the map, so sizeStockMap is sufficient.
+            // --- CRITICAL IMAGE FIX: ENSURE A SIGNED FALLBACK URL IS ALWAYS PRESENT ---
+            if (!fallbackFrontImageUrl) {
+                // If the variations array was empty or contained no valid URLs, 
+                // sign the generic placeholder path.
+                const signedPlaceholder = await generateSignedUrl(PLACEHOLDER_S3_PATH);
+                fallbackFrontImageUrl = signedPlaceholder;
+                fallbackBackImageUrl = signedPlaceholder;
+            }
+            // --- END CRITICAL IMAGE FIX ---
             
             return {
                 _id: collection._id,
                 name: collection.name,
                 tag: collection.tag,
                 price: collection.price, 
-                // NEW: Pass the stock map to the frontend for filtering sizes
+                frontImageUrl: fallbackFrontImageUrl,  // <<-- OOS/Fallback Image
+                backImageUrl: fallbackBackImageUrl,    // <<-- OOS/Fallback Image
                 sizeStockMap: sizeStockMap,
                 availableStock: collection.totalStock, 
-                // NEW: Pass ONLY variants that have stock in AT LEAST ONE size
-                variants: filteredVariantsWithStock
+                variants: filteredVariantsWithStock      // <<-- In-Stock variants
             };
         }));
 
@@ -4495,46 +4521,74 @@ app.get('/api/collections/newarrivals', async (req, res) => {
 
         const publicProducts = await Promise.all(products.map(async (product) => {
             
-            const sizeStockMap = {}; // Will store {S: 10, M: 0, L: 5}
+            const sizeStockMap = {}; 
             
+            // --- CRITICAL: Variables for OOS Image Fallback ---
+            let fallbackFrontImageUrl = null;
+            let fallbackBackImageUrl = null;
+            const PLACEHOLDER_S3_PATH = 'public/placeholder-image-v1.jpg'; // Path to your default placeholder
+
             // --- CRITICAL: Filter Variants and Aggregate Stock ---
             const filteredVariantsWithStock = [];
 
-            for (const v of product.variations) {
-                // 1. Calculate total stock for THIS specific color (variant)
+            for (const v of product.variations || []) {
+                
+                // 1. SIGN THE VARIATION IMAGES
+                const signedFrontUrl = await generateSignedUrl(v.frontImageUrl);
+                const signedBackUrl = await generateSignedUrl(v.backImageUrl);
+                
+                // 2. Capture the first signed URL encountered for the OOS fallback (Runs once)
+                if (!fallbackFrontImageUrl && signedFrontUrl) {
+                    fallbackFrontImageUrl = signedFrontUrl;
+                    fallbackBackImageUrl = signedBackUrl;
+                }
+                
+                // 3. Calculate total stock for THIS specific color (variant)
                 const variantTotalStock = (v.sizes || []).reduce((sum, s) => sum + (s.stock || 0), 0);
                 
-                // 2. ONLY INCLUDE THE VARIANT IF IT HAS STOCK
+                // 4. ONLY INCLUDE THE VARIANT IF IT HAS STOCK
                 if (variantTotalStock > 0) {
                     
-                    // 3. Aggregate size stock for the top-level sizeStockMap
+                    // 5. Aggregate size stock for the top-level sizeStockMap
                     (v.sizes || []).forEach(s => {
                         const normalizedSize = s.size.toUpperCase().trim();
-                        // Only aggregate if the size itself has stock
                         if (s.stock > 0) {
                             sizeStockMap[normalizedSize] = (sizeStockMap[normalizedSize] || 0) + s.stock;
                         }
                     });
 
-                    // 4. Map and prepare the public variant object
+                    // 6. Map and prepare the public variant object
                     filteredVariantsWithStock.push({
                         color: v.colorHex,
-                        frontImageUrl: await generateSignedUrl(v.frontImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Front+View+Error',
-                        backImageUrl: await generateSignedUrl(v.backImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Back+View+Error',
+                        frontImageUrl: signedFrontUrl || 'https://placehold.co/400x400/111111/FFFFFF?text=Front+View+Error',
+                        backImageUrl: signedBackUrl || 'https://placehold.co/400x400/111111/FFFFFF?text=Back+View+Error',
+                        sizes: (v.sizes || []).map(s => ({ 
+                            size: s.size, 
+                            stock: s.stock || 0
+                        }))
                     });
                 }
             }
             // --- END CRITICAL FILTERING ---
+
+            // --- CRITICAL IMAGE FIX: Failsafe for Missing Data ---
+            if (!fallbackFrontImageUrl) {
+                const signedPlaceholder = await generateSignedUrl(PLACEHOLDER_S3_PATH);
+                fallbackFrontImageUrl = signedPlaceholder;
+                fallbackBackImageUrl = signedPlaceholder;
+            }
+            // --- END CRITICAL IMAGE FIX ---
 
             return {
                 _id: product._id,
                 name: product.name,
                 tag: product.tag,
                 price: product.price, 
-                // NEW: Pass the stock map to the frontend for filtering sizes
+                // 💡 OOS/Fallback Images
+                frontImageUrl: fallbackFrontImageUrl,
+                backImageUrl: fallbackBackImageUrl,
                 sizeStockMap: sizeStockMap,
                 availableStock: product.totalStock, 
-                // NEW: Pass ONLY variants that have stock in AT LEAST ONE size
                 variants: filteredVariantsWithStock
             };
         }));
@@ -4543,6 +4597,100 @@ app.get('/api/collections/newarrivals', async (req, res) => {
     } catch (error) {
         console.error('Error fetching public new arrivals:', error);
         res.status(500).json({ message: 'Server error while fetching new arrivals for homepage.', details: error.message });
+    }
+});
+
+// GET /api/collections/preorder (For Homepage Display)
+app.get('/api/collections/preorder', async (req, res) => {
+    try {
+        const collections = await PreOrderCollection.find({ isActive: true })
+            .select('_id name tag price totalStock availableDate variations')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        const publicCollections = await Promise.all(collections.map(async (collection) => {
+            
+            const sizeStockMap = {}; 
+            
+            // --- CRITICAL: Variables for OOS Image Fallback ---
+            let fallbackFrontImageUrl = null;
+            let fallbackBackImageUrl = null;
+            const PLACEHOLDER_S3_PATH = 'public/placeholder-image-v1.jpg'; // Path to your default placeholder
+
+            const filteredVariants = [];
+
+            // --- CRITICAL: Filter Variants and Create Size Map ---
+            for (const v of collection.variations || []) {
+                
+                // 1. SIGN THE VARIATION IMAGES
+                const signedFrontUrl = await generateSignedUrl(v.frontImageUrl);
+                const signedBackUrl = await generateSignedUrl(v.backImageUrl);
+                
+                // 2. Capture the first signed URL encountered for the OOS fallback (Runs once)
+                if (!fallbackFrontImageUrl && signedFrontUrl) {
+                    fallbackFrontImageUrl = signedFrontUrl;
+                    fallbackBackImageUrl = signedBackUrl;
+                }
+
+                const variantTotalStock = (v.sizes || []).reduce((sum, s) => sum + (s.stock || 0), 0);
+                
+                // Logic: Only include variants that have stock OR if the totalStock is not managed (pre-order assumed open)
+                if (variantTotalStock > 0 || !collection.totalStock) {
+                    
+                    // Generate a size map entry 
+                    (v.sizes || []).forEach(s => {
+                        const normalizedSize = s.size.toUpperCase().trim();
+                        // Use actual stock if > 0, otherwise use a high number for pre-order if stock is unlimited/ignored
+                        const stockForPreorder = (s.stock > 0) ? s.stock : 999; 
+                        
+                        sizeStockMap[normalizedSize] = Math.max(sizeStockMap[normalizedSize] || 0, stockForPreorder);
+                    });
+
+                    // Map and prepare the public variant object
+                    filteredVariants.push({
+                        color: v.colorHex || '#000000', 
+                        variationIndex: v.variationIndex, 
+                        frontImageUrl: signedFrontUrl || null,
+                        backImageUrl: signedBackUrl || null,
+                        sizes: (v.sizes || []).map(s => ({ 
+                            size: s.size, 
+                            stock: s.stock || 0 
+                        }))
+                    });
+                }
+            }
+            // --- END CRITICAL FILTERING ---
+            
+            // --- CRITICAL IMAGE FIX: Failsafe for Missing Data ---
+            if (!fallbackFrontImageUrl) {
+                const signedPlaceholder = await generateSignedUrl(PLACEHOLDER_S3_PATH);
+                fallbackFrontImageUrl = signedPlaceholder;
+                fallbackBackImageUrl = signedPlaceholder;
+            }
+            // --- END CRITICAL IMAGE FIX ---
+
+            return {
+                _id: collection._id,
+                name: collection.name,
+                tag: collection.tag,
+                price: collection.price, 
+                sizeStockMap: sizeStockMap, 
+                availableStock: collection.totalStock, 
+                availableDate: collection.availableDate, 
+                // 💡 OOS/Fallback Images (now always set to a signed URL)
+                frontImageUrl: fallbackFrontImageUrl, 
+                backImageUrl: fallbackBackImageUrl, 
+                variants: filteredVariants 
+            };
+        }));
+
+        res.status(200).json(publicCollections);
+    } catch (error) {
+        console.error('Error fetching public pre-order collections:', error);
+        res.status(500).json({ 
+            message: 'Server error while fetching public collections.', 
+            details: error.message 
+        });
     }
 });
 
@@ -4556,49 +4704,63 @@ app.get('/api/collections/caps', async (req, res) => {
 
         const publicCollections = await Promise.all(collections.map(async (collection) => {
             
+            // --- CRITICAL: Variables for OOS Image Fallback ---
+            let fallbackFrontImageUrl = null;
+            let fallbackBackImageUrl = null;
+            const PLACEHOLDER_S3_PATH = 'public/placeholder-image-v1.jpg'; // Path to your default placeholder
+
             // --- CRITICAL: Filter Variations based on stock ---
-            // Note: Caps use 'variations' in the backend, but the frontend card expects 'variants'.
             const filteredVariantsWithStock = [];
 
-            for (const v of collection.variations) {
+            for (const v of collection.variations || []) {
                 
-                // 1. Calculate total stock for THIS specific color (variant)
-                // 🔥 FIX 1: Caps stock is directly on the 'stock' field of the variation, not inside a 'sizes' array.
+                // 1. SIGN THE VARIATION IMAGES
+                const signedFrontUrl = await generateSignedUrl(v.frontImageUrl);
+                const signedBackUrl = await generateSignedUrl(v.backImageUrl);
+
+                // 2. Capture the first signed URL encountered for the OOS fallback (Runs once)
+                if (!fallbackFrontImageUrl && signedFrontUrl) {
+                    fallbackFrontImageUrl = signedFrontUrl;
+                    fallbackBackImageUrl = signedBackUrl;
+                }
+                
+                // 3. Calculate total stock for THIS specific color (variant)
                 const variantTotalStock = v.stock || 0; 
                 
-                // 2. ONLY INCLUDE THE VARIANT IF IT HAS STOCK
+                // 4. ONLY INCLUDE THE VARIANT IF IT HAS STOCK
                 if (variantTotalStock > 0) {
                     
-                    // 3. Map and prepare the public variant object
+                    // 5. Map and prepare the public variant object
                     filteredVariantsWithStock.push({
-                        // Note: The frontend card looks for 'color' and 'frontImageUrl/backImageUrl'
                         color: v.colorHex,
-                        frontImageUrl: await generateSignedUrl(v.frontImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Front+View+Error',
-                        backImageUrl: await generateSignedUrl(v.backImageUrl) || 'https://placehold.co/400x400/111111/FFFFFF?text=Back+View+Error',
+                        frontImageUrl: signedFrontUrl || 'https://placehold.co/400x400/111111/FFFFFF?text=Front+View+Error',
+                        backImageUrl: signedBackUrl || 'https://placehold.co/400x400/111111/FFFFFF?text=Back+View+Error',
+                        stock: variantTotalStock 
                     });
                 }
             }
             // --- END CRITICAL FILTERING ---
 
-            // Use the first available variant for default images
-            const primaryVariant = filteredVariantsWithStock[0];
-            const frontImageUrl = primaryVariant?.frontImageUrl;
-            const backImageUrl = primaryVariant?.backImageUrl;
-
-
+            // --- CRITICAL IMAGE FIX: Failsafe for Missing Data ---
+            if (!fallbackFrontImageUrl) {
+                const signedPlaceholder = await generateSignedUrl(PLACEHOLDER_S3_PATH);
+                fallbackFrontImageUrl = signedPlaceholder;
+                fallbackBackImageUrl = signedPlaceholder;
+            }
+            // --- END CRITICAL IMAGE FIX ---
+            
             return {
                 _id: collection._id,
                 name: collection.name,
                 tag: collection.tag,
                 price: collection.price, 
-                // NEW: Send an empty object/map for size data, as caps don't use it.
                 sizeStockMap: {}, 
-                availableSizes: [], // Keep the empty array as originally intended for caps
+                availableSizes: [], 
                 availableStock: collection.totalStock, 
-                // IMPORTANT: The frontend (createCollectionCard) expects 'variants', so we use that key here.
-                variants: filteredVariantsWithStock, // Only send in-stock colors
-                frontImageUrl: frontImageUrl,
-                backImageUrl: backImageUrl
+                variants: filteredVariantsWithStock, 
+                // 💡 OOS/Fallback Images (now always set to a signed URL)
+                frontImageUrl: fallbackFrontImageUrl,
+                backImageUrl: fallbackBackImageUrl
             };
         }));
 
@@ -4606,87 +4768,6 @@ app.get('/api/collections/caps', async (req, res) => {
     } catch (error) {
         console.error('Error fetching public cap collections:', error);
         res.status(500).json({ message: 'Server error while fetching cap collections for homepage.', details: error.message });
-    }
-});
-
-// GET /api/collections/preorder (For Homepage Display)
-app.get('/api/collections/preorder', async (req, res) => {
-    try {
-        // 1. Ensure all necessary fields are selected.
-        // NOTE: The 'colorHex' is selected from the database.
-        const collections = await PreOrderCollection.find({ isActive: true })
-            .select('_id name tag price totalStock availableDate variations.colorHex variations.variationIndex variations.frontImageUrl variations.backImageUrl variations.sizes')
-            .sort({ createdAt: -1 })
-            .lean();
-
-        const publicCollections = await Promise.all(collections.map(async (collection) => {
-            
-            const sizeStockMap = {}; 
-            const filteredVariants = [];
-
-            // --- CRITICAL: Filter Variants and Create Size Map ---
-            for (const v of collection.variations) {
-                
-                const variantTotalStock = (v.sizes || []).reduce((sum, s) => sum + (s.stock || 0), 0);
-                
-                // Only include variants that have stock or if the collection totalStock is null/undefined
-                if (variantTotalStock > 0 || !collection.totalStock) {
-                    
-                    // Generate a size map entry (Max stock across all variants for a given size)
-                    (v.sizes || []).forEach(s => {
-                        const normalizedSize = s.size.toUpperCase().trim();
-                        // Use actual stock if > 0, otherwise use a high number for pre-order if stock is meant to be unlimited/ignored
-                        const stockForPreorder = (s.stock > 0) ? s.stock : 999; 
-                        
-                        sizeStockMap[normalizedSize] = Math.max(sizeStockMap[normalizedSize] || 0, stockForPreorder);
-                    });
-
-                    // Map and prepare the public variant object
-                    const fallbackColorHex = v.colorHex || '#000000'; 
-
-                    filteredVariants.push({
-                        // ⭐ FIX: Change 'colorHex' to 'color' to match the 'NewArrivals' format
-                        color: fallbackColorHex, 
-                        
-                        variationIndex: v.variationIndex, 
-                        frontImageUrl: await generateSignedUrl(v.frontImageUrl) || null,
-                        backImageUrl: await generateSignedUrl(v.backImageUrl) || null,
-                        // sizes array is NOT sent to the client in the variant, only aggregated into sizeStockMap
-                    });
-                }
-            }
-            // --- END CRITICAL FILTERING ---
-            
-            // Determine the primary images from the first filtered variant
-            const firstVariant = filteredVariants.length > 0 ? filteredVariants[0] : {};
-            const frontImageUrl = firstVariant.frontImageUrl || collection.frontImageUrl || null;
-            const backImageUrl = firstVariant.backImageUrl || collection.backImageUrl || null;
-
-            return {
-                _id: collection._id,
-                name: collection.name,
-                tag: collection.tag,
-                price: collection.price, 
-                
-                sizeStockMap: sizeStockMap, 
-                
-                availableStock: collection.totalStock, 
-                availableDate: collection.availableDate, 
-                
-                frontImageUrl: frontImageUrl, 
-                backImageUrl: backImageUrl, 
-                
-                variants: filteredVariants // This now contains the correct 'color' field
-            };
-        }));
-
-        res.status(200).json(publicCollections);
-    } catch (error) {
-        console.error('Error fetching public pre-order collections:', error);
-        res.status(500).json({ 
-            message: 'Server error while fetching public collections.', 
-            details: error.message 
-        });
     }
 });
 
@@ -4747,7 +4828,7 @@ app.post('/api/users/register', async (req, res) => {
         const verificationHtml = `
             <div style="background-color: #ffffffff; padding: 30px; border: 1px solid #ffffffff; max-width: 500px; margin: 0 auto; font-family: sans-serif; border-radius: 8px;">
                 <div style="text-align: center; padding-bottom: 20px;">
-                    <img src="[https://i.imgur.com/6Bvu8yB.png](https://i.imgur.com/6Bvu8yB.png)" alt="Outflickz Limited Logo" style="max-width: 120px; height: auto; display: block; margin: 0 auto;">
+                    <img src="https://i.imgur.com/6Bvu8yB.png" alt="Outflickz Limited Logo" style="max-width: 120px; height: auto; display: block; margin: 0 auto;">
                 </div>
                 
                 <h2 style="color: #000000; font-weight: 600; text-align: center;">Verify Your Account</h2>
@@ -5251,7 +5332,7 @@ app.post('/api/users/forgot-password', async (req, res) => {
             // await User.updateOne({ _id: user._id }, { resetPasswordToken: resetToken, resetPasswordExpires: Date.now() + 3600000 }); // 1 hour
 
             // 3. Construct the actual reset link
-            const resetLink = `https://outflickz.netlify.app/reset-password?token=${resetToken}&email=${email}`;
+            const resetLink = `https://outflickz.com/reset-password?token=${resetToken}&email=${email}`;
 
             // 🛠️ NEW: Updated HTML template with Logo and Styling
             const resetSubject = 'Outflickz Limited: Password Reset Request';

@@ -48,6 +48,11 @@
     const CART_STORAGE_KEY = 'outflickzCartCount';
     const LOCAL_CART_KEY = 'outflickzLocalCart';
 
+    
+    const PLACEHOLDER_URL_MODAL = 'https://s3.us-west-1.idrivee2.com/outflickz/public/placeholder-image-v1.jpg';
+    let modalImageUrls = [];
+    let currentImageIndex = 0;
+
 /**
  * Checks the user's authentication status via the API (/api/auth/status) 
  * and relies on the HTTP-only cookie for proof of session.
@@ -81,6 +86,96 @@ function toggleMenu() {
     menu.classList.toggle('hidden');
 }
 
+/**
+ * Handles the logic for a "Buy Now" action.
+ * It bypasses the cart and immediately redirects to checkout with the selected item.
+ * @param {object} itemDetails - The product object passed from the button's onclick.
+ */
+function simulateBuyNow(itemDetails) {
+    
+    // Locate the card to find the input elements
+    const card = document.querySelector(`.collection-card[data-collection-id="${itemDetails.productId}"]`);
+    if (!card) return; // Exit if product card not found
+
+    // --- 1. Gather Quantity ---
+    // Use a unified approach to get the quantity input
+    const quantityInput = card.querySelector(`#quantity-input-${itemDetails.productId}`);
+    const selectedQuantity = parseInt(quantityInput?.value) || 1; // Use optional chaining for safety
+
+    // --- 2. Gather Size & Color (Standardized Approach) ---
+    // Use the reliable selectors from simulateAddToCart
+    const selectedSizeInput = card.querySelector(`input[name="size-${itemDetails.productId}"]:checked`);
+    const selectedColorInput = card.querySelector(`input[name="color-${itemDetails.productId}"]:checked`);
+    
+    // Assign the values
+    const selectedSize = selectedSizeInput ? selectedSizeInput.value : '';
+    const selectedColor = selectedColorInput ? selectedColorInput.value : '';
+
+
+    // --- 3. Determine variationIndex and Image (ENHANCED LOGIC) ---
+    let variationIndex = 1; 
+    let selectedImageUrl = itemDetails.imageUrl;
+    
+    // The logic to find colorMapContainer using `card` is now available here:
+    if (selectedColor) { 
+        const colorMapContainer = card.querySelector(`#color-map-${itemDetails.productId}`);
+        
+        if (colorMapContainer) {
+            try {
+                const colorMap = JSON.parse(colorMapContainer.getAttribute('data-color-map'));
+                const colorHex = selectedColor; 
+                
+                const colorMapKeys = Object.keys(colorMap);
+                const inferredIndex = colorMapKeys.indexOf(colorHex);
+                
+                if (inferredIndex !== -1) {
+                    // ⭐ CRITICAL FIX: Convert 0-based client index to 1-based server index! ⭐
+                    variationIndex = inferredIndex + 1; 
+                    
+                    const newImageUrls = colorMap[colorHex];
+                    if (newImageUrls && newImageUrls.frontImageUrl) {
+                        selectedImageUrl = newImageUrls.frontImageUrl;
+                    }
+                }
+            } catch (e) {
+                console.error("Error parsing color map data:", e);
+            }
+        }
+    }
+
+    
+    // ⭐ CRITICAL FIX: Standardize fallback to 'Uncategorized' or product name ⭐
+    const safeProductType = itemDetails.productType || itemDetails.name;
+
+    // --- CONSTRUCT THE FINAL CHECKOUT ITEM ---
+    const itemToCheckout = {
+        productId: itemDetails.productId, 
+        name: itemDetails.name,
+        productType: safeProductType, 
+        price: itemDetails.price,
+        imageUrl: selectedImageUrl, 
+        quantity: selectedQuantity,
+        size: selectedSize, 
+        color: selectedColor, 
+        variationIndex: variationIndex,
+        variation: (selectedColor !== '' && selectedSize !== '') 
+            ? `${selectedColor} / ${selectedSize}`
+            : (selectedColor !== '' ? selectedColor : (selectedSize !== '' ? selectedSize : 'Default Variant')),
+        checkout: true // Flag to indicate this is a "Buy Now" item for the checkout page
+    };
+
+    // 🌟 Console Log 1 (The original log)
+    console.log("Preparing for Buy Now Checkout:", itemToCheckout);
+    
+    // 🌟 Console Log 2 (Detailed diagnostic log for the 400 error)
+    console.log(`[BUY NOW DIAGNOSTIC] Product: ${itemToCheckout.name} | Type: ${itemToCheckout.productType} | Variation Index: ${itemToCheckout.variationIndex} | Color: ${itemToCheckout.color}`);
+    
+    // 🎯 CRITICAL STEP: Store the single item in Session Storage for checkout.html to retrieve
+    sessionStorage.setItem('buyNowItem', JSON.stringify(itemToCheckout));
+    
+    // Redirect the user to the checkout page
+    window.location.href = 'checkout.html';
+}
 
 function getCartCount() {
     try {
@@ -136,12 +231,30 @@ function addToCart(collectionId, quantity) {
     const alertMessage = document.getElementById('cart-alert');
     if (alertMessage) {
         alertMessage.textContent = `${quantity} item(s) added to cart! Total: ${newCount}`;
-        alertMessage.classList.remove('hidden');
-        alertMessage.classList.add('opacity-100', 'translate-y-0');
+        
+        // --- START FIX: Show the alert using the new fixed positioning classes ---
+        
+        // 1. Ensure any 'hidden' or old negative transform state is removed
+        alertMessage.classList.remove('hidden', 'opacity-0', '-translate-y-full');
+        
+        // 2. Add the visible state: full opacity and translate down by 16 units (to clear the header)
+        // This is the class that moves the alert *into* view, just below the header.
+        alertMessage.classList.add('opacity-100', 'translate-y-16');
+        
         setTimeout(() => {
-            alertMessage.classList.add('hidden');
-            alertMessage.classList.remove('opacity-100', 'translate-y-0');
-        }, 3000);
+            // 3. Hide the alert: restore initial state (zero opacity and moved off-screen up)
+            alertMessage.classList.remove('opacity-100', 'translate-y-16');
+            alertMessage.classList.add('opacity-0', '-translate-y-full');
+
+            // Optional: Re-add 'hidden' after the transition completes (500ms, matching transition-all duration-500)
+            // This is good practice to prevent click interference if needed.
+            setTimeout(() => {
+                 // alertMessage.classList.add('hidden'); // Only required if the element is causing layout issues, but fixed should handle it.
+            }, 500); 
+
+        }, 3000); // Display time
+        
+        // --- END FIX ---
     }
 
     console.log(`Added ${quantity} of item ${collectionId}. New cart total: ${newCount}`);
@@ -392,102 +505,11 @@ function displayCartAlert(message, type) {
 }
 }
 
+
 // Initialize the cart badge on page load
 // NOTE: Assuming updateCartBadge() is defined elsewhere
 document.addEventListener('DOMContentLoaded', updateCartBadge);
-    
-
-/**
- * Handles the logic for a "Buy Now" action.
- * It bypasses the cart and immediately redirects to checkout with the selected item.
- * @param {object} itemDetails - The product object passed from the button's onclick.
- */
-function simulateBuyNow(itemDetails) {
-    
-    // Locate the card to find the input elements
-    const card = document.querySelector(`.collection-card[data-collection-id="${itemDetails.productId}"]`);
-    if (!card) return; // Exit if product card not found
-
-    // --- 1. Gather Quantity ---
-    // Use a unified approach to get the quantity input
-    const quantityInput = card.querySelector(`#quantity-input-${itemDetails.productId}`);
-    const selectedQuantity = parseInt(quantityInput?.value) || 1; // Use optional chaining for safety
-
-    // --- 2. Gather Size & Color (Standardized Approach) ---
-    // Use the reliable selectors from simulateAddToCart
-    const selectedSizeInput = card.querySelector(`input[name="size-${itemDetails.productId}"]:checked`);
-    const selectedColorInput = card.querySelector(`input[name="color-${itemDetails.productId}"]:checked`);
-    
-    // Assign the values
-    const selectedSize = selectedSizeInput ? selectedSizeInput.value : '';
-    const selectedColor = selectedColorInput ? selectedColorInput.value : '';
-
-
-    // --- 3. Determine variationIndex and Image (ENHANCED LOGIC) ---
-    let variationIndex = 1; 
-    let selectedImageUrl = itemDetails.imageUrl;
-    
-    // The logic to find colorMapContainer using `card` is now available here:
-    if (selectedColor) { 
-        const colorMapContainer = card.querySelector(`#color-map-${itemDetails.productId}`);
-        
-        if (colorMapContainer) {
-            try {
-                const colorMap = JSON.parse(colorMapContainer.getAttribute('data-color-map'));
-                const colorHex = selectedColor; 
-                
-                const colorMapKeys = Object.keys(colorMap);
-                const inferredIndex = colorMapKeys.indexOf(colorHex);
-                
-                if (inferredIndex !== -1) {
-                    // ⭐ CRITICAL FIX: Convert 0-based client index to 1-based server index! ⭐
-                    variationIndex = inferredIndex + 1; 
-                    
-                    const newImageUrls = colorMap[colorHex];
-                    if (newImageUrls && newImageUrls.frontImageUrl) {
-                        selectedImageUrl = newImageUrls.frontImageUrl;
-                    }
-                }
-            } catch (e) {
-                console.error("Error parsing color map data:", e);
-            }
-        }
-    }
-
-    
-    // ⭐ CRITICAL FIX: Standardize fallback to 'Uncategorized' or product name ⭐
-    const safeProductType = itemDetails.productType || itemDetails.name;
-
-    // --- CONSTRUCT THE FINAL CHECKOUT ITEM ---
-    const itemToCheckout = {
-        productId: itemDetails.productId, 
-        name: itemDetails.name,
-        productType: safeProductType, 
-        price: itemDetails.price,
-        imageUrl: selectedImageUrl, 
-        quantity: selectedQuantity,
-        size: selectedSize, 
-        color: selectedColor, 
-        variationIndex: variationIndex,
-        variation: (selectedColor !== '' && selectedSize !== '') 
-            ? `${selectedColor} / ${selectedSize}`
-            : (selectedColor !== '' ? selectedColor : (selectedSize !== '' ? selectedSize : 'Default Variant')),
-        checkout: true // Flag to indicate this is a "Buy Now" item for the checkout page
-    };
-
-    // 🌟 Console Log 1 (The original log)
-    console.log("Preparing for Buy Now Checkout:", itemToCheckout);
-    
-    // 🌟 Console Log 2 (Detailed diagnostic log for the 400 error)
-    console.log(`[BUY NOW DIAGNOSTIC] Product: ${itemToCheckout.name} | Type: ${itemToCheckout.productType} | Variation Index: ${itemToCheckout.variationIndex} | Color: ${itemToCheckout.color}`);
-    
-    // 🎯 CRITICAL STEP: Store the single item in Session Storage for checkout.html to retrieve
-    sessionStorage.setItem('buyNowItem', JSON.stringify(itemToCheckout));
-    
-    // Redirect the user to the checkout page
-    // This uses the correct relative path 'checkout.html'
-    window.location.href = './checkout.html';
-}
+// --- END CART MANAGEMENT JS ---
 
 // --- MODAL CONTROL FUNCTIONS ---
 function openModal(imageUrl, itemName) {
@@ -529,6 +551,49 @@ function changeQuantity(collectionId, delta) {
     input.value = newValue;
 }
 
+// --- NEW CRITICAL FUNCTION FOR STOCK LIMITS (To be placed near changeQuantity) ---
+
+/**
+ * Updates the quantity input's 'max' attribute when a size is selected.
+ * @param {string} collectionId - The ID of the product card.
+ * @param {string} selectedSize - The size value (e.g., 'L', 'XL').
+ */
+function updateMaxQuantity(collectionId, selectedSize) {
+    // 1. Find the selected radio button that triggered the event
+    // The query selector finds the checked radio button with the matching size value and name group.
+    const selectedSizeInput = document.querySelector(`input[name="size-${collectionId}"][value="${selectedSize}"]:checked`);
+    
+    if (!selectedSizeInput) {
+        console.warn(`Could not find selected size input for ID: ${collectionId} and Size: ${selectedSize}`);
+        return; 
+    }
+    
+    // 2. Read the specific stock from the data-stock attribute
+    // The stock value is passed via the data-stock attribute we added in createSizeList.
+    const maxStock = parseInt(selectedSizeInput.getAttribute('data-stock'));
+    
+    // Safety check for NaN or invalid stock (default to 1 or a high number if confused)
+    const newMaxStock = isNaN(maxStock) || maxStock < 1 ? 1 : maxStock;
+    
+    // 3. Get the quantity input field
+    const quantityInput = document.getElementById(`quantity-input-${collectionId}`);
+    
+    if (quantityInput) {
+        // 4. Update the quantity input field's MAX attribute
+        quantityInput.max = newMaxStock;
+        
+        // 5. Ensure the current quantity doesn't exceed the new max
+        const currentQuantity = parseInt(quantityInput.value) || 1;
+        
+        if (currentQuantity > newMaxStock) {
+            quantityInput.value = newMaxStock;
+        }
+        
+        // OPTIONAL: Provide a visual indicator of the stock limit (e.g., console log or small message)
+        console.log(`[STOCK UPDATE] Product ${collectionId}: Max quantity set to ${newMaxStock} for size ${selectedSize}.`);
+    }
+}
+
 // --- NEW FUNCTION TO HANDLE IMAGE SWITCHING (Uses Color Hex/Code as Identifier) ---
 function changeVariantImage(collectionId, colorHex) {
     const card = document.querySelector(`.collection-card[data-collection-id="${collectionId}"]`);
@@ -537,6 +602,7 @@ function changeVariantImage(collectionId, colorHex) {
     const colorMapContainer = card.querySelector(`#color-map-${collectionId}`);
     if (!colorMapContainer) return;
     
+    // Parse the stored map from the data attribute. This map now stores an object {frontImageUrl, backImageUrl}
     const colorMap = JSON.parse(colorMapContainer.getAttribute('data-color-map'));
     const newImageUrls = colorMap[colorHex];
 
@@ -577,7 +643,6 @@ function toggleImage(collectionId) {
         toggleButton.title = "Show Back View";
     }
 }
-
 
 // --- UTILITY FOR COLOR LIST (Stock-Aware) ---
 function createColorList(collectionId, variants) {
@@ -634,6 +699,7 @@ function createCollectionCard(collection, size = 'default') {
     const PLACEHOLDER_URL = 'https://s3.us-west-1.idrivee2.com/outflickz/public/placeholder-image-v1.jpg';
     const defaultFrontImage = PLACEHOLDER_URL;
     const defaultBackImage = PLACEHOLDER_URL;
+   
 
     // --- Conditional Sizing Classes ---
     const reducedSizes = ['reduced', 'caps', 'wears', 'newarrivals', 'preorder'];
@@ -658,29 +724,62 @@ function createCollectionCard(collection, size = 'default') {
     const quantityButtonSize = isReduced ? 'w-7 h-7' : 'w-8 h-8'; 
     const quantityInputTextSize = isReduced ? 'text-[0.6rem] sm:text-xs' : 'text-xs sm:text-sm';
     
-    // BUTTON SIZING
-    // Removed specific button flex classes here, relying on w-full/flex-1 in the return HTML
-    
-    // --- FINAL FIX: Ensure 'variants'/'variations' is accessed correctly and safely ---
-    const primaryVariant = (Array.isArray(collection.variants) && collection.variants.length > 0)
-        ? collection.variants[0]
-        : (Array.isArray(collection.variations) && collection.variations.length > 0)
-            ? collection.variations[0]
-            : null;
+   // --- CRITICAL IMAGE FIX START ---
+ 
+console.log(`--- DEBUG: Product ID: ${collection._id} ---`);
+console.log('Available Stock:', collection.availableStock);
 
-    const frontImageUrl = primaryVariant?.frontImageUrl || collection.frontImageUrl || defaultFrontImage;
-    const backImageUrl = primaryVariant?.backImageUrl || collection.backImageUrl || defaultBackImage;
-    // --- END FINAL FIX ---
+// Initialize image source variables
+let variantFrontUrl = undefined;
+let variantBackUrl = undefined;
+
+// 1. Check if there are IN-STOCK variants (collection.variants)
+if (Array.isArray(collection.variants) && collection.variants.length > 0) {
+    // If in-stock, use the signed URLs from the first variant
+    const imageSourceVariant = collection.variants[0];
+    variantFrontUrl = imageSourceVariant.frontImageUrl;
+    variantBackUrl = imageSourceVariant.backImageUrl;
+    console.log('Source: Found IN-STOCK Variant (from variants).');
+} 
+// 2. IMPORTANT: If no IN-STOCK variants (OOS), we rely on the backend's explicit 'collection.frontImageUrl' 
+//    field, which is now guaranteed to hold the signed image URL of the first variation.
+else {
+    // We intentionally skip the check for collection.variations[0] 
+    // because that object likely contains the unsigned (raw) URL.
+    
+    // Instead, we let the logic fall through directly to the collection.frontImageUrl field.
+    console.log('Source: Falling through to Collection Default Image (Signed by Backend).');
+}
+
+// The backend's new fallback field (should hold a signed URL for OOS products)
+const collectionFrontUrl = collection.frontImageUrl;
+const collectionBackUrl = collection.backImageUrl; // Assuming backImageUrl is also available on collection object
+
+console.log('1. Variant Front URL (In Stock):', variantFrontUrl);
+console.log('2. Collection Front URL (Backend Fallback):', collectionFrontUrl);
+console.log('3. Default Placeholder URL (Final Fallback):', defaultFrontImage);
+
+
+// Final URL assignment using Nullish Coalescing (||)
+// The key is the priority: 
+// 1. In-stock Variant URL (variantFrontUrl)
+// 2. Backend-signed Collection Fallback URL (collectionFrontUrl)
+// 3. Final Placeholder URL (defaultFrontImage)
+const frontImageUrl = variantFrontUrl || collectionFrontUrl || defaultFrontImage;
+const backImageUrl = variantBackUrl || collectionBackUrl || defaultBackImage;
+
+console.log('FINAL frontImageUrl:', frontImageUrl);
+console.log('FINAL backImageUrl:', backImageUrl);
+// --- CRITICAL IMAGE FIX END ---
 
     const itemPrice = collection.price;
     const formattedPrice = itemPrice ? itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
 
 
-    // --- CRITICAL FRONTEND FIX START ---
-    // 1. Generate the inner HTML for size selection options.
+    // --- CRITICAL FRONTEND FIX START (Size List) ---
+    // NOTE: createSizeList is assumed to be available
     const innerSizeOptions = createSizeList(collection._id, collection.sizeStockMap, isReduced);
 
-    // 2. Generate the surrounding div/label structure.
     const sizeListHtml = (innerSizeOptions && !isCaps)
         ? `
             <div class="flex flex-col items-start w-full flex-1">
@@ -691,11 +790,26 @@ function createCollectionCard(collection, size = 'default') {
             </div>
         `
         : ''; 
-    // --- CRITICAL FRONTEND FIX END ---
+    // --- CRITICAL FRONTEND FIX END (Size List) ---
 
+    // NOTE: createColorList is assumed to be available
     const colorListHtml = createColorList(collection._id, collection.variants || collection.variations); 
 
-    const maxStock = collection.availableStock > 0 ? collection.availableStock : 0;
+    // 🛑 START FIX FOR INITIAL MAX QUANTITY 
+    let initialMaxStock = 999; 
+    let maxStock = collection.availableStock > 0 ? collection.availableStock : 0; // Keeping maxStock for out of stock checks
+
+    // Find the stock of the first available size in the map
+    const firstSizeEntry = Object.entries(collection.sizeStockMap || {}).find(([size, stock]) => stock > 0);
+
+    if (firstSizeEntry) {
+        initialMaxStock = firstSizeEntry[1]; // Set initial max to stock of the first available size
+    } else if (maxStock > 0) {
+        initialMaxStock = maxStock; // Fallback to aggregate stock if no size map is found but aggregate stock is > 0
+    } else {
+        initialMaxStock = 1; // Default minimum to 1 if fully out of stock (will be disabled by isOutOfStock check)
+    }
+    // 🛑 END FIX FOR INITIAL MAX QUANTITY
 
     // *** Check Stock Status ***
     const isOutOfStock = maxStock === 0 || collection.availableStock === 0;
@@ -731,9 +845,11 @@ function createCollectionCard(collection, size = 'default') {
     const isButtonDisabled = isOutOfStock && !isPreorder;
     const safeProductTypeInHtml = collection.collectionName || collection.productType;
 
-console.log(`[Card Debug] Product ID: ${collection._id}, collectionName: ${collection.collectionName}, productType: ${collection.productType}, safeProductTypeInHtml: ${safeProductTypeInHtml}`);
     // Get current quantity value for the button click
     const quantityGetter = `document.getElementById('quantity-input-${collection._id}').value`;
+
+    // Function to safely escape single quotes for JavaScript string parameters
+    const safeName = collection.name.replace(/'/g, "\\'");
 
     // Button to add to cart
     const cartButtonHtml = `
@@ -741,7 +857,7 @@ console.log(`[Card Debug] Product ID: ${collection._id}, collectionName: ${colle
             ${isButtonDisabled ? 'disabled' : ''}
             onclick="simulateAddToCart({
                 productId: '${collection._id}',
-                name: '${collection.name.replace(/'/g, "\\'")}',
+                name: '${safeName}',
                 price: ${itemPrice},
                 imageUrl: '${frontImageUrl}',
                 quantity: parseInt(${quantityGetter}),
@@ -757,7 +873,7 @@ console.log(`[Card Debug] Product ID: ${collection._id}, collectionName: ${colle
             ${isButtonDisabled ? 'disabled' : ''} 
             onclick="simulateBuyNow({
                 productId: '${collection._id}',
-                name: '${collection.name.replace(/'/g, "\\'")}',
+                name: '${safeName}',
                 productType: '${safeProductTypeInHtml}', 
                 price: ${itemPrice},
                 quantity: parseInt(${quantityGetter}),
@@ -776,16 +892,44 @@ console.log(`[Card Debug] Product ID: ${collection._id}, collectionName: ${colle
                 <button onclick="changeQuantity('${collection._id}', -1)" aria-label="Decrease quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-l-sm font-semibold flex-shrink-0">
                     &minus;
                 </button>
-                <input type="number" id="quantity-input-${collection._id}" value="1" min="1" max="${maxStock || 999}" aria-label="Quantity" class="${quantityInputWidth} ${controlHeight} text-center ${quantityInputTextSize} border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" />
+                <input 
+                    type="number" 
+                    id="quantity-input-${collection._id}" 
+                    value="1" 
+                    min="1" 
+                    max="${initialMaxStock}" 
+                    aria-label="Quantity" 
+                    class="${quantityInputWidth} ${controlHeight} text-center ${quantityInputTextSize} border-x border-gray-300 text-color-black bg-white p-0 focus:border-ash-red focus:ring-1 focus:ring-ash-red" 
+                />
                 <button onclick="changeQuantity('${collection._id}', 1)" aria-label="Increase quantity" class="${quantityInputTextSize} text-gray-700 hover:bg-gray-100 transition flex items-center justify-center ${quantityButtonSize} rounded-r-sm font-semibold flex-shrink-0">
                     &plus;
                 </button>
             </div>
         `;
+        
+    // ** MODIFIED ONCLICK HANDLER (The Fix) **
+    
+    // 1. Prepare data object
+    const modalData = {
+        imageUrls: [frontImageUrl, backImageUrl],
+        // Use the cleaned name to ensure valid JSON string is generated
+        altText: collection.name.replace(/"/g, '') // Remove double quotes from name for safety in JSON
+    };
+    
+    // 2. Stringify the object (uses double quotes: "...")
+    const jsonString = JSON.stringify(modalData);
+
+    // 3. HTML-encode the double quotes to &quot; for safe embedding in the outer single-quoted HTML attribute
+    // This ensures the value passed to openImageModalWithCarousel is a single, clean JSON string.
+    const imageClickData = jsonString.replace(/"/g, '&quot;'); 
 
     return `
         <div class="collection-card border border-gray-100 rounded-lg overflow-hidden bg-white hover:shadow-lg transition duration-300" data-collection-id="${collection._id}">
-            <div class="relative card-image-box">
+            <div 
+                class="relative card-image-box cursor-pointer" 
+                onclick="openImageModalWithCarousel('${imageClickData}')" 
+                title="View full image"
+            >
                 ${stockBadge}
 
                 <div class="absolute inset-0 transition-opacity duration-300">
@@ -810,7 +954,7 @@ console.log(`[Card Debug] Product ID: ${collection._id}, collectionName: ${colle
                 <div class="absolute inset-0 bg-black bg-opacity-10 opacity-0 hover:opacity-100 transition duration-300 flex items-end justify-center p-3">
                     <button
                         id="image-toggle-btn-${collection._id}"
-                        onclick="toggleImage('${collection._id}')"
+                        onclick="event.stopPropagation(); toggleImage('${collection._id}')" 
                         class="bg-color-white text-ash-dark text-[0.6rem] sm:text-xs font-semibold py-1 px-3 rounded-full shadow-md hover:bg-gray-200 transition"
                         title="Show Back View"
                     >
@@ -828,14 +972,13 @@ console.log(`[Card Debug] Product ID: ${collection._id}, collectionName: ${colle
 
                 <p class="${priceFontSize} text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
 
-                                
                 <div class="flex items-center gap-2 mt-2">
                     <span class="text-xs font-medium text-gray-700">Color:</span>
                     <div class="flex gap-1 text-gray-700">
                         ${colorListHtml}
                     </div>
                 </div>
-                                
+                
                 <div class="flex flex-col md:flex-row items-start md:items-center justify-between w-full mt-2 gap-2">
                     ${sizeListHtml} 
                     ${quantityControlHtml}
@@ -850,7 +993,6 @@ console.log(`[Card Debug] Product ID: ${collection._id}, collectionName: ${colle
     `;
 }
 
-// Function to DELETE (The block-style version)
 /**
  * Generates the HTML for the size selection options within the collection card.
  * CRITICAL FIX: Filters out sizes that have zero or less stock.
@@ -900,7 +1042,9 @@ function createSizeList(collectionId, sizeStockMap, isReduced = false) {
                     id="${inputId}" 
                     name="${groupName}" 
                     value="${size}" 
+                    data-stock="${sizeStockMap[size]}" 
                     class="hidden" 
+                    onchange="updateMaxQuantity('${collectionId}', this.value)"
                     ${index === 0 ? 'checked' : ''}
                 >
                 <span class="${sizeClasses}">${size}</span>
@@ -909,7 +1053,112 @@ function createSizeList(collectionId, sizeStockMap, isReduced = false) {
     }).join('');
 }
 
-// --- DEDICATED FETCHING FUNCTION FOR WEARSCOLLECTION.HTML ---
+
+
+/**
+ * Standardizes the stock and variant data for a product, handling both
+ * Wears (with 'sizes') and Caps (with direct 'stock').
+ * @param {object} productData - The database product object.
+ * @returns {object} {totalAvailable, variantsData}
+ */
+function standardizeStockData(productData) {
+    let totalAvailable = 0;
+    let variantsData = [];
+
+    // --- Case 1: Wears Collection (Has sizes array) ---
+    if (productData.variations && productData.variations.length > 0 && productData.variations[0].sizes) {
+        // Assuming all sizes belong to the first variation (common for colorHex variations)
+        const sizes = productData.variations[0].sizes;
+        
+        sizes.forEach(s => {
+            const isAvailable = s.stock > 0;
+            if (isAvailable) {
+                totalAvailable += s.stock;
+            }
+            variantsData.push({
+                size: s.size,
+                stockQuantity: s.stock,
+                isAvailable: isAvailable
+            });
+        });
+        
+    // --- Case 2: Caps Collection (Stock is defined on the variation/product) ---
+    } else if (productData.variations && productData.variations.length > 0 && typeof productData.variations[0].stock === 'number') {
+        const variation = productData.variations[0];
+        const isAvailable = variation.stock > 0;
+        
+        // Use a generic size/variant identifier for Caps (e.g., the colorHex, or just 'One Size')
+        const sizeIdentifier = 'One Size'; 
+        
+        if (isAvailable) {
+            totalAvailable += variation.stock;
+        }
+
+        variantsData.push({
+            size: sizeIdentifier, 
+            stockQuantity: variation.stock,
+            isAvailable: isAvailable
+        });
+    }
+    
+    return { totalAvailable, variantsData };
+}
+
+/**
+ * Analyzes a product's variants to determine overall stock status 
+ * and controls visibility of the 'Out of Stock' label and individual size buttons.
+ * @param {object} productData - The database product object.
+ * @param {string} productElementId - The ID of the main HTML element wrapping the product (e.g., 'product-card-P123').
+ */
+function updateStockStatusDisplay(productData, productElementId) {
+    const productElement = document.getElementById(productElementId);
+    if (!productElement) return;
+
+    // Use the helper function to standardize the stock data
+    const { totalAvailable, variantsData } = standardizeStockData(productData);
+    
+    // --- 1. Iterate through variants and handle individual size visibility (Wears only) ---
+    // This part only affects products with multiple selectable sizes (Wears)
+    if (variantsData.length > 1) { // Only run individual hiding logic if there are multiple sizes
+        variantsData.forEach(variant => {
+            const sizeButton = productElement.querySelector(`[data-size="${variant.size}"]`);
+            
+            if (sizeButton) {
+                if (variant.isAvailable) {
+                    // Ensure size button is active
+                    sizeButton.classList.remove('hidden', 'opacity-50', 'cursor-not-allowed');
+                    sizeButton.disabled = false;
+                } else {
+                    // Requirement: If size is out of stock, it should disappear/be hidden.
+                    sizeButton.classList.add('hidden'); 
+                    // sizeButton.disabled = true; // Optional: use this if you want to display it as disabled instead of hiding
+                }
+            }
+        });
+    }
+
+
+    // --- 2. Determine and display the overall 'Out of Stock' label ---
+    // Requirement: If ALL sizes (Wears) OR the single item (Caps) is out of stock, show the label.
+    const outOfStockLabel = productElement.querySelector('.out-of-stock-label');
+    
+    if (outOfStockLabel) {
+        if (totalAvailable === 0) {
+            outOfStockLabel.classList.remove('hidden');
+            
+            // For single-variant items (Caps), also hide the main size button if present
+            if (variantsData.length === 1) {
+                 const singleSizeButton = productElement.querySelector(`[data-size="${variantsData[0].size}"]`);
+                 if (singleSizeButton) {
+                    singleSizeButton.classList.add('hidden');
+                 }
+            }
+        } else {
+            outOfStockLabel.classList.add('hidden');
+        }
+    }
+}
+
 async function fetchAndRenderAllWearsCollections() {
     const container = document.getElementById('full-wears-collections-grid');
     if (!container) return;
@@ -923,18 +1172,22 @@ async function fetchAndRenderAllWearsCollections() {
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            Loading Full Wears Collection...
+            Loading Wears Collections...
         </div>`;
 
     try {
-        const wearsApiUrl = `${API_BASE_URL}/api/collections/wears?limit=all`; 
+        // NOTE: Replace this with your actual API endpoint for wears collections
+        const wearsApiUrl = `${API_BASE_URL}/api/collections/wears`; 
 
         const response = await fetch(wearsApiUrl, {
             method: 'GET',
-            headers: { 'Content-Type': 'application/json' }
+            headers: {
+                'Content-Type': 'application/json',
+            }
         });
 
         if (!response.ok) {
+            // Throw error to trigger fallback/error block
             throw new Error(`Failed to load collections from server. Status: ${response.status}`);
         }
 
@@ -944,13 +1197,19 @@ async function fetchAndRenderAllWearsCollections() {
         
         let collectionsToRender = collections && collections.length > 0 ? collections : [];
 
-        if (collectionsToRender.length > 0) {
+        if (collectionsToRender && collectionsToRender.length > 0) {
+            
+            // --- LIMITATION REMOVED ---
+            // const limitedCollections = collectionsToRender.slice(0, 4); <-- REMOVED
+            
             collectionsToRender.forEach(collection => {
                 if (collection.price !== undefined && collection.price !== null) {
+                    // Pass 'wears' size to trigger the REDUCED card style
                     container.innerHTML += createCollectionCard(collection, 'wears');
                 }
             });
 
+            // If no items were rendered (e.g., due to missing price)
             if (container.innerHTML === '') {
                 container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Wears Collections are currently available.</p>`;
             }
@@ -958,15 +1217,129 @@ async function fetchAndRenderAllWearsCollections() {
             container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Wears Collections are currently available.</p>`;
         }
     } catch (error) {
-        console.error('Error fetching full wears collections:', error);
-        container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server.</p>';
+        console.error('Error fetching wears collections:', error);
+        
+        // Clean error message on API failure
+        container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server (502/Down).</p>';
     }
 }
 
+/**
+ * Updates the modal to display the image at the currentImageIndex.
+ * @param {string} altText - The alternative text (product name).
+ */
+function updateModalImage(altText) {
+    const imageDisplay = document.getElementById('modal-image-display');
+    const prevButton = document.getElementById('modal-prev-btn');
+    const nextButton = document.getElementById('modal-next-btn');
+    const imageCounter = document.getElementById('modal-image-counter'); // New counter element
 
-document.addEventListener('DOMContentLoaded', () => {
-    updateCartBadge(); // Initialize cart count
-    fetchAndRenderAllWearsCollections(); // Fetch and render the full collection
+    if (imageDisplay && modalImageUrls.length > 0) {
+        const imageUrl = modalImageUrls[currentImageIndex] || PLACEHOLDER_URL_MODAL;
+        imageDisplay.src = imageUrl;
+        imageDisplay.alt = `${altText} View ${currentImageIndex + 1}`;
+
+        // Update counter text (1/2 or 2/2)
+        if (imageCounter) {
+            imageCounter.textContent = `${currentImageIndex + 1} / ${modalImageUrls.length}`;
+        }
+        
+        // Control button visibility/disabled state
+        const canSwitch = modalImageUrls.length > 1;
+
+        if (prevButton) {
+            prevButton.style.display = canSwitch ? 'flex' : 'none';
+            prevButton.disabled = currentImageIndex === 0;
+        }
+        if (nextButton) {
+            nextButton.style.display = canSwitch ? 'flex' : 'none';
+            nextButton.disabled = currentImageIndex === modalImageUrls.length - 1;
+        }
+    }
+}
+
+/**
+ * Switches the displayed image in the modal (circular movement).
+ * @param {number} direction - 1 for next, -1 for previous.
+ * @param {string} altText - The product name for alt text.
+ */
+function switchModalImage(direction) {
+    if (modalImageUrls.length < 2) return;
+
+    let newIndex = currentImageIndex + direction;
+    
+    // Simple bounds check (non-circular)
+    if (newIndex >= 0 && newIndex < modalImageUrls.length) {
+        currentImageIndex = newIndex;
+    }
+
+    const imageDisplay = document.getElementById('modal-image-display');
+    const altText = imageDisplay ? imageDisplay.alt.split(' View ')[0] : 'Product';
+    
+    updateModalImage(altText);
+}
+
+
+/**
+ * Opens the full-screen modal to display a large image with switching controls.
+ * @param {string} jsonString - JSON string containing imageUrls (array) and altText.
+ */
+function openImageModalWithCarousel(jsonString) {
+    const modal = document.getElementById('image-modal-overlay');
+    
+    try {
+        // Safely parse the data passed from the HTML
+        const data = JSON.parse(jsonString.replace(/\\'/g, "'"));
+        
+        // Filter out placeholders and set global state
+        modalImageUrls = data.imageUrls.filter(url => url && url !== PLACEHOLDER_URL_MODAL && url !== 'null');
+        currentImageIndex = 0;
+
+        if (modal && modalImageUrls.length > 0) {
+            updateModalImage(data.altText);
+            
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden'; // Prevent scrolling the background
+        } else {
+            console.warn("No valid images available for modal.");
+        }
+    } catch (e) {
+        console.error("Error parsing image data:", e);
+    }
+}
+
+/**
+ * Closes the full-screen image modal.
+ */
+function closeImageModal() {
+    const modal = document.getElementById('image-modal-overlay');
+    
+    if (modal) {
+        modal.classList.add('hidden');
+        document.body.style.overflow = ''; // Restore background scrolling
+        // Clear global state
+        modalImageUrls = [];
+        currentImageIndex = 0;
+    }
+}
+
+ document.addEventListener('DOMContentLoaded', () => {
+    
+    updateCartBadge();
+    fetchAndRenderAllWearsCollections(); 
+   
+    
+    // 2. Image Modal Close Handler
+    // Optional: Close modal when clicking outside the image
+    const modal = document.getElementById('image-modal-overlay');
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            // Close only if the click is directly on the overlay, not the image or button
+            if (e.target.id === 'image-modal-overlay') {
+                closeImageModal();
+            }
+        });
+    }
 });
 </script>
 
@@ -981,10 +1354,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
                 <a href="homepage.html" class="font-medium text-color-black hover:text-gray-600 transition">Homepage</a>
-                <a href="preorder.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
-                <a href="newarrivals.html" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
                 <a href="wearscollection.html" class="font-bold text-ash-red transition flex items-center border-b-2 border-ash-red">Wears Collections</a>
+                <a href="newarrivals.html" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
                 <a href="capcollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Cap Collections</a>
+                <a href="preorder.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
             </nav>
 
           <div class="flex items-center space-x-2 sm:space-x-4">
@@ -1010,13 +1383,14 @@ document.addEventListener('DOMContentLoaded', () => {
     </div>
     
     <div id="mobile-menu" class="hidden md:hidden bg-color-white border-b border-gray-100 absolute w-full z-40 shadow-lg">
-        <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
-            <a href="homepage.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Homepage</a>
-            <a href="preorder.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
-            <a href="newarrivals.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">New Arrivals</a>
-            <a href="wearscollection.html" class="block px-3 py-2 font-bold text-ash-red bg-gray-100 rounded-md">Wears Collection</a>
-            <a href="capcollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cap Collection</a>
-            
+    <div class="px-2 pt-2 pb-3 space-y-1 text-sm">
+        <a href="homepage.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Homepage</a>  
+        <a href="wearscollection.html" class="block px-3 py-2 font-bold text-ash-red bg-gray-100 rounded-md">Wears Collection</a>
+        <a href="newarrivals.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">New Arrivals</a>
+        <a href="capcollection.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cap Collection</a>
+        <a href="preorder.html" class="block px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md">Pre Order</a>
+    </div>
+</div>
             <button 
                 id="mobile-profile-login-button" 
                 class="w-full flex items-center px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 rounded-md text-left"
@@ -1045,92 +1419,123 @@ document.addEventListener('DOMContentLoaded', () => {
             
             </div>
     </section>
-    <div id="image-modal" class="modal fixed inset-0 z-[100] bg-black bg-opacity-90 flex items-center justify-center opacity-0 pointer-events-none" onclick="closeModal()" role="dialog" aria-modal="true" aria-labelledby="modal-item-title">
 
-        <div class="relative max-w-xs sm:max-w-4xl w-full mx-4 p-2 bg-white rounded-lg shadow-2xl" onclick="event.stopPropagation()">
+<div id="image-modal-overlay" class="fixed inset-0 bg-black bg-opacity-90 z-[1000] hidden flex items-center justify-center p-4 transition-opacity duration-300" onclick="closeImageModal()">
+    
+    <div id="modal-content" class="relative max-w-5xl max-h-full" onclick="event.stopPropagation()">
+        
+        <img 
+            id="modal-image-display" 
+            src="" 
+            alt="Product Image" 
+            class="max-h-[90vh] max-w-[90vw] object-contain transition-opacity duration-200"
+            onerror="this.onerror=null;this.src='https://s3.us-west-1.idrivee2.com/outflickz/public/placeholder-image-v1.jpg';"
+        >
 
-            <button onclick="closeModal()" class="absolute top-0 right-0 m-2 text-gray-700 hover:text-ash-red transition z-50" aria-label="Close modal">
-                <i class="fas fa-times text-xl"></i>
-            </button>
+        <button 
+            id="modal-prev-btn"
+            onclick="switchModalImage(-1)" 
+            class="absolute left-4 top-1/2 -translate-y-1/2 text-white bg-gray-800 bg-opacity-50 hover:bg-opacity-75 rounded-full w-10 h-10 flex items-center justify-center transition disabled:opacity-30 disabled:cursor-not-allowed"
+            aria-label="Previous Image"
+        >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+        </button>
 
-            <h3 id="modal-item-title" class="text-base sm:text-xl font-bold text-center text-ash-dark pt-2 pb-2">
-                Item Name
-            </h3>
+        <button 
+            id="modal-next-btn"
+            onclick="switchModalImage(1)" 
+            class="absolute right-4 top-1/2 -translate-y-1/2 text-white bg-gray-800 bg-opacity-50 hover:bg-opacity-75 rounded-full w-10 h-10 flex items-center justify-center transition disabled:opacity-30 disabled:cursor-not-allowed"
+            aria-label="Next Image"
+        >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+        </button>
+        
+        <div id="modal-image-counter" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white bg-gray-800 bg-opacity-50 px-3 py-1 rounded-full text-sm font-semibold z-10">
+            1 / 2
+        </div>
 
-            <div class="w-full max-h-[70vh] overflow-hidden">
-                <img id="modal-image" src="" alt="Full view of product" class="w-full h-full object-contain">
+        <button 
+            onclick="closeImageModal()" 
+            class="absolute top-4 right-4 text-white bg-gray-800 bg-opacity-50 hover:bg-opacity-75 rounded-full w-8 h-8 flex items-center justify-center transition z-10" 
+            aria-label="Close image viewer"
+        >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+    </div>
+</div>
+   <footer class="bg-black text-gray-300 py-6 sm:py-14 border-t border-gray-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-8">
+            
+            <div class="col-span-2 lg:col-span-1">
+                <a href="homepage.html" class="flex items-center mb-3 sm:mb-4"> 
+                    <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-8 filter grayscale invert">
+                </a>
+                <p class="text-xs sm:text-sm text-gray-500"> 
+                    The home of exclusive street wear and limited edition drops. Elevate your style.
+                </p>
+                <div class="flex space-x-4 mt-4 text-gray-400">
+                    <a href="#" aria-label="Instagram" class="hover:text-ash-red transition"><i class="fab fa-instagram"></i></a>
+                    <a href="#" aria-label="Twitter" class="hover:text-ash-red transition"><i class="fab fa-twitter"></i></a>
+                    <a href="#" aria-label="Facebook" class="hover:text-ash-red transition"><i class="fab fa-facebook-f"></i></a>
+                </div>
             </div>
 
+            <div class="col-span-1">
+                <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-3 sm:mb-4">Quick Links</h3> 
+                <ul class="space-y-1.5 sm:space-y-2 text-xs sm:text-sm"> 
+                    <li><a href="wearscollection.html" class="text-gray-400 hover:text-ash-red transition">Wears</a></li>
+                    <li><a href="newarrivals.html" class="text-gray-400 hover:text-ash-red transition">New Arrivals</a></li>
+                    <li><a href="capcollection.html" class="text-gray-400 hover:text-ash-red transition">Caps</a></li>
+                    <li><a href="preorder.html" class="text-gray-400 hover:text-ash-red transition">Pre-Order</a></li>
+                </ul>
+            </div>
+
+            <div class="col-span-1">
+                <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-3 sm:mb-4">Customer Care</h3> 
+                <ul class="space-y-1.5 sm:space-y-2 text-xs sm:text-sm"> 
+                    <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Contact Us</a></li>
+                    <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Shipping & Returns</a></li>
+                    <li><a href="#" class="text-gray-400 hover:text-ash-red transition">FAQ</a></li>
+                    <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Size Guide</a></li>
+                </ul>
+            </div>
+
+            <div class="col-span-2 md:col-span-1">
+                <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-3 sm:mb-4">Get In Touch</h3> 
+                <address class="text-xs sm:text-sm not-italic space-y-2"> 
+                    <p class="text-gray-400">
+                        <i class="fas fa-map-marker-alt mr-2 text-ash-red"></i> Lagos , Nigeria
+                    </p>
+                    <p class="text-gray-400">
+                        <i class="fas fa-envelope mr-2 text-ash-red"></i> outflickzlimited@gmail.com 
+                    </p>
+                    <p class="text-gray-400">
+                        <i class="fas fa-phone mr-2 text-ash-red"></i> +234 7042882706
+                    </p>
+                </address>
+            </div>
+            
+        </div>
+
+        <div class="border-t border-gray-800 mt-6 sm:mt-10 pt-4 sm:pt-6"> 
+            <p class="text-center text-xs text-gray-500">
+                &copy; 2025 Outflickz. All rights reserved. | <a href="#" class="hover:text-ash-red">Privacy Policy</a> | <a href="#" class="hover:text-ash-red">Terms of Use</a>
+            </p>
         </div>
     </div>
-    <footer class="bg-black text-gray-300 py-10 sm:py-14 border-t border-gray-800">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
-                
-                <div class="col-span-2 lg:col-span-1">
-                    <a href="homepage.html" class="flex items-center mb-4">
-                        <img src="https://i.imgur.com/PZLMws6.jpeg" alt="Outflickz Logo" class="w-auto h-8 filter grayscale invert">
-                    </a>
-                    <p class="text-sm text-gray-500">
-                        The home of exclusive street wear and limited edition drops. Elevate your style.
-                    </p>
-                    <div class="flex space-x-4 mt-4 text-gray-400">
-                        <a href="#" aria-label="Instagram" class="hover:text-ash-red transition"><i class="fab fa-instagram"></i></a>
-                        <a href="#" aria-label="Twitter" class="hover:text-ash-red transition"><i class="fab fa-twitter"></i></a>
-                        <a href="#" aria-label="Facebook" class="hover:text-ash-red transition"><i class="fab fa-facebook-f"></i></a>
-                    </div>
-                </div>
+</footer>
 
-                <div class="col-span-1">
-                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Quick Links</h3>
-                    <ul class="space-y-2 text-sm">
-                        <li><a href="wearscollection.html" class="text-gray-400 hover:text-ash-red transition">Wears</a></li>
-                        <li><a href="capcollection.html" class="text-gray-400 hover:text-ash-red transition">Caps</a></li>
-                        <li><a href="newarrivals.html" class="text-gray-400 hover:text-ash-red transition">New Arrivals</a></li>
-                        <li><a href="preorder.html" class="text-gray-400 hover:text-ash-red transition">Pre-Order</a></li>
-                    </ul>
-                </div>
-
-                <div class="col-span-1">
-                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Customer Care</h3>
-                    <ul class="space-y-2 text-sm">
-                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Contact Us</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Shipping & Returns</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">FAQ</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-ash-red transition">Size Guide</a></li>
-                    </ul>
-                </div>
-
-                <div class="col-span-2 md:col-span-1">
-                    <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-4">Get In Touch</h3>
-                    <address class="text-sm not-italic space-y-2">
-                        <p class="text-gray-400">
-                            <i class="fas fa-map-marker-alt mr-2 text-ash-red"></i> Lagos , Nigeria
-                        </p>
-                        <p class="text-gray-400">
-                            <i class="fas fa-envelope mr-2 text-ash-red"></i> outflickzlimited@gmailcom
-                        </p>
-                        <p class="text-gray-400">
-                            <i class="fas fa-phone mr-2 text-ash-red"></i> +234 7042882706
-                        </p>
-                    </address>
-                </div>
-            </div>
-
-            <div class="border-t border-gray-800 mt-10 pt-6">
-                <p class="text-center text-xs text-gray-500">
-                    &copy; 2025 Outflickz. All rights reserved. | <a href="#" class="hover:text-ash-red">Privacy Policy</a> | <a href="#" class="hover:text-ash-red">Terms of Use</a>
-                </p>
-            </div>
-        </div>
-    </footer>
-
-    <a href="https://wa.me/2347042882706?text=HELLO%20OUTFLICKZ!%20My%20name%20is%20..."
-        target="_blank"
-        class="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-        aria-label="Chat with us on WhatsApp">
-        
-        <i class="fab fa-whatsapp text-xl"></i>
-        </a>
+   <a href="https://wa.me/2347042882706?text=HELLO%20OUTFLICKZ!%20My%20name%20is%20..."
+    target="_blank"
+    class="fixed bottom-6 right-6 z-50 
+           bg-[#25D366] text-white 
+           p-3 rounded-full 
+           shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 
+           flex items-center justify-center w-14 h-14" 
+    aria-label="Chat with us on WhatsApp">
+    
+    <i class="fab fa-whatsapp fa-2x"></i>
+</a>
 </body>
 </html>

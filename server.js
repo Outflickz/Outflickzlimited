@@ -8,12 +8,31 @@ const mongoose = require('mongoose');
 const multer = require('multer');
 const nodemailer = require('nodemailer');
 const cookieParser = require('cookie-parser');
-const session = require('express-session'); // <-- ADD THIS LINE
+const session = require('express-session'); 
+const cors = require('cors');
 
 const { S3Client, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { Upload } = require('@aws-sdk/lib-storage');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner'); 
 
+
+// --- CORS Configuration (The Fix) ---
+const allowedOrigins = [
+    'https://outflickz.netlify.app',
+    'https://outflickz.com' // Make sure you allow your primary domain too
+];
+
+const corsOptions = {
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        // or requests from the allowed list
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    }
+};
 // Load environment variables (ensure these are set in your .env file)
 dotenv.config();
 
@@ -2092,6 +2111,8 @@ const visitorLogger = async (req, res, next) => {
 const app = express();
 // Ensure express.json() is used BEFORE the update route, but after the full form route
 // To allow both JSON and multipart/form-data parsing
+
+app.use(cors(corsOptions));
 app.use(express.json()); 
 app.use(cookieParser());
 
@@ -2111,9 +2132,18 @@ app.use(session({
 
 app.use(visitorLogger);
 
+// Ensure robots.txt and sitemap.xml are served correctly
+app.get('/robots.txt', (req, res) => {
+    res.sendFile(path.join(__dirname, 'robots.txt'));
+});
+
+app.get('/sitemap.xml', (req, res) => {
+    res.sendFile(path.join(__dirname, 'sitemap.xml'));
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.get('/', (req, res) => { res.redirect('/outflickzstore/homepage.html'); });
+app.get('/', (req, res) => { res.redirect(301, '/outflickzstore/homepage.html'); });
 app.get('/useraccount', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'useraccount.html')); }); 
 app.get('/userprofile', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'userprofile.html')); }); 
 app.get('/capscollection', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'capscollection.html')); }); 

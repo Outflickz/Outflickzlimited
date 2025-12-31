@@ -382,12 +382,33 @@
     function navigateToEmailNews() { window.location.href = './emailnews.html'; }
     
 
-    function logoutAdmin() {
-        console.log("Logging out... Clearing admin token.");
-        localStorage.removeItem('adminToken');
-        window.location.href = './admin-login.html'; 
-    }
+   /**
+     * Handles the admin logout process by clearing local state 
+     * and notifying the server to clear secure cookies.
+     */
+    async function logoutAdmin() {
+        console.log("Initiating Admin Logout...");
 
+        try {
+            // 1. Call the backend logout API to clear the secure Refresh Token cookie
+            // We use the standard fetch here or secureFetch
+            await fetch('/api/admin/logout', { 
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+                }
+            });
+        } catch (error) {
+            console.warn("Server-side logout failed or unreachable, proceeding with client-side cleanup.", error);
+        } finally {
+            // 2. Clear the Access Token from LocalStorage regardless of API success
+            localStorage.removeItem('adminToken');
+
+            // 3. Redirect to login page
+            window.location.href = './admin-login.html';
+        }
+    }
+    
     // Helper function for date formatting
     function formatDate(dateString) {
         if (!dateString) return 'N/A';
@@ -406,35 +427,42 @@
         return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount);
     }
 
-    // Helper function to determine status badge classes for Orders
-    function getStatusBadge(status) {
-        let className = '';
-        let text = status || 'N/A';
-        
-        switch (status) {
-            case 'Delivered':
-                className = 'bg-green-100 text-green-800';
-                break;
-            case 'Shipped':
-                className = 'bg-blue-100 text-blue-800';
-                break;
-            case 'Processing':
-            case 'Confirmed': // Added Confirmed for UI consistency
-                className = 'bg-yellow-100 text-yellow-800';
-                break;
-            case 'Cancelled':
-            case 'Inventory Failure (Manual Review)':
-                className = 'bg-red-100 text-red-800';
-                break;
-            default:
-                className = 'bg-gray-100 text-gray-800';
-                break;
-        }
-        
-        return `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${className}">${text}</span>`;
+   // Updated Helper function for Status Badges
+function getStatusBadge(status) {
+    let className = '';
+    let text = status || 'N/A';
+    
+    switch (status) {
+        case 'Delivered':
+            className = 'bg-green-100 text-green-800';
+            break;
+        case 'Shipped':
+            className = 'bg-blue-100 text-blue-800';
+            break;
+        // ⭐ UPDATED: Confirmed now has a distinct "Success" look
+        case 'Confirmed': 
+            className = 'bg-emerald-100 text-emerald-800';
+            text = 'Confirmed (Paid)'; 
+            break;
+        case 'Processing':
+            className = 'bg-yellow-100 text-yellow-800';
+            text = 'Processing';
+            break;
+        case 'Pending':
+            className = 'bg-gray-100 text-gray-800';
+            break;
+        case 'Cancelled':
+        case 'Inventory Failure (Manual Review)':
+        case 'Amount Mismatch (Manual Review)':
+            className = 'bg-red-100 text-red-800';
+            break;
+        default:
+            className = 'bg-gray-100 text-gray-800';
+            break;
     }
     
-    // --- View Switching Functions ---
+    return `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${className}">${text}</span>`;
+}
     
     /** Shows the main user list table and hides the details views. */
     function showMembershipList() {
@@ -460,18 +488,17 @@
     // --- API Fetch Functions (Original, plus new Order Details fetch) ---
 
     /**
-     * Fetches all registered user data from the API (used for the main table).
+     * Fetches all users (Registered & Guest) from the API.
      */
     async function fetchUserData() {
         const token = localStorage.getItem('adminToken');
         if (!token) {
-            console.error("No adminToken found. Redirecting to login.");
             logoutAdmin();
             return null;
         }
 
         try {
-            // ASSUMPTION: Backend route for fetching ALL users
+            // Updated Assumption: Backend now returns both registered and guest profiles
             const response = await fetch('/api/admin/users/all', { 
                 method: 'GET',
                 headers: {
@@ -482,7 +509,6 @@
 
             if (!response.ok) {
                 if (response.status === 401 || response.status === 403) {
-                    console.error(`Authentication error (${response.status}). Token expired or invalid.`);
                     logoutAdmin();
                     return null;
                 }
@@ -490,14 +516,15 @@
             }
 
             const data = await response.json();
-            return data.users || []; // ASSUMPTION: Backend returns { users: [...], count: 50 }
+            // This should now include objects with userType: 'guest' or 'registered'
+            return data.users || []; 
 
         } catch (error) {
             console.error('Error fetching user data:', error);
             return null;
         }
     }
-    
+
     /**
      * Fetches the full profile details for a specific user ID.
      */
@@ -630,50 +657,69 @@
             return { success: false, message: error.message };
         }
     }
-
-
-    // --- Rendering Functions ---
     
-    /**
-     * Renders the user data into the main membership table.
-     * @param {Array<Object>} users - Array of user objects.
-     */
-    function renderUserTable(users) {
-        userTableBody.innerHTML = ''; 
-        userCountDisplay.textContent = `Total Users: ${users.length.toLocaleString()}`;
+ function renderUserTable(users) {
+    userTableBody.innerHTML = ''; 
+    userCountDisplay.textContent = `Total Records: ${users.length.toLocaleString()}`;
 
-        if (users.length === 0) {
-            userTableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No registered users found.</td></tr>';
-            return;
-        }
-
-        users.forEach(user => {
-            const isMember = user.isMember; 
-            const statusText = isMember ? 'VIP Member' : 'Basic User';
-            const statusColor = isMember ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800';
-            
-            const row = document.createElement('tr');
-            row.className = 'hover:bg-gray-50';
-            
-            row.innerHTML = `
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 truncate max-w-xs" title="${user._id}">${user._id}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${user.name || 'N/A'}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${user.email}</td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColor}">
-                        ${statusText}
-                    </span>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    ${formatDate(user.createdAt)}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button onclick="viewUserDetails('${user._id}')" class="text-blue-600 hover:text-blue-900 transition duration-150">View Details</button>
-                </td>
-            `;
-            userTableBody.appendChild(row);
-        });
+    if (users.length === 0) {
+        userTableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No users or guests found.</td></tr>';
+        return;
     }
+
+    users.forEach(user => {
+        /**
+         * DIFFERENTIATION LOGIC
+         * 1. Guest: user.isGuest is true (from our new backend transformation)
+         * 2. VIP Member: Registered user where isMember is true
+         * 3. Basic User: Registered user where isMember is false
+         */
+        const isGuest = user.isGuest === true; 
+        const isMember = user.isMember === true; 
+        
+        let statusText, statusColor;
+
+        if (isGuest) {
+            statusText = 'Guest';
+            statusColor = 'bg-orange-100 text-orange-800'; // Orange for Guests
+        } else if (isMember) {
+            statusText = 'VIP Member 🌟';
+            statusColor = 'bg-emerald-100 text-emerald-800'; // Green for VIPs
+        } else {
+            statusText = 'Basic User';
+            statusColor = 'bg-blue-100 text-blue-800'; // Blue for Registered Basic
+        }
+        
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-gray-50 border-b border-gray-100';
+        
+        row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap text-xs font-mono text-gray-400 truncate max-w-[100px]" title="${user._id}">
+                ${user._id}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800">
+                ${user.name || (isGuest ? 'Guest Customer' : 'N/A')}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                ${user.email}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+                <span class="px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColor}">
+                    ${statusText}
+                </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                ${formatDate(user.createdAt)}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <button onclick="viewUserDetails('${user._id}')" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 px-3 py-1 rounded transition">
+                    Manage
+                </button>
+            </td>
+        `;
+        userTableBody.appendChild(row);
+    });
+}
     
     /**
      * Renders the order history into the table.
@@ -747,150 +793,194 @@
 
     // --- Details and Modal Functions ---
     
-    /**
-     * Handles the click of the 'View Details' button and loads the data into the details section.
-     * @param {string} userId - The ID of the user whose details to view.
+ /**
+     * Handles the click of 'View Details' for both Registered and Guest users.
+     * For Guests (userId null), it extracts info from their orders.
      */
     async function viewUserDetails(userId) {
-        currentViewingUserId = userId; // Store the current user ID
+        currentViewingUserId = userId; 
         showUserDetailsView();
+        
+        // UI Reset
         detailsLoadingIndicator.classList.remove('hidden');
         userProfileData.classList.add('hidden');
         detailsErrorMessage.classList.add('hidden');
+        orderHistoryBody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-sm text-gray-500">Loading records...</td></tr>';
+
+        // Fetch user profile and orders
+        // Note: If userId is null or an ID that doesn't exist in 'Users', fetchUserDetails should return null
+        const [user, orders] = await Promise.all([
+            fetchUserDetails(userId), 
+            fetchUserOrders(userId)
+        ]);
         
-        // Clear previous order history body
-        orderHistoryBody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-sm text-gray-500">Loading orders...</td></tr>';
-        orderCountDisplay.textContent = 'Total Orders: 0';
+        detailsLoadingIndicator.classList.add('hidden');
 
+        // LOGIC: If 'user' is null but we have 'orders', it's a Guest interaction
+        if (user || (orders && orders.length > 0)) {
+            
+            // Use user data if available, otherwise pull from the most recent order (Guest)
+            const latestOrder = orders && orders.length > 0 ? orders[0] : null;
+            const isGuest = !user || user.isGuest === true;
 
-        const userPromise = fetchUserDetails(userId);
-        const ordersPromise = fetchUserOrders(userId); 
-
-        const [user, orders] = await Promise.all([userPromise, ordersPromise]);
-        
-        detailsLoadingIndicator.classList.add('hidden'); // Hide loading indicator for details view
-
-        if (user) {
-            // Render basic info
-            detailsHeaderName.textContent = user.name || 'N/A';
-            detailEmail.textContent = user.email;
-            
-            const statusText = user.isMember ? 'VIP Member 🌟' : 'Basic User';
-            const statusColor = user.isMember ? 'text-emerald-700' : 'text-gray-700';
-            
-            detailStatus.className = `text-xl font-bold ${statusColor}`;
-            detailStatus.textContent = statusText;
-            
-            detailJoined.textContent = formatDate(user.createdAt);
-            
-            // Render contact info and address
-            detailPhone.textContent = user.phone || 'N/A';
-            detailWhatsapp.textContent = user.whatsappNumber || user.phone || 'N/A'; 
-            
-            if (user.shippingAddress && user.shippingAddress.street) {
-                const address = user.shippingAddress;
-                detailAddress.innerHTML = `
-                    ${address.street}<br>
-                    ${address.city}, ${address.state}<br>
-                    ${address.zipCode || ''} ${address.country || ''}
-                `;
-            } else {
-                detailAddress.textContent = user.contactAddress || 'No Address Provided';
+            // --- RENDER HEADER ---
+            if (isGuest && latestOrder) {
+                const s = latestOrder.shippingAddress;
+                detailsHeaderName.textContent = `${s.firstName} ${s.lastName}` || 'Guest Customer';
+                detailEmail.textContent = latestOrder.guestEmail || s.email;
+                detailStatus.textContent = "Guest Checkout";
+                detailStatus.className = "text-xl font-bold text-orange-600";
+                detailJoined.textContent = `First Order: ${formatDate(latestOrder.createdAt)}`;
+                detailPhone.textContent = s.phone || 'N/A';
+                detailWhatsapp.textContent = s.whatsapp || 'N/A';
+            } else if (user) {
+                detailsHeaderName.textContent = user.name || 'Registered User';
+                detailEmail.textContent = user.email;
+                detailStatus.textContent = user.isMember ? 'VIP Member 🌟' : 'Basic User';
+                detailStatus.className = `text-xl font-bold ${user.isMember ? 'text-emerald-700' : 'text-blue-700'}`;
+                detailJoined.textContent = formatDate(user.createdAt);
+                detailPhone.textContent = user.phone || 'N/A';
+                detailWhatsapp.textContent = user.whatsappNumber || user.phone || 'N/A';
             }
 
-            // Render Order History (even if orders is null, renderOrderHistory handles it)
-            if (orders !== null) {
+            // --- RENDER ADDRESS ---
+            // Priority: User profile address -> Latest Order shipping address
+            if (user && user.shippingAddress && user.shippingAddress.street) {
+                const addr = user.shippingAddress;
+                detailAddress.innerHTML = `${addr.street}<br>${addr.city}, ${addr.state}`;
+            } else if (latestOrder && latestOrder.shippingAddress) {
+                const addr = latestOrder.shippingAddress;
+                detailAddress.innerHTML = `
+                    ${addr.street}<br>
+                    ${addr.city}, ${addr.state}<br>
+                    ${addr.country} (Guest Address)
+                `;
+            } else {
+                detailAddress.textContent = 'No Address Provided';
+            }
+
+            // --- RENDER ORDER HISTORY ---
+            if (orders && orders.length > 0) {
                 renderOrderHistory(orders);
             } else {
-                orderHistoryBody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-sm text-red-500">Failed to load order history. Check API.</td></tr>';
-                orderCountDisplay.textContent = `Total Orders: N/A`;
+                orderHistoryBody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-sm text-gray-500">No history found.</td></tr>';
             }
 
             userProfileData.classList.remove('hidden');
         } else {
             detailsErrorMessage.classList.remove('hidden');
+            detailsErrorMessage.textContent = "Profile data unavailable.";
         }
     }
     
-    /**
-     * Switches view and loads the full order details for status update. (NEW - FIXED DROPDOWN)
-     * @param {string} orderId - The ID of the order to view.
-     */
-    async function viewOrderDetails(orderId, userId) {
-        currentViewingOrderId = orderId; // Store for update function
-        currentViewingUserId = userId; // Ensure we retain the user ID for the back button
-        showOrderDetailsUpdateView();
-        
-        orderDetailsLoadingIndicator.classList.remove('hidden');
-        orderUpdateForm.classList.add('hidden');
-        orderUpdateMessage.classList.add('hidden');
-        
-        orderDetailsHeaderId.textContent = orderId;
-        
-        const order = await fetchOrderDetails(orderId);
-        
-        orderDetailsLoadingIndicator.classList.add('hidden');
+   /**
+ * Switches view and loads the full order details for status update. (FIXED DROPDOWN)
+ * @param {string} orderId - The ID of the order to view.
+ */
+async function viewOrderDetails(orderId, userId) {
+    currentViewingOrderId = orderId; 
+    currentViewingUserId = userId; 
+    showOrderDetailsUpdateView();
+    
+    orderDetailsLoadingIndicator.classList.remove('hidden');
+    orderUpdateForm.classList.add('hidden');
+    orderUpdateMessage.classList.add('hidden');
+    
+    orderDetailsHeaderId.textContent = orderId;
+    
+    const order = await fetchOrderDetails(orderId);
+    
+    orderDetailsLoadingIndicator.classList.add('hidden');
 
-        if (order) {
-            // Set initial form values and details
-            orderDetailCustomerName.textContent = order.customerName || 'N/A';
-            orderDetailDate.textContent = formatDate(order.createdAt);
-            
-            const currentStatus = order.status || 'Pending'; // Default to Pending if status is missing
-            orderDetailCurrentStatus.textContent = currentStatus;
-            
-            // ⭐ CRITICAL FIX: The next status transition must follow the server's logic:
-            // Confirmed -> Shipped -> Delivered
-            newOrderStatusSelect.innerHTML = ''; // Clear existing options
-            
-            let nextStatus = null;
-            if (currentStatus === 'Confirmed') { // Check for 'Confirmed' status
-                nextStatus = 'Shipped';
-            } else if (currentStatus === 'Shipped') {
-                nextStatus = 'Delivered';
-            }
-            
-            // Add current status as default, disabled option
-            const currentOption = new Option(`Current: ${currentStatus}`, currentStatus, true, true);
-            currentOption.disabled = true;
-            newOrderStatusSelect.add(currentOption);
-            
-            if (nextStatus) {
-                // Add the single, valid next transition status
+    if (order) {
+        // ... (Render Customer Name, Date, Address unchanged) ...
+
+        orderDetailCustomerName.textContent = order.customerName || 'N/A';
+        orderDetailDate.textContent = formatDate(order.createdAt);
+
+        const currentStatus = order.status || 'Pending';
+        orderDetailCurrentStatus.textContent = currentStatus;
+        
+        // Render Shipping Address (unchanged)
+        if (order.shippingAddress && order.shippingAddress.street) {
+             const address = order.shippingAddress;
+             orderDetailAddress.innerHTML = `
+                 ${address.street}<br>
+                 ${address.city}, ${address.state}<br>
+                 ${address.zipCode || ''} ${address.country || ''}
+             `;
+         } else {
+             orderDetailAddress.textContent = 'No Shipping Address Available';
+         }
+        
+        // --- ⭐ CRITICAL NEW STATUS TRANSITION LOGIC ---
+        newOrderStatusSelect.innerHTML = ''; // Clear existing options
+      
+
+let validNextStatuses = [];
+
+switch (currentStatus) {
+    case 'Pending':
+    case 'Inventory Failure (Manual Review)':
+    case 'Amount Mismatch (Manual Review)':
+        // These require Admin to verify payment/stock manually
+        validNextStatuses.push('Confirmed'); 
+        break;
+        
+    case 'Confirmed':
+        // Manual confirmation received, now ready for dispatch
+        validNextStatuses.push('Shipped');
+        break;
+        
+    case 'Completed':
+        // 'Completed' is the system-auto-confirmed state (Paid + Stock OK)
+        // Next logical step for Admin is to ship it.
+        validNextStatuses.push('Shipped');
+        break;
+        
+    case 'Shipped':
+        validNextStatuses.push('Delivered');
+        break;
+
+    case 'Delivered':
+    case 'Cancelled':
+        // No further actions possible
+        break;
+}
+
+      // Add current status as default, disabled option
+        const currentOption = new Option(`Current: ${currentStatus}`, currentStatus, true, true);
+        currentOption.disabled = true;
+        newOrderStatusSelect.add(currentOption);
+        
+        if (validNextStatuses.length > 0) {
+            validNextStatuses.forEach(nextStatus => {
                 const nextOption = new Option(`Change to: ${nextStatus}`, nextStatus);
                 newOrderStatusSelect.add(nextOption);
-                newOrderStatusSelect.disabled = false;
-                updateStatusButton.disabled = false; // Use the globally defined button variable
-            } else {
-                // Order is Delivered, Cancelled, Pending, Processing, or Manual Review - no update possible via this form
-                newOrderStatusSelect.disabled = true;
-                updateStatusButton.disabled = true;
-            }
-            // End LOGIC FIX
-            
-            // Render Shipping Address
-            if (order.shippingAddress && order.shippingAddress.street) {
-                const address = order.shippingAddress;
-                orderDetailAddress.innerHTML = `
-                    ${address.street}<br>
-                    ${address.city}, ${address.state}<br>
-                    ${address.zipCode || ''} ${address.country || ''}
-                `;
-            } else {
-                orderDetailAddress.textContent = 'No Shipping Address Available';
-            }
-
-            // Render Order Items
-            renderOrderItems(order.items);
-            
-            orderUpdateForm.classList.remove('hidden');
+            });
+            newOrderStatusSelect.disabled = false;
+            updateStatusButton.disabled = false; 
         } else {
-             orderUpdateForm.classList.add('hidden');
-             orderUpdateMessage.classList.remove('hidden');
-             orderUpdateMessage.className = 'p-3 rounded-lg text-white bg-red-500 font-medium';
-             orderUpdateMessage.textContent = 'Failed to load order details for updating.';
+            newOrderStatusSelect.disabled = true;
+            updateStatusButton.disabled = true;
+            orderUpdateMessage.classList.remove('hidden');
+            orderUpdateMessage.className = 'p-3 rounded-lg text-white bg-gray-500 font-medium';
+            orderUpdateMessage.textContent = `Order status is final (${currentStatus}) or pending system completion.`;
         }
+        // --- END CRITICAL NEW STATUS TRANSITION LOGIC ---
+
+        // Render Order Items (unchanged)
+        renderOrderItems(order.items);
+        
+        orderUpdateForm.classList.remove('hidden');
+    } else {
+         orderUpdateForm.classList.add('hidden');
+         orderUpdateMessage.classList.remove('hidden');
+         orderUpdateMessage.className = 'p-3 rounded-lg text-white bg-red-500 font-medium';
+         orderUpdateMessage.textContent = 'Failed to load order details for updating.';
     }
+}
+
     
     /**
      * Handles the order status update process. (NEW)

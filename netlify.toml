@@ -3,17 +3,53 @@
   publish = "public"
   # The directory where Netlify will find your functions
   functions = "netlify/functions"
+  # This command ensures all dependencies are installed before the functions are bundled.
   command = "npm install"
 
+# --- Recommended Fix for Module Loading Error ---
+# This block is essential for troubleshooting Node.js module loading issues in Netlify Functions.
+[functions]
+  # Explicitly set the bundler to 'esbuild' for better dependency tracing and smaller bundles.
+  # This often resolves issues where standard bundling fails to find dependencies in nested requires.
+  node_bundler = "esbuild"
+
+  # Explicitly declare Express and serverless-http as external modules 
+  # to ensure they are handled correctly by the bundler.
+  # This can sometimes force the resolution of 'express' that the system is missing.
+  external_node_modules = ["express", "serverless-http"]
+
+  [[headers]]
+  for = "/*"
+  [headers.values]
+    # 'unsafe-none' is necessary to allow third-party assets like Paystack to load without COEP restrictions
+    Cross-Origin-Embedder-Policy = "unsafe-none"
+    Cross-Origin-Opener-Policy = "same-origin-allow-popups"
+    
+    # UPDATED CSP:
+    # 1. added https://*.paystack.com to style-src for their button and checkout styles.
+    # 2. added frame-src to allow the Paystack payment popup/iframe to appear.
+    # 3. added paystack.com to img-src for their logo/trust badges.
+Content-Security-Policy = "default-src 'self' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.paystack.co https://cdn.tailwindcss.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://paystack.com https://*.paystack.com https://fonts.googleapis.com https://*.cloudflare.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; img-src 'self' data: https://i.imgur.com https://s3.amazonaws.com https://*.idrivee2.com https://*.idrive.com https://www.idrive.com https://paystack.com https://*.paystack.com https://via.placeholder.com; frame-src 'self' https://js.paystack.co https://checkout.paystack.com https://*.paystack.com;"
+    
+# 1. Specific files first (Priority)
 [[redirects]]
-  # This maps all requests starting with /api/ to the Netlify function handler
+  from = "/sitemap.xml"
+  to = "/sitemap.xml"
+  status = 200
+
+[[redirects]]
+  from = "/robots.txt"
+  to = "/robots.txt"
+  status = 200
+
+# 2. API requests
+[[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
 
+# 3. Finally, the root redirect (Catch-all for the home page)
 [[redirects]]
-  # This redirects all other root requests to the static index.html file
   from = "/"
   to = "/index.html"
-  status = 200 
-  
+  status = 200

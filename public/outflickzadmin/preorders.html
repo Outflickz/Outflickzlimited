@@ -78,14 +78,16 @@
                     Caps Collection
                 </a>
 
-                <a href="newarrivals.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg active-link-page">
+                   <a href="newarrivals.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     New Arrivals
                 </a>
-                    <a href="preorders.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+
+                <a href="preorders.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg active-link-page">
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     Pre-Order
                 </a>
+                 
                 <a href="membership.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l-7-7-7 7m10 0v10a1 1 0 01-1 1h-3m-3 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-9 0h10"></path></svg>
                     Membership
@@ -127,8 +129,8 @@
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-                <label for="collection-description" class="block text-sm font-medium text-gray-700">Description/Tag</label>
-                <select id="collection-description" name="collection-description" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
+                <label for="collection-tag class="block text-sm font-medium text-gray-700">Description/Tag</label>
+                <select id="collection-tag" name="collection-tag" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
                     <option value="" disabled selected>Select a collection tag</option>
                     <option value="Pre-Order">Pre-Order</option>
                     <option value="Coming Soon">Coming Soon</option>
@@ -136,7 +138,10 @@
                     <option value="Seasonal">Seasonal</option>
                 </select>
             </div>
-
+            <label for="collection-description" class="block text-sm font-medium text-gray-700">Detailed Description</label>
+        <textarea id="collection-description" name="collection-description" rows="1" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500" placeholder="Optional product details..."></textarea>
+    </div>
+</div>
             <div>
                 <label for="collection-price" class="block text-sm font-medium text-gray-700">Collection Price (NGN)</label>
                 <input type="number" id="collection-price" name="collection-price" min="0.01" step="0.01" value="00.00" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500">
@@ -420,13 +425,32 @@ function getAuthToken() {
     return token;
 }
 
-// --- LOGOUT FUNCTIONALITY (Kept the same) ---
-function logoutAdmin() {
-    console.log('Logging out admin...');
-    localStorage.removeItem('adminToken');
-    window.location.href = './admin-login.html';
-}
-// ----------------------------
+ /**
+     * Handles the admin logout process by clearing local state 
+     * and notifying the server to clear secure cookies.
+     */
+    async function logoutAdmin() {
+        console.log("Initiating Admin Logout...");
+
+        try {
+            // 1. Call the backend logout API to clear the secure Refresh Token cookie
+            // We use the standard fetch here or secureFetch
+            await fetch('/api/admin/logout', { 
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+                }
+            });
+        } catch (error) {
+            console.warn("Server-side logout failed or unreachable, proceeding with client-side cleanup.", error);
+        } finally {
+            // 2. Clear the Access Token from LocalStorage regardless of API success
+            localStorage.removeItem('adminToken');
+
+            // 3. Redirect to login page
+            window.location.href = './admin-login.html';
+        }
+    }
 
 // --- NESTED SIZE/STOCK MANAGEMENT ---
 
@@ -750,7 +774,8 @@ async function editCollection(collectionId) {
 
         // 2. Populate basic details
         document.getElementById('collection-name').value = collection.name;
-        document.getElementById('collection-description').value = collection.tag;
+        document.getElementById('collection-tag').value = collection.tag;
+        document.getElementById('collection-description').value = collection.description || '';
         document.getElementById('collection-price').value = collection.price; 
         
         document.getElementById('is-active').checked = collection.isActive;
@@ -957,7 +982,8 @@ async function handleCollectionSubmit(event) {
 
     const collectionData = {
         name: document.getElementById('collection-name').value,
-        tag: document.getElementById('collection-description').value,
+        tag: document.getElementById('collection-tag').value,
+        description: document.getElementById('collection-description').value, // New field
         price: parseFloat(document.getElementById('collection-price').value), 
         sizes: [], // Backend should derive all unique sizes from nested variations
         totalStock: finalTotalStock, // Computed total stock from all variations' nested inputs

@@ -25,9 +25,13 @@
 </head>
 <body class="bg-gray-50 min-h-screen text-gray-900 antialiased">
     
-    <script>
+<script>
+    // --- Authentication Constants ---
     const API_BASE_URL = 'https://outflickz.com';
-
+    const AUTH_TOKEN_KEY = 'userAccessToken';
+    const REFRESH_ENDPOINT = `${API_BASE_URL}/api/users/refresh`; 
+    
+    // Global state for the user
     let currentProfileData = {
         profile: {},
         address: {},
@@ -36,104 +40,153 @@
         orders: []
     };
 
-    function redirectToProfileOrLogin() {
-        window.location.href = 'useraccount.html';
-    }
-    function toggleMenu() {
-        const mobileMenu = document.getElementById('mobile-menu');
-        mobileMenu.classList.toggle('hidden');
+    // --- Authentication Helpers ---
+    function handleLogout() {
+        localStorage.removeItem(AUTH_TOKEN_KEY); 
+        window.location.replace('useraccount.html');
     }
 
-    // ⭐ CRITICAL SECURITY UPDATE: Needs server endpoint to clear HTTP-only cookie
     async function logoutUser() {
-        // 1. Attempt to call server endpoint to clear the HTTP-only cookie
         try {
             await fetch(`${API_BASE_URL}/api/users/logout`, {
                 method: 'POST',
                 credentials: 'include' 
             });
         } catch (error) {
-            console.warn('Server logout call failed or was unreachable, proceeding with client-side redirect.', error);
+            console.warn('Server logout failed, clearing local state.');
         }
-        
-        // 2. Client-side cleanup and redirect
-        localStorage.removeItem('outflickzToken'); 
-        window.location.replace('useraccount.html');
+        handleLogout();
     }
 
-    // --- Modal Functions ---
-    function closeModal(modalId) {
-        document.getElementById(modalId).classList.add('hidden');
-    }
+   async function secureUserFetch(url, options = {}) {
+    let token = localStorage.getItem('userAccessToken');
+    
+    // Merge headers
+    options.headers = {
+        ...options.headers,
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+    };
+    
+    // CRITICAL: Must include credentials for the cookie to be sent to Netlify
+    options.credentials = 'include'; 
 
-    function openChangePasswordModal() {
-    const modal = document.getElementById('change-password-modal');
-    modal.classList.remove('hidden');
-    // Optional: Clear form on open
-    document.getElementById('change-password-form').reset();
+    let response = await fetch(url, options);
+
+    if (response.status === 401) {
+        console.log("Access token expired. Attempting refresh...");
+        const refreshRes = await fetch('https://outflickzs.netlify.app/api/users/refresh', {
+            method: 'POST',
+            credentials: 'include' // Sends the userRefreshToken cookie
+        });
+
+        if (refreshRes.ok) {
+            const data = await refreshRes.json();
+            localStorage.setItem('userAccessToken', data.accessToken);
+            
+            // Retry the original request with the NEW token
+            options.headers['Authorization'] = `Bearer ${data.accessToken}`;
+            return await fetch(url, options);
+        }
+    }
+    return response;
 }
 
-    function openEditProfileModal() {
-        const modal = document.getElementById('edit-profile-modal');
-        modal.classList.remove('hidden');
+    // --- UI/DOM Management ---
 
-        // Pre-fill form fields with current data
-        document.getElementById('edit-profile-firstName').value = currentProfileData.profile.firstName || '';
-        document.getElementById('edit-profile-lastName').value = currentProfileData.profile.lastName || '';
-        document.getElementById('edit-profile-phone').value = currentProfileData.profile.phone || '';
-        // 🎉 NEW: Pre-fill whatsapp
-        document.getElementById('edit-profile-whatsapp').value = currentProfileData.profile.whatsapp || '';
+    /**
+     * Populates the HTML with data matching your backend structure.
+     * Fixed to handle null values as seen in your console log.
+     */
+    function updateDOM(data) {
+        const profile = data.profile || {};
+        const status = data.status || {};
+        const membership = data.membership || {};
+        const address = data.address || {}; 
+        
+        // Name and Identity
+        const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'Guest User';
+        document.getElementById('user-name').textContent = fullName;
+        document.getElementById('user-email').textContent = data.email || 'Email Not Available'; 
+        
+        // Status & Membership
+        document.getElementById('user-role').textContent = (status.role || 'user').toUpperCase();
+        document.getElementById('user-verification').innerHTML = status.isVerified 
+            ? '<span class="text-green-600 font-bold"><i class="fas fa-check-circle mr-1"></i> Verified</span>'
+            : '<span class="text-red-600 font-bold"><i class="fas fa-times-circle mr-1"></i> Unverified</span>';
+        
+        const memberDate = membership.memberSince ? new Date(membership.memberSince).toLocaleDateString() : 'N/A';
+        document.getElementById('member-since').textContent = memberDate;
+
+        // Contact Info
+        document.getElementById('user-phone').textContent = profile.phone || 'Not Set';
+        document.getElementById('user-whatsapp').textContent = profile.whatsapp || 'Not Set';
+
+        // Address (Handles null zip code safely)
+        document.getElementById('street-address').textContent = address.street || 'Not Set';
+        const zipPart = (address.zip && address.zip !== "null") ? address.zip : '';
+        document.getElementById('city-state-zip').textContent = `${address.city || 'Not Set'}, ${address.state || 'Not Set'} ${zipPart}`.trim();
+        document.getElementById('country').textContent = address.country || 'Not Set';
+        
+        // Update "Edit/Set" Button Text
+        const isAddressSet = !!(address.street && address.city);
+        const editAddressBtn = document.getElementById('edit-address-button');
+        if (editAddressBtn) {
+            editAddressBtn.innerHTML = isAddressSet 
+                ? '<i class="fas fa-edit mr-1"></i> Edit' 
+                : '<i class="fas fa-plus-circle mr-1"></i> Set Address';
+        }
     }
 
-    function openEditAddressModal() {
-        const modal = document.getElementById('edit-address-modal');
-        modal.classList.remove('hidden');
-
-        const address = currentProfileData.address || {}; 
-        
-        // Pre-fill form fields with current data
-        document.getElementById('edit-address-street').value = address.street || '';
-        document.getElementById('edit-address-city').value = address.city || '';
-        document.getElementById('edit-address-state').value = address.state || '';
-        document.getElementById('edit-address-zip').value = address.zip || '';
-        document.getElementById('edit-address-country').value = address.country || '';
+    // --- Action Handlers ---
+async function fetchUserData() {
+    // 1. Check if token even exists before doing anything
+    const token = localStorage.getItem(AUTH_TOKEN_KEY);
+    
+    if (!token) {
+        console.warn("No token found, redirecting to login.");
+        window.location.replace('useraccount.html'); // Redirect without clearing (since there's nothing to clear)
+        return;
     }
 
-    function showStatusMessage(message, isSuccess = true) {
-        const container = document.getElementById('status-message-container');
-        const messageBox = document.getElementById('status-message');
-        
-        messageBox.textContent = message;
-        container.classList.remove('hidden', 'bg-green-100', 'bg-red-100', 'text-green-800', 'text-red-800');
+    const mainContent = document.getElementById('main-profile-content');
+    const loading = document.getElementById('loading-indicator');
+    
+    if (loading) loading.classList.remove('hidden');
+    if (mainContent) mainContent.classList.add('hidden');
 
-        if (isSuccess) {
-            container.classList.add('bg-green-100', 'text-green-800');
-        } else {
-            container.classList.add('bg-red-100', 'text-red-800');
+    try {
+        // 2. Use the full URL as seen in your screenshot
+        const response = await secureUserFetch(`${API_BASE_URL}/api/users/account`);
+        
+        if (!response.ok) {
+            // Only logout if the server specifically says the token is invalid (401/403)
+            if (response.status === 401 || response.status === 403) {
+                console.error("Session invalid, logging out.");
+                handleLogout();
+            }
+            return;
         }
 
-        setTimeout(() => {
-            container.classList.add('hidden');
-        }, 5000);
-    }
+        const data = await response.json();
+        currentProfileData = data;
+        updateDOM(data); 
 
-    // --- New Function for Password Visibility ---
-function togglePasswordVisibility(inputId, iconId) {
-    const input = document.getElementById(inputId);
-    const icon = document.getElementById(iconId);
+        // 3. Prevent crash if fetchOrderHistory isn't defined yet
+        if (typeof fetchOrderHistory === 'function') {
+            await fetchOrderHistory(); 
+        }
 
-    if (input.type === 'password') {
-        input.type = 'text';
-        icon.classList.remove('fa-eye');
-        icon.classList.add('fa-eye-slash');
-    } else {
-        input.type = 'password';
-        icon.classList.remove('fa-eye-slash');
-        icon.classList.add('fa-eye');
+    } catch (error) {
+        console.error("Network error during profile fetch:", error);
+        // Don't log out for a simple network error, just show an error message
+        showStatusMessage('Connection error. Please refresh.', false);
+    } finally {
+        if (loading) loading.classList.add('hidden');
+        if (mainContent) mainContent.classList.remove('hidden');
     }
 }
 
-    // --- Submission Handlers (Personal Information) ---
     async function submitEditProfile(event) {
         event.preventDefault();
         const button = document.getElementById('submit-profile-btn');
@@ -145,363 +198,137 @@ function togglePasswordVisibility(inputId, iconId) {
             firstName: document.getElementById('edit-profile-firstName').value.trim(),
             lastName: document.getElementById('edit-profile-lastName').value.trim(),
             phone: document.getElementById('edit-profile-phone').value.trim(),
-            // 🎉 NEW: Get WhatsApp value
             whatsapp: document.getElementById('edit-profile-whatsapp').value.trim() 
         };
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
+            const response = await secureUserFetch(`${API_BASE_URL}/api/users/profile`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(profileData),
-                credentials: 'include'
+                body: JSON.stringify(profileData)
             });
 
             const data = await response.json();
-
-            if (!response.ok) {
-                showStatusMessage(data.message || 'Failed to update personal details.', false);
-                throw new Error(data.message || 'Update failed');
+            if (response.ok) {
+                currentProfileData.profile = data.profile;
+                updateDOM(currentProfileData);
+                closeModal('edit-profile-modal');
+                showStatusMessage('Profile updated successfully!');
+            } else {
+                showStatusMessage(data.message || 'Update failed', false);
             }
-
-            // SUCCESS: Update current data and re-render DOM
-            currentProfileData.profile = data.profile;
-            updateDOM(currentProfileData);
-            closeModal('edit-profile-modal');
-            showStatusMessage('Personal details updated successfully!', true);
-
         } catch (error) {
-            console.error('Profile Update Error:', error);
-            if (!document.getElementById('status-message-container').classList.contains('bg-red-100')) {
-                showStatusMessage('An unexpected error occurred during profile update.', false);
-            }
+            showStatusMessage('An error occurred', false);
         } finally {
             button.disabled = false;
             button.textContent = originalText;
         }
     }
+   async function fetchOrderHistory() {
+    const listContainer = document.getElementById('order-history-list');
+    
+    try {
+        const response = await secureUserFetch(`${API_BASE_URL}/api/orders/history`);
+        const data = await response.json();
 
-    // --- Submission Handlers (Contact Address) ---
-    async function submitEditAddress(event) {
-        event.preventDefault();
-        const button = document.getElementById('submit-address-btn');
-        const originalText = button.textContent;
-        button.disabled = true;
-        button.textContent = 'Updating...';
+        if (!response.ok) throw new Error(data.message);
 
-        const addressData = {
-            street: document.getElementById('edit-address-street').value.trim(),
-            city: document.getElementById('edit-address-city').value.trim(),
-            state: document.getElementById('edit-address-state').value.trim(),
-            zip: document.getElementById('edit-address-zip').value.trim(),
-            country: document.getElementById('edit-address-country').value.trim()
-        };
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/users/address`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(addressData),
-                credentials: 'include'
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                showStatusMessage(data.message || 'Failed to update contact address.', false);
-                throw new Error(data.message || 'Update failed');
-            }
-
-            // SUCCESS: Update current data and re-render DOM
-            currentProfileData.address = data.address;
-            updateDOM(currentProfileData);
-            closeModal('edit-address-modal');
-            showStatusMessage('Contact address updated successfully!', true);
-
-        } catch (error) {
-            console.error('Address Update Error:', error);
-            if (!document.getElementById('status-message-container').classList.contains('bg-red-100')) {
-                showStatusMessage('An unexpected error occurred during address update.', false);
-            }
-        } finally {
-            button.disabled = false;
-            button.textContent = originalText;
-        }
-    }
-
-    // --- Fetch and Render Order History (Mock Data Removed) ---
-    async function fetchOrderHistory() {
-        const orderList = document.getElementById('order-history-list');
-        orderList.innerHTML = `
-            <div class="flex justify-center items-center py-10">
-                <i class="fas fa-spinner fa-spin text-3xl text-ash-red"></i>
-                <p class="ml-3 text-gray-600">Loading orders...</p>
-            </div>
-        `;
-        
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/orders/history`, { credentials: 'include' });
-            
-            if (!response.ok) {
-                // If the user isn't authorized or the API fails, show an error and return
-                const errorText = await response.text();
-                console.error(`Failed to fetch order history (Status: ${response.status}):`, errorText);
-                document.getElementById('order-history-list').innerHTML = '<p class="text-red-500 italic">Failed to load order history. Please ensure you are logged in.</p>';
-                return;
-            }
-
-            const data = await response.json();
-            currentProfileData.orders = data.orders || [];
-            
-            renderOrderHistory(currentProfileData.orders);
-
-        } catch (error) {
-            console.error('Error fetching order history:', error);
-            document.getElementById('order-history-list').innerHTML = '<p class="text-red-500 italic">Network error fetching order history.</p>';
-        }
-    }
-
-   function renderOrderHistory(orders) {
-        const orderList = document.getElementById('order-history-list');
-        orderList.innerHTML = ''; // Clear existing content
-
-        if (orders.length === 0) {
-            orderList.innerHTML = '<p class="text-gray-500 italic">You have no previous orders.</p>';
+        if (!data.orders || data.orders.length === 0) {
+            listContainer.innerHTML = `
+                <div class="text-center py-10 text-gray-500">
+                    <i class="fas fa-box-open text-4xl mb-3 opacity-20"></i>
+                    <p class="text-sm">You haven't placed any orders yet.</p>
+                    <a href="wearscollection.html" class="text-ash-red font-bold hover:underline text-sm">Start Shopping</a>
+                </div>`;
             return;
         }
 
-        const tableBody = orders.map(order => {
-            let statusClass = '';
-            let statusIcon = '';
-            switch(order.status) {
-                case 'Delivered':
-                    statusClass = 'bg-green-100 text-green-800';
-                    statusIcon = 'check-circle';
-                    break;
-                case 'Shipped':
-                    statusClass = 'bg-blue-100 text-blue-800';
-                    statusIcon = 'truck';
-                    break;
-                case 'Processing':
-                    statusClass = 'bg-yellow-100 text-yellow-800';
-                    statusIcon = 'sync-alt fa-spin';
-                    break;
-                case 'Cancelled':
-                    statusClass = 'bg-red-100 text-red-800';
-                    statusIcon = 'times-circle';
-                    break;
-                default:
-                    statusClass = 'bg-gray-100 text-gray-700';
-                    statusIcon = 'info-circle';
-            }
-            const formattedDate = new Date(order.date).toLocaleDateString('en-US');
-            // ⭐ CURRENCY CORRECTION: Changed '$' to '₦'
-            const formattedTotal = order.total.toFixed(2);
+        listContainer.innerHTML = data.orders.map(order => `
+            <div class="flex items-center justify-between p-3 sm:p-4 border-b border-gray-100 hover:bg-gray-50 transition duration-150">
+                <div class="flex-1 min-w-0">
+                    <p class="font-bold text-gray-900 text-xs sm:text-sm truncate">
+                        #${order.id.slice(-6).toUpperCase()}
+                    </p>
+                    <p class="text-[10px] sm:text-xs text-gray-500 mt-0.5">
+                        ${new Date(order.date).toLocaleDateString()}
+                    </p>
+                </div>
 
-            return `
-                <tr class="border-b hover:bg-gray-50 transition">
-                    <td class="px-6 py-4 font-medium text-gray-900">${order.id}</td>
-                    <td class="px-6 py-4">${formattedDate}</td>
-                    <td class="px-6 py-4">₦${formattedTotal}</td> 
-                    <td class="px-6 py-4">
-                        <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${statusClass}">
-                            <i class="fas fa-${statusIcon} mr-2"></i>
+                <div class="flex-1 text-center px-2">
+                    <p class="font-bold text-gray-900 text-xs sm:text-sm">
+                        ₦${order.total.toLocaleString()}
+                    </p>
+                    <div class="mt-1">
+                        <span class="inline-block px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-wider ${getStatusClass(order.status)}">
                             ${order.status}
                         </span>
-                    </td>
-                    <td class="px-6 py-4">
-                        <a href="order-details.html?id=${order.id}" class="text-ash-red hover:text-ash-red-dark font-medium">
-                            View Details
-                        </a>
-                    </td>
-                </tr>
-            `;
-        }).join('');
+                    </div>
+                </div>
 
-        orderList.innerHTML = `
-            <div class="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            <th scope="col" class="relative px-6 py-3"><span class="sr-only">Details</span></th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        ${tableBody}
-                    </tbody>
-                </table>
+                <div class="flex-none ml-2 sm:ml-4">
+                    <a href="order-details.html?id=${order.id}" 
+                       class="inline-flex items-center px-3 py-1.5 sm:px-4 sm:py-2 bg-white border border-gray-200 text-gray-700 text-[10px] sm:text-xs font-semibold rounded-md hover:bg-ash-red hover:text-white hover:border-ash-red transition-all duration-200 shadow-sm">
+                        View <i class="fas fa-chevron-right ml-1.5 text-[8px]"></i>
+                    </a>
+                </div>
             </div>
-        `;
-    }
-
-    /**
-     * Populates the DOM with the latest user data object.
-     */
-    function updateDOM(data) {
-        const profile = data.profile || {};
-        const status = data.status || {};
-        const membership = data.membership || {};
-        const address = data.address || {}; 
-        
-        const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'Guest User';
-        const emailAddress = data.email || 'Email Not Available'; 
-        const userRole = status.role || 'user';
-        const isVerified = status.isVerified;
-        // Use the existing memberSince data if available, otherwise process the new one
-        const memberSince = membership.memberSince ? new Date(membership.memberSince).toLocaleDateString() : 'N/A';
-
-        document.getElementById('user-name').textContent = fullName;
-        document.getElementById('user-email').textContent = emailAddress;
-        document.getElementById('user-role').textContent = userRole.toUpperCase();
-        document.getElementById('user-verification').innerHTML = isVerified 
-            ? '<span class="text-green-600 font-bold"><i class="fas fa-check-circle mr-1"></i> Verified</span>'
-            : '<span class="text-red-600 font-bold"><i class="fas fa-times-circle mr-1"></i> Unverified</span>';
-        document.getElementById('member-since').textContent = memberSince;
-        document.getElementById('user-phone').textContent = profile.phone || 'Not Set';
-        // 🎉 NEW: Update WhatsApp display
-        document.getElementById('user-whatsapp').textContent = profile.whatsapp || 'Not Set';
-
-
-        document.getElementById('street-address').textContent = address.street || 'Not Set';
-        document.getElementById('city-state-zip').textContent = `${address.city || 'Not Set'}, ${address.state || 'Not Set'} ${address.zip || ''}`;
-        document.getElementById('country').textContent = address.country || 'Not Set';
-        
-        // --- Dynamic Address Button Text ---
-        const isAddressSet = address.street && address.city && address.country;
-        const editAddressButton = document.getElementById('edit-address-button');
-
-        if (editAddressButton) {
-            if (isAddressSet) {
-                editAddressButton.innerHTML = '<i class="fas fa-edit mr-1"></i> Edit';
-                editAddressButton.setAttribute('aria-label', 'Edit Contact Address');
-            } else {
-                editAddressButton.innerHTML = '<i class="fas fa-plus-circle mr-1"></i> Set Address';
-                editAddressButton.setAttribute('aria-label', 'Set Contact Address');
-            }
-        }
-    }
-
-    // --- Submission Handlers (Change Password) ---
-async function submitChangePassword(event) {
-    event.preventDefault();
-    const button = document.getElementById('submit-password-btn');
-    const originalText = button.textContent;
-    button.disabled = true;
-    button.textContent = 'Updating...';
-
-    const oldPassword = document.getElementById('change-password-old').value;
-    const newPassword = document.getElementById('change-password-new').value;
-    const confirmPassword = document.getElementById('change-password-confirm').value;
-
-    if (newPassword !== confirmPassword) {
-        showStatusMessage('New password and confirmation do not match.', false);
-        button.disabled = false;
-        button.textContent = originalText;
-        return;
-    }
-
-    const passwordData = {
-        currentPassword: oldPassword, // Changed key name to match server expectation
-        newPassword: newPassword
-    };
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/users/change-password`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(passwordData),
-            credentials: 'include'
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            showStatusMessage(data.message || 'Failed to change password.', false);
-            throw new Error(data.message || 'Password change failed');
-        }
-
-        // SUCCESS
-        closeModal('change-password-modal');
-        showStatusMessage('Password updated successfully! Please log in again using your new password.', true);
-        
-        // Optional: Force user to log out after successful password change
-        setTimeout(logoutUser, 3000); 
+        `).join('');
 
     } catch (error) {
-        console.error('Password Change Error:', error);
-        if (!document.getElementById('status-message-container').classList.contains('bg-red-100')) {
-            showStatusMessage('An unexpected error occurred during password change.', false);
-        }
-    } finally {
-        button.disabled = false;
-        button.textContent = originalText;
+        console.error("Order history error:", error);
+        listContainer.innerHTML = '<p class="text-red-500 text-center py-4 text-xs">Failed to load orders.</p>';
     }
 }
+
+function getStatusClass(status) {
+    status = status.toLowerCase();
+    if (status === 'delivered') return 'bg-green-100 text-green-700';
+    if (status === 'processing' || status === 'pending') return 'bg-yellow-100 text-yellow-700';
+    return 'bg-gray-100 text-gray-700';
+}
+
+// --- Password & Modal Helpers ---
+function togglePasswordVisibility(inputId, iconId) {
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.replace('fa-eye', 'fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.replace('fa-eye-slash', 'fa-eye');
+    }
+}
+
+function openEditProfileModal() {
+    const p = currentProfileData.profile || {};
+    document.getElementById('edit-profile-firstName').value = p.firstName || '';
+    document.getElementById('edit-profile-lastName').value = p.lastName || '';
+    document.getElementById('edit-profile-phone').value = p.phone || '';
+    document.getElementById('edit-profile-whatsapp').value = p.whatsapp || '';
+    document.getElementById('edit-profile-modal').classList.remove('hidden');
+}
+
+function openChangePasswordModal() {
+    document.getElementById('change-password-form').reset();
+    document.getElementById('change-password-modal').classList.remove('hidden');
+}
+
+    // --- Utility Functions ---
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
     
-    /**
-     * Attempts to fetch user data and redirects to login on failure (401/403).
-     * MOCK DATA REMOVED.
-     */
-    async function fetchUserData() {
-        const mainContent = document.getElementById('main-profile-content');
-        const loadingIndicator = document.getElementById('loading-indicator');
-        
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/users/account`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'include' 
-            });
-            
-            console.log(`Fetch Status: ${response.status}`); 
-
-            if (!response.ok) {
-                // Real failure path: Redirect to login/account page
-                console.error(`Authentication failed (Status: ${response.status}). Redirecting.`);
-                
-                // Hide everything
-                if (loadingIndicator) loadingIndicator.classList.add('hidden');
-                if (mainContent) mainContent.classList.add('hidden');
-
-                // Redirect after a brief delay
-                setTimeout(() => {
-                    window.location.replace('useraccount.html');
-                }, 100); 
-                return; // Stop execution here
-            } 
-            
-            // Real success path
-            const data = await response.json();
-            console.log('User Data fetched successfully:', data);
-            currentProfileData = data;
-            updateDOM(data); 
-
-            // Fetch and render order history after profile data is loaded
-            await fetchOrderHistory(); 
-
-            // Show content
-            if (loadingIndicator) loadingIndicator.classList.add('hidden');
-            if (mainContent) mainContent.classList.remove('hidden');
-
-        } catch (error) {
-            console.error("Fetch user data error:", error);
-            // Hide everything and redirect on fatal network failure
-            if (loadingIndicator) loadingIndicator.classList.add('hidden');
-            if (mainContent) mainContent.classList.add('hidden');
-            
-            setTimeout(() => {
-                window.location.replace('useraccount.html');
-            }, 100); 
-        }
+    function showStatusMessage(msg, isSuccess = true) {
+        const container = document.getElementById('status-message-container');
+        const messageBox = document.getElementById('status-message');
+        messageBox.textContent = msg;
+        container.className = `fixed bottom-4 right-4 p-4 rounded shadow-lg ${isSuccess ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
+        container.classList.remove('hidden');
+        setTimeout(() => container.classList.add('hidden'), 5000);
     }
 
+    // Initialize
     document.addEventListener('DOMContentLoaded', fetchUserData);
-    </script>
+</script>
 
     <header class="bg-white sticky top-0 z-50 shadow-md">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -511,10 +338,11 @@ async function submitChangePassword(event) {
 
             <nav class="hidden md:flex flex-grow justify-center space-x-6 lg:space-x-10 text-sm" aria-label="Main Navigation">
                 <a href="homepage.html" class="font-medium text-color-black hover:text-gray-600 transition">Homepage</a>
-                <a href="wearscollection.html" class="font-bold text-ash-red transition flex items-center border-b-2 border-ash-red">Wears Collections</a>
+                <a href="wearscollection.html" class="font-medium text-color-black hover:text-gray-600 transition">Wears Collection</a>
                 <a href="newarrivals.html" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
                 <a href="capcollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Cap Collections</a>
                 <a href="preorder.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
+                <a href="userprofile.html" class="font-bold text-ash-red transition flex items-center border-b-2 border-ash-red">User Profile</a>
             </nav>
 
 
@@ -880,7 +708,7 @@ async function submitChangePassword(event) {
         </div>
     </footer>
     
-    <a href="https://t.me/+2347042882706" 
+   <a href="https://t.me/+2349125898200" 
         target="_blank"
         class="fixed bottom-6 right-24 z-50 
                bg-[#24A1DE] text-white 

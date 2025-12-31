@@ -8,8 +8,8 @@ const mongoose = require('mongoose');
 const multer = require('multer');
 const nodemailer = require('nodemailer');
 const cookieParser = require('cookie-parser');
-const session = require('express-session'); 
 const cors = require('cors');
+const sharp = require('sharp');
 
 const { S3Client, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { Upload } = require('@aws-sdk/lib-storage');
@@ -24,15 +24,19 @@ const allowedOrigins = [
 
 const corsOptions = {
     origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps or curl requests)
-        // or requests from the allowed list
         if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
             callback(new Error('Not allowed by CORS'));
         }
-    }
+    },
+    credentials: true, 
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    // ADD THIS LINE:
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    optionsSuccessStatus: 204 
 };
+
 // Load environment variables (ensure these are set in your .env file)
 dotenv.config();
 
@@ -41,6 +45,28 @@ const IDRIVE_ACCESS_KEY = process.env.IDRIVE_ACCESS_KEY;
 const IDRIVE_SECRET_KEY = process.env.IDRIVE_SECRET_KEY;
 const IDRIVE_ENDPOINT = process.env.IDRIVE_ENDPOINT;
 const IDRIVE_BUCKET_NAME = process.env.IDRIVE_BUCKET_NAME;
+
+const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
+
+const PAYSTACK_API_BASE_URL = 'https://api.paystack.co';
+
+
+// Define isProduction at the top level
+const isNetlifyProduction = process.env.NODE_ENV === 'production' || process.env.NETLIFY === 'true';
+
+const getCookieOptions = (req) => {
+    // If running on Netlify (or production) AND request is HTTPS
+    const isSecure = isNetlifyProduction && req.headers['x-forwarded-proto'] === 'https';
+    
+    // Fallback: If on Netlify, assume secure for cookie attributes
+    const secureCookieAttribute = isSecure || process.env.NODE_ENV === 'production'; // This is the crucial change
+    
+    return {
+        httpOnly: true,
+        secure: secureCookieAttribute, 
+        sameSite: 'None', 
+    };
+};
 
 // --- 1. EMAIL TRANSPORT SETUP ---
 // Configuration to connect to an SMTP service (e.g., Gmail using an App Password)
@@ -151,10 +177,9 @@ async function generateSignedUrl(fileUrl) {
 
         // 2. Create the GetObject command
         const command = new GetObjectCommand({
-            // --- ⚠️ CRITICAL CHANGE: Use IDRIVE_BUCKET_NAME ---
             Bucket: IDRIVE_BUCKET_NAME,
-            // ----------------------------------------------------
             Key: fileKey,
+            ResponseCacheControl: 'max-age=604800, public', 
         });
 
         // 3. Generate the signed URL (expires in 604800 seconds = 7 days)
@@ -308,18 +333,22 @@ async function generateHashAndSaveVerificationCode(user) {
 }
 
 /**
- * Utility function to format a number as Naira (NGN) currency.
- * @param {number} amount The amount in NGN (base currency).
+ * Helper function for currency formatting (NGN)
+ * NOTE: This function needs to be available in the scope where generateOrderEmailHtml is used.
+ * @param {number} amount - The amount in Naira (NGN).
  * @returns {string} The formatted currency string.
  */
 function formatCurrency(amount) {
     if (typeof amount !== 'number' || isNaN(amount)) {
-        return '₦0.00';
+        // Handle null, undefined, or non-numeric inputs gracefully
+        return '₦ 0.00'; 
     }
-    // Using Intl.NumberFormat for robust currency display
-    return new Intl.NumberFormat('en-NG', {
-        style: 'currency',
-        currency: 'NGN'
+    // Formats as Naira (₦), using the 'en-NG' locale for Nigerian currency representation
+    return new Intl.NumberFormat('en-NG', { 
+        style: 'currency', 
+        currency: 'NGN',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
     }).format(amount);
 }
 
@@ -439,30 +468,31 @@ module.exports = {
     generateOrderEmailHtml,
     formatCurrency
 };
+
 /**
  * Sends the order confirmation email.
- * This is the final version tailored for admin confirmation.
- * @param {string} customerEmail - The verified email of the customer.
- * @param {Object} order - The final Mongoose order document (status: 'Completed').
+ * Tailored to handle both 'Confirmed' and 'Completed' statuses.
  */
 async function sendOrderConfirmationEmailForAdmin(customerEmail, order) {
     
-    // ✅ FIX: Use the actual final status for the subject.
-    // If order.status is falsy (shouldn't happen here), default to 'Completed'.
-    const finalStatus = order.status || 'Completed';
-
-    const subject = `✅ Your Order #${order._id.toString().substring(0, 8)} is Confirmed and ${finalStatus}!`; 
+    const status = order.status;
     
-    // NOTE: The generateOrderEmailHtml function uses fixed variables (SHIPPING_COST, TAX_RATE) 
-    // which should be defined in its scope, but it's otherwise acceptable.
+    // Determine the user-friendly verb based on the status
+    // If Confirmed -> "is Confirmed" | If Completed -> "is Completed"
+    const statusText = status === 'Confirmed' ? 'Confirmed' : 'Completed';
+    
+    // Create a dynamic subject line
+    const subject = `✅ Order #${order._id.toString().substring(0, 8)} ${statusText}!`; 
+
+    // Generate HTML - Ensure your template handles these status variations
     const htmlContent = generateOrderEmailHtml(order); 
 
     try {
         const info = await sendMail(customerEmail, subject, htmlContent);
-        console.log(`Email sent: ${info.messageId} to ${customerEmail}`);
+        console.log(`Email sent: ${info.messageId} to ${customerEmail} (Status: ${status})`);
     } catch (error) {
-        // Log the email failure but DO NOT re-throw, as the core transaction is complete.
         console.error(`ERROR sending confirmation email for order ${order._id}:`, error);
+        // We don't throw error here to prevent blocking the checkout process if the mail server is slow
     }
 }
 
@@ -711,6 +741,13 @@ const WearsCollectionSchema = new mongoose.Schema({
         trim: true,
         maxlength: [100, 'Collection name cannot exceed 100 characters']
     },
+    description: {
+        type: String,
+        required: [true, 'Product description is required'],
+        trim: true,
+        maxlength: [1000, 'Description cannot exceed 1000 characters'],
+        default: 'Quality premium apparel from Outflickz.'
+    },
     tag: {
         type: String,
         required: [true, 'Collection tag is required'],
@@ -780,6 +817,13 @@ const NewArrivalsSchema = new mongoose.Schema({
         required: [true, 'Product name is required'],
         trim: true,
         maxlength: [100, 'Product name cannot exceed 100 characters']
+    },
+    description: {
+        type: String,
+        required: [true, 'Product description is required'],
+        trim: true,
+        maxlength: [1000, 'Description cannot exceed 1000 characters'],
+        default: 'Quality premium apparel from Outflickz.'
     },
     tag: {
         type: String,
@@ -862,6 +906,12 @@ const CapVariationSchema = new mongoose.Schema({
 // --- 🧢 UPDATED CAP COLLECTION SCHEMA AND MODEL 🧢 ---
 const CapCollectionSchema = new mongoose.Schema({
     name: { type: String, required: [true, 'Collection name is required'], trim: true, maxlength: [100, 'Collection name cannot exceed 100 characters'] },
+    description: { 
+        type: String, 
+        trim: true, 
+        maxlength: [1000, 'Description cannot exceed 1000 characters'],
+        default: '' 
+    },
     tag: { type: String, required: [true, 'Collection tag is required'], enum: ['Top Deal', 'Hot Deal', 'New', 'Seasonal', 'Clearance'] },
     price: { type: Number, required: [true, 'Price (in NGN) is required'], min: [0.01, 'Price (in NGN) must be greater than zero'] },
     variations: {
@@ -940,6 +990,12 @@ const CapCollection = mongoose.models.CapCollection || mongoose.model('CapCollec
 const PreOrderCollectionSchema = new mongoose.Schema({
     // General Product Information
     name: { type: String, required: [true, 'Collection name is required'], trim: true },
+      description: { 
+        type: String, 
+        trim: true, 
+        maxlength: [1000, 'Description cannot exceed 1000 characters'],
+        default: '' 
+    },
     tag: { type: String, required: [true, 'Tag is required'], enum: ['Pre-Order', 'Coming Soon', 'Limited Drop', 'Seasonal'] }, 
     price: { type: Number, required: [true, 'Price is required'], min: [0.01, 'Price must be greater than zero'] },
     
@@ -1004,21 +1060,17 @@ PreOrderCollectionSchema.pre('save', function(next) {
 const PreOrderCollection = mongoose.models.PreOrderCollection || mongoose.model('PreOrderCollection', PreOrderCollectionSchema);
 
 const cartItemSchema = new mongoose.Schema({
-    // Item ID / Product Ref
     productId: { type: mongoose.Schema.Types.ObjectId, required: true },
     name: { type: String, required: true },
     productType: { 
         type: String, 
         required: true, 
-      //  enum: ['WearsCollection', 'CapCollection', 'NewArrivals', 'PreOrderCollection'] 
     },
     
     // Variant Details
     size: { type: String, required: true },
     color: { type: String }, 
     variationIndex: { type: Number, required: true, min: 1 },
-    
-    // 🌟 FIX: Added 'variation' field to store user-friendly name for Order mapping 🌟
     variation: { type: String },
     
     // Pricing & Quantity
@@ -1026,10 +1078,15 @@ const cartItemSchema = new mongoose.Schema({
     quantity: { type: Number, required: true, min: 1, default: 1 },
     
     // Media
-    imageUrl: { type: String } 
+    imageUrl: { type: String },
+
+    // ⭐ NEW: Added to track if the price has changed since adding to cart
+    addedAt: { type: Date, default: Date.now }
 }, { _id: true });
 
 const cartSchema = new mongoose.Schema({
+    // Keep userId REQUIRED here. 
+    // Guest carts stay in LocalStorage; Database carts are for Users only.
     userId: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'User', 
@@ -1039,13 +1096,10 @@ const cartSchema = new mongoose.Schema({
     items: {
         type: [cartItemSchema],
         default: []
-    },
-    createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now }
-});
+    }
+}, { timestamps: true }); // Automatically handles createdAt and updatedAt
 
 const Cart = mongoose.models.Cart || mongoose.model('Cart', cartSchema);
-
 
 // We need a robust order model to track sales and manage inventory deduction.
 const OrderItemSchema = new mongoose.Schema({
@@ -1071,8 +1125,30 @@ const OrderItemSchema = new mongoose.Schema({
     variation: { type: String } 
 }, { _id: false });
 
+
 const OrderSchema = new mongoose.Schema({
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    // ⭐ UPDATE: userId is no longer required to allow Guest Checkout
+    userId: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'User', 
+        required: false 
+    },
+    
+    // ⭐ NEW: Explicitly track guest status for easier admin filtering
+    isGuest: { 
+        type: Boolean, 
+        default: false 
+    },
+
+    // ⭐ NEW: Store the guest's email at the top level for communication
+    // It's required only if userId is missing.
+    guestEmail: { 
+        type: String, 
+        required: function() { return !this.userId; },
+        trim: true,
+        lowercase: true
+    },
+
     items: { type: [OrderItemSchema], required: true },
     
     // --- Financial Breakdown ---
@@ -1085,37 +1161,46 @@ const OrderSchema = new mongoose.Schema({
         type: String, 
         required: true,
         enum: [
-            'Pending',              // Bank Transfer awaiting admin/Paystack verification
-            'Processing',           // ✅ CRITICAL ADDITION: Intermediate status set by PUT /confirm
-            'Shipped',              // Fulfillment statuses
+            'Pending', 
+            'Processing', 
+            'Shipped', 
             'Delivered',
             'Cancelled',
             'Confirmed',
+            'Completed',
             'Refunded',
             'Verification Failed', 
             'Amount Mismatch (Manual Review)',
-            'Inventory Failure (Manual Review)', // Better name for inventory rollback
+            'Inventory Failure (Manual Review)', 
         ], 
         default: 'Pending'
-    },
-    
-    // --- Fulfillment & Payment Details ---
+    },    
     shippingAddress: { type: Object, required: true },
     paymentMethod: { type: String, required: true },
     orderReference: { type: String, unique: true, sparse: true },
     amountPaidKobo: { type: Number, min: 0 },
     paymentTxnId: { type: String, sparse: true },
     paidAt: { type: Date },
-    paymentReceiptUrl: { type: String, sparse: true }, // Bank transfer receipt
-
+    paymentReceiptUrl: { type: String, sparse: true }, 
     shippedAt: { type: Date, sparse: true }, 
-    deliveredAt: { type: Date, sparse: true },
-    
-    // --- Admin Confirmation Details ---
+    deliveredAt: { type: Date, sparse: true },    
     confirmedAt: { type: Date, sparse: true },
     confirmedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin', sparse: true },
-    notes: [String] // For logging manual review notes, inventory failures, etc.
+    notes: [String] 
 }, { timestamps: true });
+
+// --- TTL Index for Cleanup ---
+OrderSchema.index(
+    { createdAt: 1 }, 
+    { 
+        expireAfterSeconds: 300, 
+        partialFilterExpression: { 
+            status: 'Pending', 
+            paymentMethod: 'Paystack',
+            amountPaidKobo: { $exists: false } 
+        } 
+    }
+);
 
 const Order = mongoose.models.Order || mongoose.model('Order', OrderSchema);
 
@@ -1368,32 +1453,33 @@ function getProductModel(productType) {
 }
 
 /**
- * ====================================================================================
- * HELPER FUNCTION: INVENTORY ROLLBACK (Order Status Update)
- * ====================================================================================
- * Updates the order status to indicate a stock failure after a transaction aborts.
- * This is called outside the transaction to persist the failure state immediately.
- * @param {string} orderId The ID of the order that failed.
- * @param {string} reason The error message explaining the failure.
- */
+ * HELPER FUNCTION: INVENTORY ROLLBACK
+ * Updates the order status to indicate a stock failure after a transaction aborts.
+ * This is called outside the transaction to persist the failure state immediately.
+ */
 async function inventoryRollback(orderId, reason) {
-    try {
-        const OrderModel = mongoose.models.Order || mongoose.model('Order');
+    try {
+        const OrderModel = mongoose.models.Order || mongoose.model('Order');
 
-        await OrderModel.findByIdAndUpdate(
-            orderId,
-            {
-                status: 'Inventory Failure (Manual Review)', 
-                notes: [reason], // Add the reason to the notes array for better logging
-                updatedAt: Date.now()
-            },
-            { new: true }
-        );
-        console.warn(`Order ${orderId} status set to 'Inventory Failure (Manual Review)' and reason logged. Reason: ${reason}`);
-    } catch (err) {
-        console.error(`CRITICAL: Failed to update order ${orderId} status during rollback.`, err);
-        // Do not re-throw, as the main error is already being handled.
-    }
+        // We use $push for notes to keep a history of what happened
+        await OrderModel.findByIdAndUpdate(
+            orderId,
+            {
+                status: 'Inventory Failure (Manual Review)', 
+                $push: { notes: `Auto-Rollback: ${reason} at ${new Date().toISOString()}` },
+                updatedAt: Date.now()
+            },
+            { new: true }
+        );
+        
+        console.warn(`🔴 CRITICAL: Order ${orderId} failed automation. Reason: ${reason}`);
+        
+        // OPTIONAL: Trigger an admin alert here (e.g., Email or WhatsApp to you)
+        // await sendAdminAlert(`Payment received for Order ${orderId} but stock deduction failed.`);
+        
+    } catch (err) {
+        console.error(`CRITICAL: Failed to update order ${orderId} status during rollback.`, err);
+    }
 }
 
 /**
@@ -1408,6 +1494,105 @@ async function inventoryRollback(orderId, reason) {
  * @throws {Error} Throws an error if stock is insufficient or a race condition is detected.
  */
 async function processOrderCompletion(orderId, adminId) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    let order = null;
+
+    try {
+        const OrderModel = mongoose.models.Order || mongoose.model('Order');
+        // Populate userId so we can access the ID to clear the cart later
+        order = await OrderModel.findById(orderId).populate('userId').session(session);
+
+        if (!order) throw new Error("Order not found.");
+
+        // 1. Guardrail: Only process 'Pending' or 'Processing' orders
+        // This prevents double-deducting stock if the admin clicks twice.
+        const canProcess = ['Pending', 'Processing'].includes(order.status);
+        if (!canProcess) {
+            await session.abortTransaction();
+            console.warn(`Order ${orderId} is already ${order.status}. Skipping.`);
+            return order;
+        }
+
+        // 2. Loop and Deduct Stock
+        for (const item of order.items) {
+            const ProductModel = getProductModel(item.productType); 
+            if (!ProductModel) throw new Error(`Model missing for: ${item.productType}`);
+
+            const qty = item.quantity;
+            let updateResult;
+
+            // Group 1: Size-based Collections
+            if (['WearsCollection', 'NewArrivals', 'PreOrderCollection'].includes(item.productType)) {
+                updateResult = await ProductModel.findOneAndUpdate(
+                    { _id: item.productId, 'variations.variationIndex': item.variationIndex },
+                    { $inc: { 'variations.$[var].sizes.$[size].stock': -qty, 'totalStock': -qty } },
+                    { 
+                        session, new: true, 
+                        arrayFilters: [
+                            { 'var.variationIndex': item.variationIndex },
+                            { 'size.size': item.size, 'size.stock': { $gte: qty } }
+                        ] 
+                    }
+                );
+            } 
+            // Group 2: Direct Stock (Caps)
+            else if (item.productType === 'CapCollection') {
+                updateResult = await ProductModel.findOneAndUpdate(
+                    { 
+                        _id: item.productId, 
+                        'variations': { $elemMatch: { variationIndex: item.variationIndex, stock: { $gte: qty } } } 
+                    },
+                    { $inc: { 'variations.$[var].stock': -qty, 'totalStock': -qty } },
+                    { session, new: true, arrayFilters: [{ 'var.variationIndex': item.variationIndex }] }
+                );
+            }
+
+            if (!updateResult) {
+                throw new Error(`STOCK ERROR: ${item.name} (${item.size || 'N/A'}) is out of stock.`);
+            }
+        }
+
+        // 3. Finalize Order Status
+        order.status = 'Confirmed';
+        order.confirmedAt = new Date(); 
+        order.confirmedBy = adminId; 
+        
+        await order.save({ session });
+        await session.commitTransaction();
+
+        // 4. Post-Transaction: Clear Cart (Don't let cart errors crash the transaction)
+        try {
+            const CartModel = mongoose.models.Cart || mongoose.model('Cart');
+            if (order.userId) {
+                await CartModel.findOneAndUpdate({ userId: order.userId._id }, { items: [] });
+            }
+        } catch (e) { console.error("Cart clear failed:", e.message); }
+
+        return order.toObject({ getters: true });
+
+    } catch (error) {
+        if (session.inTransaction()) await session.abortTransaction();
+        // Log the failure in your system
+        if (order) await inventoryRollback(orderId, error.message);
+        throw error;
+    } finally {
+        session.endSession();
+    }
+}
+
+// ====================================================================================
+// NEW: DEDUCT INVENTORY AND MARK ORDER AS COMPLETED (For Webhooks/Automation)
+// ====================================================================================
+
+/**
+ * Executes the inventory deduction and sets the order status to 'Completed'.
+ * This is designed to be called by automated systems like webhooks.
+ * @param {string} orderId The ID of the order to complete.
+ * @returns {Promise<Object>} The completed order object.
+ * @throws {Error} Throws an error if stock is insufficient or a race condition is detected.
+ */
+async function deductInventoryAtomic(orderId) {
     // 1. Start a Mongoose session for atomicity (crucial for inventory)
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -1415,153 +1600,142 @@ async function processOrderCompletion(orderId, adminId) {
     let OrderModel;
 
     try {
-        // Fetch the order within the transaction
         OrderModel = mongoose.models.Order || mongoose.model('Order');
         order = await OrderModel.findById(orderId).session(session);
 
-        // 1.1 Initial check
-        const isReadyForInventory = order && 
-            (order.status === 'Pending' || order.status === 'Processing');
-
-        if (!isReadyForInventory) {
+        // CRITICAL CHECK: Only process orders in 'Pending' or 'Processing' state
+        if (!order || order.status === 'Completed' || order.status === 'Confirmed') {
             await session.abortTransaction();
-            
-            // 409 Conflict logic: If the order is already in a confirmed state, throw the race error.
-            if (order?.status === 'Confirmed' || order?.status === 'Completed') {
-                console.warn(`Order ${orderId} is already confirmed (${order.status}). Inventory deduction skipped.`);
-                const raceError = new Error("Order already processed or is being processed.");
-                raceError.isRaceCondition = true;
-                throw raceError; 
-            }
-            
-            console.warn(`Order ${orderId} skipped: not found or status is ${order?.status}. Inventory deduction aborted.`);
-            return order; // Return the current state of the order
+            const raceError = new Error(`Order ${orderId} status is ${order?.status || 'N/A'}. Inventory deduction skipped.`);
+            raceError.isRaceCondition = true;
+            throw raceError;
         }
 
-        // 2. Loop through each item to deduct stock...
+        // --- 2. LOOP THROUGH ITEMS AND DEDUCT STOCK (Paste your existing loop logic here) ---
         for (const item of order.items) {
-            const ProductModel = getProductModel(item.productType); 
-            const quantityOrdered = item.quantity;
-            let updatedProduct;
-            let errorMsg;
+             // ... (The entire stock deduction logic from processOrderCompletion) ...
+             const ProductModel = getProductModel(item.productType); 
+             const quantityOrdered = item.quantity;
+             let updatedProduct;
+             let errorMsg;
+             
+             // --- Group 1: Items with nested 'sizes' array (Wears, NewArrivals, PreOrder) ---
+             if (item.productType === 'WearsCollection' || item.productType === 'NewArrivals' || item.productType === 'PreOrderCollection') {
+                 if (!item.size) { 
+                     errorMsg = `Missing size information for size-based product ${item.productId} in ${item.productType}.`;
+                     throw new Error(errorMsg);
+                 }
+                 updatedProduct = await ProductModel.findOneAndUpdate(
+                     {
+                         _id: item.productId,
+                         'variations.variationIndex': item.variationIndex 
+                     },
+                     {
+                         $inc: {
+                             'variations.$[var].sizes.$[size].stock': -quantityOrdered, 
+                             'totalStock': -quantityOrdered 
+                         }
+                     },
+                     {
+                         new: true,
+                         session: session, 
+                         arrayFilters: [
+                             { 'var.variationIndex': item.variationIndex }, 
+                             { 'size.size': item.size, 'size.stock': { $gte: quantityOrdered } } 
+                         ]
+                     }
+                 );
+             // --- Group 2: Items with direct 'stock' on variation (CapCollection) ---
+             } else if (item.productType === 'CapCollection') {
+                 updatedProduct = await ProductModel.findOneAndUpdate(
+                     {
+                         _id: item.productId,
+                         'variations': {
+                             $elemMatch: {
+                                 variationIndex: item.variationIndex,
+                                 stock: { $gte: quantityOrdered } 
+                             }
+                         }
+                     },
+                     {
+                         $inc: {
+                             'variations.$[var].stock': -quantityOrdered, 
+                             'totalStock': -quantityOrdered 
+                         }
+                     },
+                     {
+                         new: true,
+                         session: session, 
+                         arrayFilters: [
+                             { 'var.variationIndex': item.variationIndex } 
+                         ]
+                     }
+                 );
+             } else {
+                 errorMsg = `Unsupported product type found: ${item.productType}. Inventory deduction aborted.`;
+                 throw new Error(errorMsg);
+             }
 
-            // =============================================================================
-            // ⭐ CORE FIX: CONDITIONAL INVENTORY DEDUCTION LOGIC ⭐
-            // =============================================================================
-            
-            // --- Group 1: Items with nested 'sizes' array (Wears, NewArrivals, PreOrder) ---
-            if (item.productType === 'WearsCollection' || 
-                item.productType === 'NewArrivals' || 
-                item.productType === 'PreOrderCollection') {
-                
-                if (!item.size) { // Add a check for size-required products
-                    errorMsg = `Missing size information for size-based product ${item.productId} in ${item.productType}.`;
-                    throw new Error(errorMsg);
-                }
-
-                updatedProduct = await ProductModel.findOneAndUpdate(
-                    {
-                        _id: item.productId,
-                        // 🔑 FIX: Only match the product ID and the variation index in the top-level filter.
-                        // The critical size and stock check is now solely handled by the arrayFilters.
-                        'variations.variationIndex': item.variationIndex 
-                    },
-                    {
-                        $inc: {
-                            'variations.$[var].sizes.$[size].stock': -quantityOrdered, 
-                            'totalStock': -quantityOrdered 
-                        }
-                    },
-                    {
-                        new: true,
-                        session: session, 
-                        arrayFilters: [
-                            // Filter 1: Match the correct outer Variation ('var')
-                            { 'var.variationIndex': item.variationIndex }, 
-                            // Filter 2: Match the correct inner Size ('size') AND the atomic stock check
-                            { 'size.size': item.size, 'size.stock': { $gte: quantityOrdered } } 
-                        ]
-                    }
-                );
-            
-            // --- Group 2: Items with direct 'stock' on variation (CapCollection) ---
-            } else if (item.productType === 'CapCollection') {
-                
-                updatedProduct = await ProductModel.findOneAndUpdate(
-                    {
-                        _id: item.productId,
-                        'variations': {
-                            // 🔑 FIX: Use $elemMatch in the main query to perform the atomic stock check
-                            $elemMatch: {
-                                variationIndex: item.variationIndex, // Find the correct variation
-                                stock: { $gte: quantityOrdered }      // Check stock directly on variation
-                            }
-                        }
-                    },
-                    {
-                        $inc: {
-                            // Decrement stock directly on the variation found by the filter
-                            'variations.$[var].stock': -quantityOrdered, 
-                            'totalStock': -quantityOrdered 
-                        }
-                    },
-                    {
-                        new: true,
-                        session: session, 
-                        arrayFilters: [
-                            // Filter by variation index to ensure only the matched element is updated
-                            { 'var.variationIndex': item.variationIndex } 
-                        ]
-                    }
-                );
-            
-            // --- Fallback for unsupported types ---
-            } else {
-                errorMsg = `Unsupported product type found: ${item.productType}. Inventory deduction aborted.`;
-                throw new Error(errorMsg);
-            }
-            // =============================================================================
-            
-            // Check if the update was successful (product found and stock condition met)
-            if (!updatedProduct) {
-                // Determine the size label for the error message
-                const sizeLabel = item.productType === 'CapCollection' ? 'N/A (Direct Stock)' : item.size;
-                
-                const finalErrorMsg = `Insufficient stock or product data mismatch for item: ${sizeLabel} of product ${item.productId} in ${item.productType}. Transaction aborted.`;
-                throw new Error(finalErrorMsg);
-            }
-            
-            console.log(`Inventory deducted for Product ID: ${item.productId}, Type: ${item.productType}, Qty: ${quantityOrdered}`);
+             if (!updatedProduct) {
+                 const sizeLabel = item.productType === 'CapCollection' ? 'N/A (Direct Stock)' : item.size;
+                 const finalErrorMsg = `Insufficient stock or product data mismatch for item: ${sizeLabel} of product ${item.productId} in ${item.productType}. Transaction aborted.`;
+                 throw new Error(finalErrorMsg);
+             }
         }
+        // --- END STOCK DEDUCTION LOOP ---
 
-        // 5. Update order status and confirmation details atomically
-        order.status = 'Confirmed';
-        order.confirmedAt = new Date(); 
-        order.confirmedBy = adminId; 
+        // 3. Update order status to a final state (e.g., 'Completed')
+        order.status = 'Completed'; // Use 'Completed' to distinguish from Admin 'Confirmed'
+        order.completedAt = new Date(); 
         await order.save({ session });
 
-        // 6. Finalize transaction
+        // 4. Finalize transaction
         await session.commitTransaction();
-        console.log(`Order ${orderId} successfully confirmed and inventory fully deducted. Status: Confirmed.`);
         return order.toObject({ getters: true });
 
     } catch (error) {
-        // Rollback on any failure
         if (session.inTransaction()) {
             await session.abortTransaction();
         }
-        
-        if (error.isRaceCondition) {
-            console.warn(`Race condition handled for order ${orderId}. No rollback status update needed.`);
-        }
-        else if (order) { 
-            // Call inventoryRollback for genuine failures (like Insufficient Stock)
+        if (!error.isRaceCondition && order) { 
+            // Reuse the rollback function for failures
             await inventoryRollback(orderId, error.message);
         }
-
         throw error;
     } finally {
         session.endSession();
+    }
+}
+
+/**
+ * HELPER FUNCTION: RECORD PAYMENT ONLY
+ * Used by webhooks to mark an order as paid without touching stock.
+ */
+async function deductInventoryAndCompleteOrder(orderId, transactionData) {
+    try {
+        const OrderModel = mongoose.models.Order || mongoose.model('Order');
+        
+        const order = await OrderModel.findByIdAndUpdate(
+            orderId,
+            {
+                paymentStatus: 'Paid',
+                paymentMethod: 'Paystack',
+                paymentTxnId: transactionData.reference,
+                paidAt: new Date(),
+                // Keep status as 'Pending' so Admin sees it in the "To Confirm" list
+                status: 'Pending', 
+                $push: { notes: `Paystack Payment Verified at ${new Date().toISOString()}` }
+            },
+            { new: true }
+        );
+
+        if (!order) throw new Error(`Order ${orderId} not found.`);
+        console.log(`✅ Paystack Payment Recorded for Order ${orderId}. Awaiting Admin Confirmation.`);
+        return order.toObject({ getters: true });
+
+    } catch (error) {
+        console.error(`❌ Webhook Payment Log Failed: ${error.message}`);
+        throw error;
     }
 }
 
@@ -1578,12 +1752,9 @@ async function getAllOrders() {
         // without sending back the entire User object (like hashed password).
         const allOrders = await OrderModel.find({})
             .sort({ createdAt: -1 }) // Sort by newest order first
-            .populate('userId', 'email username') // Populate User info needed for display
+            .populate('userId', 'email username')
+             .sort({ createdAt: -1 })
             .lean(); // Use .lean() for faster read performance
-
-        // NOTE: The 'collection' filter on the frontend is challenging 
-        // because it's stored in the nested 'items' array.
-        // For simple display, the current fetch is enough.
 
         return allOrders;
     } catch (error) {
@@ -1591,6 +1762,7 @@ async function getAllOrders() {
         throw new Error('Database query failed for sales log.');
     }
 }
+
 
 /**
  * ====================================================================================
@@ -1625,7 +1797,7 @@ async function populateInitialData() {
 }
 
 const SHIPPING_COST = 0.00;
-const TAX_RATE = 0.00;
+const TAX_RATE = 150.00;
 
 /**
  * Calculates cart totals based on the array of items from Mongoose.
@@ -1784,6 +1956,7 @@ async function mergeLocalCart(userId, localItems) {
         // Do NOT throw here, as it might cause the login route to crash entirely.
     }
 }
+
 /**
  * Takes a list of order documents and adds 'name' and 'imageUrl' to each item 
  * by fetching product details from all relevant collections.
@@ -2107,6 +2280,108 @@ const visitorLogger = async (req, res, next) => {
     next(); 
 };
 
+/**
+ * Processes a file (compression/conversion) and uploads the resulting buffer 
+ * to IDrive E2, returning the permanent, unsign-ed URL.
+ * * @param {Object} file - The file object from Multer (assuming memory storage).
+ * @returns {Promise<string>} The permanent, clean URL of the uploaded file.
+ */
+async function uploadFileToPermanentStorage(file) {
+    if (!file || !file.buffer) {
+        throw new Error("Invalid file object provided for upload.");
+    }
+
+    try {
+        const originalFileName = file.originalname;
+        const fileExtension = path.extname(originalFileName);
+        const baseName = path.basename(originalFileName, fileExtension);
+        
+        // --- 1. IMAGE PROCESSING AND COMPRESSION (CORE SPEED BOOST) ---
+        const processedFileBuffer = await sharp(file.buffer)
+            .resize({ 
+                width: 1200, 
+                fit: 'inside', 
+                withoutEnlargement: true 
+            })
+            // Convert to WebP format with high-quality compression
+            .webp({ quality: 80 }) 
+            .toBuffer();
+        // ----------------------------------------------------------------
+
+        // Create a unique, WebP-specific key
+        const fileKey = `collections/${Date.now()}-${baseName}.webp`; 
+        
+        // --- 2. IDRIVE E2 UPLOAD ---
+        const parallelUploads3 = new Upload({
+            client: s3Client, // Your pre-configured S3Client for IDrive E2
+            params: {
+                Bucket: IDRIVE_BUCKET_NAME,
+                Key: fileKey,
+                Body: processedFileBuffer, // Use the compressed buffer
+                ContentType: 'image/webp', // Use the correct type for the converted format
+                ACL: 'private', 
+            },
+        });
+
+        await parallelUploads3.done();
+        
+        // Return the clean, permanent URL
+        return `${IDRIVE_ENDPOINT}/${IDRIVE_BUCKET_NAME}/${fileKey}`;
+
+    } catch (error) {
+        console.error('Error during file processing and upload:', error);
+        throw new Error(`File upload failed: ${error.message}`);
+    }
+}
+
+/**
+ * Generates a short-lived Access Token (e.g., 15 minutes) for API access.
+ * This token is fast to verify and is stored on the client side (e.g., memory/local storage).
+ * @param {Object} payload - The user data to embed (e.g., { id: user._id, role: user.role })
+ * @returns {string} The signed JWT Access Token.
+ */
+function generateAccessToken(payload) {
+    // Access tokens are short-lived for security
+    return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '15m' }); 
+}
+
+/**
+ * Generates a long-lived Refresh Token (e.g., 7 days) for session persistence.
+ * This token is sent as a secure HTTP-only cookie.
+ * @param {Object} payload - The user data to embed (e.g., { id: user._id })
+ * @returns {string} The signed JWT Refresh Token.
+ */
+function generateRefreshToken(payload) {
+    // Refresh tokens are long-lived for convenience
+    return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' }); 
+}
+
+/**
+ * Unified Token Generation
+ * Uses a single secret and consistent payload structure.
+ */
+
+const generateUserAccessToken = (payload) => {
+    try {
+        // Ensure we don't nest the payload twice
+        const data = { id: payload.id, email: payload.email, role: 'user' };
+        return jwt.sign(data, process.env.JWT_SECRET, { expiresIn: '15m' });
+    } catch (err) {
+        console.error("JWT Access Token Sign Error:", err);
+        throw new Error("Failed to generate access token");
+    }
+};
+
+const generateUserRefreshToken = (payload) => {
+    try {
+        const data = { id: payload.id, role: 'user' }; // Keep refresh payload small
+        return jwt.sign(data, process.env.JWT_SECRET, { expiresIn: '7d' });
+    } catch (err) {
+        console.error("JWT Refresh Token Sign Error:", err);
+        throw new Error("Failed to generate refresh token");
+    }
+};
+
 // --- EXPRESS CONFIGURATION AND MIDDLEWARE ---
 const app = express();
 // Ensure express.json() is used BEFORE the update route, but after the full form route
@@ -2116,21 +2391,15 @@ app.use(cors(corsOptions));
 app.use(express.json()); 
 app.use(cookieParser());
 
-app.use(session({
-    secret: process.env.JWT_SECRET, 
-    
-    resave: false,
-    saveUninitialized: true,
-    
-    cookie: { 
-        // Set secure: true when deployed behind Netlify (HTTPS)
-        secure: process.env.NODE_ENV === 'production' ? true : false, 
-        httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    }
-}));
-
 app.use(visitorLogger);
+
+app.use((req, res, next) => {
+    // This allows external scripts (like Paystack) to load their own resources
+    res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
+    res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    next();
+});
 
 // Ensure robots.txt and sitemap.xml are served correctly
 app.get('/robots.txt', (req, res) => {
@@ -2168,37 +2437,50 @@ app.get('/saleslog', (req, res) => { res.sendFile(path.join(__dirname, 'public',
 app.get('/emailnews', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzadmin', 'emailnews.html')); }); 
 app.get('/settings', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzadmin', 'settings.html')); }); 
 
-
+// WARNING: Ensure JWT_SECRET is defined in the scope where this function runs (e.g., process.env.JWT_SECRET)
 
 const verifyToken = (req, res, next) => {
     // 1. Check for Authorization header format (Bearer <token>)
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ message: 'Access denied. No token provided or token format invalid.' });
+        return res.status(401).json({ message: 'Access denied. No Access Token provided.' });
     }
     
-    // 2. Extract the token
-    const token = authHeader.split(' ')[1];
+    // 2. Extract the token (This is the short-lived Access Token)
+    const accessToken = authHeader.split(' ')[1];
     
     try {
-        // Use the defined secret (JWT_SECRET in this scope)
-        const decoded = jwt.verify(token, JWT_SECRET); 
+        // 3. Verify the Access Token (Fast, stateless check)
+        const decoded = jwt.verify(accessToken, process.env.JWT_SECRET); 
         
-        // 3. CRUCIAL: Check for the 'admin' role (Authorization)
+        // 4. CRUCIAL: Check for the 'admin' role (Authorization)
         if (decoded.role !== 'admin') { 
             return res.status(403).json({ message: 'Forbidden. Access limited to administrators.' });
         }
         
-        // 4. Attach admin data (req.adminUser = { id: 123, role: 'admin' })
+        // 5. Success: Attach admin data and proceed
         req.adminUser = decoded; 
+        req.adminId = decoded.id;
         next();
         
     } catch (err) {
-        // 5. Handle verification errors (Signature mismatch, expiry, etc.)
-        res.status(401).json({ message: 'Invalid or expired token. Please log in again.' });
+        // 6. Handle verification errors (Signature mismatch, expiry, etc.)
+        
+        // --- 🔑 HIGH-PERFORMANCE REFRESH HANDLING ---
+        if (err.name === 'TokenExpiredError') {
+            // Token is expired, but the signature is valid.
+            // DO NOT force re-login yet. Signal the client to use the 
+            // Refresh Token endpoint (/api/refresh-token) to get a new Access Token.
+            return res.status(401).json({ 
+                message: 'Access Token expired. Please refresh the session.',
+                expired: true // CRITICAL flag for the client to initiate refresh
+            });
+        }
+        
+        // For all other errors (invalid signature, tampering, etc.), force re-login
+        res.status(401).json({ message: 'Invalid token signature. Please log in again.' });
     }
 };
-
 // --- Multer Configuration (upload) ---
 const upload = multer({ 
     storage: multer.memoryStorage(), // Stores file buffer in req.file.buffer
@@ -2217,49 +2499,92 @@ const singleReceiptUpload = multer({
 
 }).single('receipt'); 
 
-// --- USER AUTHENTICATION API ROUTES ---
+
+/**
+ * 1. verifyUserToken (THE SMART GATE)
+ * Use this for: Checkout, Cart Sync, Order Placement.
+ * It identifies users if they have a token, but lets guests pass through.
+ */
 const verifyUserToken = (req, res, next) => {
-    // 1. Check for token in the HTTP-only cookie
-    let token = req.cookies.outflickzToken; 
-    
-    // 2. Fallback: Check for token in the 'Authorization: Bearer <token>' header if cookie is absent
     const authHeader = req.headers.authorization;
-    if (!token && authHeader && authHeader.startsWith('Bearer ')) {
-        token = authHeader.split(' ')[1];
+    
+    // If no token, they are a guest. Proceed without error.
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        req.userId = null; 
+        req.isGuest = true;
+        return next(); 
     }
 
-    // 3. If no token is found in either location, deny access
-    if (!token) {
-        // Clear cookie as a security best practice, even if we expected a header
-        if (req.cookies.outflickzToken) {
-            res.clearCookie('outflickzToken');
+    const accessToken = authHeader.split(' ')[1];
+
+    try {
+        const decoded = jwt.verify(accessToken, process.env.JWT_SECRET);
+        
+        if (decoded.role === 'user') {
+            req.userId = decoded.id; 
+            req.isGuest = false;
+        } else {
+            req.userId = null;
+            req.isGuest = true;
         }
-        return res.status(401).json({ message: 'Access denied. Please log in.' });
+        next(); 
+    } catch (err) {
+        // If expired, tell the frontend so it can try to refresh
+        if (err.name === 'TokenExpiredError') {
+            return res.status(401).json({ 
+                message: 'Access Token expired. Refresh required.',
+                expired: true 
+            });
+        }
+        // For other errors, just treat them as a guest
+        req.userId = null;
+        req.isGuest = true;
+        next();
+    }
+};
+
+/**
+ * 2. verifySessionCookie (THE REFRESH GATE)
+ * Use this ONLY for: /api/auth/refresh
+ * This MUST remain a hard gate to protect the refresh cycle.
+ */
+const verifySessionCookie = (req, res, next) => {
+    const refreshToken = req.cookies.userRefreshToken; 
+    if (!refreshToken) {
+        return res.status(401).json({ message: 'No valid session cookie found.' });
     }
 
     try {
-        // 4. Verify the token
-        // Assuming JWT_SECRET is available in scope
-        const decoded = jwt.verify(token, JWT_SECRET);
-        
-        // 5. Ensure this is a regular user token 
-        if (decoded.role !== 'user') {
-            // Token is valid but role is wrong (e.g., admin token used for user route)
-            return res.status(403).json({ message: 'Forbidden. Invalid user role.' });
-        }
-        
-        // 6. Success: Attach the user ID and proceed
+        const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
         req.userId = decoded.id; 
-        next();
+        next(); 
     } catch (err) {
-        // 7. Token is invalid (expired, tampered, etc.) - Force re-login
-        if (req.cookies.outflickzToken) {
-            res.clearCookie('outflickzToken');
-        }
-        console.error("JWT Verification Error:", err.message);
-        res.status(401).json({ message: 'Invalid or expired session. Please log in again.' });
+        res.status(401).json({ message: 'Session cookie invalid or expired.' });
     }
 };
+
+// Change 'requireUser' to 'requireUserLogin'
+const requireUserLogin = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'Authentication required.' });
+    }
+
+    const accessToken = authHeader.split(' ')[1];
+
+    try {
+        const decoded = jwt.verify(accessToken, process.env.JWT_SECRET);
+        req.userId = decoded.id; 
+        next(); 
+    } catch (err) {
+        if (err.name === 'TokenExpiredError') {
+            return res.status(401).json({ message: 'Token expired', expired: true });
+        }
+        return res.status(401).json({ message: 'Invalid token' });
+    }
+};
+
 /**
  * Verifies the user token if present, but allows the request to proceed if absent.
  * (This middleware is generally not needed for a protected route like /api/orders/:orderId)
@@ -2309,21 +2634,44 @@ app.post('/api/admin/register', async (req, res) => {
 });
 
 app.post('/api/admin/login', async (req, res) => {
-    // ... login logic
     const { email, password } = req.body;
+    const isProduction = process.env.NODE_ENV === 'production';
+    
     try {
         const adminUser = await findAdminUserByEmail(email);
+        
+        // 1. Validate Credentials
         if (!adminUser || !(await bcrypt.compare(password, adminUser.hashedPassword))) {
             return res.status(401).json({ message: 'Invalid credentials.' });
         }
         
-        const token = jwt.sign(
-            { id: adminUser.id, email: adminUser.email, role: 'admin' }, 
-            JWT_SECRET, 
-            { expiresIn: '24h' }
-        );
+        // --- 2. GENERATE DUAL TOKENS (The Speed and Persistence Fix) ---
+        const tokenPayload = { id: adminUser._id, email: adminUser.email, role: 'admin' };
         
-        res.status(200).json({ token, message: 'Login successful' });
+        // A. Short-Lived Access Token (For API calls, sent in response body)
+        const accessToken = generateAccessToken(tokenPayload);
+        
+        // B. Long-Lived Refresh Token (For persistent session, sent as secure cookie)
+        const refreshToken = generateRefreshToken(tokenPayload);
+        // ----------------------------------------------------------------
+        
+        // 3. Set the Refresh Token in a Secure HTTP-Only Cookie
+        // This token keeps the user logged in for 7 days (the duration of the Refresh Token)
+        res.cookie('adminRefreshToken', refreshToken, {
+            httpOnly: true, // Prevents client-side JS access (XSS security)
+            secure: isProduction, // Only sent over HTTPS in production
+            sameSite: isProduction ? 'strict' : 'lax', // CSRF protection
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days (matches token expiry)
+        });
+        
+        // 4. Send the short-lived Access Token back to the client
+        // The client must store this in memory and use it for all 'Authorization: Bearer' headers.
+        res.status(200).json({ 
+            message: 'Login successful', 
+            // 🚨 CRITICAL CHANGE: Sending the Access Token here
+            accessToken: accessToken, 
+            adminId: adminUser._id
+        });
 
     } catch (error) {
         console.error("Login error:", error);
@@ -2414,6 +2762,82 @@ app.put('/api/admin/change-password', verifyToken, async (req, res) => {
     }
 });
 
+// POST /api/refresh-token
+// This endpoint is the engine for persistent, seamless admin sessions.
+app.post('/api/admin/refresh-token', async (req, res) => {
+        // Determine production status for secure cookie settings
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    // 1. Get Refresh Token from secure cookie (MUST use the name set by the login route)
+    const refreshToken = req.cookies.adminRefreshToken; // <--- Name updated
+    
+    if (!refreshToken) {
+        return res.status(401).json({ message: 'No session token found. Please log in.' });
+    }
+
+    try {
+        // 2. Verify the Refresh Token (Long-lived check)
+        const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+        
+        // Ensure the token is for an admin (security check)
+        if (decoded.role !== 'admin') {
+            throw new Error('Invalid token role for admin refresh.');
+        }
+
+        // 3. Generate a NEW Access Token (short-lived)
+        const newAccessToken = generateAccessToken({ 
+            id: decoded.id, 
+            email: decoded.email,
+            role: decoded.role 
+        });
+
+        // 4. Send the new Access Token back to the client
+        res.status(200).json({ accessToken: newAccessToken });
+        // The client receives this and replaces the expired token in its memory/local storage.
+
+    } catch (err) {
+        // Refresh token failed verification (expired, invalid signature, or wrong role)
+        console.error("Admin Refresh Token Error:", err.message);
+        
+        // 5. Clear the bad cookie and force a full re-login
+        res.clearCookie('adminRefreshToken', { // <--- Name updated
+            httpOnly: true, 
+            secure: isProduction, 
+            sameSite: isProduction ? 'strict' : 'lax'
+        });
+        
+        // Use 401 status code for authentication failure
+        res.status(401).json({ message: 'Session expired or invalid. Please log in again.' });
+    }
+});
+
+/**
+ * POST /api/admin/logout
+ * Clears the secure refresh token cookie to terminate the admin session.
+ */
+app.post('/api/admin/logout', (req, res) => {
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    try {
+        // 1. Clear the Refresh Token Cookie
+        // The options (httpOnly, secure, sameSite) must match those used during Login
+        res.clearCookie('adminRefreshToken', {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? 'strict' : 'lax',
+            path: '/' // Ensure it clears for the entire application path
+        });
+
+        // 2. Respond to the client
+        // The frontend should also clear the Access Token from its memory/local storage
+        res.status(200).json({ message: 'Admin logged out successfully.' });
+
+    } catch (error) {
+        console.error("Logout error:", error);
+        res.status(500).json({ message: 'Server error during logout.' });
+    }
+});
+
 app.get('/api/admin/dashboard/stats', verifyToken, async (req, res) => {
     try {
         // Log that the request has successfully reached the main API handler
@@ -2463,25 +2887,38 @@ app.get('/api/analytics/visitors/:period', verifyToken, async (req, res) => {
         });
     }
 });
-
 app.get('/api/admin/orders/all', verifyToken, async (req, res) => {
     try {
-        console.log("Attempting to retrieve all order data for Sales Log...");
+        const allOrders = await getAllOrders();
         
-        // Call the new function
-        const orders = await getAllOrders();
-        
-        console.log(`Successfully retrieved ${orders.length} orders.`);
-        
-        // Return the orders array
-        res.status(200).json(orders);
+        const validOrders = allOrders.filter(order => {
+            if (order.paymentMethod === 'Paystack') {
+                return order.paymentStatus === 'Paid' || order.status !== 'Pending';
+            }
+            return true;
+        });
+
+        const sanitizedOrders = validOrders.map(order => {
+            // ⭐ LOGIC: Find the best email to display
+            const emailToDisplay = order.userId?.email || 
+                                   order.guestEmail || 
+                                   order.shippingAddress?.email || 
+                                   order.email || 
+                                   'N/A';
+
+            return {
+                ...order,
+                displayId: order.orderReference || order._id,
+                displayEmail: emailToDisplay, // Added for frontend use
+                isAutomated: !!order.paymentTxnId 
+            };
+        });
+
+        res.status(200).json(sanitizedOrders);
         
     } catch (error) {
-        console.error("Sales Log API Crash Detected:", error);
-        res.status(500).json({ 
-            message: 'Failed to retrieve all order records.',
-            internalError: error.message
-        });
+        console.error("Sales Log API Crash:", error);
+        res.status(500).json({ message: 'Failed to retrieve order records.', error: error.message });
     }
 });
 
@@ -2557,174 +2994,296 @@ app.post('/api/admin/newsletter/send', verifyToken, async (req, res) => {
 
 app.get('/api/admin/users/all', verifyToken, async (req, res) => {
     try {
-        // Fetch all users. Select only necessary fields and exclude the password (which is selected: false by default, but we re-specify for clarity).
-        const users = await User.find({})
-            .select('email profile address status membership')
-            .lean(); // Use .lean() for faster query performance since we are only reading
+        // 1. Fetch Registered Users from the User Collection
+        // We MUST explicitly select 'createdAt' to avoid N/A in the Joined column
+        const registeredUsers = await User.find({})
+            .select('email profile status membership createdAt') 
+            .lean();
 
-        // Transform the data to match the frontend's expected format (if needed, but here we just return the array)
-        const transformedUsers = users.map(user => ({
+        const transformedRegistered = registeredUsers.map(user => ({
             _id: user._id,
-            name: `${user.profile.firstName || ''} ${user.profile.lastName || ''}`.trim() || 'N/A',
+            name: `${user.profile?.firstName || ''} ${user.profile?.lastName || ''}`.trim() || 'N/A',
             email: user.email,
-            isMember: user.status.role === 'vip', // Determine membership status
-            createdAt: user.membership.memberSince,
-            // Include other fields if the admin needs them, but for the table, this is enough
+            // Distinction: Checks role for VIP vs Basic
+            statusLabel: user.status?.role === 'vip' ? 'VIP Member' : 'Basic User',
+            statusColor: user.status?.role === 'vip' ? 'emerald' : 'blue',
+            isGuest: false,
+            // Use memberSince if available, otherwise the document's creation date
+            createdAt: user.membership?.memberSince || user.createdAt 
         }));
 
+        // 2. Fetch Guest Orders (where userId is null)
+        const guestOrders = await Order.find({ userId: null })
+            .select('guestEmail shippingAddress createdAt isGuest')
+            .sort({ createdAt: 1 }) // Sort oldest first so the guestMap captures the first purchase
+            .lean();
 
-        // Success Response
-        return res.status(200).json({ 
-            users: transformedUsers,
-            count: transformedUsers.length
+        // Unique Guests by Email
+        const guestMap = new Map();
+        guestOrders.forEach(order => {
+            const email = order.guestEmail || order.shippingAddress?.email;
+            if (email && !guestMap.has(email)) {
+                guestMap.set(email, {
+                    _id: order._id, 
+                    name: `${order.shippingAddress?.firstName || ''} ${order.shippingAddress?.lastName || ''}`.trim() || 'Guest Customer',
+                    email: email,
+                    statusLabel: 'Guest', 
+                    statusColor: 'orange', 
+                    isGuest: true,
+                    createdAt: order.createdAt 
+                });
+            }
         });
 
+        // Combine both lists
+        const allRecords = [...transformedRegistered, ...Array.from(guestMap.values())];
+
+        res.status(200).json({ 
+            users: allRecords,
+            count: allRecords.length 
+        });
     } catch (error) {
-        console.error('Admin user fetch error:', error);
-        // Return a generic server error
-        return res.status(500).json({ message: 'Server error: Failed to retrieve user list.' });
+        console.error('Fetch all users error:', error);
+        res.status(500).json({ message: 'Error fetching membership list' });
     }
 });
 
-// EXISTING: 1. GET /api/admin/users/:id (Fetch Single User Profile - Protected Admin)
 app.get('/api/admin/users/:id', verifyToken, async (req, res) => {
     try {
-        const userId = req.params.id;
+        const id = req.params.id;
+        let detailedUser = null;
 
-        const user = await User.findById(userId)
+        // Try to find a Registered User first
+        const user = await User.findById(id)
             .select('email profile address status membership')
             .lean();
 
-        if (!user) {
-            return res.status(404).json({ message: 'User not found.' });
+        if (user) {
+            const addressParts = [
+                user.address?.street, user.address?.city, user.address?.state, user.address?.zip, user.address?.country
+            ].filter(Boolean);
+            
+            detailedUser = {
+                _id: user._id,
+                name: `${user.profile?.firstName || ''} ${user.profile?.lastName || ''}`.trim() || 'N/A',
+                email: user.email,
+                isMember: user.status?.role === 'vip',
+                isGuest: false,
+                createdAt: user.membership?.memberSince,
+                phone: user.profile?.phone || 'N/A',
+                whatsappNumber: user.profile?.whatsapp || 'N/A', 
+                contactAddress: addressParts.length > 0 ? addressParts.join(', ') : 'No Address Provided'
+            };
+        } else {
+            // If no user found, look for a Guest Order using this ID (or email)
+            const latestOrder = await Order.findOne({ 
+                $or: [{ _id: id }, { guestEmail: id }, { "shippingAddress.email": id }],
+                userId: null 
+            }).sort({ createdAt: -1 }).lean();
+
+            if (latestOrder) {
+                const s = latestOrder.shippingAddress;
+                detailedUser = {
+                    _id: latestOrder._id,
+                    name: s ? `${s.firstName || ''} ${s.lastName || ''}`.trim() : 'Guest Customer',
+                    email: latestOrder.guestEmail || s?.email,
+                    isMember: false,
+                    isGuest: true,
+                    createdAt: latestOrder.createdAt,
+                    phone: s?.phone || 'N/A',
+                    whatsappNumber: s?.whatsapp || 'N/A',
+                    contactAddress: s ? `${s.street}, ${s.city}, ${s.state}` : 'No Address Provided'
+                };
+            }
         }
 
-        const addressParts = [
-            user.address?.street,
-            user.address?.city,
-            user.address?.state,
-            user.address?.zip,
-            user.address?.country
-        ].filter(Boolean);
-        
-        const contactAddress = addressParts.length > 0 ? addressParts.join(', ') : 'No Address Provided';
+        if (!detailedUser) return res.status(404).json({ message: 'Customer record not found.' });
 
-        const detailedUser = {
-            _id: user._id,
-            name: `${user.profile.firstName || ''} ${user.profile.lastName || ''}`.trim() || 'N/A',
-            email: user.email,
-            isMember: user.status.role === 'vip',
-            createdAt: user.membership.memberSince,
-            phone: user.profile.phone || 'N/A',
-            // --- 📢 NEW ADDITION FOR WHATSAPP CONTACT 📢 ---
-            whatsappNumber: user.profile.whatsapp || 'N/A', 
-            // ----------------------------------------------------
-            contactAddress: contactAddress
-        };
-
-        return res.status(200).json({ 
-            user: detailedUser
-        });
+        return res.status(200).json({ user: detailedUser });
 
     } catch (error) {
-        if (error.kind === 'ObjectId') {
-            return res.status(400).json({ message: 'Invalid User ID format.' });
-        }
-        console.error('Admin single user fetch error:', error);
-        return res.status(500).json({ message: 'Server error: Failed to retrieve user details.' });
+        console.error('Admin profile fetch error:', error);
+        return res.status(500).json({ message: 'Server error retrieving details.' });
     }
 });
 
-// NEW: 2. GET /api/admin/users/:userId/orders (Fetch User Order History - Protected Admin)
+
 app.get('/api/admin/users/:userId/orders', verifyToken, async (req, res) => {
     try {
         const userId = req.params.userId;
+        let query;
 
-        // 1. Validate the user exists (Optional, but good practice)
+        // Check if the ID belongs to a registered User
         const userExists = await User.exists({ _id: userId });
-        if (!userExists) {
-            return res.status(404).json({ message: 'User not found.' });
+
+        if (userExists) {
+            // Query for Registered User
+            query = { userId: userId };
+        } else {
+            // Query for Guest: Find all orders with this guest's email 
+            // We first get the email from the "ID" (which might be an order ID or email)
+            const refOrder = await Order.findById(userId).select('guestEmail shippingAddress').lean();
+            const email = refOrder?.guestEmail || refOrder?.shippingAddress?.email || userId;
+
+            query = { 
+                userId: null, 
+                $or: [{ guestEmail: email }, { "shippingAddress.email": email }] 
+            };
         }
 
-        // 2. Fetch all orders for that user ID
-        // Sort by creation date descending (newest first)
-        const userOrders = await Order.find({ userId: userId }) 
-            .sort({ createdAt: -1 })
-            .lean(); // Returns plain JavaScript objects
+        // Apply your existing filters for "Real" orders
+        const userOrders = await Order.find({ 
+            ...query,
+            $or: [
+                { paymentMethod: { $ne: 'Paystack' } }, 
+                { paymentStatus: 'Paid' },             
+                { status: { $ne: 'Pending' } }         
+            ]
+        }) 
+        .sort({ createdAt: -1 })
+        .lean();
 
-        // 3. Simple transformation: Since OrderItemSchema is now denormalized 
-        //    (includes name and imageUrl), we can return the data directly.
-        const augmentedOrders = userOrders.map(order => ({
-            ...order,
-            // Items already contain name and imageUrl from the denormalized schema
-            items: order.items || [], 
-        }));
-
-        // Success Response
         return res.status(200).json({ 
-            orders: augmentedOrders,
-            count: augmentedOrders.length
+            orders: userOrders.map(o => ({ ...o, items: o.items || [] })),
+            count: userOrders.length
         });
 
     } catch (error) {
-        if (error.kind === 'ObjectId') {
-            return res.status(400).json({ message: 'Invalid User ID format.' });
-        }
-        console.error('Admin user orders fetch error:', error);
-        return res.status(500).json({ message: 'Server error: Failed to retrieve user order history.' });
+        res.status(500).json({ message: 'Server error retrieving history.' });
     }
 });
 
-
-// =========================================================
-// 8. GET /api/admin/orders/pending - Fetch All Pending Orders (Admin Protected)
-// =========================================================
 app.get('/api/admin/orders/pending', verifyToken, async (req, res) => {
-    try {
-        // Find all orders where the status is 'Pending'
-        const pendingOrders = await Order.find({ status: 'Pending' })
-            .select('_id userId totalAmount createdAt status paymentMethod paymentReceiptUrl subtotal shippingFee tax')
-            .sort({ createdAt: 1 })
-            .lean();
+    try {
+        const pendingOrders = await Order.find({ 
+            status: { $in: ['Pending', 'Processing', 'Inventory Failure (Manual Review)'] } 
+        })
+        .sort({ createdAt: 1 })
+        .lean();
 
-        // 1. Get User Details for each pending order (for 'Customer' column)
-        const populatedOrders = await Promise.all(
-            pendingOrders.map(async (order) => {
-                const user = await User.findById(order.userId)
-                    // ✅ FIX 1: Select nested fields from the 'profile' subdocument
-                    .select('profile.firstName profile.lastName email') 
-                    .lean();
+        const populatedOrders = await Promise.all(
+            pendingOrders.map(async (order) => {
+                let userName = 'Guest';
+                let email = 'N/A';
 
-                // ✅ FIX 2: Access nested fields safely
-                const firstName = user?.profile?.firstName;
-                const lastName = user?.profile?.lastName;
-                
-                // Construct userName: Use full name if both exist, otherwise fall back to email
-                const userName = (firstName && lastName) 
-                    ? `${firstName} ${lastName}` 
-                    : user?.email || 'N/A'; // Final fallback to email or 'N/A'
-                
-                const email = user ? user.email : 'Unknown User';
-                
-                return {
-                    ...order,
-                    userName: userName, // Added for the Admin table
-                    email: email,       // Added for the Admin table
-                };
-            })
-        );
+                if (order.userId) {
+                    // Path A: Registered Member
+                    const user = await User.findById(order.userId)
+                        .select('profile.firstName profile.lastName email') 
+                        .lean();
+                    if (user) {
+                        userName = `${user.profile?.firstName || ''} ${user.profile?.lastName || ''}`.trim() || user.email;
+                        email = user.email;
+                    }
+                } else {
+                    // Path B: Guest User (Pull from Order/Shipping fields)
+                    const s = order.shippingAddress;
+                    userName = s ? `${s.firstName || ''} ${s.lastName || ''}`.trim() : (order.customerName || 'Guest');
+                    email = order.guestEmail || s?.email || order.email || 'Guest Email';
+                }
 
-        // Send the complete list of pending orders
-        res.status(200).json(populatedOrders);
+                const isPaystackPaid = order.paymentMethod === 'Paystack' && 
+                                     order.amountPaidKobo >= (order.totalAmount * 100);
+                
+                return {
+                    ...order,
+                    userName,
+                    email,
+                    paymentStatus: isPaystackPaid ? 'Paid' : (order.paymentStatus || 'Awaiting'),
+                    isGuest: !order.userId
+                };
+            })
+        );
 
-    } catch (error) {
-        console.error('Error fetching pending orders:', error);
-        res.status(500).json({ message: 'Failed to retrieve pending orders.' });
-    }
+        res.status(200).json(populatedOrders);
+    } catch (error) {
+        console.error("Pending Orders Fetch Error:", error);
+        res.status(500).json({ message: 'Failed to retrieve pending orders.' });
+    }
+});
+
+// NEW: Fetch orders that are PAID and ready for Shipping/Fulfillment
+app.get('/api/admin/orders/paid', verifyToken, async (req, res) => {
+    try {
+        // 1. Fetch orders that are officially 'Confirmed' OR 
+        //    'Pending' orders that might be Paystack-paid.
+        const orders = await Order.find({ 
+            status: { $in: ['Confirmed', 'Completed', 'Pending'] } 
+        })
+        .select('_id userId totalAmount updatedAt status paymentMethod orderReference amountPaidKobo paymentTxnId')
+        .sort({ updatedAt: -1 })
+        .lean();
+
+        const sanitizedPaidOrders = await Promise.all(orders.map(async (order) => {
+            // Check if Paystack payment is verified (e.g., 10000 kobo for 100 Naira)
+            const isPaystackPaid = order.paymentMethod === 'Paystack' && 
+                                 (order.amountPaidKobo >= (order.totalAmount * 100));
+
+            // Only include in this "Paid" list if it's Confirmed OR a verified Paystack order
+            if (order.status === 'Confirmed' || order.status === 'Completed' || isPaystackPaid) {
+                const user = await User.findById(order.userId).select('email profile').lean();
+                
+                return {
+                    ...order,
+                    paymentStatus: 'Paid', 
+                    userName: user?.profile?.firstName ? `${user.profile.firstName} ${user.profile.lastName}` : (user?.email || 'Guest'),
+                    email: user?.email || 'N/A'
+                };
+            }
+            return null; // Skip non-paid pending orders
+        }));
+
+        // Filter out the nulls from the map
+        const finalOrders = sanitizedPaidOrders.filter(o => o !== null);
+
+        res.status(200).json(finalOrders);
+    } catch (error) {
+        console.error("Paid Orders API Error:", error);
+        res.status(500).json({ message: 'Failed to retrieve paid orders.' });
+    }
 });
 
 // =========================================================
-// 8b. GET /api/admin/orders/:orderId - Fetch Single Detailed Order (Admin Protected)
+// 8c. GET /api/admin/orders/confirmed - Fetch Confirmed Orders
+// =========================================================
+app.get('/api/admin/orders/confirmed', verifyToken, async (req, res) => {
+    try {
+        // Find orders ready for fulfillment. 
+        // Note: 'Processing' is included as a fallback for the manual Admin confirmation flow.
+        const confirmedOrders = await Order.find({ 
+            status: { $in: ['Confirmed', 'Shipped', 'Delivered'] } 
+        })
+        .select('_id userId totalAmount createdAt status orderReference totalQuantity')
+        .sort({ createdAt: -1 })
+        .lean();
+
+        const populatedOrders = await Promise.all(
+            confirmedOrders.map(async (order) => {
+                const user = await User.findById(order.userId)
+                    .select('profile.firstName profile.lastName email') 
+                    .lean();
+
+                const userName = (user?.profile?.firstName && user?.profile?.lastName) 
+                    ? `${user.profile.firstName} ${user.profile.lastName}` 
+                    : user?.email || 'N/A';
+                
+                return {
+                    ...order,
+                    userName,
+                    email: user?.email || 'Unknown User',
+                };
+            })
+        );
+
+        res.status(200).json(populatedOrders);
+    } catch (error) {
+        console.error('Error fetching confirmed orders:', error);
+        res.status(500).json({ message: 'Failed to retrieve confirmed orders.' });
+    }
+});
+
+// =========================================================
+// 8b. GET /api/admin/orders/:orderId - Fetch Single Detailed Order
 // =========================================================
 app.get('/api/admin/orders/:orderId', verifyToken, async (req, res) => {
     try {
@@ -2732,76 +3291,71 @@ app.get('/api/admin/orders/:orderId', verifyToken, async (req, res) => {
 
         // 1. Fetch the single order
         let order = null;
-        
-        // CRITICAL FIX: Try finding by MongoDB _id first (standard practice)
-        // If orderId is a valid ObjectId, findById will work.
         if (orderId.match(/^[0-9a-fA-F]{24}$/)) {
-             order = await Order.findById(orderId).lean();
+            order = await Order.findById(orderId).lean();
         }
 
-        // If not found by _id (or if it wasn't a valid ObjectId format), 
-        // try searching by the orderReference field, which is often used in logs.
         if (!order) {
-            console.log(`[Order Fetch] Attempting to find order by orderReference: ${orderId}`);
             order = await Order.findOne({ orderReference: orderId }).lean();
         }
 
         if (!order) {
             return res.status(404).json({ message: 'Order not found.' });
         }
-        
-        // 2. Augment order items with product details (name, imageUrl)
-        const detailedOrders = await augmentOrdersWithProductDetails([order]);
-        let detailedOrder = detailedOrders[0];
 
-        // 🚨 FIX: Generate Signed URL for the Payment Receipt
+        // 2. Augment order items with product details
+        const augmentedResults = await augmentOrdersWithProductDetails([order]);
+        let detailedOrder = augmentedResults[0];
+
+        // 3. Generate Signed URL for Proof of Payment if it exists
         if (detailedOrder.paymentReceiptUrl) {
-            // Assuming generateSignedUrl is an async helper function
             detailedOrder.paymentReceiptUrl = await generateSignedUrl(detailedOrder.paymentReceiptUrl);
         }
 
-        // 3. Get User Details (Name and Email)
-        const user = await User.findById(detailedOrder.userId)
-            .select('profile.firstName profile.lastName email') 
-            .lean();
+        // 4. Determine Customer Identity (Guest vs Member)
+        let customerName = 'Guest Customer';
+        let customerEmail = 'N/A';
+        let whatsapp = 'N/A';
 
-        const firstName = user?.profile?.firstName;
-        const lastName = user?.profile?.lastName;
-
-        // Construct userName: Use full name if both exist, otherwise fall back to email
-        const userName = (firstName && lastName) 
-            ? `${firstName} ${lastName}` 
-            : user?.email || 'N/A';
+        if (detailedOrder.userId) {
+            // Path A: Registered Member
+            const user = await User.findById(detailedOrder.userId)
+                .select('profile.firstName profile.lastName email profile.whatsapp')
+                .lean();
             
-        const email = user ? user.email : 'Unknown User';
+            if (user) {
+                customerName = `${user.profile?.firstName || ''} ${user.profile?.lastName || ''}`.trim() || user.email;
+                customerEmail = user.email;
+                whatsapp = user.profile?.whatsapp || 'N/A';
+            }
+        } 
         
-        // 4. Combine all details
+        // Path B: Guest User Logic (Use Guest fields if Member lookup failed or if flagged as Guest)
+        if (!detailedOrder.userId || detailedOrder.isGuest) {
+            const s = detailedOrder.shippingAddress;
+            // Use the specific guest fields from your database schema
+            customerName = s ? `${s.firstName || ''} ${s.lastName || ''}`.trim() : (detailedOrder.customerName || 'Guest');
+            customerEmail = detailedOrder.guestEmail || s?.email || detailedOrder.email || 'N/A';
+            whatsapp = s?.whatsapp || 'N/A';
+        }
+
+        // 5. Build Final Response Object
         const finalDetailedOrder = {
             ...detailedOrder,
-            // Ensure customerName is explicitly set, as the frontend uses order.customerName
-            customerName: userName, 
-            email: email,
-            // Explicitly include the total quantity for the frontend to calculate Total Items Deducted
-            totalQuantity: detailedOrder.items.reduce((sum, item) => sum + (item.quantity || 0), 0)
+            customerName: customerName,
+            email: customerEmail,
+            whatsappNumber: whatsapp,
+            isGuest: !detailedOrder.userId || detailedOrder.isGuest
         };
 
-        // 🚀 FIX APPLIED HERE: Wrap the finalDetailedOrder object in a parent object with the 'order' key.
-        return res.status(200).json({ 
-            order: finalDetailedOrder 
-        });
+        return res.status(200).json({ order: finalDetailedOrder });
 
     } catch (error) {
-        console.error(`Error fetching order details for ${req.params.orderId}:`, error);
-        if (error.name === 'CastError' || error.kind === 'ObjectId') {
-             return res.status(400).json({ message: 'Invalid Order ID format.' });
-        }
+        console.error('Admin single order fetch error:', error);
         return res.status(500).json({ message: 'Server error: Failed to retrieve order details.' });
     }
 });
 
-// =========================================================
-// (All other endpoints remain the same)
-// =========================================================
 // =========================================================
 // 9. PUT /api/admin/orders/:orderId/confirm - Confirm an Order (Admin Protected)
 // =========================================================
@@ -2814,216 +3368,260 @@ app.put('/api/admin/orders/:orderId/confirm', verifyToken, async (req, res) => {
     }
 
     try {
-        // 1. Initial status change from 'Pending' to 'Processing' (The "CLAIM" step.)
+        // 1. Initial status change from 'Pending' to 'Processing'
+        // We removed the restrictive '.select()' to ensure we have all address/email data
         const updatedOrder = await Order.findOneAndUpdate(
-            { _id: orderId, status: 'Pending' }, 
+            { 
+                _id: orderId, 
+                status: { $in: ['Pending', 'Processing'] } 
+            }, 
             { 
                 $set: { 
-                    status: 'Processing', // Claim the order for this worker thread
+                    status: 'Processing', 
                     confirmedAt: new Date(), 
                     confirmedBy: adminId 
                 } 
             },
-            { new: true, select: 'userId status totalAmount items' } 
+            { new: true } 
         ).lean();
 
-        // Check if the order was successfully found and updated.
         if (!updatedOrder) {
-            console.warn(`Order ${orderId} skipped: not found or status is not pending.`);
             const checkOrder = await Order.findById(orderId).select('status').lean();
-            if (checkOrder) {
-                console.warn(`[Inventory Skip Reason] Order ${orderId} is currently in status: ${checkOrder.status}.`);
-            } else {
-                console.warn(`[Inventory Skip Reason] Order ${orderId} does not exist.`);
-            }
-            
-            // Use 409 Conflict to indicate that the request could not be completed due to the resource's state.
             return res.status(409).json({ message: 'Order not found or is already processed.' });
         }
         
-        // 2. CRITICAL STEP: Deduct Inventory and finalize status to 'Confirmed' atomically
+        // 2. Atomic Inventory Deduction
         let finalOrder;
         try {
-            console.log(`[Inventory] Attempting atomic inventory deduction for Order ${orderId}.`);
-            // The helper now handles the final transition to 'Confirmed'
             finalOrder = await processOrderCompletion(orderId, adminId); 
-            // 🎯 UPDATED LOG: Reflects the final 'Confirmed' status set by the helper
-            console.log(`[Inventory Success] Inventory deduction completed successfully for Order ${orderId}. Final status: ${finalOrder.status}.`);
-            
         } catch (inventoryError) {
-            
-            // --- Handle Business Logic Conflict Separately (Race Condition) ---
             if (inventoryError.isRaceCondition) {
-                console.warn(`Race condition detected: Order ${orderId} confirmed by concurrent request. Returning 200.`);
-                
-                // Fetch the now-confirmed order to return a successful response to the admin UI
                 const confirmedOrder = await Order.findById(orderId).lean();
-                
-                // Log and return 200 OK for concurrent confirmation
-                console.warn(`[Inventory Race Skip] Inventory deduction was skipped because the order was finalized by a concurrent process. Current status: ${confirmedOrder.status}.`);
-
-                return res.status(200).json({ 
-                    // 🎯 UPDATED MESSAGE: Use the confirmedOrder's current status (likely 'Confirmed')
-                    message: `Order ${orderId} was confirmed by a concurrent request. Status: ${confirmedOrder.status}.`,
-                    order: confirmedOrder 
-                });
+                return res.status(200).json({ message: `Already confirmed.`, order: confirmedOrder });
             }
             
-            // Rollback status if inventory fails (Genuine stock insufficient errors)
-            console.error('Inventory deduction failed during Admin confirmation:', inventoryError.message);
-            
-            // The rollback function (called by processOrderCompletion's catch) has already set the status 
-            // to 'Inventory Failure (Manual Review)'. We only add an extra note here.
             await Order.findByIdAndUpdate(orderId, { 
-                $push: { notes: `Inventory deduction failed on ${new Date().toISOString()}: ${inventoryError.message}` }
+                $push: { notes: `Inventory failure: ${inventoryError.message}` }
             });
             
-            // Return 409 Conflict for known business logic failure (Insufficient Stock).
-            return res.status(409).json({ 
-                message: 'Payment confirmed, but inventory deduction failed. Order status flagged for manual review.',
-                error: inventoryError.message
-            });
+            return res.status(409).json({ message: 'Inventory failure.', error: inventoryError.message });
         }
         
-        // 3. GET CUSTOMER EMAIL & SEND NOTIFICATION 📧
-        const user = await User.findById(updatedOrder.userId).select('email').lean();
-        const customerEmail = user ? user.email : null;
+        // 3. ROBUST EMAIL EXTRACTION 📧
+        let customerEmail = null;
+        let isGuest = false;
 
-        if (customerEmail) {
+        // Path A: Registered User lookup
+        if (updatedOrder.userId) {
+            const registeredUser = await User.findById(updatedOrder.userId).select('email').lean();
+            if (registeredUser) customerEmail = registeredUser.email;
+        }
+
+        // Path B: Guest User lookup (Checks multiple possible database locations)
+        if (!customerEmail) {
+            customerEmail = updatedOrder.guestEmail || 
+                            updatedOrder.shippingAddress?.email || 
+                            updatedOrder.email || 
+                            finalOrder.guestEmail ||
+                            finalOrder.shippingAddress?.email;
+            isGuest = true;
+        }
+
+        // 4. Send Notification
+        if (customerEmail && customerEmail !== 'N/A') {
             try {
-                // Email is only sent if the inventory transaction (step 2) succeeded
-                console.log(`[Email] Sending confirmation email to: ${customerEmail} for order ${orderId}.`);
+                const userLabel = isGuest ? "Guest User" : "Registered Member";
+                console.log(`[Email] Dispatching to ${userLabel}: ${customerEmail}`);
+                
+                // Use finalOrder as it contains the finalized 'Confirmed' status
                 await sendOrderConfirmationEmailForAdmin(customerEmail, finalOrder);
-                console.log(`[Email Success] Confirmation email sent to ${customerEmail}.`);
+                
+                console.log(`[Email Success] Sent to ${customerEmail}.`);
             } catch (emailError) {
-                console.error(`[Email Failure Reason] CRITICAL WARNING: Failed to send confirmation email to ${customerEmail} (Order ${orderId}):`, emailError.message);
-                // Continue execution to send the success response to the client
+                console.error(`[Email Failure] ${customerEmail}:`, emailError.message);
             }
         } else {
-            console.warn(`[Email Skip Reason] Could not find email for user ID: ${updatedOrder.userId}. Skipping email notification.`);
+            console.warn(`[Email Skip] No email found for order ${orderId}.`);
+            await Order.findByIdAndUpdate(orderId, { 
+                $push: { notes: `System: Confirmation email skipped - No recipient email found.` }
+            });
         }
         
-        // ⭐ INTEGRATION: Log the successful confirmation action
+        // 5. Log Action
         if (finalOrder) {
-            // We assume finalOrder has the required fields (userId, _id, totalAmount)
             await logAdminOrderAction(finalOrder, adminId, 'ORDER_CONFIRMED'); 
         }
 
-        // 4. Success Response
         res.status(200).json({ 
-            // 🎯 UPDATED MESSAGE: The final status will now be 'Confirmed'
-            message: `Order ${orderId} confirmed, inventory deducted, and customer notified. Status: ${finalOrder.status}.`,
+            message: `Order confirmed and customer notified.`,
             order: finalOrder 
         });
 
     } catch (error) {
-        // This catch block handles the final crash and returns the 500 error
         console.error(`Error confirming order ${orderId}:`, error);
         res.status(500).json({ message: 'Failed to confirm order due to a server error.' });
     }
 });
 
 // =========================================================
-// 10. PUT /api/admin/orders/:orderId/status - Update Fulfillment Status
+// 10. PUT /api/admin/orders/:orderId/cancel - Cancel an Order (Admin Protected)
 // =========================================================
+app.put('/api/admin/orders/:orderId/cancel', verifyToken, async (req, res) => {
+    const orderId = req.params.orderId;
+    const adminId = req.adminId; // Extracted from verifyToken middleware
+
+    if (!orderId) {
+        return res.status(400).json({ message: 'Order ID is required for cancellation.' });
+    }
+
+    try {
+        // 1. Find and Update the order
+        // We only allow cancellation if the order is in a state that hasn't been shipped yet
+        const cancelledOrder = await Order.findOneAndUpdate(
+            { 
+                _id: orderId, 
+                status: { $in: ['Pending', 'Processing', 'Inventory Failure (Manual Review)'] } 
+            }, 
+            { 
+                $set: { 
+                    status: 'Cancelled', 
+                    cancelledAt: new Date(), 
+                    cancelledBy: adminId 
+                } 
+            },
+            { new: true } 
+        ).lean();
+
+        // 2. Check if the order was eligible for cancellation
+        if (!cancelledOrder) {
+            console.warn(`[Cancel Skip] Order ${orderId} not found or status ineligible for cancellation.`);
+            
+            const existingOrder = await Order.findById(orderId).select('status').lean();
+            if (!existingOrder) {
+                return res.status(404).json({ message: 'Order not found.' });
+            }
+            return res.status(409).json({ 
+                message: `Order cannot be cancelled. Current status is: ${existingOrder.status}` 
+            });
+        }
+
+        console.log(`[Admin Action] Order ${orderId} successfully cancelled by Admin ${adminId}.`);
+
+        // 3. OPTIONAL: Send Cancellation Email Notification
+        const user = await User.findById(cancelledOrder.userId).select('email').lean();
+        if (user && user.email) {
+            try {
+                // You would need to create this helper function similar to your confirmation email helper
+                // await sendOrderCancellationEmail(user.email, cancelledOrder);
+                console.log(`[Email] Cancellation notice ready for ${user.email}`);
+            } catch (emailError) {
+                console.error(`[Email Failure] Failed to send cancellation email:`, emailError.message);
+            }
+        }
+
+        // 4. INTEGRATION: Log the admin action
+        // Following your pattern for logAdminOrderAction
+        try {
+            await logAdminOrderAction(cancelledOrder, adminId, 'ORDER_CANCELLED');
+        } catch (logError) {
+            console.error(`[Log Failure] Failed to log admin cancellation:`, logError.message);
+        }
+
+        // 5. Success Response
+        res.status(200).json({ 
+            message: `Order ${orderId} has been successfully cancelled.`,
+            order: cancelledOrder 
+        });
+
+    } catch (error) {
+        console.error(`Error cancelling order ${orderId}:`, error);
+        res.status(500).json({ message: 'Failed to cancel order due to a server error.' });
+    }
+});
+
 app.put('/api/admin/orders/:orderId/status', verifyToken, async (req, res) => {
     const { orderId } = req.params;
     const { newStatus } = req.body; 
     
-    // 🎯 CRITICAL FIX: Fulfillment MUST start from 'Confirmed'.
-    // This prevents an admin from shipping an order that failed inventory (status: Processing)
     const validTransitions = {
-        'Confirmed': 'Shipped',
-        'Shipped': 'Delivered'
+        'Pending': ['Confirmed', 'Cancelled'],
+        'Processing': ['Confirmed', 'Cancelled'],
+        'Inventory Failure (Manual Review)': ['Confirmed', 'Cancelled'],
+        'Confirmed': ['Shipped', 'Cancelled'], 
+        'Shipped': ['Delivered'],
+        'Delivered': [], 
+        'Cancelled': []
     };
     
-    let updateFields = { status: newStatus };
-    let finalOrder = null;
-
-    if (!orderId || !newStatus) {
-        return res.status(400).json({ message: 'Order ID and a new status are required.' });
-    }
-
     try {
-        // Fetch the full order for context and email
-        const order = await Order.findById(orderId).lean();
+        const order = await Order.findById(orderId);
+        if (!order) return res.status(404).json({ message: 'Order not found.' });
 
-        if (!order) {
-            return res.status(404).json({ message: 'Order not found.' });
+        // 2. BLOCKER: Force use of atomic confirmation
+        if (['Pending', 'Processing', 'Inventory Failure (Manual Review)'].includes(order.status) && 
+            !['Confirmed', 'Cancelled'].includes(newStatus)) {
+            return res.status(400).json({ 
+                message: `Order must be Confirmed (Inventory Deducted) before moving to ${newStatus}.` 
+            });
         }
 
-        const currentStatus = order.status;
-        const expectedNextStatus = validTransitions[currentStatus];
-
-        // 1. Validate Status Transition - The Guardrail
-        if (newStatus !== expectedNextStatus) {
-            console.warn(`[Fulfillment Guardrail Fail] Invalid transition from ${currentStatus} to ${newStatus}. Must be 'Confirmed' to ship.`);
+        // 3. LOGIC CHECK
+        const allowedNext = validTransitions[order.status] || [];
+        if (order.status !== newStatus && !allowedNext.includes(newStatus)) {
             return res.status(400).json({ 
-                message: `Invalid status transition from ${currentStatus} to ${newStatus}. Order must be Confirmed to move to Shipped.` 
+                message: `Invalid movement from ${order.status} to ${newStatus}.` 
             });
         }
         
-        // ... (Remaining logic for Shipped/Delivered handling is correct) ...
+        // 4. Update order fields
+        order.status = newStatus;
+        order.updatedAt = Date.now();
+        if (newStatus === 'Shipped') order.shippedAt = new Date();
+        if (newStatus === 'Delivered') order.deliveredAt = new Date();
 
-        // 2. Handle 'Shipped' transition (No tracking number/company)
-        if (newStatus === 'Shipped') {
-            updateFields = { 
-                ...updateFields, 
-                // Only setting the timestamp
-                shippedAt: new Date()
-            };
-        }
-        
-        // 3. Handle 'Delivered' transition
-        if (newStatus === 'Delivered') {
-              updateFields = { 
-                ...updateFields, 
-                deliveredAt: new Date()
-            };
+        const updatedOrder = await order.save();
+
+        // 5. ⭐ ROBUST EMAIL EXTRACTION (DETERMINE RECIPIENT) ⭐
+        let recipientEmail = null;
+
+        // Path A: Registered User
+        if (updatedOrder.userId) {
+            const user = await User.findById(updatedOrder.userId).select('email').lean();
+            if (user) recipientEmail = user.email;
         }
 
-        // 4. Perform the atomic status update
-        finalOrder = await Order.findByIdAndUpdate(
-            orderId, 
-            { $set: updateFields },
-            { new: true }
-        ).lean();
+        // Path B: Guest User (Fallbacks)
+        if (!recipientEmail) {
+            recipientEmail = updatedOrder.guestEmail || 
+                             updatedOrder.shippingAddress?.email || 
+                             updatedOrder.email;
+        }
 
-        // 5. Send Email Notification (Logic remains, but emails should be simpler)
-        const user = await User.findById(finalOrder.userId).select('email').lean();
-        const customerEmail = user ? user.email : null;
-
-        if (customerEmail) {
+        // 6. Trigger Notifications if email exists
+        if (recipientEmail && recipientEmail !== 'N/A') {
             try {
                 if (newStatus === 'Shipped') {
-                    await sendShippingUpdateEmail(customerEmail, finalOrder); 
+                    await sendShippingUpdateEmail(recipientEmail, updatedOrder);
                 } else if (newStatus === 'Delivered') {
-                    await sendDeliveredEmail(customerEmail, finalOrder);
+                    await sendDeliveredEmail(recipientEmail, updatedOrder);
                 }
-            } catch (emailError) {
-                console.error(`WARNING: Failed to send ${newStatus} email to ${customerEmail}:`, emailError.message);
+                console.log(`[Status Email] Success: ${newStatus} sent to ${recipientEmail}`);
+            } catch (e) { 
+                console.error(`[Status Email] Failed for ${recipientEmail}:`, e.message); 
             }
+        } else {
+            console.warn(`[Status Email] Skipped: No email found for order ${orderId}`);
         }
         
-        // ⭐ INTEGRATION: Log the shipping/delivery action
-        if (finalOrder) {
-            const logEventType = newStatus === 'Shipped' ? 'ORDER_SHIPPED' : 'ORDER_DELIVERED';
-            // We assume req.adminId is available from verifyToken
-            await logAdminStatusUpdate(finalOrder, req.adminId, logEventType); 
-        }
+        // 7. Log for Admin Audit Trail
+        await logAdminStatusUpdate(updatedOrder, req.adminId, `ORDER_${newStatus.toUpperCase()}`); 
 
-        // 6. Success Response
-        res.status(200).json({ 
-            message: `Order ${orderId} status successfully updated to ${newStatus}.`,
-            order: finalOrder 
-        });
-
+        res.status(200).json({ message: `Order successfully moved to ${newStatus}.`, order: updatedOrder });
     } catch (error) {
-        console.error(`Error updating order status ${orderId}:`, error);
-        res.status(500).json({ message: 'Failed to update order status due to a server error.' });
+        console.error("Status Update Error:", error);
+        res.status(500).json({ message: 'Server error during status update.' });
     }
 });
-
 
 // GET /api/admin/capscollections - Fetch ALL Cap Collections (Admin List View)
 app.get('/api/admin/capscollections', verifyToken, async (req, res) => {
@@ -3359,15 +3957,11 @@ app.delete('/api/admin/capscollections/:id', verifyToken, async (req, res) => {
     }
 });
 
-/**
- * GET /api/admin/newarrivals - Fetch All New Arrivals
- * Fetches all products, sorts them, and generates signed URLs for all variation images.
- */
 app.get('/api/admin/newarrivals', verifyToken, async (req, res) => {
     try {
-        // 1. Fetch all products
+        // 1. Fetch all products - Added 'description' to the select list
         const products = await NewArrivals.find({})
-            .select('_id name tag price variations totalStock isActive')
+            .select('_id name description tag price variations totalStock isActive') // UPDATED
             .sort({ createdAt: -1 })
             .lean();
 
@@ -3375,7 +3969,6 @@ app.get('/api/admin/newarrivals', verifyToken, async (req, res) => {
         const signedProducts = await Promise.all(products.map(async (product) => {
             const signedVariations = await Promise.all(product.variations.map(async (v) => ({
                 ...v,
-                // Generate signed URLs for image retrieval
                 frontImageUrl: await generateSignedUrl(v.frontImageUrl) || v.frontImageUrl,
                 backImageUrl: await generateSignedUrl(v.backImageUrl) || v.backImageUrl
             })));
@@ -3389,20 +3982,17 @@ app.get('/api/admin/newarrivals', verifyToken, async (req, res) => {
     }
 });
 
-/**
- * GET /api/admin/newarrivals/:id - Fetch Single New Arrival
- * Fetches a single product by ID and generates signed URLs for its variation images.
- */
 app.get('/api/admin/newarrivals/:id', verifyToken, async (req, res) => {
     try {
         const productId = req.params.id;
+        // This will now include 'description' if it exists in the DB
         const product = await NewArrivals.findById(productId).lean();
 
         if (!product) {
             return res.status(404).json({ message: 'Product not found.' });
         }
 
-        // Sign URLs
+        // Sign URLs logic remains the same
         const signedVariations = await Promise.all(product.variations.map(async (v) => ({
             ...v,
             frontImageUrl: await generateSignedUrl(v.frontImageUrl) || v.frontImageUrl, 
@@ -3482,10 +4072,9 @@ app.post(
             
             const newProduct = new NewArrivals({
                 name: productData.name,
+                description: productData.description, // ADD THIS LINE
                 tag: productData.tag,
                 price: productData.price, 
-                // The sizes field was correctly removed from the main schema, 
-                // so we don't try to assign productData.sizes here.
                 isActive: productData.isActive, 
                 variations: finalVariations, 
             });
@@ -3629,6 +4218,7 @@ app.put(
             
             // Update the Document Fields
             existingProduct.name = productData.name;
+            existingProduct.description = productData.description; // ADD THIS LINE
             existingProduct.tag = productData.tag;
             existingProduct.price = productData.price;
             // The sizes field was correctly removed from the main schema, do not update it here.
@@ -3695,19 +4285,16 @@ app.delete('/api/admin/newarrivals/:id', verifyToken, async (req, res) => {
     }
 });
 
-// GET /api/admin/wearscollections/:id (Fetch Single Collection)
+// GET /api/admin/wearscollections/:id
 app.get('/api/admin/wearscollections/:id', verifyToken, async (req, res) => {
     try {
-        // --- FIX 1: Ensure totalStock is selected for fetching ---
+        // ADDED 'description' to the select list
         const collection = await WearsCollection.findById(req.params.id)
-            .select('_id name tag price variations sizesAndStock isActive totalStock') 
+            .select('_id name description tag price variations sizesAndStock isActive totalStock') 
             .lean(); 
         
-        if (!collection) {
-            return res.status(404).json({ message: 'Collection not found.' });
-        }
+        if (!collection) return res.status(404).json({ message: 'Collection not found.' });
 
-        // Sign URLs
         const signedVariations = await Promise.all(collection.variations.map(async (v) => ({
             ...v,
             frontImageUrl: await generateSignedUrl(v.frontImageUrl) || v.frontImageUrl, 
@@ -3715,13 +4302,12 @@ app.get('/api/admin/wearscollections/:id', verifyToken, async (req, res) => {
         })));
         
         collection.variations = signedVariations;
-
         res.status(200).json(collection);
     } catch (error) {
-        console.error('Error fetching wear collection:', error);
         res.status(500).json({ message: 'Server error fetching collection.' });
     }
 });
+
 // POST /api/admin/wearscollections (Create New Collection) 
 app.post(
     '/api/admin/wearscollections',
@@ -3784,6 +4370,7 @@ app.post(
             // C. Create the Final Collection Object
             const newCollection = new WearsCollection({
                 name: collectionData.name,
+                description: collectionData.description, 
                 tag: collectionData.tag,
                 price: collectionData.price, 
                 totalStock: collectionData.totalStock, 
@@ -3939,10 +4526,9 @@ app.put(
             
             // Update the Document Fields
             existingCollection.name = collectionData.name;
+            existingCollection.description = collectionData.description; 
             existingCollection.tag = collectionData.tag;
             existingCollection.price = collectionData.price;
-            
-            // --- FIX 5: Assign totalStock from client payload ---
             existingCollection.totalStock = collectionData.totalStock; 
             existingCollection.sizesAndStock = collectionData.sizesAndStock; 
             existingCollection.isActive = collectionData.isActive;
@@ -4028,6 +4614,7 @@ app.get(
         }
     }
 );
+
 // 1. POST /api/admin/preordercollections (Create New Pre-Order Collection) 
 app.post('/api/admin/preordercollections', verifyToken, upload.fields(uploadFields), async (req, res) => {
     try {
@@ -4079,10 +4666,9 @@ app.post('/api/admin/preordercollections', verifyToken, upload.fields(uploadFiel
         // C. Create the Final Collection Object
         const newCollection = new PreOrderCollection({
             name: collectionData.name,
+            description: collectionData.description, // 🔑 ADDED: Link the new description field
             tag: collectionData.tag,
             price: collectionData.price,
-            // REMOVED: sizes - now nested in variations
-            // REMOVED: totalStock - calculated automatically by pre('save') middleware
             isActive: collectionData.isActive,
             availableDate: collectionData.availableDate,
             variations: finalVariations,
@@ -4217,8 +4803,8 @@ app.put(
             // Update the Document Fields
             existingCollection.name = collectionData.name;
             existingCollection.tag = collectionData.tag;
+            existingCollection.description = collectionData.description; // 🔑 ADDED: Update description
             existingCollection.price = collectionData.price;
-            // REMOVED: sizes and totalStock from top-level update
             existingCollection.isActive = collectionData.isActive;
             existingCollection.availableDate = collectionData.availableDate;
 
@@ -4264,7 +4850,7 @@ app.get(
             // Fetch all collections, selecting only necessary and consistent fields
             const collections = await PreOrderCollection.find({})
                 // 🔑 UPDATED: Removed top-level 'sizes' from select list
-                .select('_id name tag price variations totalStock isActive availableDate') 
+                .select('_id name tag description price variations totalStock isActive availableDate') 
                 .sort({ createdAt: -1 })
                 .lean();
 
@@ -4368,15 +4954,10 @@ app.delete(
     }
 );
 
-// =========================================================
-// 11. GET /api/admin/inventory/deductions - Fetch Deducted Inventory Logs (Admin Protected)
-// =========================================================
 app.get('/api/admin/inventory/deductions', verifyToken, async (req, res) => {
     try {
-        // Get the category filter from the query parameter (e.g., ?category=wears)
         const categoryFilter = req.query.category ? req.query.category.toLowerCase() : 'all';
         
-        // Map the URL filter string to the Mongoose Model Name
         const categoryMap = {
             'wears': 'WearsCollection', 
             'caps': 'CapCollection', 
@@ -4384,74 +4965,67 @@ app.get('/api/admin/inventory/deductions', verifyToken, async (req, res) => {
             'preorders': 'PreOrderCollection' 
         };
         
-        // 1. Initial Match Stage (Filter by Order Status)
-        // We only care about orders where inventory was actually deducted ('Confirmed' or later)
         let pipeline = [
             {
                 $match: {
+                    // Only show orders where inventory HAS been deducted
                     status: { $in: ['Confirmed', 'Shipped', 'Delivered'] }
                 }
             },
-            // 2. Unwind the 'items' array
-            // This creates a separate document for every single product line item in every order.
             {
                 $unwind: '$items'
             }
         ];
         
-        // 3. Optional Match Stage (Filter by Category)
         if (categoryFilter !== 'all') {
             const productType = categoryMap[categoryFilter];
             if (productType) {
                 pipeline.push({
-                    $match: {
-                        'items.productType': productType // Filter on the specific collection/model name
-                    }
+                    $match: { 'items.productType': productType }
                 });
             } else {
-                // Handle invalid category query gracefully
-                return res.status(400).json({ message: 'Invalid category filter provided.' });
+                return res.status(400).json({ message: 'Invalid category filter.' });
             }
         }
         
-        // 4. Project Stage (Reshape the data for the frontend log)
+        // Project Stage - Now includes paymentMethod for better logging
         pipeline.push({
             $project: {
-                _id: 0, // Exclude the default _id from the order document
-                
-                // Fields needed by the frontend:
+                _id: 0,
                 productId: '$items.productId',
                 name: '$items.name',
-                category: '$items.productType', // Use productType as the category name
+                size: '$items.size', // Added size for better logging detail
+                category: '$items.productType',
                 quantity: '$items.quantity', 
-                orderId: '$_id', // The original order ID
-                date: '$confirmedAt', // The date the deduction happened
+                orderId: '$_id',
+                orderReference: '$orderReference', // Helpful for searching
+                date: '$confirmedAt',
                 
-                // Optional: Include the Admin who confirmed the order
-                confirmedBy: '$confirmedBy' 
+                // --- Updated for Manual Confirmation Workflow ---
+                paymentMethod: '$paymentMethod', 
+                paymentTxnId: '$paymentTxnId', 
+                confirmedBy: '$confirmedBy'   // This will now be the Admin's ID
             }
         });
 
-        // 5. Sort Stage (Newest deductions first)
-        pipeline.push({
-            $sort: { date: -1 } 
-        });
+        pipeline.push({ $sort: { date: -1 } });
 
-        // Execute the aggregation pipeline on the Order model
         const OrderModel = mongoose.models.Order || mongoose.model('Order');
         const deductionLogs = await OrderModel.aggregate(pipeline);
 
-        // Map the raw productType string to a cleaner display name for the frontend
+        // Cleanup names for the Frontend
         const deductionLogsFormatted = deductionLogs.map(log => ({
             ...log,
-            category: log.category.replace('Collection', '').replace('PreOrder', 'Pre-Order')
+            category: log.category 
+                ? log.category.replace('Collection', '').replace('PreOrder', 'Pre-Order')
+                : 'General'
         }));
 
         res.status(200).json(deductionLogsFormatted);
 
     } catch (error) {
         console.error('Error fetching inventory deduction log:', error);
-        res.status(500).json({ message: 'Failed to retrieve inventory deduction logs.' });
+        res.status(500).json({ message: 'Failed to retrieve logs.' });
     }
 });
 
@@ -4459,88 +5033,71 @@ app.get('/api/admin/inventory/deductions', verifyToken, async (req, res) => {
 app.get('/api/collections/wears', async (req, res) => {
     try {
         const collections = await WearsCollection.find({ isActive: true }) 
-            .select('_id name tag price variations totalStock') // Ensure 'variations' is selected!
+            // 🔥 ADDED 'description' to the select string
+            .select('_id name description tag price variations totalStock') 
             .sort({ createdAt: -1 })
             .lean(); 
 
         const publicCollections = await Promise.all(collections.map(async (collection) => {
             
-            const sizeStockMap = {}; // Will store {S: 10, M: 0, L: 5}
-
-            // --- CRITICAL: Variables for OOS Image Fallback ---
-            // Stores the image URLs (SIGNED) of the very first variation encountered.
+            const sizeStockMap = {}; 
             let fallbackFrontImageUrl = null;
             let fallbackBackImageUrl = null;
-            const PLACEHOLDER_S3_PATH = 'public/placeholder-image-v1.jpg'; // Adjust if path is different
+            const PLACEHOLDER_S3_PATH = 'public/placeholder-image-v1.jpg';
 
-            // --- CRITICAL: Filter Variants and Aggregate Stock ---
             const filteredVariantsWithStock = [];
 
-            for (const v of collection.variations || []) { // Added || [] for safe iteration
-                
-                // 1. SIGN THE VARIATION IMAGES (always needed for the frontend variants array or fallback)
+            for (const v of collection.variations || []) { 
                 const signedFrontUrl = await generateSignedUrl(v.frontImageUrl);
                 const signedBackUrl = await generateSignedUrl(v.backImageUrl);
 
-                // 2. Capture the first signed URL encountered for the OOS fallback
                 if (!fallbackFrontImageUrl && signedFrontUrl) {
                     fallbackFrontImageUrl = signedFrontUrl;
                     fallbackBackImageUrl = signedBackUrl;
                 }
                 
-                // 3. Calculate total stock for THIS specific color (variant)
                 const variantTotalStock = (v.sizes || []).reduce((sum, s) => sum + (s.stock || 0), 0);
                 
-                // 4. ONLY INCLUDE THE VARIANT IF IT HAS STOCK
                 if (variantTotalStock > 0) {
-                    
-                    // 5. Aggregate size stock for the top-level sizeStockMap
                     (v.sizes || []).forEach(s => {
                         const normalizedSize = s.size.toUpperCase().trim();
-                        // Only aggregate if the size itself has stock
                         if (s.stock > 0) {
                             sizeStockMap[normalizedSize] = (sizeStockMap[normalizedSize] || 0) + s.stock;
                         }
                     });
 
-                    // 6. Map and prepare the public variant object (FOR IN-STOCK SELECTION)
                     filteredVariantsWithStock.push({
                         color: v.colorHex,
                         frontImageUrl: signedFrontUrl || 'https://placehold.co/400x400/111111/FFFFFF?text=Front+View+Error',
                         backImageUrl: signedBackUrl || 'https://placehold.co/400x400/111111/FFFFFF?text=Back+View+Error',
-                        // NOTE: Do NOT include sizes/stock here, as the client filters sizes based on sizeStockMap
                     });
                 }
             }
-            // --- END CRITICAL FILTERING ---
 
-            // --- CRITICAL IMAGE FIX: ENSURE A SIGNED FALLBACK URL IS ALWAYS PRESENT ---
             if (!fallbackFrontImageUrl) {
-                // If the variations array was empty or contained no valid URLs, 
-                // sign the generic placeholder path.
                 const signedPlaceholder = await generateSignedUrl(PLACEHOLDER_S3_PATH);
                 fallbackFrontImageUrl = signedPlaceholder;
                 fallbackBackImageUrl = signedPlaceholder;
             }
-            // --- END CRITICAL IMAGE FIX ---
             
             return {
                 _id: collection._id,
                 name: collection.name,
+                description: collection.description, // 🔥 ADDED THIS LINE
                 tag: collection.tag,
                 price: collection.price, 
-                frontImageUrl: fallbackFrontImageUrl,  // <<-- OOS/Fallback Image
-                backImageUrl: fallbackBackImageUrl,    // <<-- OOS/Fallback Image
+                frontImageUrl: fallbackFrontImageUrl,
+                backImageUrl: fallbackBackImageUrl,
                 sizeStockMap: sizeStockMap,
                 availableStock: collection.totalStock, 
-                variants: filteredVariantsWithStock      // <<-- In-Stock variants
+                variants: filteredVariantsWithStock
             };
         }));
 
         res.status(200).json(publicCollections);
     } catch (error) {
         console.error('Error fetching public wear collections:', error);
-        res.status(500).json({ message: 'Server error while fetching collections for homepage.', details: error.message });
+        res.status(500).json({ message: 'Server error.', details: error.message });
     }
 });
 
@@ -4548,41 +5105,32 @@ app.get('/api/collections/wears', async (req, res) => {
 app.get('/api/collections/newarrivals', async (req, res) => {
     try {
         const products = await NewArrivals.find({ isActive: true }) 
-            .select('_id name tag price variations totalStock') 
+            // --- UPDATED: Added 'description' to the select string ---
+            .select('_id name description tag price variations totalStock') 
             .sort({ createdAt: -1 })
             .lean(); 
 
         const publicProducts = await Promise.all(products.map(async (product) => {
             
             const sizeStockMap = {}; 
-            
-            // --- CRITICAL: Variables for OOS Image Fallback ---
             let fallbackFrontImageUrl = null;
             let fallbackBackImageUrl = null;
-            const PLACEHOLDER_S3_PATH = 'public/placeholder-image-v1.jpg'; // Path to your default placeholder
+            const PLACEHOLDER_S3_PATH = 'public/placeholder-image-v1.jpg';
 
-            // --- CRITICAL: Filter Variants and Aggregate Stock ---
             const filteredVariantsWithStock = [];
 
             for (const v of product.variations || []) {
-                
-                // 1. SIGN THE VARIATION IMAGES
                 const signedFrontUrl = await generateSignedUrl(v.frontImageUrl);
                 const signedBackUrl = await generateSignedUrl(v.backImageUrl);
                 
-                // 2. Capture the first signed URL encountered for the OOS fallback (Runs once)
                 if (!fallbackFrontImageUrl && signedFrontUrl) {
                     fallbackFrontImageUrl = signedFrontUrl;
                     fallbackBackImageUrl = signedBackUrl;
                 }
                 
-                // 3. Calculate total stock for THIS specific color (variant)
                 const variantTotalStock = (v.sizes || []).reduce((sum, s) => sum + (s.stock || 0), 0);
                 
-                // 4. ONLY INCLUDE THE VARIANT IF IT HAS STOCK
                 if (variantTotalStock > 0) {
-                    
-                    // 5. Aggregate size stock for the top-level sizeStockMap
                     (v.sizes || []).forEach(s => {
                         const normalizedSize = s.size.toUpperCase().trim();
                         if (s.stock > 0) {
@@ -4590,7 +5138,6 @@ app.get('/api/collections/newarrivals', async (req, res) => {
                         }
                     });
 
-                    // 6. Map and prepare the public variant object
                     filteredVariantsWithStock.push({
                         color: v.colorHex,
                         frontImageUrl: signedFrontUrl || 'https://placehold.co/400x400/111111/FFFFFF?text=Front+View+Error',
@@ -4602,22 +5149,20 @@ app.get('/api/collections/newarrivals', async (req, res) => {
                     });
                 }
             }
-            // --- END CRITICAL FILTERING ---
 
-            // --- CRITICAL IMAGE FIX: Failsafe for Missing Data ---
             if (!fallbackFrontImageUrl) {
                 const signedPlaceholder = await generateSignedUrl(PLACEHOLDER_S3_PATH);
                 fallbackFrontImageUrl = signedPlaceholder;
                 fallbackBackImageUrl = signedPlaceholder;
             }
-            // --- END CRITICAL IMAGE FIX ---
 
             return {
                 _id: product._id,
                 name: product.name,
+                // --- ADDED: Include the description in the final object ---
+                description: product.description || '', 
                 tag: product.tag,
                 price: product.price, 
-                // 💡 OOS/Fallback Images
                 frontImageUrl: fallbackFrontImageUrl,
                 backImageUrl: fallbackBackImageUrl,
                 sizeStockMap: sizeStockMap,
@@ -4637,7 +5182,7 @@ app.get('/api/collections/newarrivals', async (req, res) => {
 app.get('/api/collections/preorder', async (req, res) => {
     try {
         const collections = await PreOrderCollection.find({ isActive: true })
-            .select('_id name tag price totalStock availableDate variations')
+            .select('_id name tag description price totalStock availableDate variations')
             .sort({ createdAt: -1 })
             .lean();
 
@@ -4705,6 +5250,7 @@ app.get('/api/collections/preorder', async (req, res) => {
             return {
                 _id: collection._id,
                 name: collection.name,
+                description: collection.description || '', // 🔑 ADDED: Include description
                 tag: collection.tag,
                 price: collection.price, 
                 sizeStockMap: sizeStockMap, 
@@ -4731,7 +5277,7 @@ app.get('/api/collections/preorder', async (req, res) => {
 app.get('/api/collections/caps', async (req, res) => {
     try {
         const collections = await CapCollection.find({ isActive: true }) 
-            .select('_id name tag price variations totalStock') 
+            .select('_id name tag description price variations totalStock') 
             .sort({ createdAt: -1 })
             .lean(); 
 
@@ -4786,6 +5332,7 @@ app.get('/api/collections/caps', async (req, res) => {
                 _id: collection._id,
                 name: collection.name,
                 tag: collection.tag,
+                description: collection.description || '', // 🔑 ADDED: Include description
                 price: collection.price, 
                 sizeStockMap: {}, 
                 availableSizes: [], 
@@ -5054,7 +5601,6 @@ app.post('/api/users/resend-verification', async (req, res) => {
         res.status(500).json({ message: 'Failed to resend verification code due to a server error.' });
     }
 });
-
 // --- 2. POST /api/users/verify (Account Verification) ---
 app.post('/api/users/verify', async (req, res) => {
     const { email, code } = req.body;
@@ -5065,7 +5611,7 @@ app.post('/api/users/verify', async (req, res) => {
     }
 
     try {
-        // FIX: Explicitly select the hidden fields for the verification check
+        // Explicitly select hidden fields
         const user = await User.findOne({ email })
             .select('+verificationCode +verificationCodeExpires');
 
@@ -5078,20 +5624,18 @@ app.post('/api/users/verify', async (req, res) => {
              return res.status(400).json({ message: 'Account is already verified.' });
         }
         
-        // CRITICAL CHECK: Ensure the hash field exists before comparing
+        // Ensure hash field exists
         if (!user.verificationCode) {
-            console.error(`Verification hash missing for ${email}. User may need to resend code.`);
-            return res.status(400).json({ message: 'No verification code is pending for this user. Please resend the code.' });
+            return res.status(400).json({ message: 'No verification code is pending. Please resend the code.' });
         }
 
         // 2. Check Expiration
         if (new Date() > user.verificationCodeExpires) {
-            return res.status(400).json({ message: 'Verification code has expired. Please request a new one.' });
+            return res.status(400).json({ message: 'Verification code has expired.' });
         }
 
         // 3. Compare Code
         const isMatch = await bcrypt.compare(code, user.verificationCode); 
-
         if (!isMatch) {
             return res.status(401).json({ message: 'Invalid verification code.' });
         }
@@ -5100,46 +5644,72 @@ app.post('/api/users/verify', async (req, res) => {
         await User.updateOne(
             { _id: user._id },
             { 
-                $set: { 
-                    // 🎉 FIXED: Using dot notation to update the nested 'status.isVerified' field
-                    'status.isVerified': true 
-                },
-                // Clear the hash and expiry after successful verification
+                $set: { 'status.isVerified': true },
                 $unset: { verificationCode: "", verificationCodeExpires: "" }
             }
         );
+
+        // ⭐ NEW: GENERATE AUTHENTICATION SESSION FOR AUTO-REDIRECT
+        // This allows the frontend to skip the login page.
         
-        console.log(`User ${email} successfully verified.`);
+        // Replace 'generateUserAccessToken' with your actual JWT signing function
+        const tokenPayload = { id: user._id, email: user.email };
+        const accessToken = generateUserAccessToken(tokenPayload); // Ensure this function is defined in your app
+
+        // Optional: Set HTTP-Only Refresh Cookie if your architecture uses them
+        const refreshToken = generateUserRefreshToken(tokenPayload);
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'Strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        });
+
+        console.log(`User ${email} verified and session generated.`);
         
-        res.status(200).json({ message: 'Account successfully verified. You can now log in.' });
+        // 5. Send Success Response with Token
+        res.status(200).json({ 
+            message: 'Account verified successfully!',
+            accessToken: accessToken, // Frontend will save this to localStorage
+            user: {
+                id: user._id,
+                email: user.email,
+                firstName: user.firstName
+            }
+        });
 
     } catch (error) {
         console.error("User verification error:", error);
         res.status(500).json({ message: 'Server error during verification.' });
     }
 });
-
 // =========================================================
-// 2. POST /api/users/login (Login) - MODIFIED
+// 2. POST /api/users/login (FINAL STABILIZED VERSION)
 // =========================================================
 app.post('/api/users/login', async (req, res) => {
-    // ⚠️ New: Extract localCartItems from the request body 
-    // The frontend should send this payload on login
-    const { email, password, localCartItems } = req.body; 
+    // 1. Destructure with defaults to prevent "undefined" errors
+    const { email, password, localCartItems = [] } = req.body; 
 
     try {
-        // NOTE: Ensure you import and have access to the logActivity function here!
-        // const { logActivity } = require('./utils/activityLogger');
-        
+        // 2. Basic Validation
+        if (!email || !password) {
+            return res.status(400).json({ message: 'Email and password are required.' });
+        }
+
+        // 3. Find User (select password explicitly for comparison)
         const user = await User.findOne({ email }).select('+password').lean();
-        
-        // 1. Check for user existence and password match
-        if (!user || !(await bcrypt.compare(password, user.password))) {
+        if (!user) {
             return res.status(401).json({ message: 'Invalid email or password.' });
         }
-        
-        // 2. Check verification status
-        if (!user.status.isVerified) {
+
+        // 4. Compare Password
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ message: 'Invalid email or password.' });
+        }
+
+        // 5. Check verification status
+        if (!user.status?.isVerified) {
             return res.status(403).json({ 
                 message: 'Account not verified. Please verify your email to log in.',
                 needsVerification: true,
@@ -5147,86 +5717,122 @@ app.post('/api/users/login', async (req, res) => {
             });
         }
 
-        // 3. Create the JWT token
-        const token = jwt.sign(
-            { id: user._id, email: user.email, role: user.status.role || 'user' }, 
-            JWT_SECRET, 
-            { expiresIn: '24h' } 
-        );
-        
-        // --- 🔑 Set the Token as an HTTP-only Cookie ---
-        const isProduction = process.env.NODE_ENV === 'production';
-        
-        res.cookie('outflickzToken', token, {
-            httpOnly: true,
-            secure: isProduction,
-            sameSite: isProduction ? 'strict' : 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000 
-        });
-        // -------------------------------------------------
-
-        // 4. ✨ Merge Local Cart Items into the Database Cart ✨
-        if (localCartItems && Array.isArray(localCartItems) && localCartItems.length > 0) {
-            // This function handles finding the user's permanent cart and merging/updating quantities
-            await mergeLocalCart(user._id, localCartItems);
-            console.log(`Cart merged for user: ${user._id}`);
-        }
-        // -----------------------------------------------------------------------
-        
-        // 5. 🔔 CRITICAL NEW STEP: Log the successful login event 🔔
-        // Ensure you have a 'logActivity' function imported and defined!
-        // This log will appear in the Admin Dashboard.
+        // 6. Generate Tokens
+        // We use a try-catch specifically here to catch JWT_SECRET issues
+        let accessToken, refreshToken;
         try {
-            await logActivity(
-                'LOGIN',
-                `User **${user.email}** successfully logged in.`,
-                user._id,
-                { ipAddress: req.ip } // Adding context data like IP is often useful
-            );
-        } catch (logErr) {
-            console.warn('Activity logging failed (login success was not affected):', logErr);
-            // This is non-critical, so we continue without erroring out the main request
+            const tokenPayload = { id: user._id, email: user.email, role: 'user' }; 
+            accessToken = generateUserAccessToken(tokenPayload);
+            refreshToken = generateUserRefreshToken(tokenPayload);
+        } catch (jwtError) {
+            console.error("JWT Signing Error:", jwtError);
+            return res.status(500).json({ message: "Internal server error: Token generation failed." });
         }
-        // -----------------------------------------------------------------------
 
-        // 6. Send the successful JSON response 
-        delete user.password; 
+        // 7. Set Secure Cookie for Netlify
+        res.cookie('userRefreshToken', refreshToken, {
+            httpOnly: true,
+            secure: true,      
+            sameSite: 'None',  
+            path: '/',         
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        });
 
-        res.status(200).json({ 
+        // 8. Handle Cart & Logging in the background (Non-blocking)
+        // We DON'T await these if they aren't critical for the response
+        if (Array.isArray(localCartItems) && localCartItems.length > 0) {
+            mergeLocalCart(user._id, localCartItems)
+                .catch(err => console.error("Non-fatal Cart Merge Error:", err));
+        }
+
+        logActivity('LOGIN', `User ${user.email} logged in.`, user._id, { ipAddress: req.ip })
+            .catch(err => console.warn('Activity logging failed:', err));
+
+        // 9. Prepare Clean User Response
+        const { password: _, ...userWithoutPassword } = user;
+
+        // 10. Send Success
+        return res.status(200).json({ 
             message: 'Login successful',
-            token: token,
-            user: user
+            accessToken: accessToken, 
+            user: userWithoutPassword
         });
 
     } catch (error) {
-        console.error("User login error:", error);
-        res.status(500).json({ message: 'Server error during login.' });
+        // This catches database connection issues or logic crashes
+        console.error("CRITICAL LOGIN CRASH:", error);
+        return res.status(500).json({ 
+            message: 'An unexpected server error occurred.',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined 
+        });
     }
 });
 
-// 3. GET /api/users/account (Fetch Profile - Protected)
-app.get('/api/users/account', verifyUserToken, async (req, res) => {
+// --- Updated GET /api/users/account ---
+app.get('/api/users/account', requireUserLogin, async (req, res) => {
     try {
-        // req.userId is set by verifyUserToken middleware
-        const user = await User.findById(req.userId).lean();
+        // Find user and explicitly select the nested objects from your DB schema
+        const user = await User.findById(req.userId)
+            .select('email profile address status membership')
+            .lean();
 
         if (!user) {
-            return res.status(404).json({ message: 'User not found.' });
+            // If the token was valid but the user is gone from DB
+            return res.status(404).json({ message: 'User account no longer exists.' });
         }
 
-        // --- FIX APPLIED HERE: Added the 'address' field ---
+        // Return the exact structure your updateDOM() function expects
         res.status(200).json({
             id: user._id,
             email: user.email,
-            profile: user.profile,
-            status: user.status,
-            membership: user.membership,
-            address: user.address // <--- THIS LINE IS ADDED/CORRECTED
+            profile: user.profile || {},     // firstName, lastName, phone, whatsapp
+            address: user.address || {},     // street, city, state, zip, country
+            status: user.status || {},       // isVerified, role
+            membership: user.membership || {} // memberSince, lastUpdated
         });
         
     } catch (error) {
         console.error("Fetch profile error:", error);
-        res.status(500).json({ message: 'Failed to retrieve user profile.' });
+        res.status(500).json({ message: 'Internal server error retrieving profile.' });
+    }
+});
+
+// POST /api/users/refresh
+app.post('/api/users/refresh', async (req, res) => {
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    // 1. Get Refresh Token from the secure cookie
+    const refreshToken = req.cookies.userRefreshToken; 
+    
+    if (!refreshToken) {
+        return res.status(401).json({ message: 'No valid session found.' });
+    }
+
+    try {
+        // 2. Verify the Refresh Token
+        const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+        
+        if (decoded.role !== 'user') {
+            throw new Error('Invalid token role for user refresh.');
+        }
+
+        // 3. Generate a NEW, short-lived Access Token
+        const newAccessToken = generateUserAccessToken({ id: decoded.id, email: decoded.email });
+
+        // 4. Send the new Access Token back
+        res.status(200).json({ accessToken: newAccessToken });
+
+    } catch (err) {
+        // 5. If refresh token is expired/invalid, clear it and force re-login
+        const isSecure = isProduction && req.headers['x-forwarded-proto'] === 'https';
+
+        res.clearCookie('userRefreshToken', { 
+            httpOnly: true, 
+            secure: isSecure,
+            sameSite: 'None',
+        });
+        
+        res.status(401).json({ message: 'Session expired. Please log in again.' });
     }
 });
 
@@ -5312,37 +5918,42 @@ app.put('/api/users/address', verifyUserToken, async (req, res) => {
         return res.status(500).json({ message: 'Server error: Could not save address. Please try again.' });
     }
 });
-
 // =========================================================
-// 3. POST /api/users/logout (Logout) - NEW
+// 3. POST /api/users/logout (Logout) - CORRECTED
 // =========================================================
 /**
  * Clears the HTTP-only session cookie, effectively logging the user out.
- * This endpoint is designed to be called by the client's handleLogout function.
  */
 app.post('/api/users/logout', (req, res) => {
     try {
-        // Use res.clearCookie() to tell the browser to immediately expire the cookie.
-        // It's important to use the same cookie name ('outflickzToken').
-        // We set the same secure and sameSite flags for maximum compatibility in clearing.
         const isProduction = process.env.NODE_ENV === 'production';
 
-        res.clearCookie('outflickzToken', {
+        // 💡 FIX 1: Use the correct cookie name: 'userRefreshToken'
+        // 💡 FIX 2: Use the cross-origin security flags (secure: true, sameSite: 'None')
+        //            to successfully clear a cookie that was set with these flags.
+        res.clearCookie('userRefreshToken', {
             httpOnly: true,
-            secure: isProduction,
-            sameSite: isProduction ? 'strict' : 'lax',
+            // Must be true in production to support SameSite: 'None'
+            secure: isProduction, 
+            // Must be 'None' to successfully clear a cookie set with 'None'
+            sameSite: 'None', 
         });
 
-        // Send a success response. The client side will handle the redirect.
+        // 💡 ENHANCEMENT: You may also want to explicitly check and clear 
+        // the refresh token used in the refresh route to ensure full session invalidation.
+        
+        console.log("User logged out. Session cookie cleared.");
+        
+        // Send a success response.
         res.status(200).json({ 
             message: 'Logout successful. Session cookie cleared.'
         });
 
     } catch (error) {
-        // Even if an error occurs (e.g., in logging), the cookie clearance often still works.
-        // We send a success response anyway to ensure the client proceeds with the redirect.
         console.error("Logout error:", error);
-        res.status(500).json({ message: 'Server error during logout process.' });
+        // We still send 200 to ensure the client-side UI updates correctly, 
+        // as the cookie clearance usually happens at the header level before any try/catch logic.
+        res.status(200).json({ message: 'Logout successful despite minor server error.' });
     }
 });
 
@@ -5491,63 +6102,44 @@ app.put('/api/users/change-password', verifyUserToken, async (req, res) => {
     }
 });
 
-// 4. GET /api/auth/status (Check Authentication Status - Protected)
-app.get('/api/auth/status', verifyUserToken, (req, res) => {
-    // If verifyUserToken successfully executed, it means:
-    // 1. The request had a token/session.
-    // 2. The token/session was valid.
-    // 3. The user is logged in.
+app.get('/api/auth/status', (req, res) => {
+    // --- 1. Attempt Access Token Verification (The immediate fix for the profile click) ---
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.split(' ')[1];
+        try {
+            // Verify the Access Token from the header
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            
+            // SUCCESS via Access Token: The user can access the profile.
+            console.log('DEBUG STATUS: Access Token verification successful.');
+            return res.status(200).json({ message: 'Authenticated via Access Token', isAuthenticated: true });
+            
+        } catch (err) {
+            console.warn('DEBUG STATUS: Access Token expired/invalid. Checking session cookie...');
+            // Fall through to cookie check
+        }
+    }    
+    const refreshToken = req.cookies.userRefreshToken; 
     
-    // We don't need to query the database here.
-    // We just return a success status.
-    res.status(200).json({ message: 'Authenticated', isAuthenticated: true });
-});
-
-// =========================================================
-// NEW: POST /api/orders/calculate-buy-now - Calculate Totals for Single Item (Buy Now/Pre-Order)
-// =========================================================
-app.post('/api/orders/calculate-buy-now', verifyUserToken, async (req, res) => {
-    // This endpoint calculates totals for a single item passed in the request body, 
-    // simulating a checkout from the product page (Buy Now).
-
-    // ⭐ CRITICAL FIX: Ensure productType is included as it is required by the OrderItemSchema
-    const { productId, name, productType, size, color, price, quantity, imageUrl, variationIndex, variation } = req.body;
-
-    // 1. Basic Input Validation
-    if (!productId || !name || !productType || !size || !price || !quantity || price <= 0 || quantity < 1 || variationIndex === undefined || variationIndex === null) {
-        return res.status(400).json({ message: 'Missing or invalid item details, including required productType or variation information, for calculation.' });
+    // NOTE: This is the check that currently fails due to the missing cookie.
+    if (!refreshToken) {
+        console.warn('DEBUG STATUS: Final Auth Check Failed. No Access Token and no Refresh Token cookie.');
+        return res.status(401).json({ message: 'Authentication failed. No valid token or session cookie.' });
     }
 
-    // 2. Construct the temporary cart item array, ensuring all necessary fields are present
-    // Note: For Cap items, 'size' will contain the variation identifier (e.g., color hex) as fixed on the client-side.
-    const temporaryItem = {
-        productId,
-        name,
-        productType, 
-        size,
-        color: color || 'N/A',
-        price, // This price acts as 'priceAtTimeOfPurchase' for the calculation
-        quantity,
-        imageUrl,
-        variationIndex,
-        // Use provided variation string, or construct one if only color/index is available
-        variation: variation || (color ? `Color: ${color}` : `Var Index: ${variationIndex}`),
-    };
-
     try {
-        // 3. Calculate totals using the existing function (which handles shipping/tax rules)
-        // Since this is for Buy Now, we pass only the single item in an array.
-        const totals = calculateCartTotals([temporaryItem]); 
-
-        // 4. Respond with the single item (in an array) and the calculated totals
-        res.status(200).json({
-            items: [temporaryItem], // Return the item in an array structure consistent with the cart API
-            ...totals,
-        });
-
-    } catch (error) {
-        console.error('Error calculating Buy Now totals:', error);
-        res.status(500).json({ message: 'Failed to calculate order totals.' });
+        // Verify the Refresh Token from the cookie
+        const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+        
+        // SUCCESS via Refresh Token Cookie: Should be used by secureUserFetch refresh calls
+        console.log('DEBUG STATUS: Authentication via Refresh Token cookie successful.');
+        return res.status(200).json({ message: 'Authenticated via Session Cookie', isAuthenticated: true });
+        
+    } catch (err) {
+        // Failed all checks.
+        console.error("DEBUG STATUS: Session Cookie verification failed:", err.message);
+        return res.status(401).json({ message: 'Session cookie invalid or expired. Re-login required.' });
     }
 });
 
@@ -5574,17 +6166,17 @@ app.post('/api/users/cart', verifyUserToken, async (req, res) => {
     }
 
     const newItem = {
-        productId,
-        name,
-        productType,
-        size,
-        color: color,
-        price,
-        quantity,
-        imageUrl,
-        variationIndex,
-        variation: variation || (color ? `Color: ${color}` : `Var Index: ${variationIndex}`), 
-    };
+    productId,
+    name,
+    productType: productType || 'Product', 
+    size,
+    color: color,
+    price,
+    quantity,
+    imageUrl,
+    variationIndex,
+    variation: variation || (color ? `Color: ${color}` : `${productType} Var: ${variationIndex}`), 
+};
 
     try {
         let cart = await Cart.findOne({ userId });
@@ -5792,113 +6384,218 @@ app.delete('/api/users/cart', verifyUserToken, async (req, res) => {
     }
 });
 
-// 7. POST /api/paystack/webhook - Handle Paystack Notifications
+// --- 1. WEBHOOK ENDPOINT ---
 app.post('/api/paystack/webhook', async (req, res) => {
-    // 1. Verify Webhook Signature (Security Crucial)
-    // NOTE: req.body must be the raw buffer for signature calculation!
-    const secret = PAYSTACK_SECRET_KEY;
-    const hash = crypto.createHmac('sha512', secret)
-        .update(req.body) 
-        .digest('hex');
+    const secret = process.env.PAYSTACK_SECRET_KEY;
+    const paystackSignature = req.headers['x-paystack-signature'];
     
-    if (hash !== req.headers['x-paystack-signature']) {
-        console.error('Webhook verification failed: Invalid signature.');
-        return res.status(401).send('Unauthorized access.');
-    }
+    const hash = crypto.createHmac('sha512', secret)
+                       .update(JSON.stringify(req.body))
+                       .digest('hex');
+    
+    if (hash !== paystackSignature) return res.status(401).send('Unauthorized');
 
-    // Convert raw body buffer to JSON object for processing
-    // NOTE: If using Express, ensure you have middleware to handle the raw body buffer for verification
-    const event = JSON.parse(req.body.toString());
-
-    // 2. Check Event Type
-    if (event.event !== 'charge.success') {
-        return res.status(200).send(`Event type ${event.event} received but ignored.`);
-    }
-
+    const event = req.body;
     const transactionData = event.data;
-    const orderReference = transactionData.reference;
+    const OrderModel = mongoose.models.Order || mongoose.model('Order');
+
+    if (event.event === 'charge.success') {
+        try {
+            const updatedOrder = await OrderModel.findOneAndUpdate(
+                { orderReference: transactionData.reference },
+                {
+                    paymentStatus: 'Paid',           
+                    status: 'Processing',            
+                    amountPaidKobo: transactionData.amount, 
+                    paymentTxnId: transactionData.reference,
+                    isPaystackPending: false,        
+                    $push: { notes: `Paystack Webhook Verified (${new Date().toLocaleString()})` }
+                },
+                { new: true }
+            );
+
+            if (updatedOrder) {
+                // ⭐ CORRECTED: Pass Email AND Order Object
+                // If Guest, use guestEmail. If logged in, use shipping address email.
+                const targetEmail = updatedOrder.guestEmail || updatedOrder.shippingAddress?.email;
+                
+                try {
+                    await  sendAdminOrderNotification(targetEmail, updatedOrder);
+                    console.log("✅ Admin Notified via Webhook");
+                } catch (emailErr) {
+                    console.error("❌ Admin Email Error (Webhook):", emailErr);
+                }
+                
+                return res.status(200).send('Success');
+            }
+        } catch (error) {
+            return res.status(500).send('Internal Error'); 
+        }
+    }
+    res.status(200).send('Acknowledged');
+});
+
+// --- 2. MANUAL VERIFY ROUTE ---
+app.get('/api/orders/verify/:reference', async (req, res) => {
+    const { reference } = req.params;
+    const OrderModel = mongoose.models.Order || mongoose.model('Order');
 
     try {
-        // 3. Verify Transaction Status with Paystack (Double Check Security)
-        const verificationResponse = await fetch(`${PAYSTACK_API_BASE_URL}/transaction/verify/${orderReference}`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${PAYSTACK_SECRET_KEY}`,
+        const response = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
+            headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` }
+        });
+        const data = await response.json();
+
+        if (data.status && data.data.status === 'success') {
+            const updated = await OrderModel.findOneAndUpdate(
+                { orderReference: reference },
+                { 
+                    paymentStatus: 'Paid', 
+                    status: 'Processing', 
+                    amountPaidKobo: data.data.amount,
+                    isPaystackPending: false,
+                    paidAt: new Date()
+                },
+                { new: true }
+            );
+
+            if (updated) {
+                // ⭐ REMOVED the crashing call to frontend helper
+                // The frontend verifyPayment() function will now trigger the notification 
+                // using the frontend helper after it receives this 200 response.
+                
+                console.log("✅ Order updated to Paid in DB");
+
+                return res.status(200).json({ 
+                    message: 'Verified', 
+                    status: 'Paid', 
+                    orderId: updated._id 
+                });
             }
-        });
-
-        const verificationData = await verificationResponse.json();
-
-        if (verificationData.status !== true || verificationData.data.status !== 'success') {
-            console.error('Transaction verification failed via API:', verificationData);
-            await Order.findOne({ orderReference })
-                .then(order => order && Order.findByIdAndUpdate(order._id, { status: 'Verification Failed' }));
-            return res.status(200).send('Transaction status not success upon verification.');
         }
-
-        const verifiedAmountKobo = verificationData.data.amount; // amount in kobo
-        
-        // 4. Find the corresponding Order using the reference
-        const order = await Order.findOne({ orderReference });
-
-        if (!order) {
-            console.error('Order not found for reference:', orderReference);
-            return res.status(404).send('Order not found.');
-        }
-
-        // 5. Final Checks (Amount and Status Check)
-        if (order.amountPaidKobo !== verifiedAmountKobo) {
-            console.error(`Amount mismatch for order ${order._id}. Expected: ${order.amountPaidKobo}, Received: ${verifiedAmountKobo}`);
-            await Order.findByIdAndUpdate(order._id, { status: 'Amount Mismatch (Manual Review)' });
-            return res.status(200).send('Amount mismatch, requires manual review.');
-        }
-
-        if (order.status === 'Paid') {
-            return res.status(200).send('Order already processed.');
-        }
-
-        // 6. Update Order Status and Clear Cart
-        // Perform the update first to persist the crucial status change
-        await Order.findByIdAndUpdate(order._id, {
-            status: 'Paid',
-            paymentTxnId: transactionData.id,
-            paidAt: new Date(),
-        });
-
-        // Clear the user's cart after successful payment
-        await Cart.findOneAndUpdate(
-            { userId: order.userId },
-            { items: [], updatedAt: Date.now() }
-        );
-        
-        // 7. CRITICAL: SEND CONFIRMATION EMAIL
-        // We need the full order object for the email template
-        const updatedOrder = await Order.findById(order._id); 
-        if (updatedOrder) {
-            await sendOrderConfirmationEmail(updatedOrder, 'paid'); 
-        } else {
-            console.error(`Could not re-fetch order ${order._id} for email.`);
-        }
-
-        console.log(`Order ${order._id} successfully marked as Paid, cart cleared, and confirmation email triggered.`);
-        
-        // 8. Success response to Paystack
-        res.status(200).send('Webhook received and order processed successfully.');
-
+        res.status(400).json({ message: 'Payment verification failed' });
     } catch (error) {
-        console.error('Internal error processing webhook:', error);
-        // It is generally safe to return 200 to the webhook provider even on failure
-        // so they stop retrying, provided you log the failure for manual review.
-        res.status(500).send('Internal Server Error.'); 
+        console.error("Verify Error:", error);
+        // Ensure we send JSON even on error so the frontend doesn't see "E"
+        res.status(500).json({ message: "Internal Server Error" });
     }
 });
+
+app.post('/api/orders/place/paystack', verifyUserToken, async (req, res) => {
+    // 1. Identify if User or Guest
+    const userId = req.userId || null;
+    const { 
+        shippingAddress, 
+        totalAmount, 
+        subtotal, 
+        shippingFee, 
+        tax, 
+        orderItems, 
+        email: incomingEmail, // Extract email from frontend
+        isGuest: incomingIsGuest // Extract isGuest flag from frontend
+    } = req.body;
+
+    const isGuest = !userId || incomingIsGuest === true || incomingIsGuest === 'true';
+
+    try {
+        const sanitizedShipping = typeof shippingAddress === 'string' ? JSON.parse(shippingAddress) : shippingAddress;
+        let rawItems = typeof orderItems === 'string' ? JSON.parse(orderItems) : orderItems;
+
+        // 2. Guest items come from the request, not the database Cart model
+        if (!rawItems || (Array.isArray(rawItems) && rawItems.length === 0)) {
+            if (!isGuest) {
+                const userCart = await Cart.findOne({ userId }).lean();
+                rawItems = userCart?.items || [];
+            }
+        }
+
+        if (!rawItems || rawItems.length === 0) return res.status(400).json({ message: 'Cart is empty.' });
+
+        const finalOrderItems = await Promise.all(rawItems.map(async (item) => {
+            const allowedCollections = ['WearsCollection', 'CapCollection', 'NewArrivals', 'PreOrderCollection'];
+            let validatedType = item.productType;
+            let typeIsCorrect = false;
+
+            for (const col of allowedCollections) {
+                const Model = getProductModel(col);
+                if (await Model.exists({ _id: item.productId })) {
+                    validatedType = col;
+                    typeIsCorrect = true;
+                    break;
+                }
+            }
+            if (!typeIsCorrect) throw new Error(`Product ${item.productId} not found.`);
+
+            return {
+                productId: item.productId,
+                name: item.name,
+                imageUrl: item.imageUrl,
+                productType: validatedType,
+                quantity: parseInt(item.quantity),
+                priceAtTimeOfPurchase: parseFloat(item.price || item.priceAtTimeOfPurchase),
+                variationIndex: parseInt(item.variationIndex) || 1, 
+                size: item.size,
+                color: item.color,
+                variation: item.variation
+            };
+        }));
+
+        const orderRef = `outflickz_${Date.now()}_${Math.floor(Math.random() * 1000)}`; 
+
+        // 3. Prepare order payload following schema rules
+        const orderPayload = {
+            userId: userId,
+            isGuest: isGuest,
+            items: finalOrderItems, 
+            shippingAddress: sanitizedShipping,
+            totalAmount: parseFloat(totalAmount),
+            subtotal: parseFloat(subtotal || 0),
+            shippingFee: parseFloat(shippingFee || 0),
+            tax: parseFloat(tax || 0),
+            status: 'Pending',
+            paymentStatus: 'Awaiting Payment', 
+            paymentMethod: 'Paystack',
+            orderReference: orderRef,
+            isPaystackPending: true,
+            amountPaidKobo: 0, 
+            paymentTxnId: orderRef, 
+        };
+
+        // ⭐ CRITICAL: Provide guestEmail if userId is null
+        if (isGuest) {
+            orderPayload.guestEmail = incomingEmail || (sanitizedShipping && sanitizedShipping.email);
+        }
+
+        // CREATE INITIAL RECORD
+        const newOrder = await Order.create(orderPayload);
+
+        // 4. Determine which email to return to frontend Paystack pop-up
+        let customerEmailForPaystack = incomingEmail;
+        if (!isGuest) {
+            const user = await User.findById(userId).select('email');
+            customerEmailForPaystack = user?.email;
+        }
+
+        res.status(201).json({
+            message: 'Order initialized.',
+            orderId: newOrder._id,
+            orderReference: newOrder.orderReference,
+            totalAmount: newOrder.totalAmount,
+            email: customerEmailForPaystack,
+            isGuest: isGuest
+        });
+
+    } catch (error) {
+        console.error('🔴 Order Creation Error:', error.message);
+        res.status(500).json({ message: error.message });
+    }
+});
+
 // =========================================================
 // 8. POST /api/notifications/admin-order-email - Send Notification to Admin
-// This is typically called by the client AFTER a successful payment/order creation.
+// Modified to include WhatsApp Contact Button for Admin
 // =========================================================
 app.post('/api/notifications/admin-order-email', async (req, res) => {
-    
-    // The payload is sent as JSON from the client-side 'sendAdminOrderNotification' function
     const { 
         orderId, 
         totalAmount, 
@@ -5906,7 +6603,7 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
         shippingDetails, 
         items, 
         adminEmail,
-        paymentReceiptUrl, // The URL from B2/DB
+        paymentReceiptUrl, 
         subtotal,
         shippingFee,
         tax
@@ -5918,238 +6615,153 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
     }
 
     try {
-        // --- STEP 1: Prepare Attachments from B2 ---
+        // --- STEP 1: WhatsApp Logic ---
+        // Clean phone number (remove spaces, +, dashes) for the wa.me API
+        const rawPhone = shippingDetails.phone || '';
+        const cleanPhone = rawPhone.replace(/\D/g, ''); 
+        // Create the WhatsApp link with a pre-filled message
+        const whatsappUrl = cleanPhone ? `https://wa.me/${cleanPhone}?text=Hello%20from%20Outflickz%20Admin.%20Regarding%20your%20Order%20%23${orderId}` : null;
+
+        // --- STEP 2: Prepare Attachments from B2 ---
         const attachments = [];
         let attachmentFileName = null; 
         
-        // Only attempt to attach if it's a Bank Transfer AND we have a B2 URL
         if (paymentMethod === 'Bank Transfer' && paymentReceiptUrl) {
-            
             try {
-                // a. Get the file key (path inside the bucket)
                 const fileKey = getFileKeyFromUrl(paymentReceiptUrl);
-
                 if (fileKey) {
-                    console.log(`Attempting to download receipt file: ${fileKey}`);
-
-                    // b. Create the GetObject command
                     const getObjectCommand = new GetObjectCommand({
                         Bucket: IDRIVE_BUCKET_NAME,
                         Key: fileKey,
                     });
-
-                    // c. Send the command and get the response stream
                     const response = await s3Client.send(getObjectCommand);
-
-                    // d. Set content type and filename
                     const contentType = response.ContentType || 'application/octet-stream';
-                    const keyParts = fileKey.split('/');
-                    const suggestedFilename = keyParts[keyParts.length - 1] || 'payment-receipt.jpg'; 
-                    
-                    // e. Convert stream to Buffer
+                    const suggestedFilename = fileKey.split('/').pop() || 'payment-receipt.jpg'; 
                     const buffer = await streamToBuffer(response.Body);
 
-                    // f. Add to attachments array (Nodemailer format)
                     attachments.push({
                         filename: suggestedFilename,
                         content: buffer,
                         contentType: contentType,
                     });
-
                     attachmentFileName = suggestedFilename; 
-                    console.log(`Receipt attached successfully: ${suggestedFilename}`);
-                } else {
-                    console.warn(`[Admin Email] Could not extract file key from URL: ${paymentReceiptUrl}. Skipping receipt attachment.`);
                 }
             } catch (downloadError) {
-                console.error(`[Admin Email] Failed to download receipt from B2:`, downloadError.message);
+                console.error(`[Admin Email] Failed to download receipt:`, downloadError.message);
             }
         }
-        // --- END: STEP 1 ---
 
-        // 2. Format the Email Content (HTML)
-        const paymentStatus = (paymentMethod === 'Paystack/Card') ? 'Payment Confirmed (Paystack)' : 'Payment Awaiting Verification (Bank Transfer)';
+        // --- STEP 3: Format the Email Content ---
+        const paymentStatus = (paymentMethod === 'Paystack/Card' || paymentMethod === 'Paystack') 
+            ? 'Payment Confirmed (Paystack)' 
+            : 'Payment Awaiting Verification (Bank Transfer)';
         
-        // --- Item List HTML ---
         const itemDetailsHtml = items.map(item => `
             <tr>
-                <td style="padding: 12px 0 12px 0; border-bottom: 1px solid #eee; font-size: 14px; color: #333;">
+                <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-size: 14px; color: #333;">
                     <table border="0" cellpadding="0" cellspacing="0">
                         <tr>
                             <td style="padding-right: 10px;">
-                                <img src="${item.imageUrl || 'https://placehold.co/40x40/f7f7f7/999?text=X'}" alt="Product" width="40" height="40" style="display: block; border: 1px solid #ddd; border-radius: 4px;">
+                                <img src="${item.imageUrl || 'https://placehold.co/40x40/f7f7f7/999?text=X'}" width="40" height="40" style="display: block; border: 1px solid #ddd; border-radius: 4px;">
                             </td>
-                            <td>
-                                ${item.name || 'N/A'}
-                            </td>
+                            <td>${item.name || 'N/A'}</td>
                         </tr>
                     </table>
                 </td>
-                
-                <td style="padding: 12px 0 12px 0; border-bottom: 1px solid #eee; font-size: 12px; color: #555;">
+                <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-size: 12px; color: #555;">
                     <span style="display: block;">Size: <strong>${item.size || 'N/A'}</strong></span>
                     <span style="display: block; margin-top: 2px;">Color: ${item.color || 'N/A'}</span>
                 </td>
-                
-                <td style="padding: 12px 0 12px 0; border-bottom: 1px solid #eee; font-size: 14px; color: #333; text-align: center;">
-                    ${item.quantity}
-                </td>
-                
-                <td style="padding: 12px 0 12px 0; border-bottom: 1px solid #eee; font-size: 14px; color: #333; text-align: right;">
-                    ₦${(item.price * item.quantity).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-size: 14px; color: #333; text-align: center;">${item.quantity}</td>
+                <td style="padding: 12px 0; border-bottom: 1px solid #eee; font-size: 14px; color: #333; text-align: right;">
+                    ₦${(parseFloat(item.price || item.priceAtTimeOfPurchase) * item.quantity).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </td>
             </tr>
         `).join('');
 
-        // --- Attachment Confirmation Block ---
+        const whatsappButtonHtml = whatsappUrl ? `
+            <div style="margin: 20px 0; text-align: center;">
+                <a href="${whatsappUrl}" style="background-color: #25D366; color: white; padding: 14px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; font-size: 16px;">
+                    💬 Contact Customer via WhatsApp
+                </a>
+                <p style="font-size: 12px; color: #666; margin-top: 8px;">Direct Number: ${rawPhone}</p>
+            </div>
+        ` : `<p style="color: #d9534f; text-align: center;">No valid phone number provided for WhatsApp.</p>`;
+
         const attachmentConfirmationHtml = attachmentFileName ? `
-            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 30px; border-collapse: collapse; border: 1px solid #c0e6c0; border-radius: 4px;">
+            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 30px; border: 1px solid #c0e6c0; border-radius: 4px; background-color: #e0ffe0;">
                 <tr>
-                    <td style="padding: 15px; background-color: #e0ffe0; font-size: 14px; color: #006400; font-weight: bold; text-align: center;">
-                        ✅ Payment Receipt Proof Attached: 
-                        <span style="font-weight: normal; color: #333;">${attachmentFileName}</span>
-                        <div style="font-size: 12px; color: #555; margin-top: 5px;">
-                            (Please check the email attachment for the file.)
-                        </div>
+                    <td style="padding: 15px; font-size: 14px; color: #006400; font-weight: bold; text-align: center;">
+                        ✅ Receipt Attached: ${attachmentFileName}
                     </td>
                 </tr>
             </table>
-        ` : (paymentMethod === 'Bank Transfer' ? `
-            <p style="margin-top: 30px; font-size: 14px; color: #FF4500; font-weight: bold; text-align: center;">
-                ⚠️ Bank Transfer Payment Selected: Receipt attachment failed or URL was missing.
-            </p>
-        ` : '');
+        ` : (paymentMethod === 'Bank Transfer' ? `<p style="color: #FF4500; font-weight: bold; text-align: center;">⚠️ Receipt attachment failed.</p>` : '');
 
-        // --- Financial Breakdown Summary (Using the newly included fields) ---
-        const totalAmountNum = parseFloat(totalAmount);
-        const subtotalNum = parseFloat(subtotal || (totalAmountNum - (shippingFee || 0) - (tax || 0)));
-        const shippingFeeNum = parseFloat(shippingFee || 0);
-        const taxNum = parseFloat(tax || 0);
-
-        const financialSummaryHtml = `
-            <tr>
-                <td style="padding: 10px 0; font-size: 14px; color: #555; width: 50%;">Subtotal:</td>
-                <td style="padding: 10px 0; font-size: 14px; color: #000000; text-align: right;">₦${subtotalNum.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-            </tr>
-            <tr>
-                <td style="padding: 5px 0; font-size: 14px; color: #555;">Shipping Fee:</td>
-                <td style="padding: 5px 0; font-size: 14px; color: #000000; text-align: right;">₦${shippingFeeNum.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-            </tr>
-            <tr>
-                <td style="padding: 5px 0 20px 0; font-size: 14px; color: #555; border-bottom: 1px dashed #ccc;">Tax:</td>
-                <td style="padding: 5px 0 20px 0; font-size: 14px; color: #000000; text-align: right; border-bottom: 1px dashed #ccc;">₦${taxNum.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-            </tr>
-        `;
-        
-        // The main HTML structure remains mostly the same, inserting the new breakdown.
         const emailHtml = `
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>New Outfulickz Order</title>
     <style>
-        @media only screen and (max-width: 600px) {
-            .container { width: 100% !important; padding: 0 10px !important; }
-            .header-logo { width: 150px !important; height: auto !important; }
-            .item-table td { display: table-cell !important; }
-        }
+        @media only screen and (max-width: 600px) { .container { width: 100% !important; } }
     </style>
 </head>
 <body style="margin: 0; padding: 0; background-color: #f4f4f4; font-family: Arial, sans-serif;">
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
         <tr>
             <td align="center" style="padding: 20px 0;">
                 <table border="0" cellpadding="0" cellspacing="0" width="600" class="container" style="background-color: #ffffff; border: 1px solid #dddddd; border-radius: 8px;">
                     <tr>
-                        <td align="center" style="padding: 20px 0 10px 0;">
-                            <img src="https://i.imgur.com/6Bvu8yB.png" alt="Outfulickz Logo" class="header-logo" width="180" style="display: block; border: 0; max-width: 180px;">
+                        <td align="center" style="padding: 20px 0;">
+                            <img src="https://i.imgur.com/6Bvu8yB.png" alt="Logo" width="180">
                         </td>
                     </tr>
                     <tr>
-                        <td style="padding: 20px 40px 40px 40px;">
-                            <h1 style="color: #000000; font-size: 24px; text-align: center; margin-bottom: 20px;">
-                                🚨 NEW ORDER PLACED 🚨
-                            </h1>
-                            <p style="font-size: 16px; color: #333; line-height: 1.5;">
-                                A new order has been created and requires immediate attention for fulfillment.
-                            </p>
+                        <td style="padding: 0 40px 40px 40px;">
+                            <h1 style="color: #000; font-size: 24px; text-align: center; margin-bottom: 10px;">🚨 NEW ORDER 🚨</h1>
                             
-                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 25px; border-collapse: collapse;">
-                                <tr>
-                                    <td colspan="2" style="font-size: 18px; font-weight: bold; color: #000000; padding-bottom: 10px; border-bottom: 2px solid #000000;">ORDER SUMMARY</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 10px 0; font-size: 14px; color: #555; width: 50%;">Order ID:</td>
-                                    <td style="padding: 10px 0; font-size: 14px; color: #000000; font-weight: bold; text-align: right;">${orderId}</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 10px 0; font-size: 14px; color: #555;">Payment Method:</td>
-                                    <td style="padding: 10px 0; font-size: 14px; color: #000000; text-align: right;">${paymentMethod}</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 10px 0; font-size: 14px; color: #555;">Payment Status:</td>
-                                    <td style="padding: 10px 0; font-size: 14px; font-weight: bold; text-align: right; color: ${paymentStatus.includes('Confirmed') ? 'green' : '#FFA500'};">${paymentStatus}</td>
-                                </tr>
-                                
-                                ${financialSummaryHtml}
+                            ${whatsappButtonHtml}
 
-                                <tr>
-                                    <td style="padding: 20px 0 10px 0; font-size: 16px; font-weight: bold; color: #000000;">TOTAL AMOUNT:</td>
-                                    <td style="padding: 20px 0 10px 0; font-size: 18px; font-weight: bold; color: #000000; text-align: right;">₦${totalAmountNum.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                                </tr>
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 25px; border-bottom: 2px solid #000;">
+                                <tr><td colspan="2" style="font-size: 16px; font-weight: bold; padding-bottom: 5px;">ORDER SUMMARY</td></tr>
+                            </table>
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 10px; font-size: 14px;">
+                                <tr><td style="padding: 5px 0; color: #555;">Order ID:</td><td align="right" style="font-weight: bold;">${orderId}</td></tr>
+                                <tr><td style="padding: 5px 0; color: #555;">Payment:</td><td align="right">${paymentMethod}</td></tr>
+                                <tr><td style="padding: 5px 0; color: #555;">Status:</td><td align="right" style="color: ${paymentStatus.includes('Confirmed') ? 'green' : '#FFA500'}; font-weight: bold;">${paymentStatus}</td></tr>
+                                <tr><td style="padding: 5px 0; color: #555;">Subtotal:</td><td align="right">₦${parseFloat(subtotal || 0).toLocaleString()}</td></tr>
+                                <tr><td style="padding: 5px 0; color: #555;">Shipping:</td><td align="right">₦${parseFloat(shippingFee || 0).toLocaleString()}</td></tr>
+                                <tr><td style="padding: 20px 0; font-size: 18px; font-weight: bold;">TOTAL:</td><td align="right" style="font-size: 18px; font-weight: bold;">₦${parseFloat(totalAmount).toLocaleString()}</td></tr>
                             </table>
 
-                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 30px; border-collapse: collapse;">
-                                <tr>
-                                    <td colspan="2" style="font-size: 18px; font-weight: bold; color: #000000; padding-bottom: 10px; border-bottom: 2px solid #000000;">SHIPPING DETAILS</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 10px 0 5px 0; font-size: 14px; color: #000000; font-weight: bold;" colspan="2">
-                                        ${shippingDetails.firstName} ${shippingDetails.lastName}
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 5px 0; font-size: 14px; color: #555;" colspan="2">Email: ${shippingDetails.email}</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 5px 0 10px 0; font-size: 14px; color: #555; border-bottom: 1px dashed #ccc;" colspan="2">
-                                        Address: ${shippingDetails.street}, ${shippingDetails.city}, ${shippingDetails.state}, ${shippingDetails.country} ${shippingDetails.zipCode ? `(${shippingDetails.zipCode})` : ''}
-                                    </td>
-                                </tr>
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 30px; border-bottom: 2px solid #000;">
+                                <tr><td style="font-size: 16px; font-weight: bold; padding-bottom: 5px;">SHIPPING DETAILS</td></tr>
                             </table>
-                            
-                            <table border="0" cellpadding="0" cellspacing="0" width="100%" class="item-table" style="margin-top: 30px; border-collapse: collapse;">
-                                <tr>
-                                    <td colspan="4" style="font-size: 18px; font-weight: bold; color: #000000; padding-bottom: 10px; border-bottom: 2px solid #000000;">ITEMS ORDERED</td>
+                            <div style="font-size: 14px; padding-top: 10px; line-height: 1.6;">
+                                <strong>${shippingDetails.firstName} ${shippingDetails.lastName}</strong><br>
+                                Email: ${shippingDetails.email}<br>
+                                Phone: ${rawPhone}<br>
+                                Address: ${shippingDetails.street}, ${shippingDetails.city}, ${shippingDetails.state}, ${shippingDetails.country}
+                            </div>
+
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 30px;">
+                                <tr style="background-color: #f7f7f7; font-size: 12px; color: #555;">
+                                    <th align="left" style="padding: 10px;">PRODUCT</th>
+                                    <th align="left" style="padding: 10px;">DETAILS</th>
+                                    <th align="center" style="padding: 10px;">QTY</th>
+                                    <th align="right" style="padding: 10px;">PRICE</th>
                                 </tr>
-                                
-                                <thead>
-                                    <tr style="text-align: left; background-color: #f7f7f7;">
-                                        <th style="padding: 10px 0; font-size: 12px; color: #555; font-weight: normal; width: 40%;">PRODUCT</th>
-                                        <th style="padding: 10px 0; font-size: 12px; color: #555; font-weight: normal; width: 30%;">DETAILS</th>
-                                        <th style="padding: 10px 0; font-size: 12px; color: #555; font-weight: normal; width: 10%; text-align: center;">QTY</th>
-                                        <th style="padding: 10px 0; font-size: 12px; color: #555; font-weight: normal; width: 20%; text-align: right;">SUBTOTAL</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${itemDetailsHtml}
-                                </tbody>
+                                ${itemDetailsHtml}
                             </table>
-                            
+
                             ${attachmentConfirmationHtml}
-
-                            <p style="margin-top: 40px; font-size: 12px; color: #777; text-align: center;">
-                                This is an automated notification. Please check the order management system for full details and fulfillment.
-                            </p>
-
                         </td>
                     </tr>
-                    
                     <tr>
-                        <td align="center" style="background-color: #f7f7f7; padding: 15px 40px; border-radius: 0 0 8px 8px;">
-                            <p style="margin: 0; font-size: 11px; color: #999;">&copy; ${new Date().getFullYear()} OUTFULICKZ. All rights reserved.</p>
+                        <td align="center" style="background-color: #f7f7f7; padding: 15px; font-size: 11px; color: #999; border-radius: 0 0 8px 8px;">
+                            &copy; ${new Date().getFullYear()} OUTFULICKZ.
                         </td>
                     </tr>
                 </table>
@@ -6157,290 +6769,134 @@ app.post('/api/notifications/admin-order-email', async (req, res) => {
         </tr>
     </table>
 </body>
-</html>
-        `;
+</html>`;
 
-        // 3. Send the Email, passing the attachments array
-        await sendMail(
-            adminEmail,
-            `[New Order] #${orderId} - ${paymentStatus}`,
-            emailHtml,
-            attachments 
-        );
-
-        console.log(`Admin notification sent successfully for Order ID: ${orderId} to ${adminEmail}`);
-        
-        // 4. Send a successful response back to the client
-        res.status(200).json({ message: 'Admin notification request received and processing.' });
+        await sendMail(adminEmail, `[New Order] #${orderId} - ${paymentStatus}`, emailHtml, attachments);
+        res.status(200).json({ message: 'Notification sent.' });
 
     } catch (error) {
-        console.error('Error in POST /api/notifications/admin-order-email:', error);
-        res.status(500).json({ message: 'Failed to dispatch admin email notification due to server error.' });
+        console.error('Admin Email Error:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
     }
 });
 
+
 // =========================================================
-// 7. POST /api/orders/place/pending - Create a Pending Order (Protected)
+// 7. POST /api/orders/place/pending - Corrected for Guest Validation
 // =========================================================
 app.post('/api/orders/place/pending', verifyUserToken, (req, res) => {
-    
-    // 1. Run the Multer middleware to process the form data and file
-    singleReceiptUpload(req, res, async (err) => {
-        // ... (Multer Error Handling remains the same) ...
-        if (err instanceof multer.MulterError) {
-             return res.status(400).json({ message: `File upload failed: ${err.message}` });
-        } else if (err) {
-             console.error('Unknown Multer Error:', err);
-             return res.status(500).json({ message: 'Error processing file upload.' });
-        }
+    singleReceiptUpload(req, res, async (err) => {
+        if (err instanceof multer.MulterError) {
+             return res.status(400).json({ message: `File upload failed: ${err.message}` });
+        } else if (err) {
+             return res.status(500).json({ message: 'Error processing file upload.' });
+        }
 
-        const userId = req.userId;
-        
-        // Extract Form fields 
-        const { 
-            shippingAddress: shippingAddressString, 
-            paymentMethod, 
-            totalAmount: totalAmountString, 
-            subtotal: subtotalString,
-            shippingFee: shippingFeeString,
-            tax: taxString,
-            orderItems: orderItemsString 
-        } = req.body;
-        
-        const receiptFile = req.file; 
-        
-        // Convert string fields
-        const totalAmount = parseFloat(totalAmountString);
-        const subtotal = parseFloat(subtotalString || '0');
-        const shippingFee = parseFloat(shippingFeeString || '0');
-        const tax = parseFloat(taxString || '0');
+        const userId = req.userId || null;
+        const isGuest = !userId;
+        
+        const { 
+            shippingAddress: shippingAddressString, 
+            paymentMethod, 
+            totalAmount: totalAmountString, 
+            orderItems: orderItemsString,
+            email: guestEmailFromForm, // Incoming guest email from frontend
+            subtotal: subtotalString,
+            shippingFee: shippingFeeString,
+            tax: taxString
+        } = req.body;
+        
+        const receiptFile = req.file; 
+        const totalAmount = parseFloat(totalAmountString);
 
-        let shippingAddress;
+        let shippingAddress;
+        try {
+             shippingAddress = shippingAddressString ? JSON.parse(shippingAddressString) : null;
+        } catch (e) {
+             return res.status(400).json({ message: 'Invalid shipping address format.' });
+        }
+        
+        if (!shippingAddress || !totalAmount || totalAmount <= 0) {
+             return res.status(400).json({ message: 'Missing shipping address or invalid total amount.' });
+        }
 
-        // --- UPDATED ROBUST PARSING LOGIC ---
-        try {
-             if (!shippingAddressString || shippingAddressString.trim() === '') {
-                 shippingAddress = null; 
-             } else {
-                 shippingAddress = JSON.parse(shippingAddressString);
-             }
-        } catch (e) {
-             return res.status(400).json({ message: 'Invalid shipping address format. Ensure the address object is stringified correctly.' });
-        }
-        // --- END: UPDATED ROBUST PARSING LOGIC ---
-        
-        // 2. Critical Input Validation
-        if (!shippingAddress || totalAmount <= 0 || isNaN(totalAmount)) {
-             return res.status(400).json({ message: 'Missing shipping address or invalid total amount.' });
-        }
+        let paymentReceiptUrl = null;
+        if (paymentMethod === 'Bank Transfer') {
+            if (!receiptFile) return res.status(400).json({ message: 'Bank payment receipt is required.' });
+            paymentReceiptUrl = await uploadFileToPermanentStorage(receiptFile);
+        }
 
-        let paymentReceiptUrl = null;
-        
-        try {
-            // ... (Bank Transfer Receipt Upload Logic remains the same) ...
-            if (paymentMethod === 'Bank Transfer') {
-                if (!receiptFile) {
-                    return res.status(400).json({ message: 'Bank payment receipt image is required for a Bank Transfer order.' });
-                }
-                
-                paymentReceiptUrl = await uploadFileToPermanentStorage(receiptFile);
-                
-                if (!paymentReceiptUrl) {
-                    throw new Error("Failed to get permanent URL after B2 upload.");
-                }
-            }
-
-            // ⭐ 4. RETRIEVE ORDER ITEMS (PRIORITIZE Buy Now Items)
-            let finalOrderItems = [];
-            let isBuyNowOrder = false;
-            
-            if (orderItemsString && orderItemsString.trim() !== '') {
-                // Scenario 1: Buy Now Checkout
-                let rawItems;
-                try {
-                    rawItems = JSON.parse(orderItemsString);
-                } catch (e) {
-                    return res.status(400).json({ message: 'Invalid order item list format. Ensure orderItems is stringified correctly.' });
-                }
-                
-                isBuyNowOrder = true;
-                
-                // -------------------------------------------------------------
-                // ⭐ START: BUY NOW ITEM MAPPING & VALIDATION FIX
-                // -------------------------------------------------------------
-                finalOrderItems = await Promise.all(rawItems.map(async (item) => { // Use Promise.all and async map
-                    if (!item.productType || !item.variationIndex) {
-                        // Throw immediately if mandatory fields are client-missing
-                        throw new Error(`Order item for product ${item.productId} is missing required field: productType or variationIndex.`); 
-                    }
-
+        try {
+            let finalOrderItems = [];
+            if (orderItemsString) {
+                const rawItems = JSON.parse(orderItemsString);
+                finalOrderItems = await Promise.all(rawItems.map(async (item) => {
                     let correctedType = item.productType;
-                    let isTypeValid = !!PRODUCT_MODEL_MAP[item.productType];
-                    
-                    // Run the correction logic if the type from the client is invalid
-                    if (!isTypeValid) { 
-                        console.log(`[BUY NOW] Attempting to correct invalid productType: ${item.productType} for ${item.productId}`);
-                        
-                        // The same collection-lookup logic from the Cart flow
+                    if (!PRODUCT_MODEL_MAP[item.productType]) {
                         for (const type of Object.keys(PRODUCT_MODEL_MAP)) {
-                            try {
-                                const CollectionModel = getProductModel(type); 
-                                const productExists = await CollectionModel.exists({ _id: item.productId });
-                                
-                                if (productExists) {
-                                    correctedType = type;
-                                    break;
-                                }
-                            } catch (error) {
-                                console.warn(`Model check failed for type ${type}: ${error.message}`);
-                            }
-                        }
-
-                        if (correctedType === item.productType) { // If it's still the original invalid type
-                             throw new Error(`Product ID ${item.productId} not found in any collection. Cannot place order.`);
-                        }
+                            const Model = getProductModel(type);
+                            if (await Model.exists({ _id: item.productId })) {
+                                correctedType = type;
+                                break;
+                            }
+                        }
                     }
+                    return {
+                        ...item,
+                        priceAtTimeOfPurchase: item.price,
+                        productType: correctedType
+                    };
+                }));
+            }
 
-                    return {
-                        ...item, 
-                        priceAtTimeOfPurchase: item.price, 
-                        productType: correctedType, // Use the corrected or original type
-                        variationIndex: item.variationIndex
-                    };
-                }));
-                // -------------------------------------------------------------
-                // ⭐ END: BUY NOW ITEM MAPPING & VALIDATION FIX
-                // -------------------------------------------------------------
+            if (finalOrderItems.length === 0) {
+                return res.status(400).json({ message: 'Order items are missing.' });
+            }
 
-            } else {
-                // Scenario 2: Standard Cart Checkout
-                const cart = await Cart.findOne({ userId }).lean();
+            const orderRef = `REF-${Date.now()}-${isGuest ? 'GUEST' : userId.substring(0, 5)}`; 
 
-                if (!cart || cart.items.length === 0) {
-                    return res.status(400).json({ message: 'Cannot place order: Shopping bag is empty.' });
-                }
-                
-                // Map cart items to OrderItemSchema structure
-                finalOrderItems = cart.items.map(item => ({
-                    productId: item.productId,
-                    name: item.name, 
-                    imageUrl: item.imageUrl,
-                    productType: item.productType, 
-                    quantity: item.quantity,
-                    priceAtTimeOfPurchase: item.price, 
-                    variationIndex: item.variationIndex,
-                    size: item.size,
-                    variation: item.variation,
-                    color: item.color,
-                }));
-            }
-            
-            if (finalOrderItems.length === 0) {
-                return res.status(400).json({ message: 'Order item list is empty.' });
-            }
-            
-            // -------------------------------------------------------------
-            // ⭐ CRITICAL FIX: VALIDATE AND CORRECT productType (Using getProductModel)
-            // This logic is ONLY executed for items from the permanent Cart (Scenario 2).
-            // NOTE: The validation for 'Buy Now' is now handled above in Scenario 1.
-            // -------------------------------------------------------------
-            if (!isBuyNowOrder) {
-                for (let item of finalOrderItems) {
-                    let isTypeValid = !!PRODUCT_MODEL_MAP[item.productType];
+            // ⭐ FIX: Map the fields to match your Mongoose Schema exactly
+            const orderPayload = {
+                userId: userId, 
+                isGuest: isGuest, // Set explicit guest status
+                items: finalOrderItems, 
+                shippingAddress: shippingAddress,
+                totalAmount: totalAmount,
+                subtotal: parseFloat(subtotalString) || 0,
+                shippingFee: parseFloat(shippingFeeString) || 0,
+                tax: parseFloat(taxString) || 0,
+                status: 'Pending', 
+                paymentMethod: paymentMethod,
+                orderReference: orderRef, 
+                paymentReceiptUrl: paymentReceiptUrl
+            };
 
-                    if (!isTypeValid) { 
-                        console.log(`Attempting to correct invalid productType: ${item.productType} for ${item.productId}`);
-                        
-                        let correctedType = null;
-                        
-                        // Iterate through all valid product types from the map
-                        for (const type of Object.keys(PRODUCT_MODEL_MAP)) {
-                            try {
-                                const CollectionModel = getProductModel(type); // Safely get the model
-                                
-                                // Check if the product ID exists in this collection
-                                const productExists = await CollectionModel.exists({ _id: item.productId });
-                                
-                                if (productExists) {
-                                    correctedType = type;
-                                    break;
-                                }
-                            } catch (error) {
-                                // If getProductModel throws (e.g., Model not defined), log but continue to next type
-                                console.warn(`Model check failed for type ${type}: ${error.message}`);
-                            }
-                        }
+            // ⭐ CRITICAL: If guest, provide guestEmail to satisfy schema 'required' logic
+            if (isGuest) {
+                orderPayload.guestEmail = guestEmailFromForm || (shippingAddress && shippingAddress.email);
+            }
 
-                        if (!correctedType) {
-                             // CRITICAL: Product ID not found in any valid collection
-                             throw new Error(`Product ID ${item.productId} (Type: ${item.productType}) not found in any collection. Cannot place order.`);
-                        }
-                        
-                        // 1. Update the final order item with the correct type
-                        item.productType = correctedType;
-                        
-                        // 2. Fix the permanent cart data for future checkouts (Optional but recommended)
-                        await Cart.findOneAndUpdate(
-                            { userId, 'items.productId': item.productId },
-                            { '$set': { 'items.$.productType': correctedType } }
-                        );
-                    }
-                }
-            }
-            // -------------------------------------------------------------
+            const newOrder = await Order.create(orderPayload);
 
-            const orderRef = `REF-${Date.now()}-${userId.substring(0, 5)}`; 
+            if (!isGuest) {
+                await Cart.findOneAndUpdate({ userId }, { items: [], updatedAt: Date.now() });
+            }
+            
+            res.status(201).json({
+                message: 'Order placed successfully.',
+                orderId: newOrder._id,
+                orderReference: orderRef,
+                paymentReceiptUrl: paymentReceiptUrl, 
+                isGuest: isGuest
+            });
 
-            const newOrder = await Order.create({
-                userId: userId,
-                // Use the items with the now-corrected productType
-                items: finalOrderItems, 
-                shippingAddress: shippingAddress,
-                totalAmount: totalAmount,
-                subtotal: subtotal,
-                shippingFee: shippingFee,
-                tax: tax,
-                status: 'Pending', 
-                paymentMethod: paymentMethod,
-                orderReference: orderRef, 
-                amountPaidKobo: Math.round(totalAmount * 100),
-                paymentTxnId: orderRef, 
-                paymentReceiptUrl: paymentReceiptUrl,
-            });
-
-            // 6. Clear the user's permanent cart ONLY IF it was a standard cart checkout
-            if (!isBuyNowOrder) {
-                await Cart.findOneAndUpdate(
-                    { userId },
-                    { items: [], updatedAt: Date.now() }
-                );
-            }
-            
-            console.log(`Pending Order created: ${newOrder._id}. Source: ${isBuyNowOrder ? 'Buy Now' : 'Cart'}`);
-            
-            // ... (Success Response remains the same) ...
-            const { firstName, lastName } = shippingAddress;
-            res.status(201).json({
-                message: 'Pending order placed successfully. Awaiting payment verification.',
-                orderId: newOrder._id,
-                status: newOrder.status,
-                firstName: firstName,
-                lastName: lastName,
-                ReceiptUrl: paymentReceiptUrl
-            });
-
-        } catch (error) {
-            console.error('Error placing pending order:', error);
-            // Send the specific validation message back to the client if possible
-            const userMessage = error.message.includes('validation failed') 
-                                ? error.message.split(':').slice(-1)[0].trim() 
-                                : 'Failed to create pending order due to a server error.';
-
-            res.status(500).json({ message: userMessage });
-        }
-    });
+        } catch (error) {
+            console.error('Order Error:', error);
+            // This will now capture and display if a specific field is still missing
+            res.status(500).json({ message: `Database Error: ${error.message}` });
+        }
+    });
 });
-
 
 // =========================================================
 // 2. GET /api/orders/history - Retrieve Order History (Protected)
@@ -6483,93 +6939,81 @@ app.get('/api/orders/history', verifyUserToken, async (req, res) => {
     }
 });
 
-// 6. GET /api/orders/:orderId (Fetch Single Order Details - Protected)
+
 app.get('/api/orders/:orderId', verifyUserToken, async function (req, res) {
     const orderId = req.params.orderId;
-    const userId = req.userId; // Set by verifyUserToken middleware
-
-    if (!orderId) {
-        return res.status(400).json({ message: 'Order ID is required.' });
-    }
-    if (!userId) {
-        return res.status(401).json({ message: 'Authentication required.' });
-    }
+    const userId = req.userId;
 
     try {
-        // 1. Fetch the specific order document
-        const order = await Order.findOne({ 
-            _id: orderId, // Find by ID
-            userId: userId // AND ensure it belongs to the authenticated user
-        })
-        // ⭐ FIX: Ensure we select the new financial breakdown fields
-        .select('+subtotal +shippingFee +tax')
-        .lean();
+        // 1. Build Hybrid Query
+        const queryConditions = {
+            userId: userId,
+            $or: [{ orderReference: orderId }]
+        };
 
-        if (!order) {
-            return res.status(404).json({ message: 'Order not found or access denied.' });
+        // Add ObjectId lookup if the string format is valid
+        if (orderId.length === 24 && /^[0-9a-fA-F]+$/.test(orderId)) {
+             queryConditions.$or.push({ _id: orderId });
         }
 
-        // 2. Fetch Display Details for each item (Product Name, Image, etc.)
-        const productDetailsPromises = order.items.map(async (item) => {
-            // Use a copy of the item object for mutation
+        // 2. Execute Query
+        const order = await Order.findOne(queryConditions)
+            .select('subtotal shippingFee tax items totalAmount orderReference status paymentMethod') // Explicitly include financial fields
+            .lean();
+
+        if (!order) {
+            console.warn(`[OrderFetch] No order found for ID: ${orderId} and User: ${userId}`);
+            return res.status(404).json({ message: 'Order not found.' });
+        }
+        
+        if (!order.items || !Array.isArray(order.items)) {
+            return res.status(422).json({ message: 'Order data is incomplete.' });
+        }
+
+        // 3. Populate Display Details
+        const populatedItems = await Promise.all(order.items.map(async (item) => {
             let displayItem = { ...item };
             
-            // Prioritize saved data for name/image consistency at time of purchase
-            if (item.name && item.imageUrl) {
-                // If the order item already contains the name and image (which it should now)
-                displayItem.sku = `SKU-${item.productType.substring(0,3).toUpperCase()}-${item.size || 'UNK'}`;
-                delete displayItem._id; 
+            // If the data was already saved during checkout, use it directly (FASTEST)
+            if (displayItem.name && displayItem.imageUrl) {
                 return displayItem;
             }
             
-            // Fallback to fetching product details if necessary (e.g., for old orders)
-            const Model = productModels[item.productType];
-            
-            if (!Model) {
-                console.warn(`[OrderDetails] Unknown product type: ${item.productType}`);
-                displayItem.name = item.name || 'Product Not Found';
-                displayItem.imageUrl = item.imageUrl || 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=Error';
-                displayItem.sku = 'N/A';
-            } else {
-                // Find the original product to get the display details
-                const product = await Model.findById(item.productId)
-                    .select('name imageUrls') // Only need display data
-                    .lean();
+            // Fallback for legacy orders
+            try {
+                // Use the helper you defined elsewhere in your server.js
+                const Model = typeof getProductModel === 'function' 
+                    ? getProductModel(item.productType) 
+                    : productModels[item.productType];
 
-                displayItem.name = item.name || (product ? product.name : 'Product Deleted');
-                // Use the saved imageUrl if available, otherwise fallback to the first product image
-                displayItem.imageUrl = item.imageUrl || (product && product.imageUrls && product.imageUrls.length > 0 ? product.imageUrls[0] : 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=No+Image');
-                displayItem.sku = `SKU-${item.productType.substring(0,3).toUpperCase()}-${item.size || 'UNK'}`;
+                if (Model) {
+                    const product = await Model.findById(item.productId).select('name imageUrls').lean();
+                    if (product) {
+                        displayItem.name = product.name;
+                        displayItem.imageUrl = product.imageUrls?.[0] || displayItem.imageUrl;
+                    }
+                }
+            } catch (err) {
+                console.error(`[OrderFetch] Fallback lookup failed for ${item.productId}`);
             }
-            
-            // Clean up the Mongoose virtual _id field before sending
-            delete displayItem._id; 
-            
-            return displayItem;
-        });
 
-        // Resolve all concurrent product detail fetches
-        const populatedItems = await Promise.all(productDetailsPromises);
-        
-        // 3. Construct the final response object, now correctly reading the financial breakdown
+            return displayItem;
+        }));
+
+        // 4. Final Financial Calculations
         const finalOrderDetails = {
             ...order,
             items: populatedItems,
-            // ⭐ FIX/UPDATE: Read the actual stored financial breakdown, falling back to stored data/zero if undefined
-            // If subtotal is undefined, approximate it by subtracting fees from the total amount.
-            subtotal: order.subtotal !== undefined 
-                ? order.subtotal 
-                : (order.totalAmount - (order.shippingFee || 0.00) - (order.tax || 0.00)), 
-            shippingFee: order.shippingFee || 0.00, 
-            tax: order.tax || 0.00 
+            subtotal: order.subtotal ?? (order.totalAmount - (order.shippingFee || 0) - (order.tax || 0)),
+            shippingFee: order.shippingFee || 0,
+            tax: order.tax || 0
         };
 
-        // 4. Send the populated details to the frontend
         res.status(200).json(finalOrderDetails);
 
     } catch (error) {
-        console.error('Error fetching order details:', error);
-        res.status(500).json({ message: 'Failed to retrieve order details due to a server error.' });
+        console.error('🔴 [OrderFetch] Server Error:', error.message);
+        res.status(500).json({ message: 'Internal server error.' });
     }
 });
 
@@ -6647,6 +7091,7 @@ module.exports = {
     Cart,
     ActivityLog,
     VisitorLog,
+    requireUserLogin,
     processOrderCompletion,
     inventoryRollback,
     getProductModel,

@@ -9,23 +9,17 @@
     <meta name="google-site-verification" content="Z6ROK89ZCUVN1i5qEFeLCyaaeJHYp5-33t4Mi4pxzJs" />
     <link rel="canonical" href="https://www.outflickz.com/"/>
     
-    <link rel="next" href="https://www.outflickz.com/outflickzstore/homepage.html">
-    <meta http-equiv="refresh" content="4;url=https://www.outflickz.com/outflickzstore/homepage.html">
+    <meta http-equiv="refresh" content="6;url=https://www.outflickz.com/outflickzstore/homepage.html">
 
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://www.outflickz.com/">
     <meta property="og:title" content="Outflickz Limited | Official Streetwear Store">
-    <meta property="og:description" content="Entrance to the official Outflickz online store. Exclusive streetwear and limited edition drops.">
     <meta property="og:image" content="https://i.imgur.com/1Rxhi9q.jpeg">
 
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:url" content="https://www.outflickz.com/">
-    <meta name="twitter:title" content="Outflickz Limited | Official Streetwear Store">
-    <meta name="twitter:description" content="Entrance to the official Outflickz online store. Exclusive streetwear and limited edition drops.">
-    <meta name="twitter:image" content="https://i.imgur.com/1Rxhi9q.jpeg">
-
     <link rel="icon" type="image/png" href="https://i.imgur.com/ioWFyQB.png">
+    
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body class="bg-white min-h-screen flex flex-col items-center justify-center p-4">
 
@@ -42,34 +36,39 @@
         </h1>
 
         <p id="timer" class="text-gray-400 mt-4 text-sm font-medium">
-            Redirecting in 4 seconds...
+            Redirecting in 6 seconds...
         </p>
 
         <div class="mt-10 p-6 bg-gray-50 rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center">
             <p class="text-[0.6rem] text-gray-400 uppercase tracking-[0.3em] mb-4">Scan for Socials & Support</p>
             
-            <div class="bg-white p-2 rounded-lg shadow-inner">
-                <img 
-                    id="qrCodeImage"
-                    src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://outflickz.com" 
-                    alt="Outflickz QR" 
-                    class="w-32 h-32 block"
-                    onerror="this.onerror=null; this.src='https://chart.googleapis.com/chart?cht=qr&chs=150x150&chl=https://outflickz.com';"
-                >
+            <div class="bg-white p-3 rounded-lg shadow-inner">
+                <div id="qrcode"></div>
             </div>
 
-            <a href="https://outflickz.com/links.html" class="mt-4 text-emerald-600 text-xs font-bold hover:underline tracking-widest uppercase">
+            <a href="https://www.outflickz.com/links.html" class="mt-4 text-emerald-600 text-xs font-bold hover:underline tracking-widest uppercase">
                 Visit outflickz.com →
             </a>
         </div>
     </div>
 
     <footer class="absolute bottom-8">
-        <p class="text-[0.5rem] text-gray-300 uppercase tracking-widest">© 2025 Outflickz Collective</p>
+        <p class="text-[0.5rem] text-gray-300 uppercase tracking-widest">© 2025 OUTFLICKZ LIMITED</p>
     </footer>
 
     <script>
-        const REDIRECT_DELAY_SECONDS = 4; 
+        // 1. Generate the QR Code locally
+        new QRCode(document.getElementById("qrcode"), {
+            text: "https://www.outflickz.com",
+            width: 140,
+            height: 140,
+            colorDark : "#000000",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.H
+        });
+
+        // 2. Redirect Logic
+        const REDIRECT_DELAY_SECONDS = 6; 
         const timerElement = document.getElementById('timer');
         let countdown = REDIRECT_DELAY_SECONDS;
 
@@ -79,7 +78,7 @@
                 countdown--;
             } else {
                 clearInterval(intervalId);
-                window.location.href = '/outflickzstore/homepage.html';
+                window.location.href = 'https://www.outflickz.com/outflickzstore/homepage.html';
             }
         }
 

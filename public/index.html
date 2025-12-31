@@ -42,7 +42,7 @@
         </h1>
 
         <p id="timer" class="text-gray-400 mt-4 text-sm font-medium">
-            Redirecting in 2 seconds...
+            Redirecting in 4 seconds...
         </p>
 
         <div class="mt-10 p-6 bg-gray-50 rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center">
@@ -50,14 +50,16 @@
             
             <div class="bg-white p-2 rounded-lg shadow-inner">
                 <img 
+                    id="qrCodeImage"
                     src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://outflickz.com" 
-                    alt="Outflickz Links QR" 
-                    class="w-32 h-32"
+                    alt="Outflickz QR" 
+                    class="w-32 h-32 block"
+                    onerror="this.onerror=null; this.src='https://chart.googleapis.com/chart?cht=qr&chs=150x150&chl=https://outflickz.com';"
                 >
             </div>
 
             <a href="https://outflickz.com/links.html" class="mt-4 text-emerald-600 text-xs font-bold hover:underline tracking-widest uppercase">
-                Visit Linktree →
+                Visit outflickz.com →
             </a>
         </div>
     </div>
@@ -67,7 +69,7 @@
     </footer>
 
     <script>
-        const REDIRECT_DELAY_SECONDS = 4; // Increased slightly to let them see the QR code
+        const REDIRECT_DELAY_SECONDS = 4; 
         const timerElement = document.getElementById('timer');
         let countdown = REDIRECT_DELAY_SECONDS;
 

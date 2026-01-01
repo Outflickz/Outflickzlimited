@@ -1797,7 +1797,7 @@ async function populateInitialData() {
 }
 
 const SHIPPING_COST = 0.00;
-const TAX_RATE = 1550.55;
+const TAX_RATE = 2150.55;
 
 /**
  * Calculates cart totals based on the array of items from Mongoose.

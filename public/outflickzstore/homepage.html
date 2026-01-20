@@ -962,6 +962,24 @@ function createCollectionCard(collection, size = 'default') {
     const itemPrice = collection.price || 0;
     const formattedPrice = itemPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+    // --- 🎯 AVAILABLE DATE LOGIC (Specific to Pre-Orders) ---
+    let availableDateHtml = '';
+    if (isPreorder && collection.availableDate) {
+        // Formats date to a readable string (e.g., Jan 20, 2026)
+        const dateObj = new Date(collection.availableDate);
+        const formattedDate = dateObj.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric', 
+            year: 'numeric' 
+        });
+
+        availableDateHtml = `
+            <div class="flex items-center gap-1 mt-1 text-blue-600">
+                <i class="far fa-calendar-alt text-[0.6rem] sm:text-[0.7rem]"></i>
+                <span class="text-[0.6rem] sm:text-[0.65rem] font-bold uppercase tracking-tight">Available: ${formattedDate}</span>
+            </div>`;
+    }
+
     // --- Size & Color Helpers ---
     const innerSizeOptions = createSizeList(collection._id, collection.sizeStockMap, isReduced);
     const sizeListHtml = (innerSizeOptions && !isCaps)
@@ -973,7 +991,6 @@ function createCollectionCard(collection, size = 'default') {
     const colorListHtml = createColorList(collection._id, collection.variants || collection.variations); 
 
     // --- 🎯 STOCK CALCULATION FIX ---
-    // Use the standardizeStockData helper to ensure we find stock inside variations if availableStock is missing
     const stockInfo = standardizeStockData(collection);
     let actualStock = 0;
     
@@ -995,13 +1012,11 @@ function createCollectionCard(collection, size = 'default') {
     let cartButtonText = 'ADD TO CART'; 
     let cartButtonClasses = 'bg-black text-white hover:bg-gray-800 shadow-md';
 
-    // Priority 1: Out of Stock (Must show red badge even if it's a pre-order)
     if (isOutOfStock) {
         stockBadge = `<span class="absolute top-2 left-2 bg-ash-red text-white text-[0.6rem] sm:text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">Out of Stock</span>`;
         cartButtonText = 'OUT OF STOCK';
         cartButtonClasses = 'bg-gray-400 text-white cursor-not-allowed';
     } 
-    // Priority 2: Pre-Order (Only shows if there is stock or it's a pre-order item)
     else if (isPreorder) {
         stockBadge = `<span class="absolute top-2 left-2 bg-ash-dark text-white text-[0.6rem] sm:text-xs font-bold px-2 py-0.5 rounded shadow-lg z-40">PRE-ORDER</span>`;
     }
@@ -1058,6 +1073,9 @@ function createCollectionCard(collection, size = 'default') {
             <div class="${cardPadding} flex flex-col flex-grow">
                 <p class="text-[0.6rem] text-gray-500 uppercase font-semibold">Outflickz</p>
                 <h3 class="${nameFontSize} font-semibold text-color-black truncate">${collection.name}</h3>
+                
+                ${availableDateHtml}
+
                 <p class="${descriptionFontSize} text-red-700 mt-0.5 truncate">${cardDescription}</p>
                 <p class="${priceFontSize} text-ash-dark mt-1">${currencySymbol}${formattedPrice}</p>
 
@@ -1097,7 +1115,7 @@ function createSizeList(collectionId, sizeStockMap, isReduced = false) {
         return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
     }
 
-    const standardSizes = ['S', 'M', 'L', 'XL'];
+const standardSizes = ['S', 'M', 'L', 'XL', '2XL', 'XXL', '3XL'];
     
     const sizesWithStock = Object.entries(sizeStockMap)
         .filter(([size, stock]) => 

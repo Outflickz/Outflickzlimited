@@ -848,7 +848,7 @@ function createSizeList(collectionId, sizeStockMap, isReduced = false) {
         return `<span class="text-xs font-medium text-gray-400">N/A</span>`;
     }
 
-    const standardSizes = ['S', 'M', 'L', 'XL'];
+const standardSizes = ['S', 'M', 'L', 'XL', '2XL', 'XXL', '3XL'];
     
     const sizesWithStock = Object.entries(sizeStockMap)
         .filter(([size, stock]) => 

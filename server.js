@@ -1061,7 +1061,7 @@ const PreOrderCollection = mongoose.models.PreOrderCollection || mongoose.model(
 
 // --- 👖 TROUSER COLLECTION SCHEMA AND MODEL 👖 ---
 
-const TrouserCollectionSchema = new mongoose.Schema({
+const TrousersCollectionSchema = new mongoose.Schema({
     name: {
         type: String,
         required: [true, 'Product name is required'],
@@ -1109,7 +1109,7 @@ const TrouserCollectionSchema = new mongoose.Schema({
  * Automatically calculates totalStock by summing all stock levels in all variations and sizes.
  * If the product is deactivated (isActive: false), it forces totalStock to 0 for frontend logic.
  */
-TrouserCollectionSchema.pre('save', function(next) {
+TrousersCollectionSchema.pre('save', function(next) {
     this.updatedAt = Date.now();
     
     let calculatedTotalStock = 0;
@@ -1135,7 +1135,7 @@ TrouserCollectionSchema.pre('save', function(next) {
     next();
 });
 
-const TrouserCollection = mongoose.models.TrouserCollection || mongoose.model('TrouserCollection', TrouserCollectionSchema);
+const TrousersCollection = mongoose.models.TrousersCollection || mongoose.model('TrousersCollection', TrousersCollectionSchema);
 
 const cartItemSchema = new mongoose.Schema({
     productId: { type: mongoose.Schema.Types.ObjectId, required: true },
@@ -1188,7 +1188,7 @@ const OrderItemSchema = new mongoose.Schema({
     productType: { 
         type: String, 
         required: true, 
-        enum: ['WearsCollection', 'CapCollection', 'NewArrivals', 'TrouserCollection',  'PreOrderCollection'] 
+        enum: ['WearsCollection', 'CapCollection', 'NewArrivals', 'TrousersCollection',  'PreOrderCollection'] 
     },
     name: { type: String, required: true },
     imageUrl: { type: String },
@@ -1408,7 +1408,7 @@ async function getRealTimeDashboardStats() {
         // ⭐ CRITICAL FIX: Defensively retrieve all Mongoose models
         const OrderModel = mongoose.models.Order || mongoose.model('Order');
         const WearsCollectionModel = mongoose.models.WearsCollection || mongoose.model('WearsCollection');
-        const TrouserCollectionModel = mongoose.models.TrouserCollection || mongoose.model('TrouserCollection');
+        const TrousersCollectionModel = mongoose.models.TrousersCollection || mongoose.model('TrousersCollection');
         const CapCollectionModel = mongoose.models.CapCollection || mongoose.model('CapCollection');
         const NewArrivalsModel = mongoose.models.NewArrivals || mongoose.model('NewArrivals');
         const PreOrderCollectionModel = mongoose.models.PreOrderCollection || mongoose.model('PreOrderCollection');
@@ -1447,6 +1447,12 @@ async function getRealTimeDashboardStats() {
         ]);
         const wearsStock = wearsInventory[0]?.total || 0;
 
+          // Count for Trousers Collection (only active items with stock > 0)
+        const trousersInventory = await TrousersCollectionModel.aggregate([ // Using TrousersCollectionModel
+            { $match: { isActive: true, totalStock: { $gt: 0 } } },
+            { $group: { _id: null, total: { $sum: '$totalStock' } } }
+        ]);
+        const trousersStock = trousersInventory[0]?.total || 0;
         // Count for Caps Collection (only active items with stock > 0)
         const capsInventory = await CapCollectionModel.aggregate([ // Using CapCollectionModel
             { $match: { isActive: true, totalStock: { $gt: 0 } } },
@@ -1486,6 +1492,7 @@ async function getRealTimeDashboardStats() {
             userCount: userCount,
             wearsStock: wearsStock,
             capsStock: capsStock,
+            trousersStock: trousersStock,
             newArrivalsStock: newArrivalsStock,
             preOrderStock: preOrderStock,
             recentActivity: recentActivity
@@ -1500,7 +1507,7 @@ async function getRealTimeDashboardStats() {
 
 const PRODUCT_MODEL_MAP = {
     'WearsCollection': 'WearsCollection', 
-    'TrouserCollection': 'TrouserCollection',
+    'TrousersCollection': 'TrousersCollection',
     'CapCollection': 'CapCollection', 
     'NewArrivals': 'NewArrivals',         
     'PreOrderCollection': 'PreOrderCollection'     
@@ -1603,7 +1610,7 @@ async function processOrderCompletion(orderId, adminId) {
             let updateResult;
 
             // Group 1: Size-based Collections
-            if (['WearsCollection', 'NewArrivals', 'PreOrderCollection'].includes(item.productType)) {
+            if (['WearsCollection', 'NewArrivals', 'PreOrderCollection', 'TrousersCollection'].includes(item.productType)) {
                 updateResult = await ProductModel.findOneAndUpdate(
                     { _id: item.productId, 'variations.variationIndex': item.variationIndex },
                     { $inc: { 'variations.$[var].sizes.$[size].stock': -qty, 'totalStock': -qty } },
@@ -1698,9 +1705,9 @@ async function deductInventoryAtomic(orderId) {
              const quantityOrdered = item.quantity;
              let updatedProduct;
              let errorMsg;
-             
-             // --- Group 1: Items with nested 'sizes' array (Wears, NewArrivals, PreOrder) ---
-             if (item.productType === 'WearsCollection' || item.productType === 'NewArrivals' || item.productType === 'PreOrderCollection') {
+
+             // --- Group 1: Items with nested 'sizes' array (Wears, NewArrivals, TrousersCollection, PreOrder) ---
+             if (item.productType === 'WearsCollection' || item.productType === 'NewArrivals' || item.productType === 'TrousersCollection' || item.productType === 'PreOrderCollection') {
                  if (!item.size) { 
                      errorMsg = `Missing size information for size-based product ${item.productId} in ${item.productType}.`;
                      throw new Error(errorMsg);
@@ -2067,8 +2074,9 @@ async function augmentOrdersWithProductDetails(orders) {
     const caps = await CapCollection.find({ _id: { $in: uniqueProductObjectIds } }).select(projection).lean();
     const newArrivals = await NewArrivals.find({ _id: { $in: uniqueProductObjectIds } }).select(projection).lean();
     const preOrders = await PreOrderCollection.find({ _id: { $in: uniqueProductObjectIds } }).select(projection).lean(); 
+    const trousers = await TrousersCollection.find({ _id: { $in: uniqueProductObjectIds } }).select(projection).lean();
 
-    const allProducts = [...wears, ...caps, ...newArrivals, ...preOrders];
+    const allProducts = [...wears, ...caps, ...trousers, ...newArrivals, ...preOrders];
     
     // 3. Build Product Map (productId string -> { name, variations })
     const productMap = {};
@@ -2496,6 +2504,7 @@ app.get('/', (req, res) => { res.redirect(301, '/outflickzstore/homepage.html');
 app.get('/useraccount', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'useraccount.html')); }); 
 app.get('/userprofile', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'userprofile.html')); }); 
 app.get('/capscollection', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'capscollection.html')); }); 
+app.get('/trousers', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'trousers.html')); }); 
 app.get('/newarrivals', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'newarrivals.html')); }); 
 app.get('/wearscollection', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'wearscollection.html')); }); 
 app.get('/preorder', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzstore', 'preoder.html')); }); 
@@ -2510,6 +2519,7 @@ app.get('/admin-login', (req, res) => { res.sendFile(path.join(__dirname, 'publi
 app.get('/admin-dashboard', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzadmin', 'admin-dashboard.html')); });
 app.get('/wearscollection', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzadmin', 'wearscollection.html')); });
 app.get('/capscollection', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzadmin', 'capscollection.html')); }); 
+app.get('/trousers', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzadmin', 'trousers.html')); }); 
 app.get('/newarrivals', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzadmin', 'newarrivals.html')); }); 
 app.get('/preorders', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzadmin', 'preorders.html')); }); 
 app.get('/membership', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'outflickzadmin', 'membership.html')); }); 
@@ -5039,7 +5049,7 @@ app.delete(
 // GET /api/admin/trousers/:id (Fetch Single Trouser)
 app.get('/api/admin/trousers/:id', verifyToken, async (req, res) => {
     try {
-        const collection = await TrouserCollection.findById(req.params.id)
+        const collection = await TrousersCollection.findById(req.params.id)
             .select('_id name description tag price variations isActive totalStock') 
             .lean(); 
         
@@ -5105,7 +5115,7 @@ app.post(
             
             await Promise.all(uploadPromises);
 
-            const newCollection = new TrouserCollection({
+            const newCollection = new TrousersCollection({
                 name: collectionData.name,
                 description: collectionData.description, 
                 tag: collectionData.tag,
@@ -5119,7 +5129,7 @@ app.post(
             await session.commitTransaction();
 
             res.status(201).json({ 
-                message: 'Trouser Collection created successfully.',
+                message: 'Trousers Collection created successfully.',
                 collectionId: savedCollection._id,
                 name: savedCollection.name
             });
@@ -5134,7 +5144,7 @@ app.post(
     }
 );
 
-// PUT /api/admin/trousers/:id (Update Trouser Collection)
+// PUT /api/admin/trousers/:id (Update Trousers Collection)
 app.put(
     '/api/admin/trousers/:id',
     verifyToken, 
@@ -5144,7 +5154,7 @@ app.put(
         let existingCollection;
         
         try {
-            existingCollection = await TrouserCollection.findById(trouserId);
+            existingCollection = await TrousersCollection.findById(trouserId);
             if (!existingCollection) {
                 return res.status(404).json({ message: 'Trouser not found.' });
             }
@@ -5225,7 +5235,7 @@ app.put(
 // DELETE /api/admin/trousers/:id
 app.delete('/api/admin/trousers/:id', verifyToken, async (req, res) => {
     try {
-        const deletedCollection = await TrouserCollection.findByIdAndDelete(req.params.id);
+        const deletedCollection = await TrousersCollection.findByIdAndDelete(req.params.id);
         if (!deletedCollection) return res.status(404).json({ message: 'Trouser not found.' });
 
         deletedCollection.variations.forEach(v => {
@@ -5242,7 +5252,7 @@ app.delete('/api/admin/trousers/:id', verifyToken, async (req, res) => {
 // GET /api/admin/trousers (Fetch All Trousers)
 app.get('/api/admin/trousers', verifyToken, async (req, res) => {
     try {
-        const collections = await TrouserCollection.find({})
+        const collections = await TrousersCollection.find({})
             .select('_id name tag price variations isActive totalStock') 
             .sort({ createdAt: -1 })
             .lean(); 
@@ -5271,7 +5281,7 @@ app.get('/api/admin/inventory/deductions', verifyToken, async (req, res) => {
             'caps': 'CapCollection', 
             'newarrivals': 'NewArrivals', 
             'preorders': 'PreOrderCollection',
-            'trousers': 'TrouserCollection' 
+            'trousers': 'TrousersCollection' 
 
         };
         
@@ -5493,7 +5503,7 @@ app.get('/api/collections/newarrivals', async (req, res) => {
 app.get('/api/collections/trousers', async (req, res) => {
     try {
         // FIX: Ensure you are querying the Trouser model, not NewArrivals
-        const products = await TrouserCollection.find({ isActive: true }) 
+        const products = await TrousersCollection.find({ isActive: true }) 
             .select('_id name description tag price variations totalStock') 
             .sort({ createdAt: -1 })
             .lean(); 
@@ -7472,7 +7482,7 @@ app.put('/api/orders/:orderId/cancel', verifyUserToken, async (req, res) => {
 
 module.exports = {
     WearsCollection,
-    TrouserCollection,
+    TrousersCollection,
     NewArrivals,
     CapCollection,
     PreOrderCollection,

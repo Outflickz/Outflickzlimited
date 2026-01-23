@@ -617,7 +617,7 @@ async function simulateAddToCart(productDetails) {
     const typeMapping = {
         'Wears': 'WearsCollection',
         'Caps': 'CapCollection',
-        'trousers': 'TrouserCollection',
+        'trousers': 'TrousersCollection',
         'New Arrivals': 'NewArrivals',
         'Pre-Order': 'PreOrderCollection'
     };
@@ -1695,7 +1695,7 @@ async function fetchAndRenderNewArrivals() {
 }
 
 // --- TROUSER COLLECTION JS ---
-async function fetchAndRenderTrouserCollection() {
+async function fetchAndRenderTrousersCollection() {
     const container = document.getElementById('trousers-collection-grid');
     if (!container) return;
 
@@ -1957,7 +1957,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Fetch and Render all Collections
     // These functions now use the updated createCollectionCard which links to the New Modal
     fetchAndRenderWearsCollections(); 
-    fetchAndRenderTrouserCollection();
+    fetchAndRenderTrousersCollection();
     fetchAndRenderNewArrivals(); 
     fetchAndRenderCapsCollection();
     fetchAndRenderPreorderCollections();

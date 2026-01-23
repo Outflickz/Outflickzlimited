@@ -388,7 +388,7 @@ async function simulateAddToCart(productDetails) {
     const typeMapping = {
         'Wears': 'WearsCollection',
         'Caps': 'CapCollection',
-        'Trousers': 'TrouserCollection',
+        'Trousers': 'TrousersCollection',
         'New Arrivals': 'NewArrivals',
         'Pre-Order': 'PreOrderCollection'
     };
@@ -1293,7 +1293,7 @@ function closeQuickView() {
 
 
 // --- TROUSERS COLLECTION JS ---
-async function fetchAndRenderAllTrouserCollection() {
+async function fetchAndRenderAllTrousersCollection() {
     const container = document.getElementById('full-trousers-collection-grid');
     if (!container) return;
 
@@ -1311,9 +1311,9 @@ async function fetchAndRenderAllTrouserCollection() {
         </div>`;
 
     try {
-        const trouserApiUrl = `${API_BASE_URL}/api/collections/trousers`; 
+        const trousersApiUrl = `${API_BASE_URL}/api/collections/trousers`; 
 
-        const response = await fetch(trouserApiUrl, {
+        const response = await fetch(trousersApiUrl, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -1382,7 +1382,7 @@ window.toggleImage = function(id) {
  document.addEventListener('DOMContentLoaded', () => {
     
     updateCartBadge();
-    fetchAndRenderAllTrouserCollection(); 
+    fetchAndRenderAllTrousersCollection(); 
  // We listen on the 'body' because the modal is created dynamically
     document.addEventListener('click', (e) => {
         const modalOverlay = document.getElementById('quick-view-modal');

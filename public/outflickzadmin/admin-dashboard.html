@@ -45,6 +45,10 @@
                 Wears Collection
             </button>
 
+            <button id="btn-trousers" onclick="navigateToTrousers()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+             <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+             Trousers
+            </button>
             <button id="btn-capscollection" onclick="navigateToCapsCollection()" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 13h10M4 19v-6a3 3 0 013-3h10a3 3 0 013 3v6a3 3 0 01-3 3H7a3 3 0 01-3-3z"></path></svg>
                 Caps Collection
@@ -121,6 +125,18 @@
         <div class="ml-4">
             <p class="text-xs font-medium text-gray-500 uppercase">Wears Active Stock</p>
             <p id="wears-stock" class="text-2xl font-extrabold text-gray-900 mt-1">0</p>
+        </div>
+    </div>
+</a>
+
+<a href="./productdeduction.html" class="text-left bg-white p-5 rounded-xl shadow-md border-b-4 border-indigo-500 hover:shadow-xl transition duration-300 transform hover:scale-[1.02] block">
+    <div class="flex items-center">
+        <div class="p-3 rounded-full bg-indigo-100 text-indigo-600">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+        </div>
+        <div class="ml-4">
+            <p class="text-xs font-medium text-gray-500 uppercase">Trousers Active Stock</p>
+            <p id="trousers-stock" class="text-2xl font-extrabold text-gray-900 mt-1">0</p>
         </div>
     </div>
 </a>
@@ -214,6 +230,7 @@
 
     const totalSalesElement = document.getElementById('total-sales');
     const wearsStockElement = document.getElementById('wears-stock');
+    const trousersStockElement = document.getElementById('trousers-stock');
     const capsStockElement = document.getElementById('caps-stock');
     const newArrivalsStockElement = document.getElementById('new-arrivals-stock');
     const preOrderStockElement = document.getElementById('pre-order-stock');
@@ -257,6 +274,11 @@
         if (window.innerWidth < 1024) sidebar.classList.add('-translate-x-full');
         window.location.href = './preorders.html';
     }
+
+    function navigateToTrousers() {
+    if (window.innerWidth < 1024) sidebar.classList.add('-translate-x-full');
+    window.location.href = './trousers.html';
+}
 
     function navigateToMembership() {
         // Close sidebar on mobile before redirecting
@@ -404,7 +426,7 @@ async function secureFetch(url, options = {}) {
         const contentElement = document.getElementById(`content-${contentId}`);
         if (contentElement) {
             contentElement.classList.remove('hidden');
-        } else if (['userorders', 'newarrivals', 'capscollection', 'wearscollection', 'preorders', 'membership'].includes(contentId)) { 
+        } else if (['userorders', 'newarrivals', 'capscollection', 'wearscollection', 'preorders', 'membership', 'trousers'].includes(contentId)) { 
             // Handle clicks on redirect buttons that also use setActiveContent (e.g., if they were internal initially)
             console.log(`Content section 'content-${contentId}' is a redirect. Reverting to dashboard view for internal state.`);
             document.getElementById('content-dashboard').classList.remove('hidden');
@@ -415,7 +437,7 @@ async function secureFetch(url, options = {}) {
         navButtons.forEach(button => {
             const buttonContentId = button.id.replace('btn-', '');
             // List all buttons that are *not* internal sections (and are redirects or logout)
-            if (['userorders', 'wearscollection', 'capscollection', 'newarrivals', 'preorders', 'membership', 'logout'].includes(buttonContentId)) { 
+            if (['userorders', 'wearscollection', 'capscollection', 'newarrivals', 'preorders', 'membership', 'trousers','logout'].includes(buttonContentId)) { 
                 // Remove active styles for redirect/logout buttons
                 button.classList.remove('bg-emerald-600', 'hover:bg-emerald-700', 'active-link', 'text-white');
                 button.classList.add('hover:bg-emerald-800', 'text-emerald-200', 'hover:text-white');
@@ -442,10 +464,7 @@ async function secureFetch(url, options = {}) {
         }
     }
 
-    // --- DATA FETCHING AND RENDERING LOGIC ---
-
-   // --- DATA FETCHING AND RENDERING LOGIC ---
-
+ 
     /**
       * Fetches real-time dashboard statistics from the Node.js/MongoDB API.
       * Now uses secureFetch to handle token expiration/refresh transparently.
@@ -493,6 +512,7 @@ async function secureFetch(url, options = {}) {
           return {
               totalSales: data.totalSales || 0,
               wearsStock: data.wearsStock || 0, 
+              trousersStock: data.trousersStock || 0,
               capsStock: data.capsStock || 0, 
               newArrivalsStock: data.newArrivalsStock || 0, 
               preOrderStock: data.preOrderStock || 0, 
@@ -530,6 +550,7 @@ async function secureFetch(url, options = {}) {
             // Display individual stock counts
             wearsStockElement.textContent = data.wearsStock.toLocaleString();
             capsStockElement.textContent = data.capsStock.toLocaleString();
+            trousersStockElement.textContent = data.trousersStock.toLocaleString(); 
             newArrivalsStockElement.textContent = data.newArrivalsStock.toLocaleString();
             preOrderStockElement.textContent = data.preOrderStock.toLocaleString();
             

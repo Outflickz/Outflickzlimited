@@ -1059,6 +1059,84 @@ PreOrderCollectionSchema.pre('save', function(next) {
 // --- Model Definition and Export ---
 const PreOrderCollection = mongoose.models.PreOrderCollection || mongoose.model('PreOrderCollection', PreOrderCollectionSchema);
 
+// --- 👖 TROUSER COLLECTION SCHEMA AND MODEL 👖 ---
+
+const TrouserCollectionSchema = new mongoose.Schema({
+    name: {
+        type: String,
+        required: [true, 'Product name is required'],
+        trim: true,
+        maxlength: [100, 'Product name cannot exceed 100 characters']
+    },
+    description: {
+        type: String,
+        required: [true, 'Product description is required'],
+        trim: true,
+        maxlength: [1000, 'Description cannot exceed 1000 characters'],
+        default: 'Premium quality trousers from Outflickz.'
+    },
+    tag: {
+        type: String,
+        required: [true, 'Product tag is required'],
+        enum: ['Top Deal', 'Hot Deal', 'New', 'Seasonal', 'Clearance'],
+        default: 'New'
+    },
+    price: { 
+        type: Number,
+        required: [true, 'Price (in NGN) is required'],
+        min: [0.01, 'Price (in NGN) must be greater than zero']
+    },
+    variations: {
+        type: [ProductVariationSchema], 
+        required: [true, 'At least one product variation (color/view) is required'],
+        validate: {
+            validator: function(v) { return v.length >= 1 && v.length <= 4; },
+            message: 'A product must have between 1 and 4 variations.'
+        }
+    },
+    totalStock: {
+        type: Number,
+        min: [0, 'Stock cannot be negative'],
+        default: 0
+    },
+    isActive: { type: Boolean, default: true },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+
+/**
+ * 🚀 CRITICAL PRODUCTION HOOK
+ * Automatically calculates totalStock by summing all stock levels in all variations and sizes.
+ * If the product is deactivated (isActive: false), it forces totalStock to 0 for frontend logic.
+ */
+TrouserCollectionSchema.pre('save', function(next) {
+    this.updatedAt = Date.now();
+    
+    let calculatedTotalStock = 0;
+    
+    if (this.variations && this.variations.length > 0) {
+        calculatedTotalStock = this.variations.reduce((totalVariationStock, variation) => {
+            // Sum all stock counts within the sizes array for this color variation
+            const variationStockSum = (variation.sizes || []).reduce((totalSizeStock, sizeEntry) => {
+                return totalSizeStock + (sizeEntry.stock || 0);
+            }, 0); 
+            
+            return totalVariationStock + variationStockSum;
+        }, 0);
+    }
+    
+    // Logic: If hidden/inactive, treat as out of stock for the UI
+    if (this.isActive === false) {
+        this.totalStock = 0;
+    } else {
+        this.totalStock = calculatedTotalStock;
+    }
+    
+    next();
+});
+
+const TrouserCollection = mongoose.models.TrouserCollection || mongoose.model('TrouserCollection', TrouserCollectionSchema);
+
 const cartItemSchema = new mongoose.Schema({
     productId: { type: mongoose.Schema.Types.ObjectId, required: true },
     name: { type: String, required: true },
@@ -1110,7 +1188,7 @@ const OrderItemSchema = new mongoose.Schema({
     productType: { 
         type: String, 
         required: true, 
-        enum: ['WearsCollection', 'CapCollection', 'NewArrivals', 'PreOrderCollection'] 
+        enum: ['WearsCollection', 'CapCollection', 'NewArrivals', 'TrouserCollection',  'PreOrderCollection'] 
     },
     name: { type: String, required: true },
     imageUrl: { type: String },
@@ -1330,6 +1408,7 @@ async function getRealTimeDashboardStats() {
         // ⭐ CRITICAL FIX: Defensively retrieve all Mongoose models
         const OrderModel = mongoose.models.Order || mongoose.model('Order');
         const WearsCollectionModel = mongoose.models.WearsCollection || mongoose.model('WearsCollection');
+        const TrouserCollectionModel = mongoose.models.TrouserCollection || mongoose.model('TrouserCollection');
         const CapCollectionModel = mongoose.models.CapCollection || mongoose.model('CapCollection');
         const NewArrivalsModel = mongoose.models.NewArrivals || mongoose.model('NewArrivals');
         const PreOrderCollectionModel = mongoose.models.PreOrderCollection || mongoose.model('PreOrderCollection');
@@ -1421,6 +1500,7 @@ async function getRealTimeDashboardStats() {
 
 const PRODUCT_MODEL_MAP = {
     'WearsCollection': 'WearsCollection', 
+    'TrouserCollection': 'TrouserCollection',
     'CapCollection': 'CapCollection', 
     'NewArrivals': 'NewArrivals',         
     'PreOrderCollection': 'PreOrderCollection'     
@@ -4954,6 +5034,234 @@ app.delete(
     }
 );
 
+// --- 👖 TROUSER COLLECTION API (Direct app routes) ---
+
+// GET /api/admin/trousers/:id (Fetch Single Trouser)
+app.get('/api/admin/trousers/:id', verifyToken, async (req, res) => {
+    try {
+        const collection = await TrouserCollection.findById(req.params.id)
+            .select('_id name description tag price variations isActive totalStock') 
+            .lean(); 
+        
+        if (!collection) return res.status(404).json({ message: 'Trouser collection not found.' });
+
+        const signedVariations = await Promise.all(collection.variations.map(async (v) => ({
+            ...v,
+            frontImageUrl: await generateSignedUrl(v.frontImageUrl) || v.frontImageUrl, 
+            backImageUrl: await generateSignedUrl(v.backImageUrl) || v.backImageUrl 
+        })));
+        
+        collection.variations = signedVariations;
+        res.status(200).json(collection);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error fetching trouser collection.' });
+    }
+});
+
+// POST /api/admin/trousers (Create New Trouser Collection)
+app.post(
+    '/api/admin/trousers',
+    verifyToken, 
+    upload.fields(uploadFields), 
+    async (req, res) => {
+        const session = await mongoose.startSession();
+        session.startTransaction();
+
+        try {
+            if (!req.body.collectionData) {
+                await session.abortTransaction();
+                return res.status(400).json({ message: "Missing trouser data payload." });
+            }
+            const collectionData = JSON.parse(req.body.collectionData);
+
+            const files = req.files; 
+            const finalVariations = [];
+            const uploadPromises = [];
+            
+            for (const variation of collectionData.variations) {
+                const index = variation.variationIndex;
+                const frontFile = files[`front-view-upload-${index}`]?.[0];
+                const backFile = files[`back-view-upload-${index}`]?.[0];
+
+                if (!frontFile || !backFile) {
+                    throw new Error(`Missing image files for Trouser Variation #${index}.`);
+                }
+
+                const combinedUploadPromise = Promise.all([
+                    uploadFileToPermanentStorage(frontFile),
+                    uploadFileToPermanentStorage(backFile)
+                ]).then(([frontImageUrl, backImageUrl]) => {
+                    finalVariations.push({
+                        variationIndex: variation.variationIndex,
+                        colorHex: variation.colorHex,
+                        sizes: variation.sizes, // Numeric sizes: [{size: "32", stock: 10}]
+                        frontImageUrl: frontImageUrl, 
+                        backImageUrl: backImageUrl, 
+                    });
+                });
+                
+                uploadPromises.push(combinedUploadPromise);
+            }
+            
+            await Promise.all(uploadPromises);
+
+            const newCollection = new TrouserCollection({
+                name: collectionData.name,
+                description: collectionData.description, 
+                tag: collectionData.tag,
+                price: collectionData.price, 
+                isActive: collectionData.isActive, 
+                variations: finalVariations, 
+                // totalStock is calculated automatically via pre-save hook
+            });
+
+            const savedCollection = await newCollection.save({ session });
+            await session.commitTransaction();
+
+            res.status(201).json({ 
+                message: 'Trouser Collection created successfully.',
+                collectionId: savedCollection._id,
+                name: savedCollection.name
+            });
+
+        } catch (error) {
+            console.error('Error creating trouser collection:', error); 
+            await session.abortTransaction();
+            res.status(500).json({ message: 'Server error during creation.', details: error.message });
+        } finally {
+            session.endSession();
+        }
+    }
+);
+
+// PUT /api/admin/trousers/:id (Update Trouser Collection)
+app.put(
+    '/api/admin/trousers/:id',
+    verifyToken, 
+    upload.fields(uploadFields), 
+    async (req, res) => {
+        const trouserId = req.params.id;
+        let existingCollection;
+        
+        try {
+            existingCollection = await TrouserCollection.findById(trouserId);
+            if (!existingCollection) {
+                return res.status(404).json({ message: 'Trouser not found.' });
+            }
+
+            const isQuickRestock = req.get('Content-Type')?.includes('application/json');
+            
+            // A. QUICK RESTOCK (Stock/Active toggle only)
+            if (isQuickRestock && !req.body.collectionData) {
+                const { variations, isActive } = req.body;
+                if (isActive !== undefined) existingCollection.isActive = isActive;
+                if (variations) existingCollection.variations = variations;
+
+                const updated = await existingCollection.save();
+                return res.status(200).json({ 
+                    message: `Trousers quick-updated. Total Stock: ${updated.totalStock}`,
+                    collectionId: updated._id 
+                });
+            }
+
+            // B. FULL UPDATE
+            if (!req.body.collectionData) return res.status(400).json({ message: "Missing update data." });
+
+            const collectionData = JSON.parse(req.body.collectionData);
+            const files = req.files; 
+            const updatedVariations = [];
+            const uploadPromises = [];
+            const oldImagesToDelete = [];
+
+            for (const incomingVar of collectionData.variations) {
+                const index = incomingVar.variationIndex;
+                const existingVar = existingCollection.variations.find(v => v.variationIndex === index);
+
+                let finalFrontUrl = incomingVar.existingFrontImageUrl || existingVar?.frontImageUrl;
+                let finalBackUrl = incomingVar.existingBackImageUrl || existingVar?.backImageUrl;
+
+                const newFrontFile = files[`front-view-upload-${index}`]?.[0];
+                if (newFrontFile) {
+                    if (existingVar?.frontImageUrl) oldImagesToDelete.push(existingVar.frontImageUrl);
+                    uploadPromises.push(uploadFileToPermanentStorage(newFrontFile).then(url => finalFrontUrl = url));
+                }
+
+                const newBackFile = files[`back-view-upload-${index}`]?.[0];
+                if (newBackFile) {
+                    if (existingVar?.backImageUrl) oldImagesToDelete.push(existingVar.backImageUrl);
+                    uploadPromises.push(uploadFileToPermanentStorage(newBackFile).then(url => finalBackUrl = url));
+                }
+
+                await Promise.all(uploadPromises);
+
+                updatedVariations.push({
+                    variationIndex: index,
+                    colorHex: incomingVar.colorHex,
+                    sizes: incomingVar.sizes,
+                    frontImageUrl: finalFrontUrl,
+                    backImageUrl: finalBackUrl,
+                    ...(incomingVar._id && { _id: incomingVar._id })
+                });
+            }
+
+            existingCollection.name = collectionData.name;
+            existingCollection.description = collectionData.description; 
+            existingCollection.tag = collectionData.tag;
+            existingCollection.price = collectionData.price;
+            existingCollection.isActive = collectionData.isActive;
+            existingCollection.variations = updatedVariations; 
+            
+            const updatedCollection = await existingCollection.save();
+            oldImagesToDelete.forEach(url => deleteFileFromPermanentStorage(url));
+
+            res.status(200).json({ message: 'Trouser collection updated successfully.' });
+
+        } catch (error) {
+            res.status(500).json({ message: 'Error updating trouser collection.', details: error.message });
+        }
+    }
+);
+
+// DELETE /api/admin/trousers/:id
+app.delete('/api/admin/trousers/:id', verifyToken, async (req, res) => {
+    try {
+        const deletedCollection = await TrouserCollection.findByIdAndDelete(req.params.id);
+        if (!deletedCollection) return res.status(404).json({ message: 'Trouser not found.' });
+
+        deletedCollection.variations.forEach(v => {
+            if (v.frontImageUrl) deleteFileFromPermanentStorage(v.frontImageUrl);
+            if (v.backImageUrl) deleteFileFromPermanentStorage(v.backImageUrl);
+        });
+
+        res.status(200).json({ message: `Trouser collection and images deleted.` });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error during deletion.' });
+    }
+});
+
+// GET /api/admin/trousers (Fetch All Trousers)
+app.get('/api/admin/trousers', verifyToken, async (req, res) => {
+    try {
+        const collections = await TrouserCollection.find({})
+            .select('_id name tag price variations isActive totalStock') 
+            .sort({ createdAt: -1 })
+            .lean(); 
+
+        const signedCollections = await Promise.all(collections.map(async (collection) => {
+            const signedVariations = await Promise.all(collection.variations.map(async (v) => ({
+                ...v,
+                frontImageUrl: await generateSignedUrl(v.frontImageUrl) || v.frontImageUrl,
+                backImageUrl: await generateSignedUrl(v.backImageUrl) || v.backImageUrl
+            })));
+            return { ...collection, variations: signedVariations };
+        }));
+
+        res.status(200).json(signedCollections);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error while fetching trousers.' });
+    }
+});
+
 app.get('/api/admin/inventory/deductions', verifyToken, async (req, res) => {
     try {
         const categoryFilter = req.query.category ? req.query.category.toLowerCase() : 'all';
@@ -4962,7 +5270,9 @@ app.get('/api/admin/inventory/deductions', verifyToken, async (req, res) => {
             'wears': 'WearsCollection', 
             'caps': 'CapCollection', 
             'newarrivals': 'NewArrivals', 
-            'preorders': 'PreOrderCollection' 
+            'preorders': 'PreOrderCollection',
+            'trousers': 'TrouserCollection' 
+
         };
         
         let pipeline = [
@@ -5177,6 +5487,84 @@ app.get('/api/collections/newarrivals', async (req, res) => {
         res.status(500).json({ message: 'Server error while fetching new arrivals for homepage.', details: error.message });
     }
 });
+
+
+// GET /api/collections/trousers (For Homepage Display)
+app.get('/api/collections/trousers', async (req, res) => {
+    try {
+        // FIX: Ensure you are querying the Trouser model, not NewArrivals
+        const products = await TrouserCollection.find({ isActive: true }) 
+            .select('_id name description tag price variations totalStock') 
+            .sort({ createdAt: -1 })
+            .lean(); 
+
+        const publicProducts = await Promise.all(products.map(async (product) => {
+            
+            const sizeStockMap = {}; 
+            let fallbackFrontImageUrl = null;
+            let fallbackBackImageUrl = null;
+            const PLACEHOLDER_S3_PATH = 'public/placeholder-image-v1.jpg';
+
+            const filteredVariantsWithStock = [];
+
+            for (const v of product.variations || []) {
+                const signedFrontUrl = await generateSignedUrl(v.frontImageUrl);
+                const signedBackUrl = await generateSignedUrl(v.backImageUrl);
+                
+                if (!fallbackFrontImageUrl && signedFrontUrl) {
+                    fallbackFrontImageUrl = signedFrontUrl;
+                    fallbackBackImageUrl = signedBackUrl;
+                }
+                
+                const variantTotalStock = (v.sizes || []).reduce((sum, s) => sum + (s.stock || 0), 0);
+                
+                if (variantTotalStock > 0) {
+                    (v.sizes || []).forEach(s => {
+                        const normalizedSize = s.size.toUpperCase().trim();
+                        if (s.stock > 0) {
+                            sizeStockMap[normalizedSize] = (sizeStockMap[normalizedSize] || 0) + s.stock;
+                        }
+                    });
+
+                    filteredVariantsWithStock.push({
+                        color: v.colorHex,
+                        frontImageUrl: signedFrontUrl || 'https://placehold.co/400x400/111111/FFFFFF?text=Front+View+Error',
+                        backImageUrl: signedBackUrl || 'https://placehold.co/400x400/111111/FFFFFF?text=Back+View+Error',
+                        sizes: (v.sizes || []).map(s => ({ 
+                            size: s.size, 
+                            stock: s.stock || 0
+                        }))
+                    });
+                }
+            }
+
+            if (!fallbackFrontImageUrl) {
+                const signedPlaceholder = await generateSignedUrl(PLACEHOLDER_S3_PATH);
+                fallbackFrontImageUrl = signedPlaceholder;
+                fallbackBackImageUrl = signedPlaceholder;
+            }
+
+            return {
+                _id: product._id,
+                name: product.name,
+                description: product.description || '', 
+                tag: product.tag,
+                price: product.price, 
+                frontImageUrl: fallbackFrontImageUrl,
+                backImageUrl: fallbackBackImageUrl,
+                sizeStockMap: sizeStockMap,
+                availableStock: product.totalStock, 
+                variants: filteredVariantsWithStock
+            };
+        }));
+
+        res.status(200).json(publicProducts);
+    } catch (error) {
+        console.error('Error fetching trouser collections:', error);
+        res.status(500).json({ message: 'Server error while fetching trousers.', details: error.message });
+    }
+});
+
 
 // GET /api/collections/preorder (For Homepage Display)
 app.get('/api/collections/preorder', async (req, res) => {
@@ -7084,6 +7472,7 @@ app.put('/api/orders/:orderId/cancel', verifyUserToken, async (req, res) => {
 
 module.exports = {
     WearsCollection,
+    TrouserCollection,
     NewArrivals,
     CapCollection,
     PreOrderCollection,

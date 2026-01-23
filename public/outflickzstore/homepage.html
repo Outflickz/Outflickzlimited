@@ -12,13 +12,13 @@
 
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://www.outflickz.com/outflickzstore/homepage.html">
-    <meta property="og:title" content="Outflickz Limited | Official Streetwear Store">
+    <meta property="og:title" content="Outflickz | Official Streetwear Store">
     <meta property="og:description" content="Shop exclusive streetwear at Outflickz Limited. Discover our latest collection of premium caps, limited edition drops, and urban apparel designed for the culture.">
     <meta property="og:image" content="https://i.imgur.com/1Rxhi9q.jpeg">
 
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="https://www.outflickz.com/outflickzstore/homepage.html">
-    <meta name="twitter:title" content="Outflickz Limited | Official Streetwear Store">
+    <meta name="twitter:title" content="Outflickz | Official Streetwear Store">
     <meta name="twitter:description" content="Shop exclusive streetwear at Outflickz Limited. Discover our latest collection of premium caps, limited edition drops, and urban apparel designed for the culture.">
     <meta name="twitter:image" content="https://i.imgur.com/1Rxhi9q.jpeg">
 
@@ -309,7 +309,7 @@ document.addEventListener('click', function(event) {
 
 
 // REMOVED: const USER_AUTH_TOKEN = localStorage.getItem('outflickzToken');
-    const API_BASE_URL = 'https://outflickz.com';
+    const API_BASE_URL = 'https://outflickz.com/';
 const CART_STORAGE_KEY = 'outflickzCartCount';
 const LOCAL_CART_KEY = 'outflickzLocalCart';
 const AUTH_TOKEN_KEY = 'userAccessToken';
@@ -617,6 +617,7 @@ async function simulateAddToCart(productDetails) {
     const typeMapping = {
         'Wears': 'WearsCollection',
         'Caps': 'CapCollection',
+        'trousers': 'TrouserCollection',
         'New Arrivals': 'NewArrivals',
         'Pre-Order': 'PreOrderCollection'
     };
@@ -940,7 +941,7 @@ function createCollectionCard(collection, size = 'default') {
     const defaultBackImage = PLACEHOLDER_URL;
 
     // --- Conditional Sizing Classes ---
-    const reducedSizes = ['reduced', 'caps', 'wears', 'newarrivals', 'preorder'];
+    const reducedSizes = ['reduced', 'caps', 'wears', 'newarrivals', 'trousers', 'preorder'];
     const isReduced = reducedSizes.includes(size);
     const isCaps = size === 'caps'; 
     const isPreorder = size === 'preorder'; 
@@ -1693,6 +1694,68 @@ async function fetchAndRenderNewArrivals() {
     }
 }
 
+// --- TROUSER COLLECTION JS ---
+async function fetchAndRenderTrouserCollection() {
+    const container = document.getElementById('trousers-collection-grid');
+    if (!container) return;
+
+    const spinnerColor = 'text-gray-900';
+    const textColor = 'text-gray-700';
+
+    // 1. FIXED: Corrected loading text
+    container.innerHTML = `
+        <div class="col-span-full text-center ${textColor} py-10 w-full">
+            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 ${spinnerColor} inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Loading Trousers...
+        </div>`;
+
+    try {
+        const trousersApiUrl = `${API_BASE_URL}/api/collections/trousers`; 
+
+        const response = await fetch(trousersApiUrl, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to load trousers from server. Status: ${response.status}`);
+        }
+
+        const products = await response.json();
+        container.innerHTML = '';
+        
+        let productsToRender = products && products.length > 0 ? products : [];
+
+        if (productsToRender.length > 0) {
+            const limitedProducts = productsToRender.slice(0, 4);
+            
+            limitedProducts.forEach(product => {
+                if (product.price !== undefined && product.price !== null) {
+                    // Using 'reduced' style for homepage consistency
+                    container.innerHTML += createCollectionCard(product, 'reduced'); 
+                }
+            });
+
+            if (container.innerHTML === '') {
+                // 2. FIXED: Corrected empty state text
+                container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Trousers are currently available.</p>`;
+            }
+        } else {
+            // 3. FIXED: Corrected empty state text
+            container.innerHTML = `<p class="col-span-full text-center ${textColor} py-10 w-full">No Trousers are currently available.</p>`;
+        }
+    } catch (error) {
+        // 4. FIXED: Corrected console log
+        console.error('Error fetching trousers:', error);
+        container.innerHTML = '<p class="col-span-full text-center text-red-600 py-10 w-full font-semibold">Error: Could not connect to API server.</p>';
+    }
+}
+
 // --- CAP COLLECTION JS ---
 async function fetchAndRenderCapsCollection() {
     // Using the same grid container ID pattern
@@ -1887,12 +1950,14 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Note: Banner slideshow is static as requested previously.
 });
+
 // --- Updated Consolidated Initialization Logic ---
 document.addEventListener('DOMContentLoaded', () => {
     
     // 1. Fetch and Render all Collections
     // These functions now use the updated createCollectionCard which links to the New Modal
     fetchAndRenderWearsCollections(); 
+    fetchAndRenderTrouserCollection();
     fetchAndRenderNewArrivals(); 
     fetchAndRenderCapsCollection();
     fetchAndRenderPreorderCollections();
@@ -1922,6 +1987,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <nav class="hidden md:flex flex-grow justify-center space-x-8 lg:space-x-12 text-sm lg:text-base" aria-label="Main Navigation">
                 <a href="preorder.html" class="font-medium text-color-black hover:text-gray-600 transition">Pre Order</a>
                 <a href="newarrivals.html" class="font-medium text-color-black hover:text-gray-600 transition">New Arrivals</a>
+                <a href="trousers.html" class="font-medium text-color-black hover:text-gray-600 transition">Shorts & Trousers</a>
                 <a href="wearscollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Wears Collections</a>
                 <a href="capcollection.html" class="font-medium text-color-black hover:text-gray-600 transition flex items-center">Cap Collections</a>
             </nav>
@@ -1993,6 +2059,9 @@ document.addEventListener('DOMContentLoaded', () => {
                      <a href="newarrivals.html" class="block px-4 py-3 text-base font-medium text-ash-dark hover:bg-gray-100 transition duration-150">
                         New Arrivals
                     </a>
+                      <a href="trousers.html" class="block px-4 py-3 text-base font-medium text-ash-dark hover:bg-gray-100 transition duration-150">
+                       Shorts
+                    </a>
                     <a href="capcollection.html" class="block px-4 py-3 text-base font-medium text-ash-dark hover:bg-gray-100 transition duration-150">
                         Caps Collection
                     </a>
@@ -2017,6 +2086,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     <img src="https://i.imgur.com/ZTkiU0L.jpeg" data-alt-src="https://i.imgur.com/KsNquIe.jpeg" alt="Wears" class="w-full h-full rounded-full object-cover rotating-image">
                 </div>
                 <span class="text-[9px] md:text-xs font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[#1a2b49] group-hover:text-yellow-600 transition-colors">Wears</span>
+            </a>
+
+              <a href="trousers.html" class="flex flex-col items-center space-y-3 md:space-y-4 group flex-shrink-0">
+                <div class="w-24 h-24 md:w-48 md:h-48 rounded-full border-2 border-gray-100 p-1.5 transition-all duration-500 group-hover:scale-105 group-hover:border-[#1a2b49] shadow-sm overflow-hidden bg-white">
+                    <img src="https://i.imgur.com/xopaVtW.jpeg" data-alt-src="https://i.imgur.com/eEtwJLv.jpeg" alt="Shorts & Trousers" class="w-full h-full rounded-full object-cover rotating-image">
+                </div>
+                <span class="text-[9px] md:text-xs font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[#1a2b49] group-hover:text-yellow-600 transition-colors">Shorts & Trousers</span>
             </a>
 
             <a href="newarrivals.html" class="flex flex-col items-center space-y-3 md:space-y-4 group flex-shrink-0">
@@ -2081,6 +2157,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 </a>
             </div>
             <div id="new-arrivals-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 sm:gap-8 lg:gap-10">
+            </div>
+        </div>
+    </section>
+
+      <section id="trouser-collection-section" class="py-12 sm:py-16 bg-gray-50 text-color-black border-t border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-start mb-8 sm:mb-10">
+                <div>
+                    <h2 class="text-lg sm:text-xl font-extrabold text-color-black uppercase mb-1.5">
+                       Shorts & Trousers
+                    </h2>
+                    <p class="text-sm sm:text-base font-medium text-gray-700">
+                        Limited edition drops
+                    </p>
+                </div>
+                
+                <a href="trousers.html" class="border-2 border-ash-red text-ash-red hover:bg-ash-red hover:text-white transition duration-300 font-bold py-2 px-6 sm:py-2.5 sm:px-8 rounded-sm uppercase text-xs sm:text-sm tracking-widest mt-2">
+                    Shop Shorts & Trousers
+                </a>
+            </div>
+            <div id="trousers-collection-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 sm:gap-8 lg:gap-10">
             </div>
         </div>
     </section>
@@ -2218,6 +2315,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     <h3 class="text-sm font-semibold uppercase tracking-wider text-white mb-3 sm:mb-4">Quick Links</h3> 
                     <ul class="space-y-1.5 sm:space-y-2 text-xs sm:text-sm"> 
                         <li><a href="wearscollection.html" class="text-gray-400 hover:text-ash-red transition">Wears</a></li>
+                        <li><a href="trousers.html" class="text-gray-400 hover:text-ash-red transition">Trousers</a></li> 
+                        <li><a href="newarrivals.html" class="text-gray-400 hover:text-ash-red transition">New Arrivals</a></li>
                         <li><a href="newarrivals.html" class="text-gray-400 hover:text-ash-red transition">New Arrivals</a></li>
                         <li><a href="capcollection.html" class="text-gray-400 hover:text-ash-red transition">Caps</a></li>
                         <li><a href="preorder.html" class="text-gray-400 hover:text-ash-red transition">Pre-Order</a></li>

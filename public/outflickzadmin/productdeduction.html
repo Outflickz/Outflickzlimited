@@ -118,6 +118,7 @@
                 <button onclick="loadDeductionLog('wears')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition" data-category="wears">Wears</button>
                 <button onclick="loadDeductionLog('caps')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition" data-category="caps">Caps</button>
                 <button onclick="loadDeductionLog('newarrivals')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition" data-category="newarrivals">New Arrivals</button>
+                <button onclick="loadDeductionLog('trousers')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition" data-category="trousers">Shorts & Trousers</button>
                 <button onclick="loadDeductionLog('preorders')" class="category-btn px-4 py-2 text-sm font-medium rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition" data-category="preorders">Pre-Orders</button>
             </div>
 
@@ -174,7 +175,7 @@
 
    <script>
    // --- Configuration ---
-const API_BASE_URL = 'https://outflickz.com'; 
+const API_BASE_URL = 'https://outflickz.com'; // Update with your actual API base URL
 
  /**
      * Handles the admin logout process by clearing local state 
@@ -224,9 +225,10 @@ function formatTimeAgo(timestamp) {
 
 function getCategoryBadge(category) {
     // Backend categories: Wears, Caps, New Arrivals, Pre-Orders
-    switch (category) {
+  switch (category) {
         case 'Wears': return 'bg-cyan-100 text-cyan-800';
         case 'Caps': return 'bg-blue-100 text-blue-800';
+        case 'Trousers': return 'bg-indigo-100 text-indigo-800'; // Added for Trousers
         case 'New Arrivals': return 'bg-fuchsia-100 text-fuchsia-800';
         case 'Pre-Orders': return 'bg-amber-100 text-amber-800';
         default: return 'bg-gray-100 text-gray-800';
@@ -445,13 +447,15 @@ function updateSidebarActiveLink(currentCategory) {
     
     // 2. Determine which link to activate based on the category
     let activeLink = null;
-    
-    switch(currentCategory) {
+  switch(currentCategory) {
         case 'wears':
             activeLink = document.getElementById('btn-wearscollection');
             break;
         case 'caps':
             activeLink = document.getElementById('btn-capscollection');
+            break;
+        case 'trousers':
+            activeLink = document.getElementById('btn-trouserscollection');
             break;
         case 'newarrivals':
             activeLink = document.getElementById('btn-newarrivals');
@@ -490,13 +494,14 @@ async function loadDeductionLog(category) {
     history.pushState(null, '', `?category=${category}`);
 
     // 2. Update Title and Active Tab Styling
-    const titleMap = {
-        'all': 'Stock Deduction Log 📦',
-        'wears': 'Wears Deducted from Stock 👕',
-        'caps': 'Caps Deducted from Stock 🧢',
-        'newarrivals': 'New Arrivals Deducted from Stock ✨',
-        'preorders': 'Pre-Orders Deducted from Stock ⏳'
-    };
+   const titleMap = {
+    'all': 'Stock Deduction Log 📦',
+    'wears': 'Wears Deducted from Stock 👕',
+    'caps': 'Caps Deducted from Stock 🧢',
+    'trousers': 'Trousers Deducted from Stock 👖', // Added Trouser mapping
+    'newarrivals': 'New Arrivals Deducted from Stock ✨',
+    'preorders': 'Pre-Orders Deducted from Stock ⏳'
+};
     pageTitle.textContent = titleMap[category] || 'Stock Deduction Log 📦';
 
     categoryBtns.forEach(btn => {

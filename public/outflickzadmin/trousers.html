@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - Manage New Arrivals</title>
+    <title>Trouser Management | Admin Dashboard</title>
     <link rel="icon" type="image/png" href="https://i.imgur.com/ioWFyQB.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -64,11 +64,11 @@
                 Wears Collection
             </a>
 
-                <a href="trouserscollection.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg active-link-page">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-               Trousers Collection
+             <a href="trousers.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out hover:bg-emerald-800 text-emerald-200 hover:text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                Trousers Collection
             </a>
-            
+
             <a href="newarrivals.html" class="w-full flex items-center p-3 text-base font-medium rounded-lg transition duration-150 ease-in-out bg-emerald-600 hover:bg-emerald-700 active-link">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14v12a2 2 0 01-2 2H7a2 2 0 01-2-2V9z"></path></svg>
                 New Arrivals
@@ -163,7 +163,7 @@
             
             <section id="content-newarrival">
                 <div class="bg-white shadow overflow-hidden sm:rounded-lg p-6">
-                    <h2 id="form-title" class="text-2xl font-bold text-gray-900 mb-6">✨ Create New Arrival</h2>
+                    <h2 id="form-title" class="text-2xl font-bold text-gray-900 mb-6">✨ Create Trousers</h2>
                     <form id="new-arrival-form" enctype="multipart/form-data">
                         
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -218,7 +218,7 @@
                         <div class="flex justify-end space-x-4">
                             <button type="button" id="reset-form-btn" class="hidden px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition duration-150" onclick="resetForm()">Cancel Edit</button>
                             <button type="submit" id="submit-btn" class="px-6 py-2 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition duration-150">
-                                Submit New Arrival
+                                Submit Trousers
                             </button>
                         </div>
                     </form>
@@ -228,7 +228,7 @@
             <hr class="my-8">
 
             <section id="content-newarrival-list">
-                <h2 class="text-2xl font-bold text-gray-900 mb-6">📦 New Arrivals List</h2>
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">📦 Trousers List</h2>
                 <div class="shadow overflow-hidden border-b border-gray-200 sm:rounded-lg">
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
@@ -254,10 +254,8 @@
     </div>
 
 <script>
-    // --- Configuration and Global Variables ---
-    const API_BASE_URL = '/api/admin/newarrivals'; 
+    const API_BASE_URL = '/api/admin/trousers'; 
     const MAX_VARIATIONS = 4;
-    // Define standard sizes if needed, but the form uses common-sizes input
     const DEFAULT_SIZES = ['S', 'M', 'L', 'XL', '2XL', 'XXL'];
 
     let productIdToUpdate = null; 
@@ -580,8 +578,8 @@
         document.getElementById('new-arrival-form').reset();
         document.getElementById('product-description').value = ''; // Explicitly clear if reset() doesn't catch it
         productIdToUpdate = null;
-        formTitle.textContent = '✨ Create New Arrival'; 
-        submitBtn.textContent = 'Submit New Arrival'; 
+        formTitle.textContent = '✨ Create Trousers'; 
+        submitBtn.textContent = 'Submit Trousers'; 
         submitBtn.classList.remove('bg-yellow-600', 'hover:bg-yellow-700');
         submitBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
         resetFormBtn.classList.add('hidden');
@@ -714,8 +712,8 @@
 
             // 1. Set form mode
             productIdToUpdate = productId; 
-            formTitle.textContent = `✏️ Edit New Arrival: ${product.name}`; 
-            submitBtn.textContent = 'Update New Arrival'; 
+            formTitle.textContent = `✏️ Edit Trousers: ${product.name}`; 
+            submitBtn.textContent = 'Update Trousers'; 
             submitBtn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
             submitBtn.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
             resetFormBtn.classList.remove('hidden');
@@ -766,7 +764,7 @@
         const token = getAuthToken();
         if (!token) return;
 
-        const isConfirmed = await showConfirmationModal(`Are you sure you want to permanently delete new arrival <mark>${productId.slice(-6)}</mark>? This action cannot be undone.`);
+        const isConfirmed = await showConfirmationModal(`Are you sure you want to permanently delete trousers <mark>${productId.slice(-6)}</mark>? This action cannot be undone.`);
         if (!isConfirmed) {
             return;
         }
@@ -782,12 +780,12 @@
                 throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
             }
 
-            showSuccessModal(`New arrival <mark>${productId.slice(-6)}</mark> deleted successfully.`); 
+            showSuccessModal(`Trousers <mark>${productId.slice(-6)}</mark> deleted successfully.`); 
             fetchProducts(); 
 
         } catch (error) {
             console.error('Deletion failed:', error);
-            showErrorModal(`Error deleting new arrival: <mark>${error.message}</mark>`); 
+            showErrorModal(`Error deleting trousers: <mark>${error.message}</mark>`); 
         }
     }
 
@@ -855,12 +853,12 @@
                 }
             }
 
-            showSuccessModal(`New Arrival <mark>**${productName}**</mark> successfully activated!`); 
+            showSuccessModal(`Trousers <mark>**${productName}**</mark> successfully activated!`); 
             fetchProducts(); 
 
         } catch (error) {
             console.error('Activation failed:', error);
-            showErrorModal(`Error activating new arrival: <mark>${error.message}</mark>`); 
+            showErrorModal(`Error activating trousers: <mark>${error.message}</mark>`); 
         }
     }
 
@@ -988,16 +986,17 @@
             return;
         }
 
-        const productData = { 
+      const productData = { 
     name: productName, 
-    description: productDescription, // ADD THIS
+    description: productDescription, 
     tag: productTag, 
     price: productPrice, 
     isActive: isActive,
     variations: productVariationsMetadata
 };
-        // Append non-file data as JSON string for the backend to parse
-        formData.append('productData', JSON.stringify(productData)); 
+
+// Change 'productData' to 'collectionData' to match your Backend's expectation
+formData.append('collectionData', JSON.stringify(productData));
 
         try {
             const response = await fetch(url, {
@@ -1021,8 +1020,8 @@
             const result = await response.json();
 
             const successMessage = isUpdate 
-                ? `New Arrival <mark>${productData.name}</mark> updated successfully!` 
-                : `New Arrival <mark>${productData.name}</mark> created successfully! ID: <mark>${result.productId ? result.productId.slice(-6) : 'N/A'}</mark>`;
+                ? `Trousers <mark>${productData.name}</mark> updated successfully!` 
+                : `Trousers <mark>${productData.name}</mark> created successfully! ID: <mark>${result.collectionId ? result.collectionId.slice(-6) : 'N/A'}</mark>`;
             
             showSuccessModal(successMessage); 
 
@@ -1031,7 +1030,7 @@
 
         } catch (error) {
             console.error('Submission failed:', error);
-            showErrorModal(`Error submitting new arrival: <mark>${error.message}</mark>`); 
+            showErrorModal(`Error submitting trousers: <mark>${error.message}</mark>`); 
         } finally {
             resetFormSubmitButtonState(isUpdate);
         }
@@ -1039,7 +1038,7 @@
 
     function resetFormSubmitButtonState(isUpdate) {
         submitBtn.disabled = false;
-        submitBtn.textContent = isUpdate ? 'Update New Arrival' : 'Submit New Arrival'; 
+        submitBtn.textContent = isUpdate ? 'Update Trousers' : 'Submit Trousers'; 
         submitBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
         if (isUpdate) {
             submitBtn.classList.add('bg-yellow-600', 'hover:bg-yellow-700');

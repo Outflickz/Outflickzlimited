@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outflickz Admin | Access Portal</title>
+    <link rel="icon" type="image/jpeg" href="https://i.imgur.com/fu8N7I2.jpeg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap');
+        body { font-family: 'Space Grotesk', sans-serif; background-color: #000; color: #fff; min-height: 100vh; overflow-x: hidden; }
+        .glass-panel { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); }
+        input { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(255,255,255,0.1) !important; color: white !important; transition: all 0.3s ease; }
+        input:focus { border-color: #fff !important; outline: none; background: rgba(255, 255, 255, 0.1) !important; }
+        .hidden-section { display: none; }
+        #canvas-auth { width: 100%; height: 350px; cursor: move; }
+        @media (min-width: 768px) { #canvas-auth { height: 500px; } }
+        
+        .loader { border-top-color: #fff; animation: spinner 0.6s linear infinite; width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        #custom-modal { transition: opacity 0.3s ease; }
+        .modal-content { transform: scale(0.9); transition: transform 0.3s ease; }
+        #custom-modal.active { display: flex; opacity: 1; }
+        #custom-modal.active .modal-content { transform: scale(1); }
+    </style>
+</head>
+<body class="flex items-center justify-center p-4 md:p-8">
+
+    <div id="custom-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/80 backdrop-blur-sm opacity-0 px-4">
+        <div class="modal-content glass-panel max-w-sm w-full p-8 rounded-2xl text-center border border-white/20">
+            <div id="modal-icon" class="text-4xl mb-4"></div>
+            <h3 id="modal-title" class="text-xl font-bold uppercase tracking-tighter mb-2">Notice</h3>
+            <p id="modal-message" class="text-zinc-400 text-sm mb-6"></p>
+            <button onclick="closeModal()" class="w-full bg-white text-black py-3 rounded-lg font-bold uppercase text-xs tracking-widest hover:bg-zinc-200 transition-all">Acknowledge</button>
+        </div>
+    </div>
+
+    <div class="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_50%_50%,_#1a1a1a_0%,_#000_100%)]"></div>
+
+    <div class="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-0 glass-panel rounded-3xl overflow-hidden shadow-2xl">
+        
+        <div class="relative bg-zinc-900/50 flex flex-col items-center justify-center p-8 border-b md:border-b-0 md:border-r border-white/10">
+            <div class="absolute top-8 left-8 text-xl font-black italic tracking-tighter">OUTFLICKZ</div>
+            <div id="canvas-auth"></div>
+            <div class="text-center mt-2">
+                <p class="text-zinc-500 text-[10px] uppercase tracking-[0.3em]">Encrypted Identity Verification</p>
+            </div>
+        </div>
+
+        <div class="p-8 md:p-12 flex flex-col justify-center bg-black/40">
+            
+            <div id="login-section" class="space-y-6">
+                <div class="mb-8">
+                    <h2 class="text-3xl font-bold uppercase tracking-tight">Admin Login</h2>
+                    <p class="text-zinc-500 text-sm">Verify credentials to enter the vault.</p>
+                </div>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-[10px] uppercase tracking-widest text-zinc-400 mb-2">Email Address</label>
+                        <input type="email" id="login-email" placeholder="admin@outflickz.com" class="w-full px-4 py-3 rounded-lg text-sm">
+                    </div>
+                    
+                    <div class="relative">
+                        <label class="block text-[10px] uppercase tracking-widest text-zinc-400 mb-2">Password</label>
+                        <input type="password" id="login-pass" class="w-full px-4 py-3 rounded-lg text-sm">
+                        <button onclick="toggleVisibility('login-pass')" class="absolute right-4 bottom-3 text-zinc-500 text-[10px] font-bold hover:text-white transition-colors">SHOW</button>
+                    </div>
+
+                    <div class="relative">
+                        <label class="block text-[10px] uppercase tracking-widest text-zinc-400 mb-2">Master Secret Key</label>
+                        <input type="password" id="login-master" class="w-full px-4 py-3 rounded-lg text-sm">
+                        <button onclick="toggleVisibility('login-master')" class="absolute right-4 bottom-3 text-zinc-500 text-[10px] font-bold hover:text-white transition-colors">SHOW</button>
+                    </div>
+                </div>
+
+                <button onclick="handleAuth('login')" id="login-btn" class="w-full bg-white text-black font-bold py-4 rounded-lg uppercase tracking-widest hover:bg-zinc-200 transition-all mt-6 flex justify-center items-center">
+                    <span>Authenticate</span>
+                </button>
+
+                <div class="text-center space-y-4 mt-6">
+                    <p class="text-xs text-zinc-500">
+                        Unauthorized access is logged. <button onclick="toggleForm()" class="text-white font-bold hover:underline">New Admin?</button>
+                    </p>
+                    <p class="text-xs">
+                        <button onclick="toggleResetForm()" class="text-zinc-500 hover:text-white transition-colors">Forgot Password?</button>
+                    </p>
+                </div>
+            </div>
+
+            <div id="create-section" class="hidden-section space-y-6">
+                <div class="mb-8">
+                    <h2 class="text-3xl font-bold uppercase tracking-tight">Register</h2>
+                    <p class="text-zinc-500 text-sm">Create a secure administrative profile.</p>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-[10px] uppercase tracking-widest text-zinc-400 mb-2">Full Name</label>
+                        <input type="text" id="reg-name" placeholder="John Doe" class="w-full px-4 py-3 rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase tracking-widest text-zinc-400 mb-2">Email Address</label>
+                        <input type="email" id="reg-email" placeholder="admin@outflickz.com" class="w-full px-4 py-3 rounded-lg text-sm">
+                    </div>
+                    <div class="relative">
+                        <label class="block text-[10px] uppercase tracking-widest text-zinc-400 mb-2">Master Key</label>
+                        <input type="password" id="reg-master" class="w-full px-4 py-3 rounded-lg text-sm">
+                    </div>
+                    <div class="relative">
+                        <label class="block text-[10px] uppercase tracking-widest text-zinc-400 mb-2">Create Password</label>
+                        <input type="password" id="reg-pass" class="w-full px-4 py-3 rounded-lg text-sm">
+                    </div>
+                </div>
+                <button onclick="handleAuth('register')" id="reg-btn" class="w-full bg-zinc-100 text-black font-bold py-4 rounded-lg uppercase tracking-widest hover:bg-white transition-all mt-6 flex justify-center items-center">
+                    <span>Register Admin</span>
+                </button>
+                <p class="text-center text-xs text-zinc-500 mt-6">
+                    <button onclick="toggleForm()" class="text-white font-bold hover:underline">Return to Login</button>
+                </p>
+            </div>
+
+            <div id="reset-section" class="hidden-section space-y-6">
+                <div class="mb-8">
+                    <h2 class="text-3xl font-bold uppercase tracking-tight text-red-500">Recover Vault</h2>
+                    <p class="text-zinc-500 text-sm">Reset admin access using the Master Key.</p>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-[10px] uppercase tracking-widest text-zinc-400 mb-2">Admin Email</label>
+                        <input type="email" id="reset-email" placeholder="admin@outflickz.com" class="w-full px-4 py-3 rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase tracking-widest text-zinc-400 mb-2">Master Secret Key</label>
+                        <input type="password" id="reset-master" class="w-full px-4 py-3 rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase tracking-widest text-zinc-400 mb-2">New Password</label>
+                        <input type="password" id="reset-pass" class="w-full px-4 py-3 rounded-lg text-sm">
+                    </div>
+                </div>
+                <button onclick="handleAuth('reset')" id="reset-btn" class="w-full bg-red-600 text-white font-bold py-4 rounded-lg uppercase tracking-widest hover:bg-red-700 transition-all mt-6 flex justify-center items-center">
+                    <span>Update Credentials</span>
+                </button>
+                <p class="text-center text-xs text-zinc-500 mt-6">
+                    <button onclick="toggleResetForm()" class="text-white font-bold hover:underline">Back to Login</button>
+                </p>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+    const API_ENDPOINT = "/.netlify/functions/api"; 
+
+    function showModal(title, message, type = 'info') {
+        const modal = document.getElementById('custom-modal');
+        const mTitle = document.getElementById('modal-title');
+        const mMsg = document.getElementById('modal-message');
+        const mIcon = document.getElementById('modal-icon');
+
+        mTitle.innerText = title;
+        mMsg.innerText = message;
+        
+        if(type === 'error') {
+            mIcon.innerText = '⚠️';
+            mTitle.style.color = '#ff4444';
+        } else if (type === 'success') {
+            mIcon.innerText = '✅';
+            mTitle.style.color = '#00C851';
+        } else {
+            mIcon.innerText = 'ℹ️';
+            mTitle.style.color = '#fff';
+        }
+
+        modal.classList.add('active');
+        modal.classList.remove('hidden');
+    }
+
+    function closeModal() {
+        const modal = document.getElementById('custom-modal');
+        modal.classList.remove('active');
+        setTimeout(() => modal.classList.add('hidden'), 300);
+    }
+
+    function toggleVisibility(id) {
+        const input = document.getElementById(id);
+        const btn = input.nextElementSibling;
+        if (input.type === "password") {
+            input.type = "text";
+            btn.innerText = "HIDE";
+        } else {
+            input.type = "password";
+            btn.innerText = "SHOW";
+        }
+    }
+
+    function toggleForm() {
+        document.getElementById('login-section').classList.toggle('hidden-section');
+        document.getElementById('create-section').classList.toggle('hidden-section');
+        document.getElementById('reset-section').classList.add('hidden-section');
+    }
+
+    function toggleResetForm() {
+        document.getElementById('login-section').classList.toggle('hidden-section');
+        document.getElementById('reset-section').classList.toggle('hidden-section');
+        document.getElementById('create-section').classList.add('hidden-section');
+    }
+
+    // --- 3D CARD ANIMATION ---
+    const container = document.getElementById('canvas-auth');
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    container.appendChild(renderer.domElement);
+
+    const loader = new THREE.TextureLoader();
+    const texture = loader.load('https://i.imgur.com/aJk5NNG.jpeg');
+    const geometry = new THREE.BoxGeometry(3.2, 4.5, 0.1);
+    const material = [
+        new THREE.MeshStandardMaterial({ color: 0x333333 }), 
+        new THREE.MeshStandardMaterial({ color: 0x333333 }), 
+        new THREE.MeshStandardMaterial({ color: 0x333333 }), 
+        new THREE.MeshStandardMaterial({ color: 0x333333 }), 
+        new THREE.MeshStandardMaterial({ map: texture }),    
+        new THREE.MeshStandardMaterial({ color: 0x111111 })  
+    ];
+    const card = new THREE.Mesh(geometry, material);
+    scene.add(card);
+
+    const pointLight = new THREE.PointLight(0xffffff, 1.5);
+    pointLight.position.set(5, 5, 5);
+    scene.add(pointLight);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    scene.add(ambientLight);
+    camera.position.z = 8;
+
+    function animate() {
+        requestAnimationFrame(animate);
+        card.rotation.y += 0.01;
+        card.position.y = Math.sin(Date.now() * 0.001) * 0.2;
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    // --- UPDATED AUTH LOGIC ---
+    async function handleAuth(type) {
+        const btn = document.getElementById(`${type}-btn`);
+        const originalText = btn.innerHTML;
+
+        const email = document.getElementById(`${type}-email`).value.trim();
+        const masterKey = document.getElementById(`${type}-master`).value.trim();
+        const password = document.getElementById(`${type}-pass`).value.trim();
+
+        if (!email || !password || !masterKey) {
+            showModal("Attention", "All security fields are required.", "error");
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = `<div class="loader"></div>`;
+
+        let action;
+        if(type === 'login') action = 'admin-login';
+        else if(type === 'register') action = 'admin-register';
+        else action = 'admin-reset-password';
+
+        let payload = { 
+            action, 
+            email: email.toLowerCase(), 
+            masterKey,
+            // For reset, the backend expects 'newPassword', for login/reg it expects 'password'
+            ...(type === 'reset' ? { newPassword: password } : { password })
+        };
+
+        if (type === 'register') {
+            const names = document.getElementById('reg-name').value.trim().split(' ');
+            payload.firstName = names[0];
+            payload.lastName = names.slice(1).join(' ') || 'Admin';
+        }
+
+        try {
+            const response = await fetch(API_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                if (type === 'login') {
+                    localStorage.setItem('outflickz_admin_token', data.token);
+                    btn.innerHTML = "GRANTED";
+                    btn.style.backgroundColor = "#00C851";
+                    setTimeout(() => { window.location.href = 'dashboard.html'; }, 1000);
+                } else if (type === 'reset') {
+                    showModal("Success", "Credentials updated. Please log in with your new password.", "success");
+                    toggleResetForm(); // Go back to login
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                } else {
+                    showModal("Success", "Profile created. Log in to continue.", "success");
+                    toggleForm();
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
+            } else {
+                showModal("Access Denied", data.message || "Credential verification failed.", "error");
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        } catch (err) {
+            showModal("Offline", "Terminal connection failure.", "error");
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
+
+    window.addEventListener('resize', () => {
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outflickz Admin | Tanktops Manager</title>
+    <link rel="icon" type="image/jpeg" href="https://i.imgur.com/fu8N7I2.jpeg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap');
+        body { font-family: 'Space Grotesk', sans-serif; font-size: 11px; }
+        ::-webkit-scrollbar { width: 3px; height: 3px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #000; }
+        
+        .variant-card { border-left: 3px solid #000; transition: all 0.2s ease; }
+        .input-focus:focus { border-color: black; outline: none; }
+        
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-[#fcfcfc] text-black min-h-screen flex overflow-x-hidden">
+
+    <div class="md:hidden fixed top-0 w-full p-3 flex justify-between items-center bg-white z-50 border-b border-gray-100">
+        <div class="text-lg font-black italic tracking-tighter">OUTFLICKZ</div>
+        <button onclick="toggleSidebar()" class="text-xl text-black">☰</button>
+    </div>
+
+    <aside id="sidebar" class="fixed md:relative w-56 h-screen bg-white border-r border-gray-100 p-6 flex flex-col z-40 transition-transform duration-300 -translate-x-full md:translate-x-0">
+        <div class="hidden md:block text-xl font-black italic tracking-tighter mb-8 text-center md:text-left cursor-pointer" onclick="window.location.href='dashboard.html'">OUTFLICKZ</div>
+        <nav class="space-y-1 flex-1">
+               <a href="wearsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Wears Manager</a>
+            <a href="shortsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Shorts Manager</a>
+            <a href="capsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Caps Manager</a>
+            <a href="jerseysproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Jerseys Manager</a>
+            <a href="tracksuitproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">TrackSuit Manager</a>
+            <a href="adminpost.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Admin Post</a>
+            <a href="orderConfirmation.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Order Confirmation</a>
+            <a href="membership.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Membership</a>
+            <a href="newsletter.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Global Broadcast</a>
+            <a href="settings.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Settings</a>
+            <button class="flex items-center w-full p-2.5 rounded-md bg-black text-white text-[9px] uppercase tracking-widest font-bold shadow-sm">Tanktops Manager</button>
+        </nav>
+        <div class="pt-6 border-t border-gray-100">
+            <button onclick="handleLogout()" class="text-[8px] uppercase tracking-[0.2em] text-red-600 font-bold hover:opacity-70 transition-all">TERMINATE SESSION</button>
+        </div>
+    </aside>
+
+    <div id="overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/20 backdrop-blur-sm hidden z-30"></div>
+
+    <main class="flex-1 p-4 md:p-10 mt-14 md:mt-0 max-w-7xl mx-auto w-full">
+        <header class="mb-8 flex justify-between items-end">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold uppercase tracking-tighter">Tanktop Control</h1>
+                <p class="text-gray-400 text-[9px] uppercase tracking-[0.2em] mt-1">Sleeveless Asset Management</p>
+            </div>
+            <div class="text-right">
+                <span id="live-indicator" class="text-[7px] font-bold bg-green-500 text-white px-2 py-0.5 rounded-full animate-pulse">VAULT LIVE</span>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
+            <div class="xl:col-span-1">
+                <div class="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm sticky top-6">
+                    <h2 id="form-header" class="text-[9px] uppercase tracking-widest font-black mb-4 border-b pb-2">Register Tanktop</h2>
+                    <form id="tanktop-form" class="space-y-4">
+                        <input type="hidden" id="edit-id">
+                        
+                        <div class="space-y-2">
+                            <label class="text-[8px] font-bold uppercase text-gray-400">Model Name</label>
+                            <input type="text" id="t-name" placeholder="e.g. Ribbed Summer Tank" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus font-medium" required>
+                            
+                            <label class="text-[8px] font-bold uppercase text-gray-400">Retail Price (₦)</label>
+                            <input type="number" id="t-price" placeholder="15000" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus font-bold" required>
+                        </div>
+
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-center mb-1">
+                                <p class="text-[8px] uppercase font-bold text-gray-400">Color Variants & Sizes</p>
+                                <button type="button" onclick="addVariantBlock()" class="bg-black text-white px-2 py-1 rounded text-[7px] font-bold uppercase hover:bg-zinc-800 transition">+ Add Color</button>
+                            </div>
+                            <div id="variants-container" class="space-y-4 max-h-[400px] overflow-y-auto pr-1 hide-scrollbar"></div>
+                        </div>
+
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-bold uppercase text-gray-400">Description</label>
+                            <textarea id="t-desc" placeholder="100% Cotton, Athletic Fit..." rows="2" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full outline-none text-[10px]"></textarea>
+                        </div>
+
+                        <div class="flex flex-col gap-2 pt-2">
+                            <button type="submit" id="submit-btn" class="w-full bg-black text-white text-[9px] font-bold uppercase tracking-widest py-3.5 rounded-md hover:bg-gray-800 transition shadow-lg shadow-black/10">Store in Vault</button>
+                            <button type="button" id="cancel-edit" onclick="resetForm()" class="hidden w-full bg-gray-100 text-gray-500 text-[9px] font-bold uppercase py-2 rounded-md transition hover:bg-gray-200">Cancel Edit</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="xl:col-span-3">
+                <div class="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+                    <div class="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+                        <h4 class="text-[9px] uppercase tracking-widest font-black">Active Inventory</h4>
+                        <button onclick="fetchTanktops()" class="text-[8px] font-bold text-zinc-400 hover:text-black transition uppercase flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path></svg>
+                            Refresh Relay
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="text-[8px] uppercase tracking-widest text-gray-400 border-b border-gray-50">
+                                    <th class="p-4 font-bold">Product Details</th>
+                                    <th class="p-4 font-bold">Stock Matrix (Size:Qty)</th>
+                                    <th class="p-4 font-bold">Total Stock</th>
+                                    <th class="p-4 font-bold text-right">Unit Price</th>
+                                    <th class="p-4 font-bold text-center">Manage</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tanktops-table-body" class="divide-y divide-gray-50"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+<script>
+    const API_ENDPOINT = "/.netlify/functions/api"; 
+    let allTanktops = [];
+    let isEditing = false;
+    const SIZES = ['S', 'M', 'L', 'XL', '2XL', 'XXL'];
+
+    window.onload = () => {
+        if (!localStorage.getItem('outflickz_admin_token')) window.location.href = 'login.html';
+        addVariantBlock(); 
+        fetchTanktops();
+    };
+
+    // --- Image Compression Logic ---
+    const compressImage = (file, maxWidth = 800, quality = 0.7) => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > maxWidth) {
+                        height = (maxWidth / width) * height;
+                        width = maxWidth;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    const dataUrl = canvas.toDataURL('image/webp', quality);
+                    resolve(dataUrl);
+                };
+            };
+            reader.onerror = error => reject(error);
+        });
+    };
+
+    function handlePreview(input, slotId) {
+        const previewImg = document.getElementById(slotId);
+        const file = input.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImg.src = e.target.result;
+                previewImg.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function removeImage(slotId, inputId) {
+        const preview = document.getElementById(slotId);
+        const input = document.getElementById(inputId);
+        preview.src = "";
+        preview.classList.add('hidden');
+        input.value = ""; 
+        input.removeAttribute('data-existing-url'); 
+    }
+
+    function addVariantBlock(data = null) {
+        const container = document.getElementById('variants-container');
+        const variantId = Date.now() + Math.random(); 
+        const block = document.createElement('div');
+        block.className = 'variant-card bg-gray-50 p-3 rounded-md border border-gray-200 relative mb-4';
+        
+        let sizeInputsHtml = SIZES.map(size => {
+            const qty = (data && data.stockMatrix) ? (data.stockMatrix[size] || 0) : 0;
+            return `
+                <div class="flex flex-col items-center bg-white border border-gray-100 rounded p-1">
+                    <span class="text-[6px] font-black mb-1">${size}</span>
+                    <input type="number" placeholder="0" value="${qty}" class="v-qty w-full text-center bg-transparent text-[9px] font-bold outline-none" data-size="${size}" min="0">
+                </div>
+            `;
+        }).join('');
+
+        let mediaHtml = "";
+        for (let i = 0; i < 4; i++) {
+            const existingImg = (data && data.images && data.images[i]) ? data.images[i] : "";
+            const slotId = `prev-${variantId}-${i}`;
+            const inputId = `file-${variantId}-${i}`;
+
+            mediaHtml += `
+                <div class="relative group bg-white border border-gray-200 rounded p-1 aspect-square flex flex-col items-center justify-center overflow-hidden">
+                    <img id="${slotId}" src="${existingImg}" class="${existingImg ? '' : 'hidden'} absolute inset-0 w-full h-full object-cover z-0">
+                    <button type="button" onclick="removeImage('${slotId}', '${inputId}')" 
+                        class="absolute top-0 right-0 bg-red-500 text-white w-4 h-4 rounded-bl flex items-center justify-center z-20 opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+                    <label class="cursor-pointer z-10 text-[5px] font-black uppercase bg-black/40 text-white px-1 py-0.5 rounded backdrop-blur-sm hover:bg-black/60 transition">
+                        ${i < 2 ? 'Req' : 'Opt'}
+                        <input type="file" id="${inputId}" class="v-img hidden" accept="image/*" 
+                            onchange="handlePreview(this, '${slotId}')" 
+                            ${existingImg ? `data-existing-url="${existingImg}"` : ""}>
+                    </label>
+                </div>
+            `;
+        }
+
+        block.innerHTML = `
+            <button type="button" onclick="this.parentElement.remove()" class="absolute -top-1 -right-1 bg-black text-white w-4 h-4 rounded-full text-[10px] flex items-center justify-center hover:bg-red-600 transition shadow-sm">×</button>
+            <div class="mb-2">
+                <input type="text" placeholder="COLOR (E.G. CHALK WHITE)" class="v-color bg-white border border-gray-200 p-2 rounded w-full text-[9px] font-black uppercase outline-none focus:border-black transition" value="${data ? data.color : ''}" required>
+            </div>
+            <div class="grid grid-cols-6 gap-1 mb-3">${sizeInputsHtml}</div>
+            <p class="text-[7px] uppercase font-black text-gray-400 mb-1">Asset Media (Tap label to upload)</p>
+            <div class="grid grid-cols-4 gap-2">${mediaHtml}</div>
+        `;
+        container.appendChild(block);
+    }
+
+    async function fetchTanktops() {
+        const tableBody = document.getElementById('tanktops-table-body');
+        try {
+            const response = await fetch(API_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'get-tanktops' })
+            });
+            allTanktops = await response.json();
+
+            if (!allTanktops || allTanktops.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="5" class="p-10 text-center text-gray-300 font-black uppercase text-[9px] tracking-widest">Inventory Empty</td></tr>';
+                return;
+            }
+
+            tableBody.innerHTML = allTanktops.map(t => {
+                let productTotal = 0;
+                const displayImg = (t.variants && t.variants[0]?.images?.[0]) ? t.variants[0].images[0] : '';
+                const matrixHtml = (t.variants || []).map(v => {
+                    const rowTotal = Object.values(v.stockMatrix).reduce((a, b) => a + parseInt(b || 0), 0);
+                    productTotal += rowTotal;
+                    const sizesInStock = Object.entries(v.stockMatrix).filter(([sz, qty]) => qty > 0).map(([sz, qty]) => `<span class="bg-zinc-100 px-1 rounded">${sz}:${qty}</span>`).join(' ');
+                    return `<div class="mb-2 last:mb-0"><div class="flex items-center gap-2"><span class="font-black text-[8px] uppercase w-16 truncate">${v.color}:</span><div class="flex flex-wrap gap-1">${sizesInStock || '<span class="text-red-500 font-bold">OUT</span>'}</div></div></div>`;
+                }).join('');
+
+                return `
+                <tr class="hover:bg-gray-50/80 transition-colors">
+                    <td class="p-4">
+                        <div class="flex items-center space-x-3">
+                            <img src="${displayImg}" class="w-12 h-12 rounded bg-zinc-100 object-cover border border-gray-100 shadow-sm">
+                            <div class="flex flex-col">
+                                <span class="text-[10px] font-black uppercase tracking-tight">${t.name}</span>
+                                <span class="text-[8px] text-gray-400 line-clamp-1 italic">${t.description || 'No narrative'}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="p-4 text-[8px] font-medium">${matrixHtml}</td>
+                    <td class="p-4"><span class="${productTotal < 10 ? 'bg-red-50 text-red-600 border-red-100' : 'bg-green-50 text-green-700 border-green-100'} border px-2 py-1 rounded text-[9px] font-black uppercase">${productTotal} PCS</span></td>
+                    <td class="p-4 text-right"><span class="text-[10px] font-black">₦${Number(t.price).toLocaleString()}</span></td>
+                    <td class="p-4 text-center">
+                        <div class="flex justify-center gap-3">
+                            <button onclick="enterEditMode('${t._id}')" class="text-zinc-400 hover:text-black font-black uppercase text-[8px]">EDIT</button>
+                            <button onclick="deleteTanktop('${t._id}')" class="text-zinc-300 hover:text-red-600 font-black uppercase text-[8px]">DEL</button>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        } catch (err) { tableBody.innerHTML = '<tr><td colspan="5" class="p-10 text-center text-red-500 font-bold text-[9px]">UPLINK DISRUPTED</td></tr>'; }
+    }
+
+    document.getElementById('tanktop-form').onsubmit = async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('submit-btn');
+        btn.disabled = true;
+        btn.innerText = "PROCESSING...";
+
+        try {
+            const variants = [];
+            const cards = document.querySelectorAll('.variant-card');
+
+            for (const card of cards) {
+                const color = card.querySelector('.v-color').value;
+                const stockMatrix = {};
+                card.querySelectorAll('.v-qty').forEach(input => {
+                    stockMatrix[input.dataset.size] = parseInt(input.value) || 0;
+                });
+
+                const variantImages = [];
+                const imgInputs = card.querySelectorAll('.v-img');
+                
+                for (let i = 0; i < imgInputs.length; i++) {
+                    const input = imgInputs[i];
+                    if (input.files[0]) {
+                        // COMPRESSION INJECTED HERE
+                        const compressedBase64 = await compressImage(input.files[0]);
+                        variantImages.push(compressedBase64);
+                    } else if (input.getAttribute('data-existing-url')) {
+                        variantImages.push(input.getAttribute('data-existing-url'));
+                    }
+                }
+
+                if (variantImages.length < 2) {
+                    throw new Error(`Variant "${color}" requires at least 2 images.`);
+                }
+
+                if (color) {
+                    variants.push({ color: color.toUpperCase(), stockMatrix, images: variantImages });
+                }
+            }
+
+            const payload = {
+                action: isEditing ? 'update-tanktop' : 'add-tanktop',
+                id: document.getElementById('edit-id').value,
+                name: document.getElementById('t-name').value,
+                price: document.getElementById('t-price').value,
+                description: document.getElementById('t-desc').value,
+                variants: variants
+            };
+
+            const response = await fetch(API_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            if (response.ok) { resetForm(); fetchTanktops(); } 
+            else { alert("Vault Communication Error"); }
+        } catch (err) { alert(err.message || "Error Processing Assets"); } 
+        finally {
+            btn.disabled = false;
+            btn.innerText = isEditing ? "Commit Changes" : "Store in Vault";
+        }
+    };
+
+    function enterEditMode(id) {
+        const item = allTanktops.find(t => t._id === id);
+        if (!item) return;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        isEditing = true;
+        document.getElementById('form-header').innerText = "Modify Asset";
+        document.getElementById('cancel-edit').classList.remove('hidden');
+        document.getElementById('edit-id').value = item._id;
+        document.getElementById('t-name').value = item.name;
+        document.getElementById('t-price').value = item.price;
+        document.getElementById('t-desc').value = item.description || '';
+        const container = document.getElementById('variants-container');
+        container.innerHTML = '';
+        if (item.variants) item.variants.forEach(v => addVariantBlock(v));
+    }
+
+    function resetForm() {
+        isEditing = false;
+        document.getElementById('tanktop-form').reset();
+        document.getElementById('edit-id').value = '';
+        document.getElementById('form-header').innerText = "Register Tanktop";
+        document.getElementById('cancel-edit').classList.add('hidden');
+        document.getElementById('variants-container').innerHTML = '';
+        addVariantBlock();
+    }
+
+    async function deleteTanktop(id) {
+        if(!confirm("Erase Asset Permanently?")) return;
+        try {
+            await fetch(API_ENDPOINT, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ action: 'delete-tanktop', id }) 
+            });
+            fetchTanktops();
+        } catch (err) { alert("Delete Failed"); }
+    }
+
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('-translate-x-full');
+        document.getElementById('overlay').classList.toggle('hidden');
+    }
+
+    function handleLogout() {
+        localStorage.removeItem('outflickz_admin_token');
+        window.location.href = 'login.html';
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outflickz | User Profile</title>
+    <link rel="icon" type="image/jpeg" href="https://i.imgur.com/fu8N7I2.jpeg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap');
+        body { font-family: 'Space Grotesk', sans-serif; background-color: #ffffff; }
+        .hidden { display: none; }
+        #mobile-menu { 
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+            transform: translateX(100%);
+        }
+        
+        .input-field {
+            width: 100%;
+            background: #f4f4f5;
+            border: 1px solid transparent;
+            padding: 10px;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            transition: all 0.3s ease;
+        }
+        .input-field:focus {
+            outline: none;
+            background: white;
+            border-color: black;
+        }
+
+        /* Sidebar transitions */
+        #order-sidebar { visibility: hidden; }
+        #order-sidebar.active { visibility: visible; }
+
+        /* Search wrapper hidden by default */
+        #search-wrapper { display: none; }
+        #search-wrapper.active { display: block; }
+
+        /* Modal Animation */
+        .modal-enter { opacity: 0; transform: scale(0.95); }
+        .modal-enter-active { opacity: 1; transform: scale(1); transition: all 0.3s ease-out; }
+    </style>
+</head>
+<body class="text-black antialiased overflow-x-hidden">
+
+    <div id="logout-modal" class="fixed inset-0 z-[200] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-md"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm p-8 border border-black/10 shadow-2xl">
+                <h3 class="text-xl font-black uppercase tracking-tighter italic mb-2">Sign Out?</h3>
+                <p class="text-[10px] text-zinc-500 uppercase tracking-widest mb-8">You will need to log back in to access your vault.</p>
+                <div class="flex flex-col space-y-3">
+                    <button onclick="confirmLogout()" class="w-full bg-black text-white py-4 text-[10px] font-black uppercase tracking-[0.3em] hover:bg-zinc-800 transition">Confirm Logout</button>
+                    <button onclick="toggleLogoutModal(false)" class="w-full bg-zinc-100 text-black py-4 text-[10px] font-black uppercase tracking-[0.3em] hover:bg-zinc-200 transition">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <nav class="fixed w-full z-50 flex justify-between items-center p-4 md:px-10 bg-white/80 backdrop-blur-[20px] border-b border-black/5">
+        <div class="flex items-center space-x-6 md:space-x-12">
+            <div class="text-xl md:text-2xl font-black tracking-tighter italic cursor-pointer" onclick="window.location.href='../index.html'">OUTFLICKZ</div>
+            
+            <div class="hidden lg:flex items-center space-x-8">
+                <div class="relative group">
+                    <button class="flex items-center space-x-2 text-[9px] font-black uppercase tracking-[0.3em] hover:opacity-60 transition-opacity">
+                        <span>Shop Collection</span>
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="m6 9 6 6 6-6"/></svg>
+                    </button>
+                    
+                    <div class="absolute left-0 mt-2 w-48 bg-white border border-black/5 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-[100] py-2">
+                        <a href="../index.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">All Products</a>
+                        <a href="/products/wears.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">T-Shirts</a>
+                        <a href="/products/tanktops.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">Tank Tops</a>
+                        <a href="/products/shorts.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">Shorts & Denims</a>
+                        <a href="/products/tracksuits.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">Tracksuits</a>
+                        <a href="/products/jerseys.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">Jerseys</a>
+                        <a href="/products/accessories.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">Accessories</a>
+                    </div>
+                </div>
+                <div id="nav-auth-section" class="flex items-center space-x-4 border-l border-black/5 pl-8">
+                    <button onclick="toggleLogoutModal(true)" class="text-[9px] font-black uppercase tracking-[0.3em] text-red-500 hover:opacity-60 transition-opacity">Logout</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-3 md:space-x-6">
+            <div class="flex items-center">
+                <div id="search-wrapper">
+                    <input type="text" id="productSearch" oninput="filterProducts()" placeholder="SEARCH..." 
+                        class="w-full bg-zinc-100/80 border-none py-1.5 px-3 text-[9px] tracking-widest uppercase focus:outline-none rounded-sm">
+                </div>
+                <button onclick="toggleSearch()" class="p-1 hover:scale-110 transition-transform">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                </button>
+            </div>
+
+            <div class="relative cursor-pointer hover:scale-110 transition-transform" onclick="window.location.href='products/cart.html'">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+                <span id="cart-count" class="absolute -top-1 -right-2 text-[8px] font-black bg-black text-white w-3.5 h-3.5 flex items-center justify-center rounded-full">0</span>
+            </div>
+
+            <button onclick="toggleSidebar(true)" class="p-1">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+        </div>
+    </nav>
+
+    <div id="mobile-menu" class="fixed inset-0 bg-white z-[60] p-8 flex flex-col">
+        <div class="flex justify-between items-center mb-16">
+            <div class="text-xl font-black italic tracking-tighter">OUTFLICKZ</div>
+            <button onclick="toggleSidebar(false)" class="p-2">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+        
+        <nav class="flex flex-col space-y-5 text-xl font-bold uppercase tracking-tighter">
+            <a href="../index.html" onclick="toggleSidebar(false)">All Products</a>
+            <a href="/products/wears.html" onclick="toggleSidebar(false)">T-Shirts</a>
+            <a href="/products/tanktops.html" onclick="toggleSidebar(false)">Tank Tops</a>
+            <a href="/products/shorts.html" onclick="toggleSidebar(false)">Shorts & Denims</a>
+            <a href="/products/tracksuits.html" onclick="toggleSidebar(false)">Tracksuits</a>
+            <a href="/products/jerseys.html" onclick="toggleSidebar(false)">Jerseys</a>
+            <a href="/products/accessories.html" onclick="toggleSidebar(false)">Accessories</a>
+        </nav>
+        <div id="mobile-auth-section" class="mt-auto pb-10">
+            <button onclick="toggleLogoutModal(true)" class="w-full text-left text-red-600 text-xl font-black uppercase tracking-tighter">Logout</button>
+        </div>
+    </div>
+    
+    <div id="order-sidebar" class="fixed inset-0 z-[100]">
+        <div id="sidebar-overlay" class="absolute inset-0 bg-black/40 backdrop-blur-sm opacity-0 transition-opacity duration-500 pointer-events-none" onclick="closeSidebar()"></div>
+        <div id="sidebar-content" class="absolute right-0 top-0 h-full w-full max-w-md bg-white p-8 shadow-2xl translate-x-full transition-transform duration-500 overflow-y-auto">
+            <div class="flex justify-between items-center mb-10 pb-4 border-b border-black/5">
+                <h2 class="text-xs font-black uppercase tracking-[0.4em]">Transaction Details</h2>
+                <button onclick="closeSidebar()" class="hover:rotate-90 transition-transform">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div id="order-detail-content"></div>
+        </div>
+    </div>
+
+    <main class="min-h-screen pt-32 pb-20 px-6 md:px-10 max-w-7xl mx-auto">
+        <div class="mb-10 w-20 h-20 rounded-full overflow-hidden border border-black/5 shadow-lg">
+            <img src="https://i.imgur.com/fu8N7I2.jpeg" alt="Logo" class="w-full h-full object-cover">
+        </div>
+
+        <div class="mb-12">
+            <h1 id="user-welcome" class="text-4xl md:text-6xl font-black uppercase tracking-tighter mb-2 italic">LOADING...</h1>
+            <p id="membership-status" class="text-[10px] uppercase tracking-[0.3em] text-zinc-400">Status: Verifying Session...</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+            <div class="lg:col-span-1 space-y-8">
+                <section>
+                    <h2 class="text-[11px] font-black uppercase tracking-widest mb-4 border-b border-black pb-2">Information</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <p class="text-[8px] uppercase text-zinc-400 font-bold">Full Name</p>
+                            <p id="profile-name" class="text-sm font-medium uppercase">—</p>
+                        </div>
+                        <div>
+                            <p class="text-[8px] uppercase text-zinc-400 font-bold">Contact</p>
+                            <p id="profile-email" class="text-sm">—</p>
+                            <p id="profile-phone" class="text-sm">—</p>
+                        </div>
+                        <div>
+                            <p class="text-[8px] uppercase text-zinc-400 font-bold">Shipping Address</p>
+                            <p id="profile-address" class="text-sm uppercase leading-relaxed">—</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="pt-6 border-t border-zinc-100">
+                    <h2 class="text-[11px] font-black uppercase tracking-widest mb-4">Security Settings</h2>
+                    <form id="change-pw-form" class="space-y-3">
+                        <div class="relative">
+                            <input type="password" id="new-password" placeholder="New Password" class="input-field" required>
+                            <button type="button" onclick="togglePw('new-password')" class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400">
+                                <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </button>
+                        </div>
+                        <button type="submit" class="w-full bg-black text-white py-3 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-800 transition">Update Password</button>
+                    </form>
+                    <p id="pw-message" class="mt-2 text-[8px] uppercase font-bold text-center h-3"></p>
+                </section>
+            </div>
+
+            <div class="lg:col-span-2">
+                <h2 class="text-[11px] font-black uppercase tracking-widest mb-4 border-b border-black pb-2">Order History</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-[9px] uppercase tracking-widest text-zinc-400 border-b border-zinc-100">
+                                <th class="py-4 font-bold">Order ID</th>
+                                <th class="py-4 font-bold">Date</th>
+                                <th class="py-4 font-bold text-center">Status</th>
+                                <th class="py-4 font-bold text-right">Total</th>
+                                <th class="py-4 font-bold text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="order-history" class="text-[10px] font-bold uppercase tracking-tight"></tbody>
+                    </table>
+                    <div id="no-orders" class="hidden py-20 text-center text-zinc-300 text-[10px] uppercase tracking-widest">
+                        No transactions found in Outflickz.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-white border-t border-black/5 pt-8 md:pt-12 pb-6 px-4 md:px-10">
+        <div class="max-w-[1400px] mx-auto">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-y-6 md:gap-12 mb-6 md:mb-10">
+                <div class="flex md:block justify-center md:justify-start">
+                    <div class="text-lg md:text-xl font-black italic tracking-tighter uppercase">OUTFLICKZ</div>
+                </div>
+                <div class="col-span-1 md:col-span-3 grid grid-cols-3 gap-2 md:gap-12">
+                    <div class="flex flex-col space-y-1.5">
+                        <h4 class="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-1">Support</h4>
+                        <a href="contact.html" class="text-[7px] md:text-[9px] text-zinc-500 uppercase tracking-widest hover:text-black transition-colors">Contact</a>
+                        <a href="shipping.html" class="text-[7px] md:text-[9px] text-zinc-500 uppercase tracking-widest hover:text-black transition-colors">Shipping</a>
+                        <a href="refunds.html" class="text-[7px] md:text-[9px] text-zinc-500 uppercase tracking-widest hover:text-black transition-colors">Refunds</a>
+                    </div>
+                    <div class="flex flex-col space-y-1.5">
+                        <h4 class="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-1">Legal</h4>
+                        <a href="privacy.html" class="text-[7px] md:text-[9px] text-zinc-500 uppercase tracking-widest hover:text-black transition-colors">Privacy</a>
+                        <a href="/terms" class="text-[7px] md:text-[9px] text-zinc-500 uppercase tracking-widest hover:text-black transition-colors">Terms</a>
+                    </div>
+                    <div class="flex flex-col space-y-1.5">
+                        <h4 class="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-1">Location</h4>
+                        <div class="inline-flex items-center space-x-1 border border-black/5 bg-zinc-50 px-1.5 py-1 w-fit rounded-sm cursor-pointer hover:border-black/20 transition-all">
+                            <span class="text-[7px] md:text-[8px] font-black">NG (₦)</span>
+                            <svg width="5" height="5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="m6 9 6 6 6-6"/></svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="pt-4 md:pt-6 border-t border-black/5 flex justify-between items-center">
+                <p class="text-[6px] md:text-[8px] text-zinc-400 uppercase tracking-[0.2em]">© 2026 OUTFLICKZ LIMITED</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        const API_ENDPOINT = "/.netlify/functions/api";
+        let userOrders = []; 
+
+        // --- AUTH & MODAL LOGIC ---
+        function toggleLogoutModal(show) {
+            const modal = document.getElementById('logout-modal');
+            if (show) {
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        function confirmLogout() {
+            localStorage.removeItem('outflickz_token');
+            localStorage.removeItem('outflickz_user_data');
+            localStorage.removeItem('outflickz_last_active');
+            window.location.href = '/account/login.html';
+        }
+
+        // Keep original logout for auto-timeouts
+        function logout() {
+            confirmLogout();
+        }
+
+        // --- SIDEBAR & MENU LOGIC ---
+        function toggleSidebar(open) {
+            const menu = document.getElementById('mobile-menu');
+            if (menu) {
+                menu.style.transform = open ? 'translateX(0)' : 'translateX(100%)';
+            }
+        }
+
+        function toggleSearch() {
+            const wrapper = document.getElementById('search-wrapper');
+            wrapper.classList.toggle('active');
+            if (wrapper.classList.contains('active')) {
+                document.getElementById('productSearch').focus();
+            }
+        }
+
+        // --- SESSION MANAGEMENT ---
+        function checkSession() {
+            const token = localStorage.getItem('outflickz_token');
+            const lastActive = localStorage.getItem('outflickz_last_active');
+            const SESSION_TIMEOUT = 24 * 60 * 60 * 1000; // 24 Hours
+            const now = new Date().getTime();
+
+            if (!token || !lastActive || (now - parseInt(lastActive) > SESSION_TIMEOUT)) {
+                logout();
+                return null;
+            }
+            localStorage.setItem('outflickz_last_active', now.toString());
+            return token;
+        }
+
+        // --- DATA FETCHING ---
+        async function fetchVaultData() {
+            const token = checkSession();
+            if (!token) return;
+
+            const cachedUser = JSON.parse(localStorage.getItem('outflickz_user_data'));
+            if (cachedUser) updateUI(cachedUser);
+
+            try {
+                const res = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'get-user-vault', token })
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message);
+
+                userOrders = data.orders || []; 
+                updateUI(data.user);
+                renderOrders(userOrders);
+            } catch (err) {
+                console.error("Vault Error:", err);
+                if (err.message === "Invalid token" || err.message === "User not found") logout();
+            }
+        }
+
+        function updateUI(user) {
+            document.getElementById('user-welcome').innerText = `HELLO, ${user.firstName}`;
+            document.getElementById('profile-name').innerText = `${user.firstName} ${user.lastName}`;
+            document.getElementById('profile-email').innerText = user.email;
+            document.getElementById('profile-phone').innerText = user.phone || 'NO CONTACT ADDED';
+            document.getElementById('membership-status').innerText = 'Member Status: Verified';
+
+            if (user.shipping) {
+                const s = user.shipping;
+                const zipStr = s.zip ? `[${s.zip}]` : '';
+                document.getElementById('profile-address').innerText = `${s.street}, ${s.city}, ${s.state}, ${s.country} ${zipStr}`;
+            }
+        }
+
+        function renderOrders(orders) {
+            const orderContainer = document.getElementById('order-history');
+            const noOrdersView = document.getElementById('no-orders');
+            
+            if (!orders || orders.length === 0) {
+                noOrdersView.classList.remove('hidden');
+                orderContainer.innerHTML = '';
+                return;
+            }
+
+            noOrdersView.classList.add('hidden');
+            orderContainer.innerHTML = orders.map((order, index) => `
+                <tr class="border-b border-zinc-50 hover:bg-zinc-50 transition-colors">
+                    <td class="py-4">#${order._id.slice(-6)}</td>
+                    <td class="py-4 text-zinc-500">${new Date(order.createdAt).toLocaleDateString()}</td>
+                    <td class="py-4 text-center">
+                        <span class="${order.status === 'Confirmed' ? 'text-green-600' : 'text-zinc-400'}">
+                            ${order.status}
+                        </span>
+                    </td>
+                    <td class="py-4 text-right font-black">₦${Number(order.totalAmount || 0).toLocaleString()}</td>
+                    <td class="py-4 text-right">
+                        <button onclick="openOrderDetail(${index})" class="text-[8px] font-black uppercase tracking-widest border border-black px-3 py-1.5 hover:bg-black hover:text-white transition-all">
+                            View
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+function openOrderDetail(index) {
+    const order = userOrders[index];
+    const content = document.getElementById('order-detail-content');
+    const dateObj = new Date(order.createdAt);
+    
+    // Extract math values (defaulting to 0 if missing)
+    const shipping = Number(order.shippingFee || 0);
+    const tax = Number(order.taxAmount || 0);
+    const total = Number(order.totalAmount || 0);
+    const subtotal = total - shipping - tax;
+
+    content.innerHTML = `
+        <div class="space-y-6">
+            <div>
+                <p class="text-[8px] uppercase text-zinc-400 font-bold mb-1 tracking-widest">Order Reference</p>
+                <p class="text-[10px] font-bold tracking-widest">${order.paymentReference || order._id}</p>
+                <p class="text-[9px] text-zinc-400 mt-1 uppercase">${dateObj.toLocaleDateString()} @ ${dateObj.toLocaleTimeString()}</p>
+            </div>
+            
+            <div class="space-y-4">
+                ${order.items.map(item => `
+                    <div class="flex space-x-4 items-center bg-zinc-50 p-2 border border-zinc-100/50">
+                        <div class="w-16 h-20 bg-zinc-200 flex-shrink-0">
+                            <img src="${item.image}" class="w-full h-full object-cover grayscale" onerror="this.src='https://placehold.co/400x500?text=PRODUCT';">
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-[9px] font-black uppercase">${item.name}</p>
+                            <p class="text-[8px] text-zinc-500 font-bold">${item.size || 'OS'} | ${item.color || 'STD'}</p>
+                            <p class="text-[9px] font-black mt-1 italic">QTY: ${item.qty} × ₦${Number(item.price).toLocaleString()}</p>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+
+            <div class="pt-6 border-t border-zinc-100 space-y-2">
+                <div class="flex justify-between text-[9px] uppercase font-bold text-zinc-500">
+                    <span>Subtotal</span>
+                    <span>₦${subtotal.toLocaleString()}</span>
+                </div>
+                <div class="flex justify-between text-[9px] uppercase font-bold text-zinc-500">
+                    <span>Tax (VAT)</span>
+                    <span>₦${tax.toLocaleString()}</span>
+                </div>
+                <div class="flex justify-between text-[9px] uppercase font-bold text-zinc-500">
+                    <span>Shipping</span>
+                    <span>${shipping === 0 ? 'FREE / PICKUP' : `₦${shipping.toLocaleString()}`}</span>
+                </div>
+                
+                <div class="pt-4 border-t border-black flex justify-between items-center">
+                    <span class="text-[10px] uppercase font-black tracking-widest">Total Charged</span>
+                    <span class="text-xl font-black tracking-tighter italic">₦${total.toLocaleString()}</span>
+                </div>
+            </div>
+
+            <div class="bg-zinc-100 p-3">
+                <p class="text-[8px] uppercase text-zinc-400 font-bold mb-1">Delivery Address</p>
+                <p class="text-[9px] font-bold uppercase leading-relaxed">
+                    ${order.deliveryMethod === 'pickup' ? `[PICKUP] ${order.pickupLocation || 'Main Branch'}` : order.address}
+                </p>
+            </div>
+        </div>
+    `;
+
+    const sidebar = document.getElementById('order-sidebar');
+    const sideContent = document.getElementById('sidebar-content');
+    const overlay = document.getElementById('sidebar-overlay');
+
+    sidebar.classList.add('active');
+    overlay.style.pointerEvents = 'auto';
+    setTimeout(() => {
+        overlay.classList.add('opacity-100');
+        sideContent.classList.remove('translate-x-full');
+    }, 10);
+}
+        function closeSidebar() {
+            const sideContent = document.getElementById('sidebar-content');
+            const overlay = document.getElementById('sidebar-overlay');
+            const sidebar = document.getElementById('order-sidebar');
+
+            sideContent.classList.add('translate-x-full');
+            overlay.classList.remove('opacity-100');
+            overlay.style.pointerEvents = 'none';
+            setTimeout(() => sidebar.classList.remove('active'), 500);
+        }
+
+        function updateCartCount() {
+            const cart = JSON.parse(localStorage.getItem('outflickz_cart') || '[]');
+            document.getElementById('cart-count').innerText = cart.length;
+        }
+
+        function togglePw(id) {
+            const input = document.getElementById(id);
+            input.type = input.type === 'password' ? 'text' : 'password';
+        }
+
+        window.onload = () => {
+            fetchVaultData();
+            updateCartCount();
+        };
+    </script>
+</body>
+</html>

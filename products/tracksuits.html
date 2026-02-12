@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>TrackSuits Collection | Outflickz</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Explore Outflickz premium tracksuits. High-quality matching sets, tech fleece, and urban joggers designed for comfort and high-fashion style.">
+    <meta name="keywords" content="Outflickz Tracksuits, Matching Sets Nigeria, Urban Joggers, Tech Fleece Streetwear, Luxury Tracksuits, Outflickz Sets">
+    <meta name="robots" content="index, follow"> 
+    <link rel="canonical" href="https://www.outflickz.com/products/tracksuits"> 
+    <meta name="google-site-verification" content="Z6ROK89ZCUVN1i5qEFeLCyaaeJHYp5-33t4Mi4pxzJs" />
+    <meta name="google-site-verification" content="DeJxVatGUGl_-7N6hsw_9U0lgw7wFgVKMKVok3UNRhg" />
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://www.outflickz.com/products/tracksuits">
+    <meta property="og:title" content="Premium Tracksuits & Matching Sets | Outflickz">
+    <meta property="og:description" content="The ultimate street uniform. Shop Outflickz Tracksuits for a complete high-fashion look.">
+    <meta property="og:image" content="https://www.outflickz.com/assets/tracksuit-preview.jpg"> 
+    <meta name="twitter:card" content="summary_large_image"> 
+    <meta name="twitter:url" content="https://www.outflickz.com/products/tracksuits">
+    <meta name="twitter:title" content="Premium Tracksuits & Matching Sets | Outflickz">
+    <meta name="twitter:description" content="Shop the new tracksuit drops from Outflickz. High-quality urban sets.">
+    <meta name="twitter:image" content="https://www.outflickz.com/assets/tracksuit-preview.jpg">
+    <meta name="twitter:site" content="@outflickz">
+    <link rel="icon" type="image/jpeg" href="https://i.imgur.com/fu8N7I2.jpeg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap');
+        body { font-family: 'Space Grotesk', sans-serif; margin: 0; padding: 0; }
+        
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        #search-wrapper { width: 0; opacity: 0; overflow: hidden; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        #search-wrapper.active { width: 180px; opacity: 1; margin-right: 8px; }
+
+        .animate-item { animation: fadeIn 0.4s ease forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .sold-out-badge { background-color: #ff0000; color: white; text-transform: uppercase; font-weight: 900; font-size: 8px; padding: 6px 12px; letter-spacing: 0.3em; }
+
+        /* Skeleton Loading Effect */
+        .skeleton { background: linear-gradient(90deg, #f4f4f5 25%, #e4e4e7 50%, #f4f4f5 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite; }
+        @keyframes skeleton-loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        /* FIXED SIDEBAR */
+        #mobile-menu { position: fixed; top: 0; right: 0; height: 100dvh; width: 100%; background: white; z-index: 100; transform: translateX(100%); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); visibility: hidden; display: flex; flex-direction: column; }
+        #mobile-menu.open { transform: translateX(0); visibility: visible; }
+        body.menu-open { overflow: hidden; }
+
+        /* SLIDER CSS FIXES */
+        .related-slider { display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 10px; }
+        .related-item { flex: 0 0 220px; scroll-snap-align: start; }
+        @media (min-width: 768px) { .related-item { flex: 0 0 300px; } }
+
+        @media (min-width: 1024px) { #mobile-menu { width: 400px; border-left: 1px solid rgba(0,0,0,0.1); } }
+    </style>
+</head>
+<body class="bg-white text-black overflow-x-hidden">
+
+  <nav class="fixed w-full z-50 flex justify-between items-center p-4 md:px-10 bg-white/80 backdrop-blur-[20px] border-b border-black/5">
+    <div class="flex items-center space-x-6 md:space-x-12">
+        <div class="text-xl md:text-2xl font-black tracking-tighter italic cursor-pointer" onclick="window.location.href='../index.html'">OUTFLICKZ</div>
+        
+        <div class="hidden lg:flex items-center space-x-8">
+            <div class="relative group">
+                <button class="flex items-center space-x-2 text-[9px] font-black uppercase tracking-[0.3em] hover:opacity-60 transition-opacity">
+                    <span>Shop Collection</span>
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                
+                <div class="absolute left-0 mt-2 w-48 bg-white border border-black/5 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-[100] py-2">
+                    <a href="../index.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">All Products</a>
+                    <a href="wears.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">T-Shirts</a>
+                    <a href="tanktops.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">Tank Tops</a>
+                  <a href="tracksuits.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">Tracksuits</a>
+                     <a href="jerseys.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">Jerseys</a>
+                    <a href="accessories.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">Accessories</a>
+            </div>
+
+            <div id="nav-auth-section" class="flex items-center space-x-4 border-l border-black/5 pl-8"></div>
+        </div>
+    </div>
+
+    <div class="flex items-center space-x-3 md:space-x-6">
+        <div class="flex items-center">
+            <div id="search-wrapper">
+                <input type="text" id="productSearch" oninput="filterProducts()" placeholder="SEARCH..." 
+                    class="w-full bg-zinc-100/80 border-none py-1.5 px-3 text-[9px] tracking-widest uppercase focus:outline-none rounded-sm">
+            </div>
+            <button onclick="toggleSearch()" class="p-1 hover:scale-110 transition-transform">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </button>
+        </div>
+
+        <div class="relative cursor-pointer hover:scale-110 transition-transform" onclick="window.location.href='cart.html'">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+            <span id="cart-count" class="absolute -top-1 -right-2 text-[8px] font-black bg-black text-white w-3.5 h-3.5 flex items-center justify-center rounded-full">0</span>
+        </div>
+
+        <button onclick="toggleSidebar(true)" class="p-1">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+    </div>
+</nav>
+
+    <div id="mobile-menu" class="p-8 flex flex-col">
+        <div class="flex justify-between items-center mb-16">
+            <div class="text-xl font-black italic tracking-tighter">OUTFLICKZ</div>
+            <button onclick="toggleSidebar(false)" class="p-2">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+        <nav class="flex flex-col space-y-5 text-xl font-bold uppercase tracking-tighter">
+    <a href="../index.html" onclick="toggleSidebar(false)">All Products</a>
+    <a href="wears.html" onclick="toggleSidebar(false)">T-Shirts</a>
+    <a href="tanktops.html" onclick="toggleSidebar(false)">Tank Tops</a>
+    <a href="shorts.html" onclick="toggleSidebar(false)">Shorts & Denims</a>
+    <a href="tracksuits.html" onclick="toggleSidebar(false)">Tracksuits</a>
+    <a href="jerseys.html" onclick="toggleSidebar(false)">Jerseys</a>
+    <a href="accessories.html" onclick="toggleSidebar(false)">Accessories</a>
+</nav>
+        <div id="mobile-auth-section" class="mt-auto pb-10"></div>
+    </div>
+    
+    <main class="bg-white min-h-screen pt-32 pb-20">
+       <div class="px-6 md:px-10 mb-8 md:mb-12">
+    <h1 class="text-2xl md:text-4xl font-black uppercase italic tracking-tighter leading-none">
+        Essential Tracksuits
+    </h1>
+</div>
+        <div id="product-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-x-3 gap-y-10 px-6 md:px-10">
+            <div class="aspect-[3/4] skeleton"></div>
+            <div class="aspect-[3/4] skeleton"></div>
+            <div class="aspect-[3/4] skeleton"></div>
+            <div class="aspect-[3/4] skeleton"></div>
+        </div>
+
+        <section class="mt-24 pt-24 border-t border-black/5">
+            <div class="max-w-[1400px] mx-auto px-6 md:px-10">
+                <div class="flex justify-between items-end mb-12">
+                    <h2 class="text-[10px] font-black uppercase tracking-[0.3em]">Customers Also Like</h2>
+                    <span class="text-[8px] text-zinc-400 uppercase tracking-widest mb-1">Swipe to explore →</span>
+                </div>
+                <div id="related-slider" class="related-slider hide-scrollbar">
+                    <div class="related-item aspect-[3/4] skeleton"></div>
+                    <div class="related-item aspect-[3/4] skeleton"></div>
+                    <div class="related-item aspect-[3/4] skeleton"></div>
+                    <div class="related-item aspect-[3/4] skeleton"></div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+  <div class="fixed bottom-5 right-5 z-[9999] flex flex-col items-end">
+    
+    <div id="chat-window" class="hidden mb-4 w-[300px] sm:w-[350px] bg-white rounded-2xl shadow-2xl border border-black/5 overflow-hidden transition-all duration-300 origin-bottom-right scale-95 opacity-0">
+        <div class="bg-zinc-900 p-4 text-white">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold tracking-tight">Hi there</h3>
+                <button onclick="toggleChat()" class="opacity-70 hover:opacity-100">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <p class="text-[11px] opacity-70 mt-1">Welcome Guest</p>
+        </div>
+
+        <div class="p-4 bg-zinc-50 min-h-[150px]">
+            <div class="bg-white p-3 rounded-lg shadow-sm border border-black/5 text-[12px] leading-relaxed">
+                Welcome to Outflickz Support 👋<br>
+                How would you like to secure your Outflickz? Choose a platform below to start chatting.
+            </div>
+        </div>
+
+        <div class="p-4 bg-white border-t border-black/5">
+            <div class="flex gap-2 mb-3">
+                <button id="btn-wa" onclick="setPlatform('wa')" class="flex-1 py-2 px-3 border border-black/10 rounded-md flex items-center justify-center gap-2 hover:bg-zinc-50 transition-all">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" class="w-4 h-4" alt="">
+                    <span class="text-[10px] font-bold uppercase tracking-widest">WhatsApp</span>
+                </button>
+                <button id="btn-tg" onclick="setPlatform('tg')" class="flex-1 py-2 px-3 border border-black/10 rounded-md flex items-center justify-center gap-2 hover:bg-zinc-50 transition-all">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg" class="w-4 h-4" alt="">
+                    <span class="text-[10px] font-bold uppercase tracking-widest">Telegram</span>
+                </button>
+            </div>
+            
+            <div class="relative flex items-center">
+                <input type="text" id="chat-input" placeholder="Type your message..." 
+                    class="w-full bg-zinc-100 border-none py-3 px-4 pr-12 text-[11px] rounded-full focus:outline-none">
+                <button onclick="sendChatMessage()" class="absolute right-2 p-2 text-zinc-400 hover:text-black transition-colors">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <button onclick="toggleChat()" class="w-14 h-14 bg-black text-white rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform duration-300">
+        <svg id="toggle-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+    </button>
+</div>
+
+
+ <footer class="bg-white border-t border-black/5 pt-8 md:pt-12 pb-6 px-4 md:px-10">
+    <div class="max-w-[1400px] mx-auto">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-y-6 md:gap-12 mb-6 md:mb-10">
+            
+            <div class="flex md:block justify-center md:justify-start">
+                <div class="text-lg md:text-xl font-black italic tracking-tighter uppercase">OUTFLICKZ</div>
+            </div>
+
+            <div class="col-span-1 md:col-span-3 grid grid-cols-3 gap-2 md:gap-12">
+                
+                <div class="flex flex-col space-y-1.5">
+                    <h4 class="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-1">Support</h4>
+                    <a href="/pages/contact.html" class="text-[7px] md:text-[9px] text-zinc-500 uppercase tracking-widest hover:text-black transition-colors">Contact</a>
+                    <a href="/pages/shipping.html" class="text-[7px] md:text-[9px] text-zinc-500 uppercase tracking-widest hover:text-black transition-colors">Shipping</a>
+                    <a href="/pages/refunds.html" class="text-[7px] md:text-[9px] text-zinc-500 uppercase tracking-widest hover:text-black transition-colors">Refunds</a>
+                </div>
+
+                <div class="flex flex-col space-y-1.5">
+                    <h4 class="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-1">Legal</h4>
+                    <a href="/pages/privacy.html" class="text-[7px] md:text-[9px] text-zinc-500 uppercase tracking-widest hover:text-black transition-colors">Privacy</a>
+                    <a href="/pages/terms.html" class="text-[7px] md:text-[9px] text-zinc-500 uppercase tracking-widest hover:text-black transition-colors">Terms</a>
+                </div>
+
+                <div class="flex flex-col space-y-1.5">
+                    <h4 class="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-1">Location</h4>
+                    <div class="inline-flex items-center space-x-1 border border-black/5 bg-zinc-50 px-1.5 py-1 w-fit rounded-sm cursor-pointer hover:border-black/20 transition-all">
+                        <span class="text-[7px] md:text-[8px] font-black">NG (₦)</span>
+                        <svg width="5" height="5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="m6 9 6 6 6-6"/></svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="pt-4 md:pt-6 border-t border-black/5 flex justify-between items-center">
+            <p class="text-[6px] md:text-[8px] text-zinc-400 uppercase tracking-[0.2em]">© 2026 OUTFLICKZ LIMITED</p>
+            <div class="flex space-x-4"></div>
+        </div>
+    </div>
+</footer>
+
+    <script>
+        const API_ENDPOINT = "/.netlify/functions/api"; 
+        let MASTER_PRODUCTS = []; 
+        let isRefreshing = false;
+            let selectedPlatform = 'wa';
+
+
+        window.onload = () => {
+            updateAuthUI();
+            fetchTracksuits();
+            updateCartCount();
+            loadRelatedProducts(); // TRIGGER LOADED
+        };
+
+        function toggleSidebar(open) {
+            const menu = document.getElementById('mobile-menu');
+            if (open) {
+                menu.classList.add('open');
+                document.body.classList.add('menu-open');
+            } else {
+                menu.classList.remove('open');
+                document.body.classList.remove('menu-open');
+            }
+        }
+
+        async function fetchTracksuits() {
+            try {
+                const res = await fetch(API_ENDPOINT, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'get-tracksuits' }) 
+                });
+                const data = await res.json();
+                if (Array.isArray(data)) {
+                    MASTER_PRODUCTS = data;
+                    renderProducts(MASTER_PRODUCTS);
+                }
+            } catch (err) {
+                console.error("Error fetching tracksuits:", err);
+                document.getElementById('product-grid').innerHTML = `<p class="col-span-full text-center py-20 uppercase tracking-widest text-[9px]">Server Connection Error</p>`;
+            }
+        }
+
+        function renderProducts(list) {
+            const grid = document.getElementById('product-grid');
+            if (list.length === 0) {
+                grid.innerHTML = `<p class="col-span-full text-center py-20 uppercase tracking-widest text-[10px] opacity-40">No items available.</p>`;
+                return;
+            }
+            grid.innerHTML = list.map(p => createProductCard(p)).join('');
+        }
+
+        function createProductCard(p) {
+            const variants = Array.isArray(p.variants) ? p.variants : [];
+            const isValidUrl = (url) => (typeof url === 'string' && !url.includes('…') && url.startsWith('http') && url.length > 50);
+
+            const processedVariants = variants.map(v => {
+                let vStock = 0;
+                if (v.stockMatrix && typeof v.stockMatrix === 'object') {
+                    Object.values(v.stockMatrix).forEach(qty => vStock += (Number(qty) || 0));
+                } else { vStock = Number(v.stock) || 0; }
+                const cleanImages = (Array.isArray(v.images) ? v.images : []).filter(img => isValidUrl(img));
+                return { ...v, totalStock: vStock, cleanImages };
+            });
+
+            const isOutOfStock = p.isOutOfStock || (processedVariants.length > 0 && processedVariants.every(v => v.totalStock <= 0));
+            const backupImages = processedVariants.flatMap(v => v.cleanImages);
+            const globalDisplay = isValidUrl(p.displayImage) ? p.displayImage : null;
+            let defaultImg = globalDisplay || (backupImages.length > 0 ? backupImages[0] : 'https://placehold.co/600x800/f4f4f5/000?text=OUTFLICKZ');
+
+            return `
+                <div class="group relative cursor-pointer animate-item" onclick="window.location.href='product-detail.html?id=${p._id}'">
+                    <div id="container-${p._id}" class="aspect-[3/4] bg-zinc-100 overflow-hidden relative border border-black/5 skeleton"> 
+                        <div id="sold-out-overlay-${p._id}" class="absolute inset-0 z-30 flex items-center justify-center bg-black/10 ${isOutOfStock ? '' : 'hidden'}">
+                            <span class="sold-out-badge">SOLD OUT</span>
+                        </div>
+                        <img id="img-${p._id}" src="${defaultImg}" loading="lazy" class="absolute inset-0 w-full h-full object-cover transition-all duration-700 ${isOutOfStock ? 'opacity-70' : 'group-hover:scale-105'}"
+                             onload="this.parentElement.classList.remove('skeleton');" onerror="handleImageError(this, '${p._id}')">
+                        <div class="absolute bottom-3 left-3 flex flex-wrap gap-1.5 z-40 opacity-0 group-hover:opacity-100 transition-opacity">
+                            ${processedVariants.map(v => {
+                                const vPreview = (v.cleanImages && v.cleanImages.length > 0) ? v.cleanImages[0] : defaultImg;
+                                const vIsSoldOut = v.totalStock <= 0;
+                                return `<button type="button" onmouseover="updatePreview(event, '${p._id}', '${vPreview}', ${vIsSoldOut})" 
+                                            onmouseleave="updatePreview(event, '${p._id}', '${defaultImg}', ${isOutOfStock})"
+                                            class="color-dot w-2.5 h-2.5 rounded-full border border-white/60 relative ${vIsSoldOut ? 'opacity-40' : ''}" 
+                                            style="background-color: ${v.color ? v.color.toLowerCase() : '#ccc'};">
+                                            ${vIsSoldOut ? '<div class="absolute inset-0 flex items-center justify-center"><div class="w-full h-[1px] bg-white rotate-45"></div></div>' : ''}
+                                        </button>`;
+                            }).join('')}
+                        </div>
+                    </div>
+                    <div class="mt-4 space-y-1">
+                        <div class="flex justify-between items-start">
+                            <h3 class="font-bold uppercase text-[9px] tracking-wider text-black">${p.name}</h3>
+                            <p class="font-bold text-[9px] text-black">${isOutOfStock ? '<span class="text-red-600">SOLD OUT</span>' : `₦${Number(p.price).toLocaleString()}`}</p>
+                        </div>
+                        <p class="text-zinc-400 text-[7px] uppercase tracking-widest">${p.category || 'Collection'} / ${processedVariants.filter(v => v.totalStock > 0).length} Colors Available</p>
+                    </div>
+                </div>`;
+        }
+
+        function updatePreview(event, productId, newSrc, isVariantSoldOut) {
+            if (event) event.stopPropagation(); 
+            const img = document.getElementById(`img-${productId}`);
+            const overlay = document.getElementById(`sold-out-overlay-${productId}`);
+            if (img && newSrc && newSrc !== 'undefined') {
+                img.src = newSrc;
+                img.style.opacity = isVariantSoldOut ? "0.7" : "1";
+            }
+            if (overlay) isVariantSoldOut ? overlay.classList.remove('hidden') : overlay.classList.add('hidden');
+        }
+
+        function handleImageError(img, id) {
+            img.parentElement?.classList.remove('skeleton');
+            img.src = 'https://placehold.co/600x800/f4f4f5/18181b?text=IMAGE+ERROR';
+            if (img.src.includes('idrivee2.com') && !isRefreshing) {
+                isRefreshing = true;
+                setTimeout(() => { fetchTracksuits(); isRefreshing = false; }, 5000);
+            }
+        }
+
+        async function loadRelatedProducts(currentId) {
+            try {
+                const res = await fetch(API_ENDPOINT, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'get-all-products-combined' }) 
+                });
+                
+                let allItems = await res.json();
+                if (Array.isArray(allItems)) {
+                    let processedItems = allItems.filter(p => p._id !== currentId);
+                    processedItems = processedItems.map(p => {
+                        let totalStock = 0;
+                        (p.variants || []).forEach(v => {
+                            if (v.stockMatrix) Object.values(v.stockMatrix).forEach(qty => totalStock += Number(qty) || 0);
+                            else if (v.stock) totalStock += Number(v.stock) || 0;
+                        });
+                        return { ...p, isGloballySoldOut: totalStock <= 0 };
+                    });
+                    processedItems.sort((a, b) => a.isGloballySoldOut - b.isGloballySoldOut);
+                    renderRelatedSlider(processedItems.slice(0, 8));
+                }
+            } catch (err) { console.error("Related Products Error:", err); }
+        }
+
+        function renderRelatedSlider(items) {
+            const slider = document.getElementById('related-slider');
+            if (!slider) return;
+            slider.innerHTML = items.map(p => {
+                const defaultImg = p.displayImage || (p.variants?.[0]?.images?.[0]) || 'https://placehold.co/600x800/f4f4f5/000?text=OUTFLICKZ';
+                const pCategory = p.category || 'wear'; 
+                const isSoldOut = p.isGloballySoldOut;
+
+                const swatches = (p.variants || []).map(v => `
+                    <div class="color-dot w-2 h-2 rounded-full border border-white/50" 
+                         style="background-color: ${v.color.toLowerCase()};" 
+                         onmouseover="document.getElementById('rel-img-${p._id}').src='${v.images?.[0] || defaultImg}'" 
+                         onclick="event.stopPropagation();">
+                    </div>`).join('');
+
+                return `
+                    <div class="related-item group cursor-pointer relative" onclick="window.location.href='product-detail.html?id=${p._id}&category=${pCategory}'">
+                        <div class="aspect-[3/4] bg-zinc-100 overflow-hidden relative border border-black/5">
+                            ${isSoldOut ? `<div class="absolute inset-0 bg-black/10 z-20 flex items-center justify-center"><span class="sold-out-badge">SOLD OUT</span></div>` : ''}
+                            <img id="rel-img-${p._id}" src="${defaultImg}" alt="${p.name}" loading="lazy" 
+                                 class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-700 ${isSoldOut ? 'opacity-70' : ''}">
+                            <div class="absolute bottom-3 left-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                ${swatches}
+                            </div>
+                        </div>
+                        <div class="mt-4 space-y-1 ${isSoldOut ? 'opacity-50' : ''}">
+                            <div class="flex justify-between items-start">
+                                <h3 class="font-bold uppercase text-[9px] tracking-wider">${p.name}</h3>
+                                <p class="font-bold text-[9px]">₦${Number(p.price).toLocaleString()}</p>
+                            </div>
+                            <p class="text-zinc-400 text-[8px] uppercase tracking-widest">${pCategory} / ${p.variants?.length || 0} Colors</p>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        function handleSearch() {
+            const query = document.getElementById('productSearch').value.toLowerCase();
+            renderProducts(MASTER_PRODUCTS.filter(p => p.name.toLowerCase().includes(query)));
+        }
+
+        function toggleSearch() { 
+            const wrapper = document.getElementById('search-wrapper');
+            wrapper.classList.toggle('active');
+            if (wrapper.classList.contains('active')) document.getElementById('productSearch').focus();
+        }
+
+        function updateAuthUI() {
+            const authSection = document.getElementById('nav-auth-section');
+            const mobileAuth = document.getElementById('mobile-auth-section');
+            const userData = JSON.parse(localStorage.getItem('outflickz_user_data') || '{}');
+            const html = userData.firstName ? `<a href="/account/profile.html" class="text-[9px] font-bold uppercase tracking-widest">Hi, ${userData.firstName}</a>` : `<a href="/account/login.html" class="text-[9px] font-bold uppercase tracking-widest bg-black text-white px-3 py-1.5 rounded-sm">Join Outflickz</a>`;
+            if(authSection) authSection.innerHTML = html;
+            if(mobileAuth) mobileAuth.innerHTML = html;
+        }
+
+        function updateCartCount() {
+            document.getElementById('cart-count').innerText = JSON.parse(localStorage.getItem('outflickz_cart') || '[]').length;
+        }
+        
+function toggleChat() {
+    const windowEl = document.getElementById('chat-window');
+    const isHidden = windowEl.classList.contains('hidden');
+
+    if (isHidden) {
+        windowEl.classList.remove('hidden');
+        setTimeout(() => {
+            windowEl.classList.remove('scale-95', 'opacity-0');
+            windowEl.classList.add('scale-100', 'opacity-100');
+        }, 10);
+    } else {
+        windowEl.classList.add('scale-95', 'opacity-0');
+        windowEl.classList.remove('scale-100', 'opacity-100');
+        setTimeout(() => windowEl.classList.add('hidden'), 300);
+    }
+}
+
+function setPlatform(platform) {
+    selectedPlatform = platform;
+    
+    // UI Feedback for selection
+    document.getElementById('btn-wa').classList.toggle('bg-zinc-100', platform === 'wa');
+    document.getElementById('btn-wa').classList.toggle('border-black', platform === 'wa');
+    document.getElementById('btn-tg').classList.toggle('bg-zinc-100', platform === 'tg');
+    document.getElementById('btn-tg').classList.toggle('border-black', platform === 'tg');
+}
+
+function sendChatMessage() {
+    const message = document.getElementById('chat-input').value || "Hello Outflickz, I need assistance.";
+    const encodedMessage = encodeURIComponent(message);
+    
+    let url = "";
+    if (selectedPlatform === 'wa') {
+        url = `https://wa.me/2347042882706?text=${encodedMessage}`;
+    } else {
+        url = `https://t.me/+2349125898200?text=${encodedMessage}`;
+    }
+    
+    window.open(url, '_blank');
+}
+    </script>
+</body>
+</html>

@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outflickz Admin | Order Vault</title>
+    <link rel="icon" type="image/jpeg" href="https://i.imgur.com/fu8N7I2.jpeg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap');
+        body { font-family: 'Space Grotesk', sans-serif; font-size: 12px; margin: 0; padding: 0; overflow-x: hidden; }
+        .status-pill { padding: 4px 8px; border-radius: 4px; font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+        .status-success { background: #ecfdf5; color: #059669; }
+        .status-pending { background: #fffbeb; color: #d97706; }
+        .order-card { transition: all 0.2s; border-bottom: 1px solid #f3f4f6; }
+        .order-card:hover { background: #fafafa; }
+        .view-section { transition: opacity 0.3s ease-in-out; }
+        .hidden-view { display: none; opacity: 0; }
+        .visible-view { display: block; opacity: 1; }
+    </style>
+</head>
+<body class="bg-[#fcfcfc] text-black min-h-screen flex flex-col md:flex-row">
+
+    <aside id="sidebar" class="w-full md:w-56 bg-white border-r p-6 flex flex-col z-40">
+        <div class="text-xl font-black italic tracking-tighter mb-8 cursor-pointer text-center md:text-left" onclick="window.location.href='dashboard.html'">OUTFLICKZ</div>
+        <nav class="space-y-1 flex-1 text-[9px] uppercase tracking-widest font-bold">
+            <a href="wearsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black transition-all">Wears Manager</a>
+            <a href="shortsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black transition-all">Shorts Manager</a>
+            <a href="capsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black transition-all">Caps Manager</a>
+            <a href="jerseysproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black transition-all">Jerseys Manager</a>
+            <a href="tankstopproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black transition-all">TankTop Manager</a>
+            <a href="tracksuitproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black transition-all">TrackSuit Manager</a>
+            <a href="adminpost.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black transition-all">Admin Post</a>
+            <a href="orderConfirmation.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black transition-all">Order Confirmation</a>
+            <a href="membership.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black transition-all">Membership</a>
+            <a href="newsletter.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black transition-all">Global Broadcast</a>
+           <a href="settings.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Settings</a>
+        </nav>
+    </aside>
+
+    <main class="flex-1 p-4 md:p-10 relative">
+        
+        <div id="list-view" class="view-section visible-view">
+            <header class="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+                <div>
+                    <h1 class="text-3xl font-bold uppercase tracking-tighter">Verified Orders</h1>
+                    <p id="order-count" class="text-gray-400 text-[9px] uppercase tracking-[0.2em] mt-1">Syncing with Gateway...</p>
+                </div>
+                <div class="flex gap-2 w-full md:w-auto">
+                    <input type="text" id="orderSearch" onkeyup="filterOrders()" placeholder="SEARCH EMAIL OR REF..." class="bg-white border border-gray-200 px-4 py-2 rounded text-[9px] font-bold uppercase tracking-widest focus:outline-none focus:border-black w-full md:w-64">
+                    <button onclick="fetchOrders()" class="bg-white border border-gray-200 px-4 py-2 rounded text-[8px] font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-all">Refresh</button>
+                </div>
+            </header>
+
+            <div class="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left" id="ordersTable">
+                        <thead>
+                            <tr class="bg-gray-50 text-[8px] uppercase tracking-widest text-gray-400 border-b">
+                                <th class="p-5">Customer & Date</th>
+                                <th class="p-5">Quick View</th>
+                                <th class="p-5">Total Paid</th>
+                                <th class="p-5">Status</th>
+                                <th class="p-5 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="orders-list"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="detail-view" class="view-section hidden-view max-w-4xl mx-auto">
+            <button onclick="showListView()" class="mb-6 flex items-center gap-2 text-gray-400 hover:text-black transition-all">
+                <span class="text-lg">←</span>
+                <span class="text-[9px] font-black uppercase tracking-widest">Back to Vault List</span>
+            </button>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-2 space-y-6">
+                    <div id="detail-customer-box" class="bg-white border border-gray-100 p-8 rounded-2xl shadow-sm"></div>
+                    <div id="detail-products-box" class="space-y-4"></div>
+                </div>
+
+                <div class="space-y-6">
+                    <div id="detail-summary-box" class="bg-black text-white p-8 rounded-2xl shadow-xl"></div>
+                    <div id="detail-action-box"></div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+<script>
+const API_ENDPOINT = "/.netlify/functions/api"; 
+let allOrders = [];
+
+window.onload = () => {
+    if (!localStorage.getItem('outflickz_admin_token')) window.location.href = 'login.html';
+    fetchOrders();
+};
+
+async function fetchOrders() {
+    const countDisplay = document.getElementById('order-count');
+    try {
+        const response = await fetch(`${API_ENDPOINT}?action=get-orders`);
+        const data = await response.json();
+        allOrders = Array.isArray(data) ? data : [];
+        renderOrders(allOrders);
+        countDisplay.innerText = `${allOrders.length} TOTAL TRANSACTIONS`;
+    } catch (err) {
+        countDisplay.innerText = "OFFLINE - VAULT CONNECTION FAILED";
+    }
+}
+
+function renderOrders(orders) {
+    const container = document.getElementById('orders-list');
+    if (!orders.length) {
+        container.innerHTML = `<tr><td colspan="5" class="p-10 text-center text-gray-400 uppercase tracking-widest font-bold">No verified orders found</td></tr>`;
+        return;
+    }
+
+    container.innerHTML = orders.map(order => {
+        const rawStatus = (order.paymentStatus || 'paid').toLowerCase();
+        const fStatus = (order.fulfillmentStatus || 'Pending');
+        
+        let statusClass = 'status-pending';
+        if (rawStatus === 'success' || rawStatus === 'paid') statusClass = 'status-success';
+        if (fStatus === 'Delivered') statusClass = 'bg-blue-50 text-blue-600';
+
+        const items = order.items || [];
+        const dateObj = new Date(order.createdAt);
+        const formattedDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        const formattedTime = dateObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+        return `
+        <tr class="order-card">
+            <td class="p-5">
+                <div class="font-bold uppercase text-[10px]">${order.email}</div>
+                <div class="text-[7px] text-zinc-500 font-bold uppercase mt-1">${formattedDate} | ${formattedTime}</div>
+            </td>
+            <td class="p-5">
+                <div class="flex -space-x-2">
+                    ${items.slice(0, 3).map(item => `
+                        <div class="w-6 h-8 border border-white rounded overflow-hidden bg-gray-100 shadow-sm">
+                            <img src="${item.image}" 
+                                 onerror="this.src='https://placehold.co/100x120?text=ERR'" 
+                                 class="w-full h-full object-cover grayscale hover:grayscale-0 transition-all">
+                        </div>
+                    `).join('')}
+                    ${items.length > 3 ? `<div class="w-6 h-8 bg-black text-white text-[6px] flex items-center justify-center rounded border border-white font-bold">+${items.length - 3}</div>` : ''}
+                </div>
+            </td>
+            <td class="p-5 font-black text-[10px]">₦${Number(order.amountPaid || order.totalAmount).toLocaleString()}</td>
+            <td class="p-5">
+                <span class="status-pill ${statusClass}">${fStatus === 'Pending' ? rawStatus : fStatus}</span>
+            </td>
+            <td class="p-5 text-right">
+                <button onclick="viewOrder('${order._id}')" class="bg-black text-white px-4 py-2 rounded text-[8px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-all">
+                    View Action
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function viewOrder(id) {
+    const order = allOrders.find(o => o._id === id);
+    if (!order) return;
+
+    const dateObj = new Date(order.createdAt);
+    const fullDateStr = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+    const fullTimeStr = dateObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+    const isPickup = order.deliveryMethod === 'pickup';
+    const deliveryMethodLabel = isPickup ? 'Local Pickup' : 'Standard Shipping';
+    const deliveryMethodClass = isPickup ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700';
+
+    document.getElementById('detail-customer-box').innerHTML = `
+        <div class="flex justify-between items-start mb-6">
+            <div class="space-y-1">
+                <h3 class="text-[8px] uppercase tracking-[0.3em] text-gray-400 font-bold">Logistics & Distribution</h3>
+                <span class="status-pill ${deliveryMethodClass}">${deliveryMethodLabel}</span>
+            </div>
+            <div class="text-right">
+                <p class="text-[7px] font-bold bg-zinc-100 px-2 py-1 rounded uppercase tracking-tighter inline-block">${fullDateStr}</p>
+                <p class="text-[6px] text-gray-400 font-bold uppercase mt-1">Logged at ${fullTimeStr}</p>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <p class="text-[7px] text-gray-400 uppercase font-bold mb-1">Customer Details</p>
+                <p class="font-black text-[11px] uppercase">${order.customerDetails?.name || (order.firstName ? (order.firstName + ' ' + order.lastName) : order.email) || 'N/A'}</p>
+            </div>
+            <div>
+                <p class="text-[7px] text-gray-400 uppercase font-bold mb-1">Contact Number</p>
+                <div class="flex items-center gap-2">
+                    <p class="font-black text-[11px] uppercase">${order.phone || 'N/A'}</p>
+                    <a href="https://wa.me/${(order.phone || "").toString().replace(/\D/g, '')}" target="_blank" class="bg-[#25D366] text-white px-2 py-0.5 rounded-[4px] text-[7px] font-bold uppercase flex items-center gap-1">WhatsApp</a>
+                </div>
+            </div>
+            <div class="col-span-2 mt-4 pt-4 border-t border-gray-50">
+                <p class="text-[7px] text-gray-400 uppercase font-bold mb-1">${isPickup ? 'Selected Pickup Branch' : 'Delivery Address'}</p>
+                <p class="text-[10px] text-black font-bold uppercase leading-relaxed">
+                    ${isPickup ? (order.pickupLocation || 'Warehouse Main') : (order.address || 'Address Not Found')}
+                </p>
+                ${!isPickup ? `<p class="text-[8px] text-gray-400 mt-1 uppercase">${order.city || ''}, ${order.state || ''}</p>` : `<p class="text-[8px] text-amber-600 mt-1 uppercase font-bold">In-Store Collection Required</p>`}
+            </div>
+        </div>`;
+
+    const itemsHTML = (order.items || []).map(item => {
+        const displaySize = item.displaySize || item.size || 'OS';
+        const displayQty = item.displayQty || item.qty || item.quantity || 1;
+        const displayColor = item.color || item.variant || 'Standard';
+
+        return `
+        <div class="bg-white border border-gray-100 p-4 rounded-xl flex items-center gap-4 shadow-sm hover:border-black transition-all">
+            <div class="w-16 h-20 bg-gray-50 rounded overflow-hidden flex-shrink-0 border border-gray-100 flex items-center justify-center">
+                <img src="${item.image || ''}" 
+                     class="w-full h-full object-cover ${!item.image ? 'hidden' : ''}" 
+                     onerror="this.src='https://placehold.co/400x500?text=IMG+ERROR'">
+                ${!item.image ? '<span class="text-[8px] font-bold text-gray-400">NO IMG</span>' : ''}
+            </div>
+            <div class="flex-1">
+                <div class="flex justify-between items-start">
+                    <h4 class="text-[10px] font-black uppercase tracking-tight">${item.name}</h4>
+                    <span class="text-[9px] font-bold">₦${Number(item.price).toLocaleString()}</span>
+                </div>
+                <div class="mt-2 flex gap-6">
+                    <div>
+                        <span class="text-[7px] text-gray-400 uppercase font-bold block">Size</span>
+                        <span class="text-[9px] font-black uppercase">${displaySize}</span>
+                    </div>
+                    <div>
+                        <span class="text-[7px] text-gray-400 uppercase font-bold block">Color</span>
+                        <span class="text-[9px] font-black uppercase">${displayColor}</span>
+                    </div>
+                    <div>
+                        <span class="text-[7px] text-gray-400 uppercase font-bold block">Qty</span>
+                        <span class="text-[9px] font-black uppercase">${displayQty}</span>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+    document.getElementById('detail-products-box').innerHTML = itemsHTML;
+
+    // --- UPDATED FINANCIAL CALCULATIONS ---
+    const subtotal = (order.items || []).reduce((acc, item) => acc + (Number(item.price) * Number(item.qty || item.quantity || 1)), 0);
+    const shipping = Number(order.shippingFee || order.shippingCost || 0);
+    const tax = Number(order.taxAmount || order.tax || 0); // Correctly pulling Tax Rate/Amount
+    const totalPaid = Number(order.amountPaid || (subtotal + shipping + tax));
+
+    document.getElementById('detail-summary-box').innerHTML = `
+        <h3 class="text-[8px] uppercase tracking-[0.3em] text-gray-400 font-bold mb-6">Financial Summary</h3>
+        <div class="space-y-3">
+             <div class="flex justify-between text-[10px]">
+                <span class="opacity-60 uppercase font-bold">Subtotal</span>
+                <span class="font-bold">₦${subtotal.toLocaleString()}</span>
+            </div>
+            <div class="flex justify-between text-[10px]">
+                <span class="opacity-60 uppercase font-bold">Tax / VAT</span>
+                <span class="font-bold">₦${tax.toLocaleString()}</span>
+            </div>
+            <div class="flex justify-between text-[10px]">
+                <span class="opacity-60 uppercase font-bold">Shipping (${order.state || 'Pickup'})</span>
+                <span class="font-bold">₦${shipping.toLocaleString()}</span>
+            </div>
+            <div class="flex justify-between text-[10px]">
+                <span class="opacity-60 uppercase font-bold">Reference</span>
+                <span class="font-bold tracking-widest uppercase text-[8px]">${order.paymentReference || 'N/A'}</span>
+            </div>
+            <div class="flex justify-between text-[10px] pt-3 border-t border-white/10">
+                <span class="opacity-60 uppercase font-bold">Total Paid</span>
+                <span class="text-lg font-black tracking-tighter">₦${totalPaid.toLocaleString()}</span>
+            </div>
+        </div>`;
+
+    const currentStatus = order.fulfillmentStatus || 'Pending';
+    let actionHTML = '';
+    if (currentStatus === 'Delivered') {
+        actionHTML = `<div class="w-full py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] bg-green-600 text-white text-center shadow-md">✓ Order Delivered</div>`;
+    } else if (currentStatus === 'Shipped') {
+        actionHTML = `<button onclick="updateOrderStatus('${order._id}', 'Delivered', this)" class="w-full py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] bg-blue-600 text-white hover:scale-[1.02] transition-all shadow-xl">Confirm Final Delivery</button>`;
+    } else {
+        actionHTML = `<button onclick="updateOrderStatus('${order._id}', 'Shipped', this)" class="w-full py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] bg-black text-white hover:scale-[1.02] transition-all shadow-xl">Initialize Shipment</button>`;
+    }
+    document.getElementById('detail-action-box').innerHTML = actionHTML;
+
+    document.getElementById('list-view').classList.replace('visible-view', 'hidden-view');
+    document.getElementById('detail-view').classList.replace('hidden-view', 'visible-view');
+    window.scrollTo(0, 0);
+}
+
+async function updateOrderStatus(orderId, newStatus, btn) {
+    const originalText = btn.innerText;
+    btn.innerText = "SYNCHRONIZING...";
+    btn.disabled = true;
+
+    try {
+        const response = await fetch(API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'update-order-status',
+                id: orderId,
+                newStatus: newStatus
+            })
+        });
+
+        if (response.ok) {
+            const order = allOrders.find(o => o._id === orderId);
+            if(order) order.fulfillmentStatus = newStatus;
+            viewOrder(orderId); 
+            fetchOrders(); 
+        } else {
+            throw new Error("Vault Refused Update");
+        }
+    } catch (err) {
+        alert("Update Failed: " + err.message);
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
+}
+
+function showListView() {
+    document.getElementById('detail-view').classList.replace('visible-view', 'hidden-view');
+    document.getElementById('list-view').classList.replace('hidden-view', 'visible-view');
+}
+
+function filterOrders() {
+    const query = document.getElementById('orderSearch').value.toLowerCase();
+    const filtered = allOrders.filter(o => 
+        o.email.toLowerCase().includes(query) || 
+        (o.paymentReference && o.paymentReference.toLowerCase().includes(query))
+    );
+    renderOrders(filtered);
+}
+</script>
+</body>
+</html>

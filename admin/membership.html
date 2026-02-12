@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outflickz Admin | Membership</title>
+    <link rel="icon" type="image/jpeg" href="https://i.imgur.com/fu8N7I2.jpeg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap');
+        body { font-family: 'Space Grotesk', sans-serif; font-size: 12px; }
+        ::-webkit-scrollbar { width: 3px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #000; }
+        .user-row { transition: all 0.2s ease; border-bottom: 1px solid #f9fafb; }
+        .user-row:hover { background-color: #fcfcfc; }
+        .status-pill { padding: 2px 8px; border-radius: 4px; font-size: 8px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; }
+        .edit-panel { animation: slideDown 0.3s ease-out; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-[#fcfcfc] text-black min-h-screen flex overflow-x-hidden">
+
+    <div class="md:hidden fixed top-0 w-full p-3 flex justify-between items-center bg-white z-50 border-b border-gray-100">
+        <div class="text-lg font-black italic tracking-tighter">OUTFLICKZ</div>
+        <button onclick="toggleSidebar()" class="text-xl text-black">☰</button>
+    </div>
+
+    <aside id="sidebar" class="fixed md:relative w-56 h-screen bg-white border-r border-gray-100 p-6 flex flex-col z-40 transition-transform duration-300 -translate-x-full md:translate-x-0">
+        <div class="hidden md:block text-xl font-black italic tracking-tighter mb-8 cursor-pointer" onclick="window.location.href='dashboard.html'">OUTFLICKZ</div>
+        
+        <nav class="space-y-1 flex-1 overflow-y-auto">
+            <a href="dashboard.html" class="flex items-center w-full p-2.5 rounded-md text-gray-500 hover:text-black hover:bg-gray-50 text-[9px] uppercase tracking-widest font-bold transition-all">Vault Overview</a>
+            <a href="wearsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Wears Manager</a>
+            <a href="shortsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Shorts Manager</a>
+            <a href="capsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Caps Manager</a>
+            <a href="membership.html" class="flex items-center w-full p-2.5 rounded-md bg-black text-white text-[9px] uppercase tracking-widest font-bold transition-all shadow-sm">Membership</a>
+            <a href="adminpost.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Admin Post</a>
+            <a href="orderConfirmation.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Order Confirmation</a>
+            <a href="newsletter.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Global Broadcast</a>
+            <a href="settings.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Settings</a>
+        </nav>
+
+        <div class="pt-6 border-t border-gray-100">
+            <button onclick="handleLogout()" class="flex items-center space-x-2 text-[8px] uppercase tracking-[0.2em] text-red-600 font-bold hover:opacity-70 transition-all">
+                TERMINATE SESSION
+            </button>
+        </div>
+    </aside>
+
+    <div id="overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/20 backdrop-blur-sm hidden z-30"></div>
+
+    <main class="flex-1 p-4 md:p-10 mt-14 md:mt-0">
+        <header class="flex justify-between items-end mb-8">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold uppercase tracking-tighter">Member Base</h1>
+                <p id="member-count" class="text-gray-400 text-[9px] uppercase tracking-[0.2em] mt-1">Scanning Neural Network...</p>
+            </div>
+            <div class="bg-black text-white px-4 py-2 rounded-lg text-[9px] font-black tracking-widest uppercase cursor-pointer hover:opacity-80 transition-all" onclick="fetchUsers()">
+                Refresh Data
+            </div>
+        </header>
+
+        <div class="mb-6">
+            <input type="text" id="userSearch" onkeyup="filterUsers()" placeholder="SEARCH BY NAME OR EMAIL..." class="w-full bg-white border border-gray-100 p-4 rounded-xl shadow-sm focus:outline-none focus:border-black text-[10px] tracking-widest font-bold uppercase">
+        </div>
+
+        <div class="hidden md:block bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+            <table class="w-full text-left">
+                <thead class="bg-gray-50 border-b border-gray-100 text-[8px] uppercase tracking-[0.2em] font-black text-gray-400">
+                    <tr>
+                        <th class="p-5">User Profile</th>
+                        <th class="p-5">Contact Details</th>
+                        <th class="p-5 text-center">Order Rating</th>
+                        <th class="p-5 text-center">Status</th>
+                        <th class="p-5 text-right">Moderation</th>
+                    </tr>
+                </thead>
+                <tbody id="user-table-body"></tbody>
+            </table>
+        </div>
+
+        <div id="user-mobile-list" class="md:hidden space-y-4"></div>
+
+        <div id="loader" class="py-20 text-center">
+            <div class="inline-block w-6 h-6 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+            <p class="text-[8px] font-bold uppercase tracking-widest mt-4">Decrypting User Data...</p>
+        </div>
+    </main>
+
+    <script>
+        const API_ENDPOINT = "/.netlify/functions/api"; 
+        let allUsers = [];
+
+        window.onload = () => {
+            if (!localStorage.getItem('outflickz_admin_token')) {
+                window.location.href = 'login.html';
+            } else {
+                fetchUsers();
+            }
+        };
+
+        async function fetchUsers() {
+            const loader = document.getElementById('loader');
+            loader.classList.remove('hidden');
+            try {
+                const response = await fetch(`${API_ENDPOINT}?action=get-users`);
+                const data = await response.json();
+                allUsers = data.users || [];
+                document.getElementById('member-count').innerText = `${allUsers.length} REGISTERED IDENTITIES`;
+                renderUsers(allUsers);
+            } catch (err) {
+                console.error("Fetch Error:", err);
+                document.getElementById('member-count').innerText = "LINK FAILURE";
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+
+        function calculateRating(orders) {
+            const count = orders ? orders.length : 0;
+            if (count >= 10) return { stars: '★★★★★', label: 'Elite' };
+            if (count >= 5) return { stars: '★★★★☆', label: 'Frequent' };
+            if (count >= 2) return { stars: '★★★☆☆', label: 'Active' };
+            if (count === 1) return { stars: '★★☆☆☆', label: 'Starter' };
+            return { stars: '☆☆☆☆☆', label: 'New' };
+        }
+
+     function renderOrderHistory(orders) {
+    if (!orders || orders.length === 0) return `<p class="text-[8px] text-gray-400 italic uppercase py-4">No purchase records found in the vault.</p>`;
+    
+    const sortedOrders = [...orders].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    return sortedOrders.map(order => {
+        const items = order.items || [];
+        const total = Number(order.totalAmount || 0);
+        const shipping = Number(order.shippingFee || 0);
+        const tax = Number(order.taxAmount || 0);
+        const subtotal = total - shipping - tax;
+
+        return `
+            <div class="bg-white border border-gray-100 rounded-lg p-3 mb-2 shadow-sm border-l-2 border-l-black">
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <p class="text-[7px] text-gray-400 font-black uppercase tracking-widest">ID: ${order._id ? order._id.slice(-8).toUpperCase() : 'N/A'}</p>
+                        <p class="text-[7px] text-gray-500 font-bold uppercase">${new Date(order.createdAt).toLocaleDateString('en-GB')}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[10px] font-black text-black">₦${total.toLocaleString()}</p>
+                        <span class="text-[6px] px-1 rounded uppercase font-black bg-gray-100">${order.status || 'Verified'}</span>
+                    </div>
+                </div>
+                
+                <div class="space-y-1 pt-2 border-t border-gray-50">
+                    ${items.map(item => `
+                        <div class="flex justify-between items-center">
+                            <p class="text-[9px] font-bold uppercase tracking-tight text-gray-700">
+                                ${item.name || 'Vault Item'} <span class="text-gray-400 text-[7px] ml-1">x${item.qty || 1}</span>
+                            </p>
+                            ${item.size ? `<span class="text-[7px] font-black bg-black text-white px-1">SZ: ${item.size}</span>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+
+                <div class="mt-2 pt-2 border-t border-dashed border-gray-200 flex flex-wrap gap-x-4 gap-y-1">
+                    <div class="flex items-center space-x-1">
+                        <span class="text-[6px] text-gray-400 uppercase font-black">Sub:</span>
+                        <span class="text-[7px] font-bold">₦${subtotal.toLocaleString()}</span>
+                    </div>
+                    <div class="flex items-center space-x-1">
+                        <span class="text-[6px] text-gray-400 uppercase font-black">Tax:</span>
+                        <span class="text-[7px] font-bold">₦${tax.toLocaleString()}</span>
+                    </div>
+                    <div class="flex items-center space-x-1">
+                        <span class="text-[6px] text-gray-400 uppercase font-black">Ship:</span>
+                        <span class="text-[7px] font-bold">₦${shipping.toLocaleString()}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+        function renderUsers(users) {
+            const tableBody = document.getElementById('user-table-body');
+            const mobileList = document.getElementById('user-mobile-list');
+
+            tableBody.innerHTML = users.map(user => {
+                const rating = calculateRating(user.orders);
+                // Correctly sum using 'totalAmount' from your DB schema
+                const totalSpent = user.orders ? user.orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0) : 0;
+
+                return `
+                    <tr class="user-row" id="row-${user._id}">
+                        <td class="p-5">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 rounded bg-black text-white flex items-center justify-center font-bold text-[10px] italic">
+                                    ${user.firstName ? user.firstName[0] : '?'}${user.lastName ? user.lastName[0] : '?'}
+                                </div>
+                                <div>
+                                    <p class="font-bold uppercase tracking-tight text-[11px]">${user.firstName || 'Unknown'} ${user.lastName || ''}</p>
+                                    <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">ID: ${user._id.slice(-6)}</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="p-5">
+                            <p class="font-medium text-gray-600 text-[10px]">${user.email}</p>
+                            <p class="text-[8px] text-gray-400 uppercase font-bold tracking-tighter">Joined: ${new Date(user.createdAt).toLocaleDateString('en-GB')}</p>
+                        </td>
+                        <td class="p-5 text-center">
+                            <div class="text-yellow-500 text-[10px] tracking-[0.2em]">${rating.stars}</div>
+                            <p class="text-[7px] font-black text-gray-300 uppercase">${rating.label}</p>
+                        </td>
+                        <td class="p-5 text-center">
+                            <span class="status-pill ${user.isBanned ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-600 border border-green-100'}">
+                                ${user.isBanned ? 'Banned' : 'Verified'}
+                            </span>
+                        </td>
+                        <td class="p-5 text-right">
+                            <button onclick="toggleEditPanel('${user._id}')" class="bg-gray-100 hover:bg-black hover:text-white border border-gray-200 px-4 py-2 rounded text-[8px] font-black uppercase tracking-widest transition-all">
+                                Manage Identity
+                            </button>
+                        </td>
+                    </tr>
+                    <tr id="edit-${user._id}" class="hidden bg-gray-50/50">
+                        <td colspan="5" class="p-8 border-b border-gray-100">
+                            <div class="edit-panel grid md:grid-cols-2 gap-10">
+                                <div class="space-y-4">
+                                    <h4 class="text-[10px] font-black uppercase tracking-[0.2em] border-b border-gray-200 pb-2">Profile Modification</h4>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <input type="text" id="fn-${user._id}" value="${user.firstName || ''}" placeholder="First Name" class="bg-white border border-gray-200 p-3 rounded-lg text-[10px] font-bold uppercase outline-none focus:border-black">
+                                        <input type="text" id="ln-${user._id}" value="${user.lastName || ''}" placeholder="Last Name" class="bg-white border border-gray-200 p-3 rounded-lg text-[10px] font-bold uppercase outline-none focus:border-black">
+                                    </div>
+                                    <div class="flex space-x-2">
+                                        <button onclick="saveUser('${user._id}')" class="flex-1 bg-black text-white py-3 rounded-lg text-[8px] font-black uppercase tracking-widest">Update Neural Data</button>
+                                        <button onclick="toggleBan('${user._id}', ${user.isBanned})" class="px-4 py-3 border border-gray-200 rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-all">
+                                            ${user.isBanned ? 'Lift Ban' : 'Restrict'}
+                                        </button>
+                                        <button onclick="deleteUser('${user._id}', '${user.firstName}')" class="px-4 py-3 border border-red-100 text-red-600 rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all">Purge</button>
+                                    </div>
+                                </div>
+                                <div class="space-y-4">
+                                    <div class="flex justify-between items-center border-b border-gray-200 pb-2">
+                                        <h4 class="text-[10px] font-black uppercase tracking-[0.2em]">Purchase History</h4>
+                                        <p class="text-[9px] font-black">LIFETIME: ₦${totalSpent.toLocaleString()}</p>
+                                    </div>
+                                    <div class="max-h-[250px] overflow-y-auto space-y-2 pr-2">
+                                        ${renderOrderHistory(user.orders)}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            mobileList.innerHTML = users.map(user => {
+                const rating = calculateRating(user.orders);
+                return `
+                    <div class="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm">
+                        <div class="flex justify-between items-center mb-4">
+                            <div>
+                                <h4 class="font-bold uppercase tracking-tighter text-sm">${user.firstName || 'Unknown'}</h4>
+                                <p class="text-[8px] text-yellow-600 font-bold">${rating.stars} ${rating.label}</p>
+                            </div>
+                            <button onclick="toggleEditPanel('${user._id}')" class="text-[8px] font-black uppercase tracking-widest underline">Manage</button>
+                        </div>
+                        <div id="mobile-edit-${user._id}" class="hidden space-y-4 pt-4 border-t border-gray-100">
+                             <div class="max-h-[300px] overflow-y-auto space-y-2">
+                                ${renderOrderHistory(user.orders)}
+                             </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleEditPanel(userId) {
+            const panel = document.getElementById(`edit-${userId}`);
+            const mobilePanel = document.getElementById(`mobile-edit-${userId}`);
+            
+            if (window.innerWidth < 768) {
+                const isHidden = mobilePanel.classList.contains('hidden');
+                document.querySelectorAll('[id^="mobile-edit-"]').forEach(p => p.classList.add('hidden'));
+                if (isHidden) mobilePanel.classList.remove('hidden');
+            } else {
+                const isHidden = panel.classList.contains('hidden');
+                document.querySelectorAll('[id^="edit-"]').forEach(p => p.classList.add('hidden'));
+                if (isHidden) panel.classList.remove('hidden');
+            }
+        }
+
+        async function saveUser(userId) {
+            const fName = document.getElementById(`fn-${userId}`).value;
+            const lName = document.getElementById(`ln-${userId}`).value;
+            try {
+                const res = await fetch(`${API_ENDPOINT}?action=update-user`, {
+                    method: 'POST',
+                    body: JSON.stringify({ userId, firstName: fName, lastName: lName })
+                });
+                if (res.ok) {
+                    alert("IDENTITY UPDATED IN NEURAL NETWORK");
+                    fetchUsers();
+                }
+            } catch (err) { alert("Link failure."); }
+        }
+
+        async function toggleBan(userId, currentStatus) {
+            const action = currentStatus ? "unban" : "ban";
+            if (!confirm(`MODERATION: ARE YOU SURE YOU WANT TO ${action.toUpperCase()} THIS IDENTITY?`)) return;
+            try {
+                const res = await fetch(`${API_ENDPOINT}?action=moderate-user`, {
+                    method: 'POST',
+                    body: JSON.stringify({ userId, action })
+                });
+                if (res.ok) fetchUsers();
+            } catch (err) { alert("Moderation sequence failed."); }
+        }
+
+        async function deleteUser(userId, name) {
+            if (!confirm(`CRITICAL: PURGING ${name ? name.toUpperCase() : 'USER'} IS PERMANENT. PROCEED?`)) return;
+            try {
+                const res = await fetch(`${API_ENDPOINT}?action=delete-user`, {
+                    method: 'POST',
+                    body: JSON.stringify({ userId })
+                });
+                if (res.ok) fetchUsers();
+            } catch (err) { alert("Purge sequence failed."); }
+        }
+
+        function filterUsers() {
+            const query = document.getElementById('userSearch').value.toLowerCase();
+            const filtered = allUsers.filter(user => 
+                (user.firstName && user.firstName.toLowerCase().includes(query)) || 
+                (user.lastName && user.lastName.toLowerCase().includes(query)) || 
+                (user.email && user.email.toLowerCase().includes(query))
+            );
+            renderUsers(filtered);
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('-translate-x-full');
+            document.getElementById('overlay').classList.toggle('hidden');
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('outflickz_admin_token');
+            window.location.href = 'login.html';
+        }
+    </script>
+</body>
+</html>

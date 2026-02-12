@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outflickz Admin | Broadcaster</title>
+    <link rel="icon" type="image/jpeg" href="https://i.imgur.com/fu8N7I2.jpeg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap');
+        body { font-family: 'Space Grotesk', sans-serif; font-size: 12px; }
+        ::-webkit-scrollbar { width: 3px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #000; }
+        .animate-float { animation: float 4s ease-in-out infinite; }
+        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-5px); } }
+        .template-card { cursor: pointer; border: 2px solid transparent; transition: all 0.3s; opacity: 0.6; }
+        .template-card.active { border-color: black; background: #f9f9f9; opacity: 1; transform: scale(1.05); }
+        #sidebar { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        
+        /* 3D Image Preview Styling */
+        .perspective-container { perspective: 1000px; }
+        .tilt-card { transform: rotateY(-10deg) rotateX(5deg); transition: transform 0.5s; }
+        .tilt-card:hover { transform: rotateY(0deg) rotateX(0deg); }
+    </style>
+</head>
+<body class="bg-[#fcfcfc] text-black min-h-screen flex overflow-x-hidden">
+
+    <div class="md:hidden fixed top-0 w-full p-3 flex justify-between items-center bg-white z-50 border-b border-gray-100">
+        <div class="text-lg font-black italic tracking-tighter">OUTFLICKZ</div>
+        <button onclick="toggleSidebar()" class="text-xl text-black p-2">☰</button>
+    </div>
+
+    <aside id="sidebar" class="fixed md:relative w-56 h-screen bg-white border-r border-gray-100 p-6 flex flex-col z-40 -translate-x-full md:translate-x-0">
+        <div class="hidden md:block text-xl font-black italic tracking-tighter mb-8 text-center md:text-left cursor-pointer" onclick="window.location.href='dashboard.html'">OUTFLICKZ</div>
+        
+        <nav class="space-y-1 flex-1 overflow-y-auto">
+            <a href="dashboard.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Vault Overview</a>
+            <a href="wearsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Wears Manager</a>
+            <a href="shortsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Shorts Manager</a>
+            <a href="capsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Caps Manager</a>
+            <a href="jerseysproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Jerseys Manager</a>
+            <a href="tankstopproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">TankTop Manager</a>
+            <a href="tracksuitproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">TrackSuit Manager</a>
+            <a href="adminpost.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Admin Post</a>
+            <a href="orderConfirmation.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Order Confirmation</a>
+            <a href="settings.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Settings</a>
+            <button class="flex items-center w-full p-2.5 rounded-md bg-black text-white text-[9px] uppercase tracking-widest font-bold transition-all shadow-sm">
+                Global Broadcast
+            </button>
+
+            <a href="membership.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Membership</a>
+        </nav>
+
+        <div class="pt-6 border-t border-gray-100">
+            <button onclick="handleLogout()" class="flex items-center space-x-2 text-[8px] uppercase tracking-[0.2em] text-red-600 font-bold hover:opacity-70 transition-all">
+                TERMINATE SESSION
+            </button>
+        </div>
+    </aside>
+
+    <div id="overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/20 backdrop-blur-sm hidden z-30"></div>
+
+    <main class="flex-1 p-4 md:p-10 mt-14 md:mt-0">
+        <header class="flex justify-between items-end mb-8">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold uppercase tracking-tighter">Broadcaster Studio</h1>
+                <p id="sync-status" class="text-gray-400 text-[9px] uppercase tracking-[0.2em] mt-1">Status: Manual Override Active</p>
+            </div>
+            <div class="hidden md:block w-16 h-16 rounded-xl overflow-hidden shadow-xl border-2 border-white animate-float">
+                <img src="https://i.imgur.com/aJk5NNG.jpeg" alt="Admin" class="w-full h-full object-cover">
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2 space-y-6">
+                <div class="bg-white border border-gray-100 p-6 rounded-2xl shadow-sm">
+                    <h2 class="text-[10px] font-black uppercase tracking-[0.3em] mb-4 text-gray-400">1. Transmission Template</h2>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div onclick="setTemplate('news')" id="tpl-news" class="template-card active p-4 rounded-xl text-center">
+                            <span class="block text-[18px]">📢</span>
+                            <span class="text-[8px] font-bold uppercase">General News</span>
+                        </div>
+                        <div onclick="setTemplate('arrivals')" id="tpl-arrivals" class="template-card p-4 rounded-xl text-center">
+                            <span class="block text-[18px]">📦</span>
+                            <span class="text-[8px] font-bold uppercase">New Arrivals</span>
+                        </div>
+                        <div onclick="setTemplate('upgrade')" id="tpl-upgrade" class="template-card p-4 rounded-xl text-center">
+                            <span class="block text-[18px]">⚡</span>
+                            <span class="text-[8px] font-bold uppercase">Sys Upgrade</span>
+                        </div>
+                        <div onclick="setTemplate('maintenance')" id="tpl-maintenance" class="template-card p-4 rounded-xl text-center">
+                            <span class="block text-[18px]">🛠️</span>
+                            <span class="text-[8px] font-bold uppercase">Maintenance</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white border border-gray-100 p-6 rounded-2xl shadow-sm">
+                    <h2 class="text-[10px] font-black uppercase tracking-[0.3em] mb-4 text-black">2. Visual & Content Editor</h2>
+                    <form id="broadcast-form" class="space-y-4">
+                        <input type="hidden" id="selected-template" value="news">
+                        
+                        <div>
+                            <label class="text-[8px] uppercase font-bold text-gray-400 block mb-1">Email Subject Line</label>
+                            <input type="text" id="subject" required class="w-full bg-gray-50 border border-gray-100 p-3 rounded-lg focus:outline-none focus:border-black transition-all" placeholder="Enter transmission subject">
+                        </div>
+
+                        <div id="asset-picker-area" class="hidden space-y-3 p-4 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                            <label class="text-[8px] uppercase font-bold text-black block">3D Display Assets (Direct Image URLs)</label>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <input type="text" id="img-1" class="img-input w-full bg-white border border-gray-100 p-2.5 rounded text-[10px]" placeholder="Image URL 1 (Required)">
+                                <input type="text" id="img-2" class="img-input w-full bg-white border border-gray-100 p-2.5 rounded text-[10px]" placeholder="Image URL 2 (Required)">
+                                <input type="text" id="img-3" class="img-input w-full bg-white border border-gray-100 p-2.5 rounded text-[10px]" placeholder="Image URL 3 (Optional)">
+                                <input type="text" id="img-4" class="img-input w-full bg-white border border-gray-100 p-2.5 rounded text-[10px]" placeholder="Image URL 4 (Optional)">
+                            </div>
+                            <p class="text-[7px] text-gray-400 uppercase tracking-widest font-bold">Recommended: Square Aspect Ratio (1:1)</p>
+                        </div>
+
+                        <div>
+                            <label class="text-[8px] uppercase font-bold text-gray-400 block mb-1">Body Intelligence (Markdown Supported)</label>
+                            <textarea id="message" rows="8" required class="w-full bg-gray-50 border border-gray-100 p-3 rounded-lg focus:outline-none focus:border-black transition-all resize-none font-mono text-[10px]" placeholder="Draft your content..."></textarea>
+                        </div>
+
+                        <button type="submit" id="send-btn" class="w-full bg-black text-white text-[9px] font-black uppercase tracking-widest py-4 rounded-xl hover:opacity-80 transition-all shadow-lg active:scale-[0.98]">
+                            Deploy Global Broadcast
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="bg-black text-white p-6 rounded-2xl shadow-lg relative overflow-hidden">
+                    <div class="relative z-10">
+                        <span class="text-[8px] uppercase tracking-widest text-gray-400 font-bold">Confirmed Network Scope</span>
+                        <h3 id="total-reach" class="text-4xl font-bold tracking-tighter mt-2 italic">0</h3>
+                        <p class="text-green-400 text-[7px] font-bold mt-1 uppercase">Broadcast Priority: High</p>
+                    </div>
+                    <div class="absolute -right-4 -bottom-4 opacity-10 text-6xl italic font-black text-white">LIVE</div>
+                </div>
+                
+                <div class="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm">
+                    <h2 class="text-[10px] font-black uppercase tracking-[0.3em] mb-4 text-gray-400">Live Preview Hint</h2>
+                    <p class="text-[9px] text-gray-500 leading-relaxed mb-4">Emails will be rendered using the <span class="text-black font-bold">Outflickz 3D Stack Template</span>. Text entered in the box above will serve as the primary intelligence body.</p>
+                    <div class="aspect-video bg-gray-100 rounded-lg flex items-center justify-center text-gray-300 font-bold text-[8px] uppercase tracking-[0.2em]">
+                        Mockup Container
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                    <p class="text-[8px] text-gray-400 leading-relaxed font-medium uppercase">
+                        NOTICE: System ignores empty image fields. At least 1 image is recommended for Arrivals template to activate 3D rendering.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_ENDPOINT = "/.netlify/functions/api";
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            sidebar.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('outflickz_admin_token');
+            window.location.href = 'login.html';
+        }
+
+        window.onload = async () => {
+            if (!localStorage.getItem('outflickz_admin_token')) {
+                window.location.href = 'login.html';
+            } else {
+                await fetchAudience();
+            }
+        };
+
+        function setTemplate(type) {
+            document.querySelectorAll('.template-card').forEach(c => c.classList.remove('active'));
+            document.getElementById(`tpl-${type}`).classList.add('active');
+            document.getElementById('selected-template').value = type;
+
+            const assetArea = document.getElementById('asset-picker-area');
+            const subjectInput = document.getElementById('subject');
+            const messageInput = document.getElementById('message');
+
+            // Toggle Image Asset Area
+            if (type === 'arrivals') {
+                assetArea.classList.remove('hidden');
+                subjectInput.value = "📦 NEW VAULT DROP: Just Arrived";
+                messageInput.value = "Fresh drops have just landed in the vault. These high-demand assets are now cleared for member acquisition. Secure your selection before the supply depletes.\n\nBrowse the latest arrivals in the digital vault now.";
+            } else {
+                assetArea.classList.add('hidden');
+                if (type === 'upgrade') {
+                    subjectInput.value = "⚡ SYSTEM UPGRADE: Enhanced Operations";
+                    messageInput.value = "We have optimized the Outflickz Vault infrastructure. You will notice significant speed improvements and enhanced visual fidelity across all sectors.";
+                } else if (type === 'maintenance') {
+                    subjectInput.value = "🛠️ PLANNED MAINTENANCE NOTICE";
+                    messageInput.value = "The vault will be temporarily offline for routine optimization. Estimated downtime is 2 hours. We appreciate your patience as we refine our logistics.";
+                } else {
+                    subjectInput.value = "";
+                    messageInput.value = "";
+                }
+            }
+        }
+
+        async function fetchAudience() {
+            try {
+                const res = await fetch(`${API_ENDPOINT}?action=get-broadcast-audience`);
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('total-reach').innerText = data.total;
+                }
+            } catch (e) { console.error("Audience sync failed", e); }
+        }
+
+        document.getElementById('broadcast-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('send-btn');
+            
+            // Collect Image links
+            const imageLinks = [
+                document.getElementById('img-1').value,
+                document.getElementById('img-2').value,
+                document.getElementById('img-3').value,
+                document.getElementById('img-4').value
+            ].filter(link => link.trim() !== "");
+
+            const totalRecipients = document.getElementById('total-reach').innerText;
+            if (!confirm(`Confirm Global Broadcast to ${totalRecipients} recipients? Transmission is irreversible.`)) return;
+
+            btn.disabled = true;
+            btn.innerHTML = `TRANSMITTING BROADCAST...`;
+
+            try {
+                const res = await fetch(`${API_ENDPOINT}?action=mass-broadcast`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        template: document.getElementById('selected-template').value,
+                        subject: document.getElementById('subject').value,
+                        message: document.getElementById('message').value,
+                        imageAssets: imageLinks // Admin now sends raw links
+                    })
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    alert("TRANSMISSION SUCCESSFUL.");
+                    window.location.reload();
+                } else {
+                    alert("BROADCAST ERROR: " + data.message);
+                }
+            } catch (err) {
+                alert("CRITICAL SYSTEM FAILURE: Database connection timed out.");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Execute Global Broadcast";
+            }
+        };
+    </script>
+</body>
+</html>

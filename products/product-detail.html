@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outflickz | Product Detail</title>
+    <link rel="icon" type="image/jpeg" href="https://i.imgur.com/fu8N7I2.jpeg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap');
+        body { font-family: 'Space Grotesk', sans-serif; -webkit-font-smoothing: antialiased; }
+        
+        .img-container { position: relative; background: #f4f4f5; overflow: hidden; transform: translateZ(0); }
+        .img-blur { filter: blur(10px); transition: filter 0.4s cubic-bezier(0.4, 0, 0.2, 1); will-change: filter; }
+        .img-clear { filter: blur(0); }
+
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .size-btn.active { background: black !important; border-color: black !important; color: white !important; }
+        .color-pill.active { border-color: black; background: #f4f4f5; outline: 2px solid black; }
+
+        .color-dot { width: 10px; height: 10px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.1); transition: all 0.2s; cursor: pointer; }
+        .color-dot:hover { transform: scale(1.3); border-color: black; }
+
+        #custom-modal { transition: opacity 0.3s ease, visibility 0.3s ease; }
+        #custom-modal.hidden { opacity: 0; visibility: hidden; display: flex; } 
+
+        .related-slider {
+            display: flex;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            gap: 12px;
+            padding-bottom: 20px;
+        }
+        button:disabled {
+    background: #f4f4f5 !important;
+    color: #a1a1aa !important;
+    border-color: #e4e4e7 !important;
+    cursor: not-allowed !important;
+    box-shadow: none !important;
+
+    #mobile-menu.open { transform: translateX(0); }
+
+@media (min-width: 1024px) {
+    #mobile-menu {
+        width: 400px;
+        left: auto;
+        right: 0;
+        border-left: 1px solid rgba(0,0,0,0.05);
+        box-shadow: -20px 0 50px rgba(0,0,0,0.1);
+    }
+}
+}
+        .related-item { flex: 0 0 70%; scroll-snap-align: start; }
+        @media (min-width: 1024px) {
+            .related-item { flex: 0 0 calc(25% - 9px); } 
+        }
+
+        @media (max-width: 768px) {
+            #image-gallery { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 8px; }
+            #image-gallery > div { flex: 0 0 90%; scroll-snap-align: center; }
+        }
+    </style>
+</head>
+<body class="bg-white text-black overflow-x-hidden">
+
+    <div id="custom-modal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white w-[90%] max-w-sm p-8 border border-black/5 shadow-2xl transform transition-transform duration-300 scale-95" id="modal-content">
+            <div class="text-center">
+                <div id="modal-icon" class="mb-4 flex justify-center"></div>
+                <h3 id="modal-title" class="text-[12px] font-bold uppercase tracking-[0.3em] mb-2">Notice</h3>
+                <p id="modal-message" class="text-[10px] text-zinc-500 uppercase tracking-widest leading-relaxed mb-8"></p>
+                <button onclick="closeModal()" class="w-full bg-black text-white py-4 text-[9px] font-bold uppercase tracking-[0.2em] hover:bg-zinc-800 transition-colors">
+                    Acknowledge
+                </button>
+            </div>
+        </div>
+    </div>
+
+  <nav class="fixed w-full z-50 flex justify-between items-center p-4 md:px-10 bg-white/80 backdrop-blur-[20px] border-b border-black/5">
+    <div class="flex items-center space-x-6 md:space-x-12">
+        <div class="text-xl md:text-2xl font-black tracking-tighter italic cursor-pointer" onclick="window.location.href='../index.html'">OUTFLICKZ</div>
+        
+        <div class="hidden lg:flex items-center space-x-8">
+            <div class="relative group">
+                <button class="flex items-center space-x-2 text-[9px] font-black uppercase tracking-[0.3em] hover:opacity-60 transition-opacity">
+                    <span>Shop Collection</span>
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                
+                <div class="absolute left-0 mt-2 w-48 bg-white border border-black/5 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-[100] py-2">
+                    <a href="index.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">All Products</a>
+                    <a href="wears.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">T-Shirts</a>
+                    <a href="tanktops.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">Tank Tops</a>
+                    <a href="shorts.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">Shorts</a>
+                    <a href="tracksuits.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">Tracksuits</a>
+                    <a href="accessories.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">Accessories</a>
+                </div>
+            </div>
+
+            <div id="nav-auth-section" class="flex items-center space-x-4 border-l border-black/5 pl-8"></div>
+        </div>
+    </div>
+
+    <div class="flex items-center space-x-3 md:space-x-6">
+        <div class="flex items-center">
+            <div id="search-wrapper">
+                <input type="text" id="productSearch" oninput="filterProducts()" placeholder="SEARCH..." 
+                    class="w-full bg-zinc-100/80 border-none py-1.5 px-3 text-[9px] tracking-widest uppercase focus:outline-none rounded-sm">
+            </div>
+            <button onclick="toggleSearch()" class="p-1 hover:scale-110 transition-transform">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </button>
+        </div>
+
+        <div class="relative cursor-pointer hover:scale-110 transition-transform" onclick="window.location.href='cart.html'">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+            <span id="cart-count" class="absolute -top-1 -right-2 text-[8px] font-black bg-black text-white w-3.5 h-3.5 flex items-center justify-center rounded-full">0</span>
+        </div>
+
+        <button onclick="toggleSidebar(true)" class="p-1">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+    </div>
+</nav>
+
+    <div id="mobile-menu" class="fixed inset-0 bg-white z-[60] p-8 flex flex-col transform translate-x-full transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1)">
+        <div class="flex justify-between items-center mb-16">
+            <div class="text-xl font-black italic tracking-tighter">OUTFLICKZ</div>
+            <button onclick="toggleSidebar(false)" class="p-2">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+        
+        <nav class="flex flex-col space-y-5 text-xl font-bold uppercase tracking-tighter">
+    <a href="index.html" onclick="toggleSidebar(false)">All Products</a>
+    <a href="products/wears.html" onclick="toggleSidebar(false)">T-Shirts</a>
+    <a href="tanktops.html" onclick="toggleSidebar(false)">Tank Tops</a>
+    <a href="shorts.html" onclick="toggleSidebar(false)">Shorts</a>
+    <a href="tracksuits.html" onclick="toggleSidebar(false)">Tracksuits</a>
+        <a href="jerseys.html" onclick="toggleSidebar(false)">Jerseys</a>
+    <a href="accessories.html" onclick="toggleSidebar(false)">Accessories</a>
+</nav>
+
+        <div id="mobile-auth-section" class="mt-auto pb-10"></div>
+    </div>
+
+    <main class="pt-32 pb-20 px-6 md:px-10 max-w-7xl mx-auto">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
+            <div class="hide-scrollbar" id="image-gallery">
+                <div class="aspect-[3/4] bg-zinc-100 w-full flex items-center justify-center">
+                    <span class="text-[10px] uppercase tracking-widest opacity-20 animate-pulse">Loading Visuals...</span>
+                </div>
+            </div>
+
+            <div class="flex flex-col">
+                <div class="border-b border-black/5 pb-6">
+                    <h1 id="p-name" class="text-4xl font-black italic tracking-tighter uppercase leading-none mb-4 min-h-[40px]"></h1>
+                    <p id="p-price" class="text-xl font-medium mt-2"></p>
+                </div>
+
+                <div class="py-8 space-y-8">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-widest block mb-4">Select Color</span>
+                        <div id="color-container" class="flex flex-wrap gap-2"></div>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-4">
+                            <span id="size-label" class="text-[10px] font-bold uppercase tracking-widest">Select Size</span>
+                            <span id="stock-status" class="text-[10px] text-zinc-400 uppercase tracking-widest"></span>
+                        </div>
+                        <div id="size-container" class="flex flex-wrap gap-2"></div>
+                    </div>
+
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-widest block mb-4">Quantity</span>
+                        <div class="flex items-center space-x-4 border border-black/10 w-fit px-4 py-2">
+                            <button onclick="updateQty(-1)" class="text-lg font-bold px-2 hover:opacity-50">-</button>
+                            <span id="qty-count" class="text-xs font-bold w-8 text-center">1</span>
+                            <button onclick="updateQty(1)" class="text-lg font-bold px-2 hover:opacity-50">+</button>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-3 mt-4">
+                        <button id="add-btn" onclick="addToCart(true)" class="flex-1 border border-black text-black py-5 text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-black hover:text-white transition-all disabled:opacity-20 disabled:cursor-not-allowed">
+                            Add to Cart
+                        </button>
+                        <button id="buy-btn" onclick="buyNow()" class="flex-1 bg-black text-white py-5 text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-zinc-800 transition-all disabled:opacity-20 disabled:cursor-not-allowed shadow-lg shadow-black/10">
+                            Buy Now
+                        </button>
+                    </div>
+
+                    <div class="pt-8 border-t border-black/5">
+                        <p id="p-desc" class="text-sm text-zinc-600 leading-relaxed font-light italic"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <section class="mt-24 pt-24 border-t border-black/5">
+            <div class="flex justify-between items-end mb-12">
+                <h2 class="text-[10px] font-black uppercase tracking-[0.3em]">Customers Also Like</h2>
+                <span class="text-[8px] text-zinc-400 uppercase tracking-widest mb-1">Swipe to explore →</span>
+            </div>
+            <div id="related-slider" class="related-slider hide-scrollbar"></div>
+        </section>
+    </main>
+   
+   <div class="fixed bottom-5 right-5 z-[9999] flex flex-col items-end">
+    
+    <div id="chat-window" class="hidden mb-4 w-[300px] sm:w-[350px] bg-white rounded-2xl shadow-2xl border border-black/5 overflow-hidden transition-all duration-300 origin-bottom-right scale-95 opacity-0">
+        <div class="bg-zinc-900 p-4 text-white">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold tracking-tight">Hi there</h3>
+                <button onclick="toggleChat()" class="opacity-70 hover:opacity-100">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <p class="text-[11px] opacity-70 mt-1">Welcome Guest</p>
+        </div>
+
+        <div class="p-4 bg-zinc-50 min-h-[150px]">
+            <div class="bg-white p-3 rounded-lg shadow-sm border border-black/5 text-[12px] leading-relaxed">
+                Welcome to Outflickz Support 👋<br>
+                How would you like to secure your Outflickz? Choose a platform below to start chatting.
+            </div>
+        </div>
+
+        <div class="p-4 bg-white border-t border-black/5">
+            <div class="flex gap-2 mb-3">
+                <button id="btn-wa" onclick="setPlatform('wa')" class="flex-1 py-2 px-3 border border-black/10 rounded-md flex items-center justify-center gap-2 hover:bg-zinc-50 transition-all">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" class="w-4 h-4" alt="">
+                    <span class="text-[10px] font-bold uppercase tracking-widest">WhatsApp</span>
+                </button>
+                <button id="btn-tg" onclick="setPlatform('tg')" class="flex-1 py-2 px-3 border border-black/10 rounded-md flex items-center justify-center gap-2 hover:bg-zinc-50 transition-all">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg" class="w-4 h-4" alt="">
+                    <span class="text-[10px] font-bold uppercase tracking-widest">Telegram</span>
+                </button>
+            </div>
+            
+            <div class="relative flex items-center">
+                <input type="text" id="chat-input" placeholder="Type your message..." 
+                    class="w-full bg-zinc-100 border-none py-3 px-4 pr-12 text-[11px] rounded-full focus:outline-none">
+                <button onclick="sendChatMessage()" class="absolute right-2 p-2 text-zinc-400 hover:text-black transition-colors">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <button onclick="toggleChat()" class="w-14 h-14 bg-black text-white rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform duration-300">
+        <svg id="toggle-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+    </button>
+</div>
+
+
+<footer class="bg-white border-t border-black/5 pt-8 md:pt-12 pb-6 px-4 md:px-10">
+    <div class="max-w-[1400px] mx-auto">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-y-6 md:gap-12 mb-6 md:mb-10">
+            
+            <div class="flex md:block justify-center md:justify-start">
+                <div class="text-lg md:text-xl font-black italic tracking-tighter uppercase">OUTFLICKZ</div>
+            </div>
+
+            <div class="col-span-1 md:col-span-3 grid grid-cols-3 gap-2 md:gap-12">
+                
+                <div class="flex flex-col space-y-1.5">
+                    <h4 class="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-1">Support</h4>
+                    <a href="/pages/contact.html" class="text-[7px] md:text-[9px] text-zinc-500 uppercase tracking-widest hover:text-black transition-colors">Contact</a>
+                    <a href="/pages/shipping.html" class="text-[7px] md:text-[9px] text-zinc-500 uppercase tracking-widest hover:text-black transition-colors">Shipping</a>
+                    <a href="/pages/refunds.html" class="text-[7px] md:text-[9px] text-zinc-500 uppercase tracking-widest hover:text-black transition-colors">Refunds</a>
+                </div>
+
+                <div class="flex flex-col space-y-1.5">
+                    <h4 class="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-1">Legal</h4>
+                    <a href="/pages/privacy.html" class="text-[7px] md:text-[9px] text-zinc-500 uppercase tracking-widest hover:text-black transition-colors">Privacy</a>
+                    <a href="/pages/terms.html" class="text-[7px] md:text-[9px] text-zinc-500 uppercase tracking-widest hover:text-black transition-colors">Terms</a>
+                </div>
+
+                <div class="flex flex-col space-y-1.5">
+                    <h4 class="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-1">Location</h4>
+                    <div class="inline-flex items-center space-x-1 border border-black/5 bg-zinc-50 px-1.5 py-1 w-fit rounded-sm cursor-pointer hover:border-black/20 transition-all">
+                        <span class="text-[7px] md:text-[8px] font-black">NG (₦)</span>
+                        <svg width="5" height="5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="m6 9 6 6 6-6"/></svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="pt-4 md:pt-6 border-t border-black/5 flex justify-between items-center">
+            <p class="text-[6px] md:text-[8px] text-zinc-400 uppercase tracking-[0.2em]">© 2026 OUTFLICKZ LIMITED</p>
+            <div class="flex space-x-4"></div>
+        </div>
+    </div>
+</footer>
+
+   <script>
+    const API_ENDPOINT = "/.netlify/functions/api"; 
+    const SESSION_TIMEOUT = 24 * 60 * 60 * 1000;
+    let currentProduct = null;
+    let selectedVariant = null;
+    let selectedSize = null;
+    let currentStockLimit = 0;
+    let purchaseQty = 1;
+
+  function initializeSession() {
+    const userToken = localStorage.getItem('outflickz_token');
+    const userData = localStorage.getItem('outflickz_user_data');
+    const guestId = localStorage.getItem('outflickz_guest_id');
+
+    if (userToken && userData) {
+        console.log("Session: Member Active");
+        // You could trigger a silent 'verify-token' API call here if needed
+    } else if (!guestId) {
+        const newGuestId = 'GUEST-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+        localStorage.setItem('outflickz_guest_id', newGuestId);
+        console.log("Session: Guest Mode");
+    }
+}
+
+    function showModal(title, message, type = 'success') {
+        const modal = document.getElementById('custom-modal');
+        const content = document.getElementById('modal-content');
+        const iconContainer = document.getElementById('modal-icon');
+        document.getElementById('modal-title').innerText = title;
+        document.getElementById('modal-message').innerText = message;
+        
+        iconContainer.innerHTML = type === 'success' 
+            ? `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="1.5"><path d="M20 6L9 17L4 12"></path></svg>`
+            : `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`;
+
+        modal.classList.remove('hidden');
+        setTimeout(() => { modal.classList.add('opacity-100'); content.classList.replace('scale-95', 'scale-100'); }, 10);
+    }
+
+    function closeModal() {
+        const modal = document.getElementById('custom-modal');
+        const content = document.getElementById('modal-content');
+        modal.classList.remove('opacity-100');
+        content.classList.replace('scale-100', 'scale-95');
+        setTimeout(() => { modal.classList.add('hidden'); }, 300);
+    }
+window.onload = async () => {
+    // 1. Wipe expired data before the UI even renders
+    autoClearSession(); 
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const productId = urlParams.get('id');
+    
+    if (!productId) { 
+        window.location.href = '../index.html'; 
+        return; 
+    }
+
+    // 2. Set up current session states
+    initializeSession();
+    updateAuthUI();
+    updateCartCount();
+
+    // 3. Fetch product data
+    await loadProduct(productId);
+    // Note: If loadProduct already calls loadRelatedProducts, 
+    // you can remove the line below to save one API call.
+    loadRelatedProducts(productId); 
+};
+
+async function loadProduct(id) {
+    try {
+        let res = await fetch(API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'get-any-product-details', id })
+        });
+
+        let data = await res.json();
+
+        if (data && !data.message) {
+            // 1. CALCULATE STOCK AND REORDER VARIANTS
+            let totalProductStock = 0;
+            
+            if (data.variants && Array.isArray(data.variants)) {
+                data.variants = data.variants.map(v => {
+                    let vStock = 0;
+                    if (v.stockMatrix) {
+                        Object.values(v.stockMatrix).forEach(qty => vStock += Number(qty) || 0);
+                    } else {
+                        vStock = Number(v.stock) || 0;
+                    }
+                    return { ...v, variantTotalStock: vStock };
+                });
+
+                // MOVE IN-STOCK VARIANTS TO THE FRONT
+                data.variants.sort((a, b) => {
+                    const aIn = a.variantTotalStock > 0 ? 1 : 0;
+                    const bIn = b.variantTotalStock > 0 ? 1 : 0;
+                    return bIn - aIn;
+                });
+
+                data.variants.forEach(v => totalProductStock += v.variantTotalStock);
+            }
+
+            currentProduct = data;
+
+            // 2. APPLY MOBILE FONT REDUCTION
+            const nameEl = document.getElementById('p-name');
+            nameEl.className = "text-[24px] md:text-4xl font-black italic tracking-tighter uppercase leading-none mb-4 min-h-[40px]";
+
+            renderProductData(data.category === 'caps');
+
+            // 3. GLOBAL STOCK CHECK
+            if (totalProductStock <= 0) {
+                const buyBtn = document.getElementById('buy-btn');
+                const addBtn = document.getElementById('add-btn');
+                buyBtn.disabled = true;
+                addBtn.disabled = true;
+                buyBtn.innerText = "SOLD OUT";
+                addBtn.innerText = "OUT OF STOCK";
+            }
+            
+            loadRelatedProducts(id); 
+        }
+    } catch (err) {
+        console.error("Product Load Error:", err);
+    }
+}
+
+// Locate this function in your <script> tag
+function renderColors(isCap) {
+    const variants = currentProduct.variants || [];
+    const container = document.getElementById('color-container');
+    
+    container.innerHTML = variants.map(v => {
+        const isVOut = v.variantTotalStock <= 0;
+        return `
+            <button onclick="selectColor('${v.color}', ${isCap})" 
+                class="color-pill px-4 py-2 border border-black/10 text-[10px] font-bold uppercase tracking-widest transition-all ${isVOut ? 'opacity-40' : ''}">
+                ${v.color} ${isVOut ? '<span class="text-[7px] block text-red-500">SOLD OUT</span>' : ''}
+            </button>
+        `;
+    }).join('');
+
+    if (variants.length > 0) selectColor(variants[0].color, isCap);
+}
+
+    function renderProductData(isCap) {
+        document.getElementById('p-name').innerText = currentProduct.name;
+        document.getElementById('p-price').innerText = `₦${Number(currentProduct.price).toLocaleString()}`;
+        document.getElementById('p-desc').innerText = currentProduct.description || 'Exclusive Outflickz streetwear.';
+        if (isCap) document.getElementById('size-label').innerText = "Fitment";
+        renderColors(isCap);
+    }
+
+   
+
+    function selectColor(colorName, isCap) {
+        selectedVariant = currentProduct.variants.find(v => v.color === colorName);
+        document.querySelectorAll('.color-pill').forEach(btn => {
+            btn.classList.toggle('active', btn.innerText.trim() === colorName.toUpperCase());
+        });
+        const images = (selectedVariant?.images?.length) ? selectedVariant.images : (currentProduct.images || []);
+        document.getElementById('image-gallery').innerHTML = images.map((img, idx) => `
+            <div class="img-container aspect-[3/4] border border-black/5 flex-shrink-0">
+                <img src="${img}" fetchpriority="${idx === 0 ? 'high' : 'low'}" class="w-full h-full object-cover img-blur" onload="this.classList.add('img-clear')">
+            </div>
+        `).join('');
+        isCap ? renderCapSize(selectedVariant.stock) : renderSizes(selectedVariant.stockMatrix);
+    }
+
+    function renderSizes(matrix) {
+        const entries = Object.entries(matrix || {}).filter(([s]) => s !== "undefined" && s !== "");
+        document.getElementById('size-container').innerHTML = entries.map(([size, stock]) => {
+            const out = Number(stock) <= 0;
+            return `
+                <button onclick="selectSize('${size}', ${stock})" ${out ? 'disabled' : ''}
+                    class="size-btn relative flex flex-col items-center justify-center min-w-[75px] py-3 border border-black/10 transition-all 
+                    ${out ? 'opacity-20 bg-zinc-100 cursor-not-allowed' : 'hover:border-black cursor-pointer'}">
+                    <span class="text-[7px] opacity-60 mb-1 leading-none uppercase">${out ? 'SOLD OUT' : stock + ' IN STOCK'}</span>
+                    <span class="text-[11px] font-bold uppercase tracking-tighter">${size}</span>
+                </button>`;
+        }).join('');
+        const available = entries.find(([_, stock]) => Number(stock) > 0);
+        if(available) selectSize(available[0], available[1]);
+    }
+
+    function renderCapSize(stock) {
+        const stockVal = Number(stock);
+        const out = stockVal <= 0;
+        document.getElementById('size-container').innerHTML = `
+            <button onclick="selectSize('OS', ${stockVal})" ${out ? 'disabled' : ''}
+                class="size-btn active relative flex flex-col items-center justify-center min-w-[120px] py-3 border border-black/10 transition-all 
+                ${out ? 'opacity-20 cursor-not-allowed bg-zinc-100' : 'hover:border-black cursor-pointer'}">
+                <span class="text-[7px] opacity-60 mb-1 leading-none uppercase">${out ? 'SOLD OUT' : stockVal + ' IN STOCK'}</span>
+                <span class="text-[11px] font-bold uppercase tracking-tighter">ONE SIZE / ADJ</span>
+            </button>`;
+        if(!out) selectSize('OS', stockVal);
+    }
+
+function selectSize(size, stock) {
+    selectedSize = size;
+    currentStockLimit = Number(stock);
+    
+    // Reset purchase quantity to 1 when switching sizes
+    purchaseQty = 1;
+    document.getElementById('qty-count').innerText = purchaseQty;
+
+    // Cross-check with current cart contents
+    const cart = JSON.parse(localStorage.getItem('outflickz_cart') || '[]');
+    const itemInCart = cart.find(i => 
+        i.id === currentProduct._id && 
+        i.size === size && 
+        i.color === selectedVariant.color
+    );
+    const qtyInCart = itemInCart ? Number(itemInCart.qty) : 0;
+
+    // Calculate actual availability for this specific user session
+    const realAvailability = currentStockLimit - qtyInCart;
+
+    // Update UI Status
+    const statusEl = document.getElementById('stock-status');
+    if (realAvailability <= 0) {
+        statusEl.innerHTML = `<span class="text-red-500">MAX CAPACITY IN STORE</span>`;
+    } else {
+        statusEl.innerText = `${realAvailability} UNITS AVAILABLE TO SECURE`;
+    }
+    
+    // Update Size Button Visuals
+    document.querySelectorAll('.size-btn').forEach(btn => {
+        const btnText = btn.querySelector('span:last-child').innerText.trim();
+        const matchTxt = (size === 'OS' ? "ONE SIZE / ADJ" : size.toUpperCase());
+        btn.classList.toggle('active', btnText === matchTxt);
+    });
+
+    // Control Button States
+    const addBtn = document.getElementById('add-btn');
+    const buyBtn = document.getElementById('buy-btn');
+
+    if (realAvailability <= 0) {
+        addBtn.disabled = true;
+        buyBtn.disabled = true;
+        addBtn.innerText = "LIMIT REACHED";
+    } else {
+        addBtn.disabled = false;
+        buyBtn.disabled = false;
+        addBtn.innerText = "ADD TO CART";
+    }
+}
+
+async function addToCart(showFeedback = true) {
+    if (!selectedVariant || !selectedSize) { 
+        showModal('Selection Required', 'PLEASE SELECT COLOR AND SIZE', 'error');
+        return false; 
+    }
+
+    const stockLimit = Number(currentStockLimit);
+    let cart = JSON.parse(localStorage.getItem('outflickz_cart') || '[]');
+    
+    const existingIndex = cart.findIndex(i => 
+        i.id === currentProduct._id && 
+        i.color === selectedVariant.color && 
+        i.size === selectedSize
+    );
+
+    const currentCartQty = existingIndex > -1 ? Number(cart[existingIndex].qty) : 0;
+    const requestedTotal = currentCartQty + purchaseQty;
+
+    if (requestedTotal > stockLimit) {
+        showModal('Cart Limit', `ONLY ${stockLimit} TOTAL UNITS ALLOWED PER CUSTOMER.`, 'error');
+        return false;
+    }
+
+    // UPDATED: Now captures 'category' from the backend response
+    const cartItem = {
+        id: currentProduct._id,
+        name: currentProduct.name,
+        price: currentProduct.price,
+        category: currentProduct.category || "item", // Captured from your backend foundCollection
+        color: selectedVariant.color,
+        size: selectedSize,
+        image: selectedVariant.images[0],
+        maxStock: stockLimit,
+        qty: requestedTotal
+    };
+
+    if (existingIndex > -1) {
+        // Update existing item while preserving type
+        cart[existingIndex].qty = requestedTotal;
+        cart[existingIndex].category = cartItem.category; 
+    } else {
+        // Add new item with quantity
+        cart.push(cartItem);
+    }
+
+    localStorage.setItem('outflickz_cart', JSON.stringify(cart));
+    updateCartCount();
+    
+    selectSize(selectedSize, currentStockLimit);
+
+    if (showFeedback) {
+        showModal('Secured', `${currentProduct.name.toUpperCase()} HAS BEEN ADDED TO YOUR CART.`);
+    }
+    return true;
+}
+
+  async function buyNow() {
+    const buyBtn = document.getElementById('buy-btn');
+    const originalContent = buyBtn.innerHTML;
+    
+    // Set Loading State
+    buyBtn.disabled = true;
+    buyBtn.innerHTML = `
+        <div class="flex items-center justify-center space-x-2">
+            <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>VERIFYING ORDER...</span>
+        </div>
+    `;
+
+    // Wait for the cart logic to finish
+    const success = await addToCart(false);
+    
+    if(success) {
+        // Smooth transition to cart
+        setTimeout(() => {
+            window.location.href = 'cart.html';
+        }, 500); 
+    } else {
+        // Reset if failed (e.g., didn't select size)
+        buyBtn.innerHTML = originalContent;
+        buyBtn.disabled = false;
+    }
+}
+
+  async function loadRelatedProducts(currentId) {
+    try {
+        const res = await fetch(API_ENDPOINT, { 
+            method: 'POST', 
+            body: JSON.stringify({ action: 'get-all-products-combined' }) 
+        });
+        
+        let allItems = await res.json();
+        
+        if (Array.isArray(allItems)) {
+            // Filter out current product
+            let processedItems = allItems.filter(p => p._id !== currentId);
+
+            // Add a helper property to each product to determine if it is globally sold out
+            processedItems = processedItems.map(p => {
+                let totalStock = 0;
+                (p.variants || []).forEach(v => {
+                    if (v.stockMatrix) {
+                        Object.values(v.stockMatrix).forEach(qty => totalStock += Number(qty) || 0);
+                    } else if (v.stock) {
+                        totalStock += Number(v.stock) || 0;
+                    }
+                });
+                return { ...p, isGloballySoldOut: totalStock <= 0 };
+            });
+
+            // SORTING: In Stock (false) comes before Sold Out (true)
+            processedItems.sort((a, b) => a.isGloballySoldOut - b.isGloballySoldOut);
+            
+            // Take the top 8 (which will be in-stock items first)
+            renderRelatedSlider(processedItems.slice(0, 8));
+        }
+    } catch (err) { 
+        console.error("Related Products Error:", err); 
+    }
+}
+
+ function renderRelatedSlider(items) {
+    const slider = document.getElementById('related-slider');
+    if (!slider) return;
+
+    slider.innerHTML = items.map(p => {
+        const defaultImg = p.displayImage || (p.variants?.[0]?.images?.[0]) || 'placeholder.jpg';
+        const pCategory = p.category || 'wear'; 
+        const isSoldOut = p.isGloballySoldOut; // Using the property we created in the sort
+
+        const swatches = (p.variants || []).map(v => `
+            <div class="color-dot w-2 h-2 rounded-full border border-white/50" 
+                 style="background-color: ${v.color.toLowerCase()};" 
+                 onmouseover="document.getElementById('rel-img-${p._id}').src='${v.images[0]}'" 
+                 onclick="event.stopPropagation();">
+            </div>`).join('');
+
+        return `
+            <div class="related-item group cursor-pointer relative" 
+                 onclick="window.location.href='product-detail.html?id=${p._id}&category=${pCategory}'">
+                
+                <div class="aspect-[3/4] bg-zinc-100 overflow-hidden relative border border-black/5">
+                    
+                    ${isSoldOut ? `
+                        <div class="absolute inset-0 bg-white/40 z-20 pointer-events-none"></div>
+                        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-red-600 text-white text-[8px] font-black px-3 py-1.5 z-30 border border-white uppercase tracking-tighter rotate-[-5deg] shadow-xl">
+                            SOLD OUT
+                        </div>
+                    ` : ''}
+
+                    <img id="rel-img-${p._id}" 
+                         src="${defaultImg}" 
+                         alt="${p.name}" 
+                         loading="lazy" 
+                         class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-700 ${isSoldOut ? 'grayscale contrast-75' : ''}">
+                    
+                    <div class="absolute bottom-3 left-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        ${swatches}
+                    </div>
+                </div>
+
+                <div class="mt-4 space-y-1 ${isSoldOut ? 'opacity-40' : ''}">
+                    <div class="flex justify-between items-start">
+                        <h3 class="font-bold uppercase text-[9px] tracking-wider">${p.name}</h3>
+                        <p class="font-bold text-[9px] ${isSoldOut ? 'line-through text-zinc-400' : ''}">₦${Number(p.price).toLocaleString()}</p>
+                    </div>
+                    <p class="text-zinc-400 text-[8px] uppercase tracking-widest">
+                        ${isSoldOut ? 'OUTFLICKZ CLOSED' : `${pCategory} / ${p.variants?.length || 0} Colors`}
+                    </p>
+                </div>
+            </div>`;
+    }).join('');
+}
+
+    function updateCartCount() {
+        const cart = JSON.parse(localStorage.getItem('outflickz_cart') || '[]');
+        document.getElementById('cart-count').innerText = cart.length;
+    }
+function toggleSidebar(open) {
+    const menu = document.getElementById('mobile-menu');
+    if (open) {
+        menu.classList.add('open');
+        menu.classList.remove('translate-x-full');
+        document.body.style.overflow = 'hidden';
+    } else {
+        menu.classList.remove('open');
+        menu.classList.add('translate-x-full');
+        document.body.style.overflow = 'auto';
+    }
+}
+   
+ function updateAuthUI() {
+   const authSection = document.getElementById('nav-auth-section');
+    const mobileAuth = document.getElementById('mobile-auth-section');
+    const userData = JSON.parse(localStorage.getItem('outflickz_user_data') || '{}');
+    const token = localStorage.getItem('outflickz_token');
+
+    if (token && userData.firstName) {
+        authSection.innerHTML = `
+            <a href="../account/profile.html" class="flex items-center space-x-2 group">
+                <span class="text-[9px] font-bold uppercase tracking-widest group-hover:text-zinc-500 transition-colors">
+                    Hi, ${userData.firstName}
+                </span>
+                <div class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+            </a>
+        `;
+    } else {
+        // Guest View - Keeping it clean but inviting
+        authSection.innerHTML = `
+            <div class="flex items-center space-x-4">
+                <a href="/account/login.html" class="text-[9px] font-bold uppercase tracking-widest hover:text-zinc-500 transition">Login</a>
+                <span class="text-zinc-300">|</span>
+                <a href="/account/login.html" class="text-[9px] font-bold uppercase tracking-widest bg-black text-white px-3 py-1.5 rounded-sm hover:bg-zinc-800 transition">Join Outflickz</a>
+            </div>
+        `;
+    }
+}
+
+function autoClearSession() {
+    const now = new Date().getTime();
+    const lastActive = localStorage.getItem('outflickz_last_active');
+
+    if (lastActive && (now - lastActive > SESSION_TIMEOUT)) {
+        console.warn("Outflickz: Session stale. Wiping storage to prevent hanging.");
+        
+        localStorage.removeItem('outflickz_token');
+        localStorage.removeItem('outflickz_user_data');
+        // We leave the cart alone so users don't get frustrated
+        localStorage.removeItem('outflickz_guest_id');
+    }
+
+    // Update timestamp so the clock restarts on this visit
+    localStorage.setItem('outflickz_last_active', now.toString());
+}
+
+function toggleChat() {
+    const windowEl = document.getElementById('chat-window');
+    const isHidden = windowEl.classList.contains('hidden');
+
+    if (isHidden) {
+        windowEl.classList.remove('hidden');
+        setTimeout(() => {
+            windowEl.classList.remove('scale-95', 'opacity-0');
+            windowEl.classList.add('scale-100', 'opacity-100');
+        }, 10);
+    } else {
+        windowEl.classList.add('scale-95', 'opacity-0');
+        windowEl.classList.remove('scale-100', 'opacity-100');
+        setTimeout(() => windowEl.classList.add('hidden'), 300);
+    }
+}
+
+function setPlatform(platform) {
+    selectedPlatform = platform;
+    
+    // UI Feedback for selection
+    document.getElementById('btn-wa').classList.toggle('bg-zinc-100', platform === 'wa');
+    document.getElementById('btn-wa').classList.toggle('border-black', platform === 'wa');
+    document.getElementById('btn-tg').classList.toggle('bg-zinc-100', platform === 'tg');
+    document.getElementById('btn-tg').classList.toggle('border-black', platform === 'tg');
+}
+
+function sendChatMessage() {
+    const message = document.getElementById('chat-input').value || "Hello Outflickz, I need assistance.";
+    const encodedMessage = encodeURIComponent(message);
+    
+    let url = "";
+    if (selectedPlatform === 'wa') {
+        url = `https://wa.me/2347042882706?text=${encodedMessage}`;
+    } else {
+        url = `https://t.me/+2349125898200?text=${encodedMessage}`;
+    }
+    
+    window.open(url, '_blank');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outflickz Admin | Stock Logs</title>
+    <link rel="icon" type="image/jpeg" href="https://i.imgur.com/fu8N7I2.jpeg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap');
+        body { font-family: 'Space Grotesk', sans-serif; font-size: 12px; }
+        ::-webkit-scrollbar { width: 3px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #000; }
+        
+        .table-row-hover:hover { background-color: #f9f9f9; }
+        .badge-low { background: #fee2e2; color: #ef4444; }
+        .badge-ok { background: #f0fdf4; color: #22c55e; }
+        .badge-out { background: #333; color: #fff; }
+    </style>
+</head>
+<body class="bg-[#fcfcfc] text-black min-h-screen flex overflow-x-hidden">
+
+    <aside id="sidebar" class="fixed md:relative w-56 h-screen bg-white border-r border-gray-100 p-6 flex flex-col z-[50] transition-transform duration-300 -translate-x-full md:translate-x-0">
+        <div class="hidden md:block text-xl font-black italic tracking-tighter mb-8 text-center md:text-left cursor-pointer" onclick="window.location.href='dashboard.html'">OUTFLICKZ</div>
+        
+        <nav class="space-y-1 flex-1 overflow-y-auto pt-4 md:pt-0">
+            <a href="dashboard.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Vault Overview</a>
+            <button class="flex items-center w-full p-2.5 rounded-md bg-black text-white text-[9px] uppercase tracking-widest font-bold transition-all shadow-sm">Stock Logs</button>
+            <a href="wearsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Wears Manager</a>
+            <a href="shortsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Shorts Manager</a>
+            <a href="capsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Caps Manager</a>
+            <a href="jerseysproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Jerseys Manager</a>
+            <a href="tracksuitproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">TrackSuit Manager</a>
+            <a href="membership.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Membership</a>
+            <a href="newsletter.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Global Broadcast</a>
+           <a href="settings.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Settings</a>
+        </nav>
+
+        <div class="pt-6 border-t border-gray-100">
+            <button onclick="handleLogout()" class="flex items-center space-x-2 text-[8px] uppercase tracking-[0.2em] text-red-600 font-bold hover:opacity-70 transition-all">TERMINATE SESSION</button>
+        </div>
+    </aside>
+
+    <div id="overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/20 backdrop-blur-sm hidden z-[45]"></div>
+
+    <main class="flex-1 p-4 md:p-10 mt-14 md:mt-0">
+        <header class="flex justify-between items-end mb-8">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold uppercase tracking-tighter">Stock Intelligence</h1>
+                <p id="sync-status" class="text-gray-400 text-[9px] uppercase tracking-[0.2em] mt-1">Establishing link to inventory...</p>
+            </div>
+            <div class="flex space-x-2">
+                <input type="text" id="searchInput" placeholder="SEARCH VAULT..." class="bg-white border border-gray-100 px-4 py-2 rounded-lg text-[9px] font-bold uppercase tracking-widest focus:outline-none focus:border-black w-32 md:w-64">
+            </div>
+        </header>
+
+        <div class="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-gray-50">
+                            <th class="p-5 text-[8px] uppercase tracking-[0.2em] font-black text-gray-400">Class</th>
+                            <th class="p-5 text-[8px] uppercase tracking-[0.2em] font-black text-gray-400">Identification</th>
+                            <th class="p-5 text-[8px] uppercase tracking-[0.2em] font-black text-gray-400">Unit Cost</th>
+                            <th class="p-5 text-[8px] uppercase tracking-[0.2em] font-black text-gray-400 text-center">Quantities</th>
+                            <th class="p-5 text-[8px] uppercase tracking-[0.2em] font-black text-gray-400">Total Asset Value</th>
+                            <th class="p-5 text-[8px] uppercase tracking-[0.2em] font-black text-gray-400">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stock-table-body" class="divide-y divide-gray-50">
+                        <tr><td colspan="6" class="p-10 text-center text-gray-400 animate-pulse uppercase tracking-widest">Initialising Database Stream...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-black text-white p-6 rounded-2xl shadow-lg">
+                <span class="text-[8px] uppercase tracking-widest text-gray-400">Total Vault Valuation</span>
+                <h2 id="total-valuation" class="text-2xl font-bold tracking-tighter italic mt-1">₦0.00</h2>
+            </div>
+            <div class="bg-white border border-gray-100 p-6 rounded-2xl shadow-sm flex justify-between items-center">
+                <div>
+                    <span class="text-[8px] uppercase tracking-widest text-gray-400 font-bold">Total Units In Vault</span>
+                    <h2 id="total-units" class="text-2xl font-bold tracking-tighter mt-1">0</h2>
+                </div>
+                <button onclick="fetchStockLogs()" class="text-[9px] font-black uppercase tracking-widest border border-black px-6 py-3 rounded-md hover:bg-black hover:text-white transition-all">Re-Sync</button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_ENDPOINT = "/.netlify/functions/api";
+
+        window.onload = () => {
+            if (!localStorage.getItem('outflickz_admin_token')) {
+                window.location.href = 'login.html';
+            } else {
+                fetchStockLogs();
+            }
+        };
+
+        async function fetchStockLogs() {
+            const syncStatus = document.getElementById('sync-status');
+            try {
+                const response = await fetch(`${API_ENDPOINT}?action=get-all-products-combined`);
+                const products = await response.json();
+
+                if (Array.isArray(products)) {
+                    processAndRender(products);
+                    syncStatus.innerText = `Matrix Active • ${new Date().toLocaleTimeString().toLowerCase()}`;
+                }
+            } catch (err) {
+                console.error("Fetch Error:", err);
+                syncStatus.innerText = "LINK FAILURE";
+            }
+        }
+
+        function processAndRender(products) {
+            const tbody = document.getElementById('stock-table-body');
+            let grandValuation = 0;
+            let grandUnits = 0;
+
+            const html = products.map(p => {
+                let productUnits = 0;
+                
+                // Logic to calculate units from variants (Matching your existing structure)
+                if (p.variants && Array.isArray(p.variants)) {
+                    p.variants.forEach(v => {
+                        if (v.stockMatrix && typeof v.stockMatrix === 'object') {
+                            productUnits += Object.values(v.stockMatrix).reduce((a, b) => a + parseInt(b || 0), 0);
+                        } else {
+                            productUnits += parseInt(v.stock || 0);
+                        }
+                    });
+                }
+
+                const price = parseFloat(p.price || 0);
+                const assetValue = price * productUnits;
+                
+                grandValuation += assetValue;
+                grandUnits += productUnits;
+
+                const statusClass = productUnits === 0 ? 'badge-out' : (productUnits < 5 ? 'badge-low' : 'badge-ok');
+                const statusText = productUnits === 0 ? 'OUT OF STOCK' : (productUnits < 5 ? 'LOW STOCK' : 'IN STOCK');
+
+                return `
+                    <tr class="table-row-hover transition-colors">
+                        <td class="p-5 font-bold text-[8px] uppercase tracking-widest text-gray-400">${p.category}</td>
+                        <td class="p-5 font-black text-[10px] uppercase tracking-tighter text-black">${p.name}</td>
+                        <td class="p-5 font-bold text-[10px]">₦${price.toLocaleString()}</td>
+                        <td class="p-5 text-center font-black text-[11px]">${productUnits}</td>
+                        <td class="p-5 font-black text-[10px] italic">₦${assetValue.toLocaleString()}</td>
+                        <td class="p-5">
+                            <span class="px-2 py-1 rounded text-[7px] font-black uppercase tracking-widest ${statusClass}">
+                                ${statusText}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            tbody.innerHTML = html;
+            document.getElementById('total-valuation').innerText = `₦${grandValuation.toLocaleString()}`;
+            document.getElementById('total-units').innerText = grandUnits.toLocaleString();
+        }
+
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const term = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('#stock-table-body tr');
+            rows.forEach(row => {
+                row.style.display = row.innerText.toLowerCase().includes(term) ? '' : 'none';
+            });
+        });
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('-translate-x-full');
+            document.getElementById('overlay').classList.toggle('hidden');
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('outflickz_admin_token');
+            window.location.href = 'login.html';
+        }
+    </script>
+</body>
+</html>

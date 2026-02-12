@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outflickz Admin | Dashboard</title>
+    <link rel="icon" type="image/jpeg" href="https://i.imgur.com/fu8N7I2.jpeg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap');
+        body { font-family: 'Space Grotesk', sans-serif; font-size: 12px; }
+        ::-webkit-scrollbar { width: 3px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #000; }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-5px) rotate(1deg); }
+        }
+        .animate-float { animation: float 4s ease-in-out infinite; }
+        .stat-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .stat-card:hover { border-color: black; transform: translateY(-2px); }
+        .time-btn.active { background: black; color: white; }
+
+        @media (max-width: 768px) {
+            #sidebar {
+                top: 56px; 
+                height: calc(100vh - 56px);
+            }
+        }
+    </style>
+</head>
+<body class="bg-[#fcfcfc] text-black min-h-screen flex overflow-x-hidden">
+
+    <div class="md:hidden fixed top-0 w-full h-[56px] px-4 flex justify-between items-center bg-white z-[60] border-b border-gray-100">
+        <div class="text-lg font-black italic tracking-tighter">OUTFLICKZ</div>
+        <button onclick="toggleSidebar()" class="text-xl text-black p-2">☰</button>
+    </div>
+
+    <div class="fixed bottom-6 right-6 z-[100] animate-float">
+        <div class="bg-white border-2 border-black p-3 rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center space-x-3 min-w-[140px]">
+            <div class="relative flex h-3 w-3">
+                <span id="ping-pulse" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span id="ping-dot" class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+            </div>
+            <div>
+                <p class="text-[7px] font-black uppercase tracking-widest text-gray-400 leading-none">System Link</p>
+                <h4 id="floating-security-status" class="text-[10px] font-bold uppercase text-black">Encrypted</h4>
+            </div>
+        </div>
+    </div>
+
+    <aside id="sidebar" class="fixed md:relative w-56 h-screen bg-white border-r border-gray-100 p-6 flex flex-col z-[50] transition-transform duration-300 -translate-x-full md:translate-x-0">
+        <div class="hidden md:block text-xl font-black italic tracking-tighter mb-8 text-center md:text-left cursor-pointer" onclick="window.location.href='dashboard.html'">OUTFLICKZ</div>
+        
+        <nav class="space-y-1 flex-1 overflow-y-auto pt-4 md:pt-0">
+            <button onclick="window.location.href='dashboard.html'" class="flex items-center w-full p-2.5 rounded-md bg-black text-white text-[9px] uppercase tracking-widest font-bold transition-all shadow-sm">
+                Vault Overview
+            </button>
+            <a href="orderConfirmation.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Order Confirmation</a>
+           <a href="stockslogs.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Stocks Logs</a>
+            <a href="wearsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Wears Manager</a>
+            <a href="shortsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Shorts Manager</a>
+            <a href="capsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Caps Manager</a>
+            <a href="jerseysproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Jerseys Manager</a>
+            <a href="tankstopproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">TankTop Manager</a>
+            <a href="tracksuitproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">TrackSuit Manager</a>
+            <a href="adminpost.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Admin Post</a>
+            <a href="membership.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Membership</a>
+            <a href="newsletter.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Global Broadcast</a>
+           <a href="settings.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Settings</a>
+        </nav>
+
+        <div class="pt-6 border-t border-gray-100">
+            <button onclick="handleLogout()" class="flex items-center space-x-2 text-[8px] uppercase tracking-[0.2em] text-red-600 font-bold hover:opacity-70 transition-all">
+                TERMINATE SESSION
+            </button>
+        </div>
+    </aside>
+
+    <div id="overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/20 backdrop-blur-sm hidden z-[45]"></div>
+
+    <main class="flex-1 p-4 md:p-10 mt-14 md:mt-0 relative">
+        <div id="section-overview">
+            <header class="flex justify-between items-end mb-8">
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-bold uppercase tracking-tighter">Admin Vault</h1>
+                    <p id="sync-status" class="text-gray-400 text-[9px] uppercase tracking-[0.2em] mt-1">Establishing Secure Link...</p>
+                </div>
+                <div class="hidden md:block w-16 h-16 rounded-xl overflow-hidden shadow-xl border-2 border-white animate-float">
+                    <img src="https://i.imgur.com/aJk5NNG.jpeg" alt="Admin" class="w-full h-full object-cover">
+                </div>
+            </header>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
+                <div class="bg-black text-white p-6 rounded-2xl shadow-lg cursor-pointer group relative" onclick="toggleRevenueBreakdown()">
+                    <div class="flex justify-between items-start">
+                        <span class="text-[8px] uppercase tracking-widest text-gray-400 font-bold">Total Vault Inflow</span>
+                        <svg id="revenue-chevron" class="w-3 h-3 text-gray-500 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                    <h3 id="stat-revenue" class="text-2xl font-bold tracking-tighter mt-2 italic">₦0.00</h3>
+                    
+                    <div id="revenue-breakdown" class="hidden mt-4 pt-4 border-t border-white/10 space-y-2">
+                        <div class="flex justify-between items-center text-[9px] uppercase tracking-widest">
+                            <span class="text-gray-400">Pure Product Sales</span>
+                            <span id="breakdown-products" class="font-bold text-green-400">₦0.00</span>
+                        </div>
+                        <div class="flex justify-between items-center text-[9px] uppercase tracking-widest">
+                            <span class="text-gray-400">Shipping Fees</span>
+                            <span id="breakdown-shipping" class="font-bold">₦0.00</span>
+                        </div>
+                        <div class="flex justify-between items-center text-[9px] uppercase tracking-widest">
+                            <span class="text-gray-400">Tax Collected</span>
+                            <span id="breakdown-tax" class="font-bold">₦0.00</span>
+                        </div>
+                    </div>
+                    <p class="text-green-400 text-[7px] font-bold mt-2 uppercase">▲ Live Financial Feed</p>
+                </div>
+
+                <div class="bg-white border border-gray-100 p-6 rounded-2xl shadow-sm">
+                    <span class="text-[8px] uppercase tracking-widest text-gray-400 font-bold">Total Stock Value</span>
+                    <h3 id="stat-stock-amount" class="text-2xl font-bold tracking-tighter mt-2 italic">₦0.00</h3>
+                    <p class="text-black text-[7px] font-bold mt-1 uppercase tracking-wider">Inventory Capital</p>
+                </div>
+                
+                <div class="bg-white border border-gray-100 p-6 rounded-2xl shadow-sm">
+                    <span class="text-[8px] uppercase tracking-widest text-gray-400 font-bold">Total Inventory Units</span>
+                    <h3 id="total-assets-count" class="text-2xl font-bold tracking-tighter mt-2">0</h3>
+                    <p class="text-black text-[7px] font-bold mt-1 uppercase">Live Stock Volume</p>
+                </div>
+            </div>
+
+            <div class="mb-10 bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <div>
+                        <h2 class="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Sales Intelligence</h2>
+                        <h3 class="text-xl font-bold tracking-tighter mt-1">Performance Analytics</h3>
+                    </div>
+                    <div class="flex bg-gray-50 p-1 rounded-lg border border-gray-200">
+                        <button onclick="changeTimeframe('daily')" class="time-btn active px-3 py-1 rounded text-[8px] font-bold uppercase tracking-widest transition-all">Day</button>
+                        <button onclick="changeTimeframe('weekly')" class="time-btn px-3 py-1 rounded text-[8px] font-bold uppercase tracking-widest text-gray-400 transition-all">Week</button>
+                        <button onclick="changeTimeframe('monthly')" class="time-btn px-3 py-1 rounded text-[8px] font-bold uppercase tracking-widest text-gray-400 transition-all">Month</button>
+                        <button onclick="changeTimeframe('yearly')" class="time-btn px-3 py-1 rounded text-[8px] font-bold uppercase tracking-widest text-gray-400 transition-all">Year</button>
+                    </div>
+                </div>
+                <div class="h-[250px] w-full">
+                    <canvas id="salesChart"></canvas>
+                </div>
+            </div>
+
+            <h2 class="text-[10px] font-black uppercase tracking-[0.3em] mb-4 text-gray-400 border-b border-gray-100 pb-2">Stock Matrix (Actual Units)</h2>
+            <div id="inventory-grid" class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-10"></div>
+
+            <h2 class="text-[10px] font-black uppercase tracking-[0.3em] mb-4 text-gray-400 border-b border-gray-100 pb-2">Broadcast Intelligence</h2>
+            <div class="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm mb-10">
+                <div id="log-display" class="divide-y divide-gray-50 max-h-[400px] overflow-y-auto">
+                    <p class="text-[9px] text-gray-400 uppercase tracking-widest animate-pulse">Syncing transmission history...</p>
+                </div>
+            </div>
+
+            <div class="mt-10 flex justify-end">
+                <button onclick="refreshAll()" class="text-[9px] font-black uppercase tracking-widest bg-white border border-gray-100 px-6 py-3 rounded-md hover:bg-black hover:text-white transition-all shadow-sm">
+                    Refresh System Stats
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_ENDPOINT = "/.netlify/functions/api"; 
+        const MASTER_KEY = "Outflickzlimited"; 
+        let salesChart = null;
+        let cachedSalesData = null;
+
+        window.onload = () => {
+            if (!localStorage.getItem('outflickz_admin_token')) {
+                window.location.href = 'login.html';
+            } else {
+                refreshAll();
+            }
+        };
+
+        async function refreshAll() {
+            await Promise.all([
+                syncDashboardData(),
+                loadBroadcastHistory()
+            ]);
+        }
+
+        function toggleRevenueBreakdown() {
+            const breakdown = document.getElementById('revenue-breakdown');
+            const chevron = document.getElementById('revenue-chevron');
+            const isHidden = breakdown.classList.contains('hidden');
+            
+            if (isHidden) {
+                breakdown.classList.remove('hidden');
+                chevron.style.transform = 'rotate(180deg)';
+            } else {
+                breakdown.classList.add('hidden');
+                chevron.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        async function loadBroadcastHistory() {
+            const logContainer = document.getElementById('log-display');
+            try {
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        action: 'get-broadcast-history',
+                        masterKey: MASTER_KEY 
+                    })
+                });
+
+                if (response.status === 401) {
+                    logContainer.innerHTML = `<p class="text-[9px] text-red-500 uppercase tracking-widest font-bold">Access Denied: Check Netlify MASTER_ACCESS_KEY</p>`;
+                    return;
+                }
+
+                const data = await response.json();
+                if (data.success && data.logs && data.logs.length > 0) {
+                    logContainer.innerHTML = data.logs.map(log => `
+                        <div class="py-4 flex justify-between items-center group hover:bg-gray-50 px-2 transition-all">
+                            <div class="flex-1">
+                                <h3 class="font-black text-[10px] uppercase tracking-tighter truncate max-w-[200px] md:max-w-md">${log.subject}</h3>
+                                <p class="text-[8px] text-zinc-400 uppercase tracking-widest mt-1">
+                                    ${new Date(log.timestamp).toLocaleString()} • ${log.template || 'MASS_MSG'}
+                                </p>
+                            </div>
+                            <div class="text-right ml-4">
+                                <div class="text-[10px] font-bold tracking-tighter">${log.successfullySent} / ${log.totalAttempted}</div>
+                                <div class="text-[7px] font-black uppercase tracking-widest text-green-600">Dispatched</div>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    logContainer.innerHTML = `<p class="text-[9px] text-gray-400 uppercase tracking-widest">No transmission logs found.</p>`;
+                }
+            } catch (err) {
+                console.error("LOG_FETCH_ERROR:", err);
+                logContainer.innerHTML = `<p class="text-[9px] text-red-500 uppercase tracking-widest">History link failed. Check console.</p>`;
+            }
+        }
+
+        async function syncDashboardData() {
+            const syncStatus = document.getElementById('sync-status');
+            const inventoryGrid = document.getElementById('inventory-grid');
+            const floatingSecurity = document.getElementById('floating-security-status');
+            const pingDot = document.getElementById('ping-dot');
+            const pingPulse = document.getElementById('ping-pulse');
+            
+            try {
+                const response = await fetch(`${API_ENDPOINT}?action=get-dashboard`);
+                const data = await response.json();
+
+                if (data.success) {
+                    const stats = data.stats;
+                    const formatter = new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 });
+
+                    // TOTAL GROSS REVENUE
+                    const grossRevenue = stats.revenue || 0;
+                    document.getElementById('stat-revenue').innerText = formatter.format(grossRevenue);
+
+                    // REVENUE BREAKDOWN CALCULATION
+                    // We extract shipping and tax so you know your "True Product Sales"
+                    const shipping = stats.totalShipping || 0;
+                    const tax = stats.totalTax || 0;
+                    const pureProductSales = grossRevenue - shipping - tax;
+
+                    document.getElementById('breakdown-products').innerText = formatter.format(pureProductSales);
+                    document.getElementById('breakdown-shipping').innerText = formatter.format(shipping);
+                    document.getElementById('breakdown-tax').innerText = formatter.format(tax);
+
+                    // STOCK AMOUNT
+                    const estimatedStockValue = stats.totalStockValue || (stats.allTotalProducts * 12500); 
+                    document.getElementById('stat-stock-amount').innerText = formatter.format(estimatedStockValue);
+
+                    // TOTAL UNITS
+                    document.getElementById('total-assets-count').innerText = stats.allTotalProducts || 0;
+
+                    const categories = [
+                        { label: 'Wears', key: 'wears', path: 'wearsproduct.html' },
+                        { label: 'Shorts', key: 'shorts', path: 'shortsproduct.html' },
+                        { label: 'Caps', key: 'caps', path: 'capsproduct.html' },
+                        { label: 'Jerseys', key: 'jerseys', path: 'jerseysproduct.html' },
+                        { label: 'Tanks', key: 'tanktops', path: 'tankstopproduct.html' },
+                        { label: 'Tracksuits', key: 'tracksuits', path: 'tracksuitproduct.html' }
+                    ];
+
+                    inventoryGrid.innerHTML = categories.map(cat => `
+                        <div onclick="window.location.href='${cat.path}'" class="stat-card bg-white border border-gray-100 p-4 rounded-xl shadow-sm cursor-pointer group">
+                            <span class="text-[7px] uppercase tracking-widest text-gray-400 font-black group-hover:text-black transition-colors">${cat.label}</span>
+                            <div class="flex items-end justify-between mt-2">
+                                <h4 class="text-xl font-bold tracking-tighter">${stats[cat.key] || 0}</h4>
+                                <span class="text-[6px] font-bold text-gray-300">UNITS</span>
+                            </div>
+                        </div>
+                    `).join('');
+
+                    cachedSalesData = data.salesData;
+                    renderChart('daily');
+
+                    syncStatus.innerText = `Verified • ${new Date().toLocaleTimeString().toLowerCase()}`;
+                    syncStatus.className = "text-gray-400 text-[9px] uppercase tracking-[0.2em] mt-1";
+                    
+                    floatingSecurity.innerText = "Secure Link";
+                    pingDot.className = "relative inline-flex rounded-full h-3 w-3 bg-green-500";
+                    pingPulse.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75";
+                }
+            } catch (err) {
+                console.error("SYNC_ERROR:", err);
+                syncStatus.innerText = "LINK FAILURE";
+                syncStatus.className = "text-red-500 text-[9px] uppercase tracking-[0.2em] mt-1";
+                
+                floatingSecurity.innerText = "Connection Lost";
+                pingDot.className = "relative inline-flex rounded-full h-3 w-3 bg-red-500";
+                pingPulse.className = "hidden";
+            }
+        }
+
+        function renderChart(timeframe) {
+            const ctx = document.getElementById('salesChart').getContext('2d');
+            const chartData = cachedSalesData[timeframe];
+            if (salesChart) salesChart.destroy();
+
+            salesChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        label: 'Revenue',
+                        data: chartData.values,
+                        borderColor: '#000',
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#000',
+                        fill: true,
+                        backgroundColor: 'rgba(0,0,0,0.03)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#f3f4f6' }, ticks: { font: { size: 8 } } },
+                        x: { grid: { display: false }, ticks: { font: { size: 8 } } }
+                    }
+                }
+            });
+        }
+
+        function changeTimeframe(tf) {
+            document.querySelectorAll('.time-btn').forEach(b => {
+                b.classList.remove('active', 'text-white', 'bg-black');
+                b.classList.add('text-gray-400');
+            });
+            event.currentTarget.classList.add('active', 'text-white', 'bg-black');
+            event.currentTarget.classList.remove('text-gray-400');
+            renderChart(tf);
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('-translate-x-full');
+            document.getElementById('overlay').classList.toggle('hidden');
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('outflickz_admin_token');
+            window.location.href = 'login.html';
+        }
+    </script>
+</body>
+</html>

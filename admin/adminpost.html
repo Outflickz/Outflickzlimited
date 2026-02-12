@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outflickz Admin | Social Gallery Manager</title>
+    <link rel="icon" type="image/jpeg" href="https://i.imgur.com/fu8N7I2.jpeg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap');
+        body { font-family: 'Space Grotesk', sans-serif; font-size: 11px; }
+        ::-webkit-scrollbar { width: 3px; height: 3px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #000; }
+        .input-focus:focus { border-color: black; outline: none; }
+        #preview-container { transition: all 0.3s ease; }
+        .mode-btn-active { background-color: black; color: white; }
+    </style>
+</head>
+<body class="bg-[#fcfcfc] text-black min-h-screen flex overflow-x-hidden">
+
+    <div class="md:hidden fixed top-0 w-full p-3 flex justify-between items-center bg-white z-50 border-b border-gray-100">
+        <div class="text-lg font-black italic tracking-tighter">OUTFLICKZ</div>
+        <button onclick="toggleSidebar()" class="text-xl text-black">☰</button>
+    </div>
+
+    <aside id="sidebar" class="fixed md:relative w-56 h-screen bg-white border-r border-gray-100 p-6 flex flex-col z-40 transition-transform duration-300 -translate-x-full md:translate-x-0">
+        <div class="hidden md:block text-xl font-black italic tracking-tighter mb-8 text-center md:text-left cursor-pointer" onclick="window.location.href='dashboard.html'">OUTFLICKZ</div>
+        <nav class="space-y-1 flex-1">
+            <a href="dashboard.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Vault Overview</a>
+            <a href="wearsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Wears Manager</a>
+            <button class="flex items-center w-full p-2.5 rounded-md bg-black text-white text-[9px] uppercase tracking-widest font-bold shadow-sm">Social Manager</button>
+            <a href="shortsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Shorts Manager</a>
+            <a href="capsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Caps Manager</a>
+             <a href="tracksuitproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">
+                TrackSuit Manager
+            </a>
+             <a href="tankstopproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">
+                Tankstop Manager
+            </a>
+             <a href="orderConfirmation.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">
+                Order Confirmation
+            </a>
+             <a href="membership.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Membership</a>
+            <a href="newsletter.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Global Broadcast</a>
+        </nav>
+        <div class="pt-6 border-t border-gray-100">
+            <button onclick="handleLogout()" class="text-[8px] uppercase tracking-[0.2em] text-red-600 font-bold hover:opacity-70 transition-all">TERMINATE SESSION</button>
+        </div>
+    </aside>
+
+    <div id="overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/20 backdrop-blur-sm hidden z-30"></div>
+
+    <main class="flex-1 p-4 md:p-10 mt-14 md:mt-0 max-w-7xl mx-auto w-full">
+        <header class="mb-8">
+            <h1 class="text-2xl md:text-3xl font-bold uppercase tracking-tighter">Social Gallery Control</h1>
+            <p class="text-gray-400 text-[9px] uppercase tracking-[0.2em] mt-1">Community Feed Relay</p>
+        </header>
+
+        <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
+            <div class="xl:col-span-1">
+                <div class="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm sticky top-6">
+                    <h2 class="text-[9px] uppercase tracking-widest font-black mb-4 text-blue-600">Sync controller</h2>
+                    
+                    <div class="flex gap-1 mb-5 bg-gray-50 p-1 rounded-lg border border-gray-100">
+                        <button onclick="setMode('auto')" id="btn-auto" class="flex-1 py-2 text-[7px] font-bold uppercase rounded-md mode-btn-active transition-all">Auto Extract</button>
+                        <button onclick="setMode('manual')" id="btn-manual" class="flex-1 py-2 text-[7px] font-bold uppercase rounded-md text-gray-400 transition-all">Manual Link</button>
+                    </div>
+
+                    <div id="preview-container" class="mb-5 hidden">
+                        <label class="text-[7px] uppercase font-bold text-gray-400 ml-1">Live Preview</label>
+                        <div class="mt-2 relative rounded-lg overflow-hidden border border-gray-100 shadow-sm bg-gray-50">
+                            <img id="insta-preview" src="" referrerpolicy="no-referrer" class="w-full h-48 object-cover">
+                            <div class="absolute bottom-0 left-0 w-full p-2 bg-gradient-to-t from-black/60 to-transparent">
+                                <span class="text-white text-[7px] uppercase font-bold">Extraction Ready</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form id="social-form" class="space-y-4">
+                        <div class="space-y-3">
+                            <div>
+                                <label class="text-[7px] uppercase font-bold text-gray-400 ml-1">Instagram Post URL</label>
+                                <input type="url" id="insta-url" placeholder="https://www.instagram.com/p/..." class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus text-[10px]" required>
+                            </div>
+
+                            <div id="manual-image-wrap" class="hidden">
+                                <label class="text-[7px] uppercase font-bold text-gray-400 ml-1">Direct Image URL (Publicly Hosted)</label>
+                                <input type="url" id="manual-image-url" placeholder="https://imgur.com/example.jpg" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus text-[10px]">
+                                <p class="text-[6px] text-gray-400 mt-2 uppercase">Use this for private accounts. Upload the photo to a public host first.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col gap-2 pt-2">
+                            <button type="submit" id="submit-btn" class="w-full bg-black text-white text-[9px] font-bold uppercase tracking-widest py-3.5 rounded-md hover:bg-gray-800 transition">Sync to Live Gallery</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="xl:col-span-3">
+                <div class="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+                    <div class="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+                        <h4 class="text-[9px] uppercase tracking-widest font-black">Live Gallery Registry</h4>
+                        <button onclick="fetchPosts()" class="text-[8px] font-bold text-gray-400 hover:text-black transition uppercase">Refresh Feed</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="text-[8px] uppercase tracking-widest text-gray-400 border-b border-gray-50">
+                                    <th class="p-4 font-bold">Visual Preview</th>
+                                    <th class="p-4 font-bold">Post Source</th>
+                                    <th class="p-4 font-bold">Date Synced</th>
+                                    <th class="p-4 font-bold text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="posts-table-body" class="divide-y divide-gray-50"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_ENDPOINT = "/.netlify/functions/api"; 
+        const urlInput = document.getElementById('insta-url');
+        const manualInput = document.getElementById('manual-image-url');
+        const previewContainer = document.getElementById('preview-container');
+        const previewImg = document.getElementById('insta-preview');
+        const manualWrap = document.getElementById('manual-image-wrap');
+        
+        let currentMode = 'auto';
+
+        function setMode(mode) {
+            currentMode = mode;
+            const btnAuto = document.getElementById('btn-auto');
+            const btnManual = document.getElementById('btn-manual');
+            
+            if (mode === 'manual') {
+                btnManual.classList.add('mode-btn-active', 'text-white');
+                btnManual.classList.remove('text-gray-400');
+                btnAuto.classList.remove('mode-btn-active', 'text-white');
+                btnAuto.classList.add('text-gray-400');
+                manualWrap.classList.remove('hidden');
+                manualInput.required = true;
+                previewContainer.classList.add('hidden');
+            } else {
+                btnAuto.classList.add('mode-btn-active', 'text-white');
+                btnAuto.classList.remove('text-gray-400');
+                btnManual.classList.remove('mode-btn-active', 'text-white');
+                btnManual.classList.add('text-gray-400');
+                manualWrap.classList.add('hidden');
+                manualInput.required = false;
+                triggerAutoPreview(urlInput.value);
+            }
+        }
+
+        function triggerAutoPreview(url) {
+            if (currentMode === 'auto' && url.includes('instagram.com/')) {
+                let cleanUrl = url.split('?')[0];
+                if (!cleanUrl.endsWith('/')) cleanUrl += '/';
+                const mediaUrl = `${cleanUrl}media/?size=l`;
+                previewImg.src = mediaUrl;
+                previewContainer.classList.remove('hidden');
+                previewImg.onerror = () => {
+                    previewImg.src = 'https://placehold.co/400x400/f3f4f6/9ca3af?text=Private+or+Invalid+Post';
+                };
+            } else {
+                previewContainer.classList.add('hidden');
+            }
+        }
+
+        urlInput.addEventListener('input', (e) => triggerAutoPreview(e.target.value.trim()));
+
+        // Manual Input Preview
+        manualInput.addEventListener('input', (e) => {
+            if (currentMode === 'manual' && e.target.value.length > 5) {
+                previewImg.src = e.target.value;
+                previewContainer.classList.remove('hidden');
+                previewImg.onerror = () => { previewContainer.classList.add('hidden'); };
+            }
+        });
+
+        window.onload = () => {
+            if (!localStorage.getItem('outflickz_admin_token')) window.location.href = 'login.html';
+            fetchPosts();
+        };
+
+        async function fetchPosts() {
+            const tableBody = document.getElementById('posts-table-body');
+            try {
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'get-social-gallery' })
+                });
+                const posts = await response.json();
+
+                if (!posts || posts.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="4" class="p-10 text-center text-gray-300 font-bold uppercase text-[9px]">Gallery Empty</td></tr>';
+                    return;
+                }
+
+                tableBody.innerHTML = posts.map(p => `
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="p-4">
+                            <img 
+                                src="${p.imageUrl}" 
+                                referrerpolicy="no-referrer" 
+                                class="w-12 h-12 rounded bg-gray-100 object-cover shadow-sm border border-black/5" 
+                                onerror="this.src='https://placehold.co/100?text=Error'"
+                            >
+                        </td>
+                        <td class="p-4 text-[9px] font-bold text-blue-600 truncate max-w-[200px]">
+                            <a href="${p.postUrl}" target="_blank" class="hover:underline">${p.postUrl}</a>
+                        </td>
+                        <td class="p-4 text-[8px] text-gray-400 uppercase">
+                            ${new Date(p.createdAt || Date.now()).toLocaleDateString()}
+                        </td>
+                        <td class="p-4 text-center">
+                            <div class="flex justify-center">
+                                <button onclick="deletePost('${p._id}')" class="text-red-400 hover:text-red-600 font-bold uppercase text-[8px] underline">Remove</button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                tableBody.innerHTML = '<tr><td colspan="4" class="p-10 text-center text-red-500 font-bold text-[9px]">SYNC ERROR</td></tr>';
+            }
+        }
+
+        document.getElementById('social-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submit-btn');
+            
+            btn.disabled = true;
+            btn.innerText = "SYNCING TO VAULT...";
+
+            try {
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'add-social-post',
+                        postUrl: urlInput.value,
+                        manualImageUrl: currentMode === 'manual' ? manualInput.value : null
+                    })
+                });
+
+                if (response.ok) {
+                    document.getElementById('social-form').reset();
+                    previewContainer.classList.add('hidden');
+                    fetchPosts();
+                    alert("Gallery Synced Successfully");
+                } else {
+                    const data = await response.json();
+                    alert(data.message || "Sync Failed");
+                }
+            } catch (err) {
+                alert("Connection Error");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Sync to Live Gallery";
+            }
+        };
+
+        async function deletePost(id) {
+            if(!confirm("Remove this post from the public gallery?")) return;
+            try {
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'delete-social-post', id })
+                });
+                if(response.ok) fetchPosts();
+            } catch (err) { alert("Delete Failed"); }
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('-translate-x-full');
+            document.getElementById('overlay').classList.toggle('hidden');
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('outflickz_admin_token');
+            window.location.href = 'login.html';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Outflickz | Streetwear Experience</title>
+<meta name="description" content="Premium streetwear designed for the modern era. Explore exclusive tees, jerseys, and tracksuits at Outflickz.">
+<meta name="robots" content="index, follow"> <link rel="canonical" href="https://www.outflickz.com/"> <meta property="og:type" content="website">
+<meta name="google-site-verification" content="Z6ROK89ZCUVN1i5qEFeLCyaaeJHYp5-33t4Mi4pxzJs" />
+<meta name="google-site-verification" content="DeJxVatGUGl_-7N6hsw_9U0lgw7wFgVKMKVok3UNRhg" />
+<meta property="og:url" content="https://www.outflickz.com/">
+<meta property="og:title" content="Outflickz | Streetwear Experience">
+<meta name="keywords" content="Outflickz, Outflickz Limited, Streetwear, Urban Fashion, High Fashion, Premium Clothing Nigeria, Outflickz"><meta property="og:description" content="Discover the latest in high-end streetwear. Quality essentials for the culture.">
+<meta property="og:image" content="https://www.outflickz.com/assets/og-preview.jpg"> <meta name="twitter:card" content="summary_large_image"> <meta name="twitter:url" content="https://www.outflickz.com/">
+<meta name="twitter:title" content="Outflickz | Streetwear Experience">
+<meta name="twitter:description" content="Premium streetwear designed for the modern era. Shop the collection.">
+<meta name="twitter:image" content="https://www.outflickz.com/assets/og-preview.jpg">
+<meta name="twitter:site" content="@outflickz">
+    <link rel="icon" type="image/jpeg" href="https://i.imgur.com/fu8N7I2.jpeg">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+        <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Store",
+  "name": "Outflickz",
+  "url": "https://www.outflickz.com/",
+  "logo": "https://www.outflickz.com/logo.png",
+  "description": "Premium streetwear experience. Discover exclusive collections and urban fashion essentials.",
+  "image": "https://www.outflickz.com/assets/og-preview.jpg",
+  "address": {
+    "@type": "PostalAddress",
+    "addressCountry": "NG"
+  },
+  "priceRange": "$$",
+  "hasMap": "https://www.outflickz.com/pages/contact"
+}
+</script>
+ <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap');
+    
+    :root {
+        --header-height-mobile: 80px;
+        --header-height-desktop: 96px;
+    }
+
+    body { 
+        font-family: 'Space Grotesk', sans-serif; 
+        margin: 0; 
+        padding: 0; 
+        scroll-behavior: smooth;
+    }
+    /* Scrollbar Logic */
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* Navigation & Header Adjustments */
+    nav { height: var(--header-height-mobile); }
+ 
+    @media (min-width: 1024px) {
+        nav { height: var(--header-height-desktop); }
+    }
+
+    /* Sidebar Transition - Using Hardware Acceleration */
+    #mobile-menu {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        background: white;
+        z-index: 70;
+        transform: translateX(100%);
+        transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        will-change: transform;
+    }
+
+
+
+    @media (min-width: 1024px) {
+        #mobile-menu { width: 450px; border-left: 1px solid rgba(0,0,0,0.05); }
+    }
+
+    /* This class is toggled via JS */
+    #mobile-menu:not(.translate-x-full) {
+        transform: translateX(0);
+        box-shadow: -20px 0 60px rgba(0,0,0,0.1);
+    }
+
+    /* Search Animation */
+    #search-wrapper { 
+        width: 0; 
+        opacity: 0; 
+        overflow: hidden; 
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+    }
+    #search-wrapper.active { 
+        width: 200px; 
+        opacity: 1; 
+        margin-right: 12px; 
+    }
+
+    /* Product Grid & Cards */
+    .animate-item { 
+        animation: fadeIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards; 
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Social Gallery - Enhanced Height & Responsiveness */
+    #social-gallery-grid {
+        display: flex;
+        gap: 16px;
+        overflow-x: auto;
+        snap-type: x mandatory;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 20px;
+    }
+
+    #social-gallery-grid > div {
+        snap-align: center;
+        flex-shrink: 0;
+    }
+
+    /* Height Constraints for the Social Gallery Images */
+    .social-image-container {
+        aspect-ratio: 3/4; /* Taller portrait look */
+        width: 85vw; /* Large on mobile */
+    }
+    #search-wrapper { 
+    width: 0; 
+    opacity: 0; 
+    overflow: hidden; 
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+    display: flex;
+}
+#search-wrapper.active { 
+    width: 180px; 
+    opacity: 1; 
+    margin-right: 8px; 
+}
+
+    @media (min-width: 768px) {
+        .social-image-container {
+            width: 320px; /* Fixed width on desktop */
+            aspect-ratio: 4/5;
+        }
+        #social-gallery-grid { gap: 24px; }
+    }
+    #search-wrapper.active { width: 250px; } 
+
+
+    /* Badges & UI Elements */
+    .sold-out-badge {
+        background-color: #ff0000;
+        color: white;
+        text-transform: uppercase;
+        font-weight: 900;
+        font-size: 9px;
+        padding: 8px 16px;
+        letter-spacing: 0.2em;
+        box-shadow: 0 4px 12px rgba(255, 0, 0, 0.25);
+    }
+
+    .color-dot { 
+        width: 14px; 
+        height: 14px; 
+        border-radius: 50%; 
+        border: 1px solid rgba(0,0,0,0.1); 
+        transition: transform 0.3s ease;
+    }
+    .color-dot:hover { transform: scale(1.3); }
+
+    /* Mute Button Hover */
+    #muteBtn { 
+        transition: all 0.3s ease; 
+        background: rgba(0,0,0,0.5);
+        backdrop-filter: blur(8px);
+    }
+    #muteBtn:hover { 
+        background: white; 
+        color: black; 
+        transform: scale(1.1); 
+    }
+</style>
+</head> <body class="bg-white text-black overflow-x-hidden">
+<nav class="fixed w-full z-50 flex justify-between items-center px-5 h-20 md:h-24 md:px-10 bg-white/90 backdrop-blur-xl border-b border-black/5">
+    <div class="flex items-center space-x-4 md:space-x-12 h-full">
+        <div class="text-2xl md:text-3xl font-black tracking-tighter italic cursor-pointer shrink-0" onclick="window.location.href='index.html'">
+            OUTFLICKZ
+        </div>
+        
+        <div class="hidden lg:flex items-center space-x-8">
+            <div class="relative group">
+                <button class="flex items-center space-x-2 text-[10px] font-black uppercase tracking-[0.3em] hover:opacity-60 transition-opacity">
+                    <span>Shop Collection</span>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <div class="absolute left-0 mt-2 w-56 bg-white border border-black/5 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-[100] py-2">
+                    <a href="index.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">All Products</a>
+                    <a href="/products/wears.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">T-Shirts</a>
+                     <a href="/products/shorts.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">Shorts & Denim</a>
+                     <a href="/products/tanktops.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">TankTops</a>
+                     <a href="/products/tracksuits.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">TrackSuits</a>
+                     <a href="/products/jerseys.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">Jerseys</a>
+                     <a href="/products/accessories.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">Accessories</a>
+
+                </div>
+            </div>
+            <div id="nav-auth-section" class="flex items-center space-x-4 border-l border-black/5 pl-8"></div>
+        </div>
+    </div>
+
+    <div class="flex items-center space-x-3 md:space-x-6">
+        <div class="flex items-center">
+            <div id="search-wrapper" class="hidden sm:block">
+                <input type="text" id="productSearch" oninput="filterProducts()" placeholder="SEARCH..." 
+                    class="w-32 md:w-48 bg-zinc-100/80 border-none py-2 px-4 text-[10px] tracking-widest uppercase focus:outline-none rounded-full">
+            </div>
+            <button onclick="toggleSearch()" class="p-2 hover:scale-110 transition-transform">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </button>
+        </div>
+
+        <div class="relative cursor-pointer p-2 hover:scale-110 transition-transform" onclick="window.location.href='products/cart.html'">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+            <span id="cart-count" class="absolute top-1 right-0 text-[9px] font-black bg-black text-white w-4 h-4 flex items-center justify-center rounded-full">0</span>
+        </div>
+
+        <button onclick="toggleSidebar(true)" class="p-2 lg:hidden">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+    </div>
+</nav>
+
+<div id="mobile-menu" class="fixed inset-y-0 right-0 w-full md:w-[400px] bg-white z-[70] p-8 flex flex-col shadow-2xl translate-x-full transition-transform duration-500 ease-in-out">
+    <div class="flex justify-between items-center mb-12">
+        <div class="text-2xl font-black italic tracking-tighter">OUTFLICKZ</div>
+        <button onclick="toggleSidebar(false)" class="p-3 bg-zinc-100 rounded-full">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+    </div>
+    
+    <nav class="flex flex-col space-y-6 text-2xl font-black uppercase tracking-tighter mb-10">
+        <a href="index.html" onclick="toggleSidebar(false)">All Products</a>
+    <a href="products/wears.html" onclick="toggleSidebar(false)">T-Shirts</a>
+    <a href="products/tanktops.html" onclick="toggleSidebar(false)">Tank Tops</a>
+    <a href="products/shorts.html" onclick="toggleSidebar(false)">Shorts & Denims</a>
+    <a href="products/tracksuits.html" onclick="toggleSidebar(false)">Tracksuits</a>
+    <a href="products/jerseys.html" onclick="toggleSidebar(false)">Jerseys</a>
+    <a href="products/accessories.html" onclick="toggleSidebar(false)">Accessories</a>
+        </nav>
+
+    <div id="mobile-auth-section" class="mt-auto border-t border-black/5 pt-8"></div>
+</div>
+
+    <section class="relative w-full min-h-[60vh] lg:h-screen bg-black flex items-center justify-center overflow-hidden">
+        <video id="heroVideo" autoplay muted loop playsinline class="w-full h-full lg:w-auto lg:h-full max-w-none object-contain opacity-90">
+            <source src="outflickz.mov" type="video/mp4">
+        </video>
+        
+        <button id="muteBtn" onclick="toggleMute()" class="absolute top-24 right-6 z-20 border border-white/40 text-white backdrop-blur-md">
+            <span id="muteIcon">🔇</span>
+        </button>
+
+        <div class="absolute bottom-[10%] left-[5%] text-white z-10 pointer-events-none">
+            <h1 class="text-4xl md:text-6xl font-black italic tracking-tighter uppercase leading-none drop-shadow-2xl">STYLE<br>REDEFINED</h1>
+            <p class="text-[8px] md:text-[10px] tracking-[0.4em] uppercase mt-3 opacity-80">Shop Now</p>
+        </div>
+    </section>
+
+  <main class="py-2 md:py-4 bg-white min-h-screen">
+    <div class="px-6 md:px-10 mb-8 bg-white py-4 border-b border-black/5">
+        <div class="flex items-center justify-between">
+            <h2 class="text-[10px] font-black uppercase tracking-[0.3em]">Curated Collection</h2>
+            <span class="text-[9px] text-zinc-400 uppercase tracking-widest hidden md:block">Shuffle Mode Active</span>
+        </div>
+    </div>
+    
+    <div id="product-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-12 px-5 md:px-10">
+    </div>
+</main>
+
+ <section class="pt-20 pb-12 md:pt-32 md:pb-24 border-t border-black/5 bg-white overflow-hidden">
+    <div class="text-center mb-12 md:mb-16">
+        <h3 class="text-[10px] md:text-[12px] font-black uppercase tracking-[0.4em] text-zinc-900">Outflickz Community</h3>
+    </div>
+
+    <div class="relative max-w-[1400px] mx-auto px-4 group">
+        <button onclick="scrollGallery('left')" class="absolute left-4 top-1/2 -translate-y-1/2 z-30 p-3 bg-white/90 backdrop-blur-md shadow-xl opacity-0 group-hover:opacity-100 transition-all hidden md:flex items-center justify-center border border-black/5 hover:bg-black hover:text-white rounded-full">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        
+        <button onclick="scrollGallery('right')" class="absolute right-4 top-1/2 -translate-y-1/2 z-30 p-3 bg-white/90 backdrop-blur-md shadow-xl opacity-0 group-hover:opacity-100 transition-all hidden md:flex items-center justify-center border border-black/5 hover:bg-black hover:text-white rounded-full">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+
+        <div id="social-gallery-grid" class="flex gap-4 md:gap-6 overflow-x-auto snap-x snap-mandatory hide-scrollbar justify-start items-center pb-8">
+            <div class="w-full py-20 text-center animate-pulse text-[8px] uppercase tracking-[0.4em] opacity-20">
+                Syncing Feed...
+            </div>
+        </div>
+    </div>
+</section>
+
+ <div class="fixed bottom-5 right-5 z-[9999] flex flex-col items-end">
+    
+    <div id="chat-window" class="hidden mb-4 w-[300px] sm:w-[350px] bg-white rounded-2xl shadow-2xl border border-black/5 overflow-hidden transition-all duration-300 origin-bottom-right scale-95 opacity-0">
+        <div class="bg-zinc-900 p-4 text-white">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold tracking-tight">Hi there</h3>
+                <button onclick="toggleChat()" class="opacity-70 hover:opacity-100">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <p class="text-[11px] opacity-70 mt-1">Welcome Guest</p>
+        </div>
+
+        <div class="p-4 bg-zinc-50 min-h-[150px]">
+            <div class="bg-white p-3 rounded-lg shadow-sm border border-black/5 text-[12px] leading-relaxed">
+                Welcome to Outflickz Support 👋<br>
+                How would you like to secure your order? Choose a platform below to start chatting.
+            </div>
+        </div>
+
+        <div class="p-4 bg-white border-t border-black/5">
+            <div class="flex gap-2 mb-3">
+                <button id="btn-wa" onclick="setPlatform('wa')" class="flex-1 py-2 px-3 border border-black/10 rounded-md flex items-center justify-center gap-2 hover:bg-zinc-50 transition-all">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" class="w-4 h-4" alt="">
+                    <span class="text-[10px] font-bold uppercase tracking-widest">WhatsApp</span>
+                </button>
+                <button id="btn-tg" onclick="setPlatform('tg')" class="flex-1 py-2 px-3 border border-black/10 rounded-md flex items-center justify-center gap-2 hover:bg-zinc-50 transition-all">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg" class="w-4 h-4" alt="">
+                    <span class="text-[10px] font-bold uppercase tracking-widest">Telegram</span>
+                </button>
+            </div>
+            
+            <div class="relative flex items-center">
+                <input type="text" id="chat-input" placeholder="Type your message..." 
+                    class="w-full bg-zinc-100 border-none py-3 px-4 pr-12 text-[11px] rounded-full focus:outline-none">
+                <button onclick="sendChatMessage()" class="absolute right-2 p-2 text-zinc-400 hover:text-black transition-colors">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <button onclick="toggleChat()" class="w-14 h-14 bg-black text-white rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform duration-300">
+        <svg id="toggle-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+    </button>
+</div>
+
+
+ <footer class="bg-white border-t border-black/5 pt-8 md:pt-12 pb-6 px-4 md:px-10">
+    <div class="max-w-[1400px] mx-auto">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-y-6 md:gap-12 mb-6 md:mb-10">
+            
+            <div class="flex md:block justify-center md:justify-start">
+                <div class="text-lg md:text-xl font-black italic tracking-tighter uppercase">OUTFLICKZ</div>
+            </div>
+
+            <div class="col-span-1 md:col-span-3 grid grid-cols-3 gap-2 md:gap-12">
+                
+                <div class="flex flex-col space-y-1.5">
+                    <h4 class="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-1">Support</h4>
+                    <a href="pages/contact.html" class="text-[7px] md:text-[9px] text-zinc-500 uppercase tracking-widest hover:text-black transition-colors">Contact</a>
+                    <a href="pages/shipping.html" class="text-[7px] md:text-[9px] text-zinc-500 uppercase tracking-widest hover:text-black transition-colors">Shipping</a>
+                    <a href="pages/refunded.html" class="text-[7px] md:text-[9px] text-zinc-500 uppercase tracking-widest hover:text-black transition-colors">Refunds</a>
+                </div>
+
+                <div class="flex flex-col space-y-1.5">
+                    <h4 class="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-1">Legal</h4>
+                    <a href="pages/privacy.html" class="text-[7px] md:text-[9px] text-zinc-500 uppercase tracking-widest hover:text-black transition-colors">Privacy</a>
+                    <a href="pages/terms.html" class="text-[7px] md:text-[9px] text-zinc-500 uppercase tracking-widest hover:text-black transition-colors">Terms</a>
+                </div>
+
+                <div class="flex flex-col space-y-1.5">
+                    <h4 class="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-1">Location</h4>
+                    <div class="inline-flex items-center space-x-1 border border-black/5 bg-zinc-50 px-1.5 py-1 w-fit rounded-sm cursor-pointer hover:border-black/20 transition-all">
+                        <span class="text-[7px] md:text-[8px] font-black">NG (₦)</span>
+                        <svg width="5" height="5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="m6 9 6 6 6-6"/></svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="pt-4 md:pt-6 border-t border-black/5 flex justify-between items-center">
+            <p class="text-[6px] md:text-[8px] text-zinc-400 uppercase tracking-[0.2em]">© 2026 OUTFLICKZ LIMITED</p>
+            <div class="flex space-x-4"></div>
+        </div>
+    </div>
+</footer>
+
+   <script>
+    const API_ENDPOINT = "/.netlify/functions/api"; 
+    const SESSION_TIMEOUT = 24 * 60 * 60 * 1000;
+    let MASTER_PRODUCTS = []; 
+    let selectedPlatform = 'wa';
+
+    const COLLECTION_IMAGES = [
+        'https://i.imgur.com/2h1w5kp.jpeg',
+        'https://i.imgur.com/wmiLObO.jpeg',
+        'https://i.imgur.com/J1ocCw7.jpeg',
+        'https://i.imgur.com/zSy9lwm.jpeg',
+        'https://i.imgur.com/Aj65ml9.jpeg',
+        'https://i.imgur.com/wd5diug.jpeg',
+        'https://i.imgur.com/TyVXPKJ.jpeg',
+        'https://i.imgur.com/TcJnqrt.jpeg',
+        'https://i.imgur.com/r4cPiLY.jpeg',
+        'https://i.imgur.com/LisMK4J.jpeg',
+        'https://i.imgur.com/IljBJoP.jpeg',
+    ];
+
+    window.onload = () => {
+        autoClearSession(); 
+        initializeSession(); 
+        updateAuthUI();      
+        fetchProducts();
+        updateCartCount();
+        initSocialGallery();
+    };
+
+    // UI HELPER FUNCTIONS
+    function toggleSearch() {
+        const wrapper = document.getElementById('search-wrapper');
+        wrapper.classList.toggle('active');
+        if (wrapper.classList.contains('active')) {
+            document.getElementById('productSearch').focus();
+        }
+    }
+
+   function toggleSidebar(open) {
+    const menu = document.getElementById('mobile-menu');
+    
+    if (open) {
+        // Slide menu in
+        menu.classList.remove('translate-x-full');
+        // Prevent background scrolling
+        document.body.style.overflow = 'hidden';
+    } else {
+        menu.classList.add('translate-x-full');
+        document.body.style.overflow = 'auto';
+    }
+}
+
+    function initializeSession() {
+        const userToken = localStorage.getItem('outflickz_token');
+        const userData = localStorage.getItem('outflickz_user_data');
+        const guestId = localStorage.getItem('outflickz_guest_id');
+
+        if (userToken && userData) {
+            console.log("Session: Member Active");
+        } else if (!guestId) {
+            const newGuestId = 'GUEST-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+            localStorage.setItem('outflickz_guest_id', newGuestId);
+            console.log("Session: Guest Mode");
+        }
+    }
+
+    function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+  async function fetchProducts() {
+    try {
+        const res = await fetch(API_ENDPOINT, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'get-all-products-combined' }) 
+        });
+
+        const data = await res.json();
+
+        if (Array.isArray(data)) {
+            const processedProducts = data.map(p => {
+                let totalStock = 0;
+                if (p.variants && Array.isArray(p.variants)) {
+                    p.variants.forEach(v => {
+                        // Check for the Size/Stock Matrix (the most accurate)
+                        if (v.stockMatrix && typeof v.stockMatrix === 'object') {
+                            Object.values(v.stockMatrix).forEach(qty => {
+                                totalStock += (Math.max(0, Number(qty) || 0));
+                            });
+                        } 
+                        // Fallback for flat stock numbers
+                        else if (v.stock !== undefined) {
+                            totalStock += (Math.max(0, Number(v.stock) || 0));
+                        }
+                    });
+                }
+                // Flag product as Out of Stock if sum of all variants is 0
+                return { ...p, isOutOfStock: totalStock <= 0, actualStock: totalStock };
+            });
+
+            // Keep Sold Out items at the bottom so they don't hurt conversion
+            processedProducts.sort((a, b) => a.isOutOfStock - b.isOutOfStock);
+
+            MASTER_PRODUCTS = processedProducts;
+            renderProducts(MASTER_PRODUCTS);
+        }
+    } catch (err) { 
+        console.error("Vault Synchronization Error:", err); 
+    }
+}
+
+function renderProducts(list) {
+    const grid = document.getElementById('product-grid');
+    if (!grid) return;
+
+    let htmlContent = '';
+    const isMobile = window.innerWidth < 1024;
+    // Insert lookbook after 4 items on mobile (2 rows) or 8 on desktop (2 rows)
+    const insertAfter = isMobile ? 4 : 8;
+
+    list.forEach((p, index) => {
+        htmlContent += createProductCard(p);
+
+        if (index === insertAfter - 1) {
+            htmlContent += `
+            <div id="lookbook-section" class="col-span-full w-full py-12 md:py-24 bg-white">
+                <div class="text-center mb-10 md:mb-16">
+                    <h3 class="text-[11px] md:text-[13px] font-black uppercase tracking-[0.5em] text-black">
+                        Exclusive Look
+                    </h3>
+                </div>
+                
+                <div class="hide-scrollbar overflow-x-auto w-full">
+                    <div class="flex gap-5 md:gap-8 px-6 md:px-12 pb-10">
+                        ${COLLECTION_IMAGES.map((img) => `
+                            <div class="flex-shrink-0 w-[80vw] md:w-[450px] aspect-[2/3] overflow-hidden rounded-sm shadow-xl">
+                                <img src="${img}" 
+                                     class="w-full h-full object-cover hover:scale-105 transition-transform duration-1000" 
+                                     loading="lazy" 
+                                     onerror="this.src='https://placehold.co/600x900?text=OUTFLICKZ'">
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>`;
+        }
+    });
+
+    grid.innerHTML = htmlContent;
+}
+
+        function createProductCard(p) {
+            const variants = Array.isArray(p.variants) ? p.variants : [];
+            const isValidUrl = (url) => (typeof url === 'string' && !url.includes('…') && url.startsWith('http') && url.length > 50);
+
+            const processedVariants = variants.map(v => {
+                let vStock = 0;
+                if (v.stockMatrix && typeof v.stockMatrix === 'object') {
+                    Object.values(v.stockMatrix).forEach(qty => vStock += (Number(qty) || 0));
+                } else { vStock = Number(v.stock) || 0; }
+                const cleanImages = (Array.isArray(v.images) ? v.images : []).filter(img => isValidUrl(img));
+                return { ...v, totalStock: vStock, cleanImages };
+            });
+
+            const isOutOfStock = p.isOutOfStock || (processedVariants.length > 0 && processedVariants.every(v => v.totalStock <= 0));
+            const backupImages = processedVariants.flatMap(v => v.cleanImages);
+            const globalDisplay = isValidUrl(p.displayImage) ? p.displayImage : null;
+            let defaultImg = globalDisplay || (backupImages.length > 0 ? backupImages[0] : 'https://placehold.co/600x800/f4f4f5/000?text=OUTFLICKZ');
+
+            return `
+                <div class="group relative cursor-pointer animate-item" onclick="window.location.href='/products/product-detail.html?id=${p._id}'">
+                    <div id="container-${p._id}" class="aspect-[3/4] bg-zinc-100 overflow-hidden relative border border-black/5 skeleton"> 
+                        <div id="sold-out-overlay-${p._id}" class="absolute inset-0 z-30 flex items-center justify-center bg-black/10 ${isOutOfStock ? '' : 'hidden'}">
+                            <span class="sold-out-badge">SOLD OUT</span>
+                        </div>
+                        <img id="img-${p._id}" src="${defaultImg}" loading="lazy" class="absolute inset-0 w-full h-full object-cover transition-all duration-700 ${isOutOfStock ? 'opacity-70' : 'group-hover:scale-105'}"
+                             onload="this.parentElement.classList.remove('skeleton');" onerror="handleImageError(this, '${p._id}')">
+                        <div class="absolute bottom-3 left-3 flex flex-wrap gap-1.5 z-40 opacity-0 group-hover:opacity-100 transition-opacity">
+                            ${processedVariants.map(v => {
+                                const vPreview = (v.cleanImages && v.cleanImages.length > 0) ? v.cleanImages[0] : defaultImg;
+                                const vIsSoldOut = v.totalStock <= 0;
+                                return `<button type="button" onmouseover="updatePreview(event, '${p._id}', '${vPreview}', ${vIsSoldOut})" 
+                                            onmouseleave="updatePreview(event, '${p._id}', '${defaultImg}', ${isOutOfStock})"
+                                            class="color-dot w-2.5 h-2.5 rounded-full border border-white/60 relative ${vIsSoldOut ? 'opacity-40' : ''}" 
+                                            style="background-color: ${v.color ? v.color.toLowerCase() : '#ccc'};">
+                                            ${vIsSoldOut ? '<div class="absolute inset-0 flex items-center justify-center"><div class="w-full h-[1px] bg-white rotate-45"></div></div>' : ''}
+                                        </button>`;
+                            }).join('')}
+                        </div>
+                    </div>
+                    <div class="mt-4 space-y-1">
+                        <div class="flex justify-between items-start">
+                            <h3 class="font-bold uppercase text-[20px] tracking-wider text-black">${p.name}</h3>
+                            <p class="font-bold text-[18px] text-black">${isOutOfStock ? '<span class="text-red-600">SOLD OUT</span>' : `₦${Number(p.price).toLocaleString()}`}</p>
+                        </div>
+                        <p class="text-zinc-400 text-[12px] uppercase tracking-widest">${p.category || 'Collection'} / ${processedVariants.filter(v => v.totalStock > 0).length} Colors Available</p>
+                    </div>
+                </div>`;
+        }
+
+/**
+ * UPDATED: Preview Switcher
+ * Now strictly forces the variant image to show regardless of stock status.
+ */
+function updatePreview(event, productId, newSrc, isVariantSoldOut) {
+    if (event) event.stopPropagation(); 
+    const img = document.getElementById(`img-${productId}`);
+    const overlay = document.getElementById(`sold-out-overlay-${productId}`);
+
+    // 1. Always update the image source to the specific color hovered
+    if (img && newSrc && newSrc !== 'undefined' && newSrc !== 'null') {
+        img.src = newSrc;
+        // If the variant is sold out, we dim it slightly for visual feedback
+        img.style.opacity = isVariantSoldOut ? "0.7" : "1";
+    }
+
+    // 2. Manage the "SOLD OUT" badge overlay
+    if (overlay) {
+        if (isVariantSoldOut) {
+            overlay.classList.remove('hidden');
+        } else {
+            overlay.classList.add('hidden');
+        }
+    }
+}
+
+function handleImageError(img, id) {
+    console.warn('Image failed for product ID:', id, 'Src:', img.src);
+    
+    // 1. Clean up the UI immediately
+    const container = img.parentElement;
+    if (container) container.classList.remove('skeleton');
+    
+    // 2. Use a specific "Error" placeholder so you can distinguish 
+    // between "Loading" and "Broken Link" during testing
+    img.src = 'https://placehold.co/600x800/f4f4f5/18181b?text=IMAGE+ERROR';
+    img.classList.add('opacity-50'); // Visual cue that something went wrong
+
+    // 3. Prevent infinite refresh loops
+    if (typeof window.fetchProducts === 'function' && !window.isRefreshing) {
+        // Only refresh if the link actually looks like an expired signed URL
+        if (img.src.includes('idrivee2.com')) {
+            window.isRefreshing = true;
+            console.log('Detected expired S3 link. Refreshing product data...');
+            setTimeout(() => {
+                window.fetchProducts();
+                window.isRefreshing = false;
+            }, 5000);
+        }
+    }
+}
+
+   function scrollGallery(direction) {
+    const grid = document.getElementById('social-gallery-grid');
+    // Reduced scroll step to match new card size
+    const scrollStep = 260; 
+    grid.scrollBy({ left: direction === 'left' ? -scrollStep : scrollStep, behavior: 'smooth' });
+}
+
+async function initSocialGallery() {
+    const grid = document.getElementById('social-gallery-grid');
+    if (!grid) return;
+
+    try {
+        const response = await fetch(API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'get-social-gallery' })
+        });
+
+        const galleryData = await response.json();
+
+        if (!galleryData || galleryData.length === 0) {
+            grid.innerHTML = '<p class="text-center w-full py-10 opacity-30 text-[8px] uppercase tracking-widest">Gallery Offline</p>';
+            return;
+        }
+
+        grid.innerHTML = ''; 
+
+        galleryData.forEach((post) => {
+    const item = `
+        <div class="flex-shrink-0 w-[85vw] md:w-[320px] snap-center p-2">
+            <a href="${post.postUrl}" target="_blank" class="block relative aspect-[3/4] md:aspect-[4/5] overflow-hidden bg-zinc-50 border border-black/5 group rounded-sm shadow-sm">
+                <img src="${post.imageUrl}" 
+                     referrerpolicy="no-referrer" 
+                     class="w-full h-full object-cover transition-all duration-1000 opacity-0 group-hover:scale-105"
+                     onload="this.style.opacity='1'"
+                     onerror="this.src='https://placehold.co/800x1200/f4f4f5/000?text=OUTFLICKZ'; this.style.opacity='1';">
+                
+                <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col items-center justify-center backdrop-blur-[3px]">
+                     <div class="translate-y-4 group-hover:translate-y-0 transition-transform duration-500 flex flex-col items-center">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1">
+                            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                         </svg>
+                         <span class="text-white text-[9px] font-black uppercase tracking-[0.3em] mt-4">Shop the Look</span>
+                     </div>
+                </div>
+            </a>
+        </div>
+    `;
+    grid.insertAdjacentHTML('beforeend', item);
+});
+    } catch (error) {
+        console.error("Gallery Sync Error:", error);
+    }
+}
+
+ function updateAuthUI() {
+    const authSection = document.getElementById('nav-auth-section');
+    const mobileAuth = document.getElementById('mobile-auth-section');
+    
+    // Safety check: if either is missing, log a warning but don't crash
+    if (!authSection || !mobileAuth) {
+        console.warn("Auth containers not found in DOM");
+        return;
+    }
+
+    const token = localStorage.getItem('outflickz_token');
+    const userDataStr = localStorage.getItem('outflickz_user_data');
+    let userData = {};
+    
+    try {
+        userData = JSON.parse(userDataStr || '{}');
+    } catch(e) {
+        userData = {};
+    }
+
+    const profileHtml = (token && userData.firstName) ? `
+        <a href="account/profile.html" class="flex items-center space-x-2 group">
+            <span class="text-[9px] font-bold uppercase tracking-widest group-hover:text-zinc-500 transition-colors">
+                Hi, ${userData.firstName}
+            </span>
+            <div class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+        </a>
+    ` : `
+        <div class="flex items-center space-x-4">
+            <a href="account/login.html" class="text-[15px] font-bold uppercase tracking-widest hover:text-zinc-500 transition">Login</a>
+            <span class="text-zinc-300">|</span>
+            <a href="account/login.html" class="text-[15px] font-bold uppercase tracking-widest bg-black text-white px-3 py-1.5 rounded-sm hover:bg-zinc-800 transition">Join Outflickz</a>
+        </div>
+    `;
+
+    authSection.innerHTML = profileHtml;
+    mobileAuth.innerHTML = profileHtml;
+}
+
+// Search Toggle Logic
+function toggleSearch() {
+    const wrapper = document.getElementById('search-wrapper');
+    wrapper.classList.toggle('active');
+    if (wrapper.classList.contains('active')) {
+        document.getElementById('productSearch').focus();
+    }
+}
+
+function toggleSidebar(open) {
+    const menu = document.getElementById('mobile-menu');
+    if (open) {
+        menu.classList.remove('translate-x-full');
+        document.body.style.overflow = 'hidden';
+    } else {
+        menu.classList.add('translate-x-full');
+        document.body.style.overflow = 'auto';
+    }
+}
+
+
+    function updateCartCount() {
+        const cartCount = document.getElementById('cart-count');
+        if (!cartCount) return;
+        const cart = JSON.parse(localStorage.getItem('outflickz_cart') || '[]');
+        cartCount.innerText = cart.length;
+    }
+
+    function toggleMute() {
+        const video = document.getElementById('heroVideo');
+        video.muted = !video.muted;
+        document.getElementById('muteIcon').innerHTML = video.muted ? '🔇' : '🔊';
+    }
+
+
+
+    function filterProducts() {
+        const query = document.getElementById('productSearch').value.toLowerCase();
+        const filtered = MASTER_PRODUCTS.filter(p => p.name.toLowerCase().includes(query));
+        renderProducts(filtered);
+    }
+
+    function autoClearSession() {
+        const now = new Date().getTime();
+        const lastActive = localStorage.getItem('outflickz_last_active');
+
+        if (lastActive && (now - lastActive > SESSION_TIMEOUT)) {
+            console.log("Session expired. Performing automatic cleanup...");
+            localStorage.removeItem('outflickz_token');
+            localStorage.removeItem('outflickz_user_data');
+            localStorage.removeItem('outflickz_guest_id');
+        }
+        localStorage.setItem('outflickz_last_active', now);
+    }
+    // Add this inside your window.onload or as a separate scroll listener
+window.addEventListener('scroll', () => {
+    const curatedHeader = document.querySelector('main > div:first-child');
+    const scrollPos = window.scrollY;
+    
+    // As the user scrolls down 100px, the header fades out
+    if (curatedHeader) {
+        const opacity = Math.max(1 - scrollPos / 200, 0);
+        curatedHeader.style.opacity = opacity;
+        
+        // Disable interaction when hidden so it doesn't block clicks
+        curatedHeader.style.pointerEvents = opacity === 0 ? 'none' : 'auto';
+    }
+});
+
+function toggleChat() {
+    const windowEl = document.getElementById('chat-window');
+    const isHidden = windowEl.classList.contains('hidden');
+
+    if (isHidden) {
+        windowEl.classList.remove('hidden');
+        setTimeout(() => {
+            windowEl.classList.remove('scale-95', 'opacity-0');
+            windowEl.classList.add('scale-100', 'opacity-100');
+        }, 10);
+    } else {
+        windowEl.classList.add('scale-95', 'opacity-0');
+        windowEl.classList.remove('scale-100', 'opacity-100');
+        setTimeout(() => windowEl.classList.add('hidden'), 300);
+    }
+}
+
+function setPlatform(platform) {
+    selectedPlatform = platform;
+    
+    // UI Feedback for selection
+    document.getElementById('btn-wa').classList.toggle('bg-zinc-100', platform === 'wa');
+    document.getElementById('btn-wa').classList.toggle('border-black', platform === 'wa');
+    document.getElementById('btn-tg').classList.toggle('bg-zinc-100', platform === 'tg');
+    document.getElementById('btn-tg').classList.toggle('border-black', platform === 'tg');
+}
+
+function sendChatMessage() {
+    const message = document.getElementById('chat-input').value || "Hello Outflickz, I need assistance.";
+    const encodedMessage = encodeURIComponent(message);
+    
+    let url = "";
+    if (selectedPlatform === 'wa') {
+        url = `https://wa.me/2347042882706?text=${encodedMessage}`;
+    } else {
+        url = `https://t.me/+2349125898200?text=${encodedMessage}`;
+    }
+    
+    window.open(url, '_blank');
+}
+</script>
+
+</body>
+</html>

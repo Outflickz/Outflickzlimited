@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outflickz Admin | Settings</title>
+    <link rel="icon" type="image/jpeg" href="https://i.imgur.com/fu8N7I2.jpeg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap');
+        body { font-family: 'Space Grotesk', sans-serif; font-size: 12px; }
+        ::-webkit-scrollbar { width: 3px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #000; }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-5px) rotate(1deg); }
+        }
+        .animate-float { animation: float 4s ease-in-out infinite; }
+        .input-field { 
+            background: transparent; 
+            border: 1px solid #e5e7eb; 
+            padding: 12px; 
+            border-radius: 8px; 
+            width: 100%; 
+            font-weight: 700;
+            transition: all 0.2s;
+        }
+        .input-field:focus { border-color: black; outline: none; box-shadow: 0 0 0 1px black; }
+        
+        @media (max-width: 768px) {
+            #sidebar { top: 56px; height: calc(100vh - 56px); }
+        }
+    </style>
+</head>
+<body class="bg-[#fcfcfc] text-black min-h-screen flex overflow-x-hidden">
+
+    <div class="md:hidden fixed top-0 w-full h-[56px] px-4 flex justify-between items-center bg-white z-[60] border-b border-gray-100">
+        <div class="text-lg font-black italic tracking-tighter">OUTFLICKZ</div>
+        <button onclick="toggleSidebar()" class="text-xl text-black p-2">☰</button>
+    </div>
+
+    <div class="fixed bottom-6 right-6 z-[100] animate-float">
+        <div class="bg-white border-2 border-black p-3 rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center space-x-3 min-w-[140px]">
+            <div class="relative flex h-3 w-3">
+                <span id="ping-pulse" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span id="ping-dot" class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+            </div>
+            <div>
+                <p class="text-[7px] font-black uppercase tracking-widest text-gray-400 leading-none">Access Level</p>
+                <h4 id="floating-security-status" class="text-[10px] font-bold uppercase text-black">Master Admin</h4>
+            </div>
+        </div>
+    </div>
+
+    <aside id="sidebar" class="fixed md:relative w-56 h-screen bg-white border-r border-gray-100 p-6 flex flex-col z-[50] transition-transform duration-300 -translate-x-full md:translate-x-0">
+        <div class="hidden md:block text-xl font-black italic tracking-tighter mb-8 text-center md:text-left cursor-pointer" onclick="window.location.href='dashboard.html'">OUTFLICKZ</div>
+        
+        <nav class="space-y-1 flex-1 overflow-y-auto pt-4 md:pt-0">
+            <a href="dashboard.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Vault Overview</a>
+            <a href="orderConfirmation.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Order Confirmation</a>
+            <a href="wearsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Wears Manager</a>
+            <button class="flex items-center w-full p-2.5 rounded-md bg-black text-white text-[9px] uppercase tracking-widest font-bold transition-all shadow-sm">
+                System Settings
+            </button>
+            <a href="membership.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Membership</a>
+            <a href="newsletter.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Global Broadcast</a>
+        </nav>
+
+        <div class="pt-6 border-t border-gray-100">
+            <button onclick="handleLogout()" class="flex items-center space-x-2 text-[8px] uppercase tracking-[0.2em] text-red-600 font-bold hover:opacity-70 transition-all">
+                TERMINATE SESSION
+            </button>
+        </div>
+    </aside>
+
+    <div id="overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/20 backdrop-blur-sm hidden z-[45]"></div>
+
+    <main class="flex-1 p-4 md:p-10 mt-14 md:mt-0 relative">
+        <header class="flex justify-between items-end mb-8">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold uppercase tracking-tighter">System Settings</h1>
+                <p id="sync-status" class="text-gray-400 text-[9px] uppercase tracking-[0.2em] mt-1">Configuring secure parameters...</p>
+            </div>
+        </header>
+
+        <div class="max-w-2xl space-y-8">
+            <section class="bg-white border border-gray-100 p-8 rounded-2xl shadow-sm">
+                <h2 class="text-[10px] font-black uppercase tracking-[0.3em] mb-6 text-gray-400">Vault Identity</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-[8px] font-black uppercase text-gray-400 mb-2">Admin Full Name</label>
+                        <input type="text" id="admin-name" class="input-field" readonly>
+                    </div>
+                    <div>
+                        <label class="block text-[8px] font-black uppercase text-gray-400 mb-2">Secure Email Address</label>
+                        <input type="email" id="admin-email" class="input-field" readonly>
+                    </div>
+                </div>
+            </section>
+
+            <section class="bg-white border border-gray-100 p-8 rounded-2xl shadow-sm">
+                <h2 class="text-[10px] font-black uppercase tracking-[0.3em] mb-6 text-gray-400">Security Override</h2>
+                <form id="password-form" class="space-y-6" onsubmit="handlePasswordUpdate(event)">
+                    <div>
+                        <label class="block text-[8px] font-black uppercase text-gray-400 mb-2">System Master Key</label>
+                        <input type="password" id="input-master-key" placeholder="Enter System Master Key" class="input-field border-red-100" required>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-[8px] font-black uppercase text-gray-400 mb-2">New Password</label>
+                            <input type="password" id="new-password" placeholder="••••••••" class="input-field" required>
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase text-gray-400 mb-2">Confirm Password</label>
+                            <input type="password" id="confirm-password" placeholder="••••••••" class="input-field" required>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" id="submit-btn" class="w-full bg-black text-white text-[9px] font-black uppercase tracking-[0.2em] py-4 rounded-xl hover:shadow-xl transition-all transform hover:-translate-y-1">
+                        Authenticate & Update Vault
+                    </button>
+                </form>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        const API_ENDPOINT = "/.netlify/functions/api";
+        const SYSTEM_MASTER_KEY = "Outflickzlimited";
+
+        window.onload = () => {
+            if (!localStorage.getItem('outflickz_admin_token')) {
+                window.location.href = 'login.html';
+            } else {
+                fetchAdminDetails();
+            }
+        };
+
+        async function fetchAdminDetails() {
+            const syncStatus = document.getElementById('sync-status');
+            try {
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        action: 'get-admin-profile', 
+                        token: localStorage.getItem('outflickz_admin_token'),
+                        masterKey: SYSTEM_MASTER_KEY 
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('admin-name').value = data.admin.name || "Outflickz Administrator";
+                    document.getElementById('admin-email').value = data.admin.email;
+                    syncStatus.innerText = "Verified Session • Encrypted";
+                }
+            } catch (err) {
+                syncStatus.innerText = "Link Offline";
+                syncStatus.className = "text-red-500 text-[9px] uppercase tracking-[0.2em] mt-1";
+            }
+        }
+
+        async function handlePasswordUpdate(e) {
+            e.preventDefault();
+            const masterKeyInput = document.getElementById('input-master-key').value;
+            const newPass = document.getElementById('new-password').value;
+            const confirmPass = document.getElementById('confirm-password').value;
+            const btn = document.getElementById('submit-btn');
+
+            // Client-side Master Key Validation
+            if (masterKeyInput !== SYSTEM_MASTER_KEY) {
+                alert("CRITICAL ERROR: Invalid System Master Key. Access Denied.");
+                return;
+            }
+
+            if (newPass !== confirmPass) {
+                alert("Validation Failed: Passwords do not match.");
+                return;
+            }
+
+            btn.innerText = "ENCRYPTING...";
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'update-admin-password',
+                        token: localStorage.getItem('outflickz_admin_token'),
+                        newPassword: newPass,
+                        masterKey: masterKeyInput // Sending to server for final verification
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert("SECURITY UPDATE SUCCESSFUL: Vault credentials updated. Re-logging...");
+                    handleLogout();
+                } else {
+                    alert("UPDATE FAILED: " + data.message);
+                }
+            } catch (err) {
+                alert("SYSTEM ERROR: Failed to communicate with the Vault.");
+            } finally {
+                btn.innerText = "AUTHENTICATE & UPDATE VAULT";
+                btn.disabled = false;
+            }
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('-translate-x-full');
+            document.getElementById('overlay').classList.toggle('hidden');
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('outflickz_admin_token');
+            window.location.href = 'login.html';
+        }
+    </script>
+</body>
+</html>

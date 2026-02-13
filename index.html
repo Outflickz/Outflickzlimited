@@ -48,23 +48,72 @@
         padding: 0; 
         scroll-behavior: smooth;
     }
-    /* Scrollbar Logic */
+
+    /* 1. Core Layout Utilities */
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-    /* Navigation & Header Adjustments */
     nav { height: var(--header-height-mobile); }
- 
-    @media (min-width: 1024px) {
-        nav { height: var(--header-height-desktop); }
+    @media (min-width: 1024px) { nav { height: var(--header-height-desktop); } }
+
+    /* 2. Skeleton & Video Fixes */
+    .skeleton {
+        position: relative;
+        overflow: hidden;
+        background-color: #f4f4f5;
     }
 
-    /* Sidebar Transition - Using Hardware Acceleration */
+    .skeleton::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        transform: translateX(-100%);
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+        animation: shimmer 2s infinite;
+    }
+
+    @keyframes shimmer { 100% { transform: translateX(100%); } }
+
+    #heroVideo {
+        aspect-ratio: 16 / 9;
+        background: #000;
+        object-fit: cover;
+    }
+
+    @media (max-width: 1023px) {
+        #heroVideo { aspect-ratio: 9 / 16; }
+    }
+
+    /* 3. THE HOVER FIX: Swap Logic */
+    /* This ensures the "Sold Out" badge doesn't steal the mouse hover from the dots */
+    [id^="sold-out-overlay-"] {
+        pointer-events: none !important; 
+    }
+
+    /* This forces the dots to the front so JavaScript can see the mouse */
+    .color-dot { 
+        width: 14px; 
+        height: 14px; 
+        border-radius: 50%; 
+        border: 1px solid rgba(255,255,255,0.5); 
+        transition: transform 0.3s ease;
+        pointer-events: auto !important;
+        z-index: 60 !important; /* Higher than everything else */
+        cursor: pointer;
+    }
+
+    .color-dot:hover { transform: scale(1.4); }
+
+    /* Smooth Image Transitions */
+    [id^="img-"] {
+        transition: opacity 0.4s ease, transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        will-change: opacity, transform;
+    }
+
+    /* 4. Navigation & Search */
     #mobile-menu {
         position: fixed;
-        top: 0;
-        right: 0;
-        bottom: 0;
+        inset: 0 0 0 auto;
         width: 100%;
         background: white;
         z-index: 70;
@@ -73,138 +122,20 @@
         will-change: transform;
     }
 
+    @media (min-width: 1024px) { #mobile-menu { width: 450px; border-left: 1px solid rgba(0,0,0,0.05); } }
 
+    #mobile-menu:not(.translate-x-full) { transform: translateX(0); box-shadow: -20px 0 60px rgba(0,0,0,0.1); }
 
-    @media (min-width: 1024px) {
-        #mobile-menu { width: 450px; border-left: 1px solid rgba(0,0,0,0.05); }
-    }
-
-    /* This class is toggled via JS */
-    #mobile-menu:not(.translate-x-full) {
-        transform: translateX(0);
-        box-shadow: -20px 0 60px rgba(0,0,0,0.1);
-    }
-
-    /* Search Animation */
     #search-wrapper { 
-        width: 0; 
-        opacity: 0; 
-        overflow: hidden; 
+        width: 0; opacity: 0; overflow: hidden; display: flex;
         transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
     }
-    #search-wrapper.active { 
-        width: 200px; 
-        opacity: 1; 
-        margin-right: 12px; 
-    }
+    #search-wrapper.active { width: 250px; opacity: 1; margin-right: 12px; }
 
-    /* Product Grid & Cards */
-    .animate-item { 
-        animation: fadeIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards; 
-    }
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
+    /* 5. Product Cards & Badges */
+    .animate-item { animation: fadeIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* Social Gallery - Enhanced Height & Responsiveness */
-    #social-gallery-grid {
-        display: flex;
-        gap: 16px;
-        overflow-x: auto;
-        snap-type: x mandatory;
-        scroll-behavior: smooth;
-        -webkit-overflow-scrolling: touch;
-        padding-bottom: 20px;
-    }
-
-    #social-gallery-grid > div {
-        snap-align: center;
-        flex-shrink: 0;
-    }
-
-    /* Height Constraints for the Social Gallery Images */
-    .social-image-container {
-        aspect-ratio: 3/4; /* Taller portrait look */
-        width: 85vw; /* Large on mobile */
-    }
-    #search-wrapper { 
-    width: 0; 
-    opacity: 0; 
-    overflow: hidden; 
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
-    display: flex;
-}
-#heroVideo {
-    aspect-ratio: 16 / 9; /* Matches standard landscape video */
-    background: #000;    /* Pre-fills the space with black */
-}
-
-#search-wrapper.active { 
-    width: 180px; 
-    opacity: 1; 
-    margin-right: 8px; 
-}
-
-/* Skeleton Shimmer Effect */
-.skeleton {
-    position: relative;
-    overflow: hidden;
-    background-color: #f4f4f5;
-}
-
-.skeleton::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    transform: translateX(-100%);
-    background: linear-gradient(
-        90deg,
-        rgba(255, 255, 255, 0) 0,
-        rgba(255, 255, 255, 0.2) 20%,
-        rgba(255, 255, 255, 0.5) 60%,
-        rgba(255, 255, 255, 0)
-    );
-    animation: shimmer 2s infinite;
-}
-
-/* This allows the mouse to "pass through" the overlay to hit the buttons below it */
-[id^="sold-out-overlay-"] {
-    pointer-events: none; 
-}
-
-/* Ensure color dots are ALWAYS on top and clickable */
-.color-dot {
-    pointer-events: auto !important;
-    z-index: 50 !important;
-}
-
-/* Add a smooth cross-fade when images switch */
-[id^="img-"] {
-    transition: opacity 0.3s ease, transform 0.5s ease;
-    will-change: opacity, transform;
-}
-
-@keyframes shimmer {
-    100% {
-        transform: translateX(100%);
-    }
-}
-
-    @media (min-width: 768px) {
-        .social-image-container {
-            width: 320px; /* Fixed width on desktop */
-            aspect-ratio: 4/5;
-        }
-        #social-gallery-grid { gap: 24px; }
-    }
-    #search-wrapper.active { width: 250px; } 
-
-
-    /* Badges & UI Elements */
     .sold-out-badge {
         background-color: #ff0000;
         color: white;
@@ -215,29 +146,12 @@
         letter-spacing: 0.2em;
         box-shadow: 0 4px 12px rgba(255, 0, 0, 0.25);
     }
-    #heroVideo {
-        aspect-ratio: 9 / 16; /* Matches mobile portrait video */
-    }
 
-    .color-dot { 
-        width: 14px; 
-        height: 14px; 
-        border-radius: 50%; 
-        border: 1px solid rgba(0,0,0,0.1); 
-        transition: transform 0.3s ease;
-    }
-    .color-dot:hover { transform: scale(1.3); }
-
-    /* Mute Button Hover */
-    #muteBtn { 
-        transition: all 0.3s ease; 
-        background: rgba(0,0,0,0.5);
-        backdrop-filter: blur(8px);
-    }
-    #muteBtn:hover { 
-        background: white; 
-        color: black; 
-        transform: scale(1.1); 
+    /* 6. Social Gallery */
+    #social-gallery-grid {
+        display: flex; gap: 16px; overflow-x: auto;
+        snap-type: x mandatory; scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch; padding-bottom: 20px;
     }
 </style>
 </head> <body class="bg-white text-black overflow-x-hidden">

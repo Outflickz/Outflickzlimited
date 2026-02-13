@@ -546,35 +546,42 @@ const isValidUrl = (url) => (typeof url === 'string' && !url.includes('…') && 
             const globalDisplay = isValidUrl(p.displayImage) ? p.displayImage : null;
             let defaultImg = globalDisplay || (backupImages.length > 0 ? backupImages[0] : 'https://placehold.co/600x800/f4f4f5/000?text=OUTFLICKZ');
 
-            return `
-                <div class="group relative cursor-pointer animate-item" onclick="window.location.href='/products/product-detail.html?id=${p._id}'">
-                    <div id="container-${p._id}" class="aspect-[3/4] bg-zinc-100 overflow-hidden relative border border-black/5 skeleton"> 
-                        <div id="sold-out-overlay-${p._id}" class="absolute inset-0 z-30 flex items-center justify-center bg-black/10 ${isOutOfStock ? '' : 'hidden'}">
-                            <span class="sold-out-badge">SOLD OUT</span>
-                        </div>
-                        <img id="img-${p._id}" src="${defaultImg}" loading="lazy" class="absolute inset-0 w-full h-full object-cover transition-all duration-700 ${isOutOfStock ? 'opacity-70' : 'group-hover:scale-105'}"
-                             onload="this.parentElement.classList.remove('skeleton');" onerror="handleImageError(this, '${p._id}')">
-                        <div class="absolute bottom-3 left-3 flex flex-wrap gap-1.5 z-40 opacity-0 group-hover:opacity-100 transition-opacity">
-                            ${processedVariants.map(v => {
-                                const vPreview = (v.cleanImages && v.cleanImages.length > 0) ? v.cleanImages[0] : defaultImg;
-                                const vIsSoldOut = v.totalStock <= 0;
-                                return `<button type="button" onmouseover="updatePreview(event, '${p._id}', '${vPreview}', ${vIsSoldOut})" 
-                                            onmouseleave="updatePreview(event, '${p._id}', '${defaultImg}', ${isOutOfStock})"
-                                            class="color-dot w-2.5 h-2.5 rounded-full border border-white/60 relative ${vIsSoldOut ? 'opacity-40' : ''}" 
-                                            style="background-color: ${v.color ? v.color.toLowerCase() : '#ccc'};">
-                                            ${vIsSoldOut ? '<div class="absolute inset-0 flex items-center justify-center"><div class="w-full h-[1px] bg-white rotate-45"></div></div>' : ''}
-                                        </button>`;
-                            }).join('')}
-                        </div>
-                    </div>
-                    <div class="mt-4 space-y-1">
-                        <div class="flex justify-between items-start">
-                            <h3 class="font-bold uppercase text-[20px] tracking-wider text-black">${p.name}</h3>
-                            <p class="font-bold text-[18px] text-black">${isOutOfStock ? '<span class="text-red-600">SOLD OUT</span>' : `₦${Number(p.price).toLocaleString()}`}</p>
-                        </div>
-                        <p class="text-zinc-400 text-[12px] uppercase tracking-widest">${p.category || 'Collection'} / ${processedVariants.filter(v => v.totalStock > 0).length} Colors Available</p>
-                    </div>
-                </div>`;
+        return `
+<div class="group relative cursor-pointer animate-item" onclick="window.location.href='/products/product-detail.html?id=${p._id}'">
+    <div id="container-${p._id}" class="aspect-[3/4] bg-zinc-100 overflow-hidden relative border border-black/5 skeleton"> 
+        
+        <div id="sold-out-overlay-${p._id}" class="absolute inset-0 z-30 flex items-center justify-center bg-black/10 pointer-events-none ${isOutOfStock ? '' : 'hidden'}" style="${isOutOfStock ? 'display: flex;' : 'display: none;'}">
+            <span class="sold-out-badge">SOLD OUT</span>
+        </div>
+
+        <img id="img-${p._id}" src="${defaultImg}" loading="lazy" 
+             class="absolute inset-0 w-full h-full object-cover transition-all duration-700 ${isOutOfStock ? 'opacity-70' : 'group-hover:scale-105'}"
+             onload="this.parentElement.classList.remove('skeleton');" 
+             onerror="handleImageError(this, '${p._id}')">
+
+        <div class="absolute bottom-3 left-3 flex flex-wrap gap-1.5 z-50 opacity-0 group-hover:opacity-100 transition-opacity">
+            ${processedVariants.map(v => {
+                const vPreview = (v.cleanImages && v.cleanImages.length > 0) ? v.cleanImages[0] : defaultImg;
+                const vIsSoldOut = v.totalStock <= 0;
+                
+                return `<button type="button" 
+                            onmouseover="updatePreview(event, '${p._id}', '${vPreview}', ${vIsSoldOut})" 
+                            onmouseleave="updatePreview(event, '${p._id}', '${defaultImg}', ${isOutOfStock})"
+                            class="color-dot w-4 h-4 rounded-full border border-white/60 relative pointer-events-auto" 
+                            style="background-color: ${v.color ? v.color.toLowerCase() : '#ccc'}; cursor: pointer;">
+                            ${vIsSoldOut ? '<div class="absolute inset-0 flex items-center justify-center pointer-events-none"><div class="w-full h-[1px] bg-white rotate-45"></div></div>' : ''}
+                        </button>`;
+            }).join('')}
+        </div>
+    </div>
+    <div class="mt-4 space-y-1">
+        <div class="flex justify-between items-start">
+            <h3 class="font-bold uppercase text-[20px] tracking-wider text-black">${p.name}</h3>
+            <p class="font-bold text-[18px] text-black">${isOutOfStock ? '<span class="text-red-600">SOLD OUT</span>' : `₦${Number(p.price).toLocaleString()}`}</p>
+        </div>
+        <p class="text-zinc-400 text-[12px] uppercase tracking-widest">${p.category || 'Collection'} / ${processedVariants.filter(v => v.totalStock > 0).length} Colors Available</p>
+    </div>
+</div>`;
         }
 
 function updatePreview(event, productId, newSrc, isVariantSoldOut) {
@@ -582,17 +589,16 @@ function updatePreview(event, productId, newSrc, isVariantSoldOut) {
     
     const img = document.getElementById(`img-${productId}`);
     const overlay = document.getElementById(`sold-out-overlay-${productId}`);
-    const container = document.getElementById(`container-${productId}`);
 
     if (img && newSrc && newSrc !== 'undefined' && newSrc !== 'null') {
-        // Force remove skeleton if it's still there during a hover
-        if (container) container.classList.remove('skeleton');
-        
+        // Change source
         img.src = newSrc;
+        
+        // Dim image if this specific color is sold out
         img.style.opacity = isVariantSoldOut ? "0.6" : "1";
-        img.style.zIndex = "20"; // Ensure image stays visible
     }
 
+    // Handle Overlay Visibility
     if (overlay) {
         if (isVariantSoldOut) {
             overlay.classList.remove('hidden');

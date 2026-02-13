@@ -102,7 +102,20 @@
         cursor: pointer;
     }
 
-    .color-dot:hover { transform: scale(1.4); }
+    /* Add a hover effect to make the dots more 'clickable' */
+.color-dot:hover {
+    transform: scale(1.3);
+    border-color: white !important;
+    box-shadow: 0 0 8px rgba(0,0,0,0.3);
+}
+
+    /* Ensure the container of the dots is always above the image and overlay */
+.swatch-container {
+    z-index: 60 !important;
+    pointer-events: auto !important;
+}
+
+
 
     /* Smooth Image Transitions */
     [id^="img-"] {
@@ -546,20 +559,20 @@ const isValidUrl = (url) => (typeof url === 'string' && !url.includes('…') && 
             const globalDisplay = isValidUrl(p.displayImage) ? p.displayImage : null;
             let defaultImg = globalDisplay || (backupImages.length > 0 ? backupImages[0] : 'https://placehold.co/600x800/f4f4f5/000?text=OUTFLICKZ');
 
-        return `
+    return `
 <div class="group relative cursor-pointer animate-item" onclick="window.location.href='/products/product-detail.html?id=${p._id}'">
     <div id="container-${p._id}" class="aspect-[3/4] bg-zinc-100 overflow-hidden relative border border-black/5 skeleton"> 
         
-        <div id="sold-out-overlay-${p._id}" class="absolute inset-0 z-30 flex items-center justify-center bg-black/10 pointer-events-none ${isOutOfStock ? '' : 'hidden'}" style="${isOutOfStock ? 'display: flex;' : 'display: none;'}">
+        <div id="sold-out-overlay-${p._id}" class="absolute inset-0 z-10 flex items-center justify-center bg-black/10 pointer-events-none ${isOutOfStock ? '' : 'hidden'}" style="${isOutOfStock ? 'display: flex;' : 'display: none;'}">
             <span class="sold-out-badge">SOLD OUT</span>
         </div>
 
         <img id="img-${p._id}" src="${defaultImg}" loading="lazy" 
-             class="absolute inset-0 w-full h-full object-cover transition-all duration-700 ${isOutOfStock ? 'opacity-70' : 'group-hover:scale-105'}"
+             class="absolute inset-0 w-full h-full object-cover transition-all duration-700 z-0 ${isOutOfStock ? 'opacity-70' : 'group-hover:scale-105'}"
              onload="this.parentElement.classList.remove('skeleton');" 
              onerror="handleImageError(this, '${p._id}')">
 
-        <div class="absolute bottom-3 left-3 flex flex-wrap gap-1.5 z-50 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div class="swatch-container absolute bottom-3 left-3 flex flex-wrap gap-1.5 z-50 opacity-0 group-hover:opacity-100 transition-opacity">
             ${processedVariants.map(v => {
                 const vPreview = (v.cleanImages && v.cleanImages.length > 0) ? v.cleanImages[0] : defaultImg;
                 const vIsSoldOut = v.totalStock <= 0;
@@ -567,8 +580,8 @@ const isValidUrl = (url) => (typeof url === 'string' && !url.includes('…') && 
                 return `<button type="button" 
                             onmouseover="updatePreview(event, '${p._id}', '${vPreview}', ${vIsSoldOut})" 
                             onmouseleave="updatePreview(event, '${p._id}', '${defaultImg}', ${isOutOfStock})"
-                            class="color-dot w-4 h-4 rounded-full border border-white/60 relative pointer-events-auto" 
-                            style="background-color: ${v.color ? v.color.toLowerCase() : '#ccc'}; cursor: pointer;">
+                            class="color-dot w-3.5 h-3.5 rounded-full border border-white/60 relative pointer-events-auto" 
+                            style="background-color: ${v.color ? v.color.toLowerCase() : '#ccc'};">
                             ${vIsSoldOut ? '<div class="absolute inset-0 flex items-center justify-center pointer-events-none"><div class="w-full h-[1px] bg-white rotate-45"></div></div>' : ''}
                         </button>`;
             }).join('')}

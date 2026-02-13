@@ -135,10 +135,63 @@
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
     display: flex;
 }
+#heroVideo {
+    aspect-ratio: 16 / 9; /* Matches standard landscape video */
+    background: #000;    /* Pre-fills the space with black */
+}
+
 #search-wrapper.active { 
     width: 180px; 
     opacity: 1; 
     margin-right: 8px; 
+}
+
+/* Skeleton Shimmer Effect */
+.skeleton {
+    position: relative;
+    overflow: hidden;
+    background-color: #f4f4f5;
+}
+
+.skeleton::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0) 0,
+        rgba(255, 255, 255, 0.2) 20%,
+        rgba(255, 255, 255, 0.5) 60%,
+        rgba(255, 255, 255, 0)
+    );
+    animation: shimmer 2s infinite;
+}
+
+/* This allows the mouse to "pass through" the overlay to hit the buttons below it */
+[id^="sold-out-overlay-"] {
+    pointer-events: none; 
+}
+
+/* Ensure color dots are ALWAYS on top and clickable */
+.color-dot {
+    pointer-events: auto !important;
+    z-index: 50 !important;
+}
+
+/* Add a smooth cross-fade when images switch */
+[id^="img-"] {
+    transition: opacity 0.3s ease, transform 0.5s ease;
+    will-change: opacity, transform;
+}
+
+@keyframes shimmer {
+    100% {
+        transform: translateX(100%);
+    }
 }
 
     @media (min-width: 768px) {
@@ -161,6 +214,9 @@
         padding: 8px 16px;
         letter-spacing: 0.2em;
         box-shadow: 0 4px 12px rgba(255, 0, 0, 0.25);
+    }
+    #heroVideo {
+        aspect-ratio: 9 / 16; /* Matches mobile portrait video */
     }
 
     .color-dot { 
@@ -256,9 +312,16 @@
 </div>
 
     <section class="relative w-full min-h-[60vh] lg:h-screen bg-black flex items-center justify-center overflow-hidden">
-        <video id="heroVideo" autoplay muted loop playsinline class="w-full h-full lg:w-auto lg:h-full max-w-none object-contain opacity-90">
-            <source src="outflickz.mov" type="video/mp4">
-        </video>
+        <video id="heroVideo" 
+       autoplay 
+       muted 
+       loop 
+       playsinline 
+       preload="metadata" 
+       poster="https://www.outflickz.com/assets/og-preview.jpg" 
+       class="w-full h-full lg:w-auto lg:h-full max-w-none object-contain opacity-90">
+    <source src="outflickz.mov" type="video/mp4">
+</video>
         
         <button id="muteBtn" onclick="toggleMute()" class="absolute top-24 right-6 z-20 border border-white/40 text-white backdrop-blur-md">
             <span id="muteIcon">🔇</span>
@@ -412,6 +475,8 @@
         'https://i.imgur.com/IljBJoP.jpeg',
     ];
 
+        fetchProducts();
+
     window.onload = () => {
         autoClearSession(); 
         initializeSession(); 
@@ -550,7 +615,8 @@ function renderProducts(list) {
 
         function createProductCard(p) {
             const variants = Array.isArray(p.variants) ? p.variants : [];
-            const isValidUrl = (url) => (typeof url === 'string' && !url.includes('…') && url.startsWith('http') && url.length > 50);
+// Change this line in your createProductCard
+const isValidUrl = (url) => (typeof url === 'string' && !url.includes('…') && url.startsWith('http') && url.length > 10);
 
             const processedVariants = variants.map(v => {
                 let vStock = 0;
@@ -597,54 +663,70 @@ function renderProducts(list) {
                 </div>`;
         }
 
-/**
- * UPDATED: Preview Switcher
- * Now strictly forces the variant image to show regardless of stock status.
- */
 function updatePreview(event, productId, newSrc, isVariantSoldOut) {
     if (event) event.stopPropagation(); 
+    
     const img = document.getElementById(`img-${productId}`);
     const overlay = document.getElementById(`sold-out-overlay-${productId}`);
+    const container = document.getElementById(`container-${productId}`);
 
-    // 1. Always update the image source to the specific color hovered
     if (img && newSrc && newSrc !== 'undefined' && newSrc !== 'null') {
+        // Force remove skeleton if it's still there during a hover
+        if (container) container.classList.remove('skeleton');
+        
         img.src = newSrc;
-        // If the variant is sold out, we dim it slightly for visual feedback
-        img.style.opacity = isVariantSoldOut ? "0.7" : "1";
+        img.style.opacity = isVariantSoldOut ? "0.6" : "1";
+        img.style.zIndex = "20"; // Ensure image stays visible
     }
 
-    // 2. Manage the "SOLD OUT" badge overlay
     if (overlay) {
         if (isVariantSoldOut) {
             overlay.classList.remove('hidden');
+            overlay.style.display = 'flex'; 
         } else {
             overlay.classList.add('hidden');
+            overlay.style.display = 'none';
         }
     }
 }
-
 function handleImageError(img, id) {
-    console.warn('Image failed for product ID:', id, 'Src:', img.src);
+    // Prevent infinite loops if the placeholder itself fails
+    if (img.src.includes('placehold.co')) return;
+
+    console.warn('Image failed for product ID:', id);
     
-    // 1. Clean up the UI immediately
+    // 1. Clean up UI
     const container = img.parentElement;
     if (container) container.classList.remove('skeleton');
     
-    // 2. Use a specific "Error" placeholder so you can distinguish 
-    // between "Loading" and "Broken Link" during testing
-    img.src = 'https://placehold.co/600x800/f4f4f5/18181b?text=IMAGE+ERROR';
-    img.classList.add('opacity-50'); // Visual cue that something went wrong
+    // 2. SECOND CHANCE: Try to find any other image for this product
+    if (typeof MASTER_PRODUCTS !== 'undefined') {
+        const product = MASTER_PRODUCTS.find(p => p._id === id);
+        if (product && product.variants) {
+            // Find the first variant that actually has an image array
+            const fallbackVariant = product.variants.find(v => v.images && v.images.length > 0);
+            if (fallbackVariant && img.src !== fallbackVariant.images[0]) {
+                console.log('Attempting fallback image for:', id);
+                img.src = fallbackVariant.images[0];
+                return; // Stop here, we found a backup!
+            }
+        }
+    }
 
-    // 3. Prevent infinite refresh loops
-    if (typeof window.fetchProducts === 'function' && !window.isRefreshing) {
-        // Only refresh if the link actually looks like an expired signed URL
-        if (img.src.includes('idrivee2.com')) {
+    // 3. FINAL FAIL: Show the placeholder
+    img.src = 'https://placehold.co/600x800/f4f4f5/18181b?text=OUTFLICKZ';
+    img.classList.add('opacity-50');
+
+    // 4. SMART REFRESH: Only trigger if it's clearly an expired storage link
+    if (img.dataset.attemptedRefresh !== 'true' && (img.src.includes('idrivee2') || img.src.includes('amazonaws'))) {
+        img.dataset.attemptedRefresh = 'true'; // Only try once per session
+        if (typeof fetchProducts === 'function' && !window.isRefreshing) {
             window.isRefreshing = true;
-            console.log('Detected expired S3 link. Refreshing product data...');
+            console.log('Refreshing expired links...');
             setTimeout(() => {
-                window.fetchProducts();
+                fetchProducts();
                 window.isRefreshing = false;
-            }, 5000);
+            }, 3000);
         }
     }
 }

@@ -82,17 +82,30 @@ async function uploadToS3(fileBase64) {
 
 /**
  * HELPER: Generate Temporary Secure Link
+ * Valid for 72 hours (3 Days)
  */
 async function getSecureUrl(key) {
-    if (!key) return null;
+    if (!key || typeof key !== 'string') return null;
+    
+    // If it's already a full URL, return it as is
     if (key.startsWith('http')) return key;
     
-    // Increased expiry to 12 hours so links don't break during a long shopping session
-    return s3.getSignedUrlPromise('getObject', {
-        Bucket: BUCKET_NAME,
-        Key: key,
-        Expires: 43200 
-    });
+    // SANITIZE: Remove any accidental ellipsis (…) or whitespace 
+    // that might have been stored in the DB during a bad upload.
+    const cleanKey = key.replace(/[…\s]/g, '').trim();
+    
+    try {
+        // Generate the Signed URL
+        // 43200 (12h) -> 259200 (72h)
+        return await s3.getSignedUrlPromise('getObject', {
+            Bucket: BUCKET_NAME,
+            Key: cleanKey,
+            Expires: 259200 
+        });
+    } catch (err) {
+        console.error("S3 Signing Error for key:", cleanKey, err);
+        return null;
+    }
 }
 
 const transporter = nodemailer.createTransport({
@@ -383,31 +396,39 @@ exports.handler = async (event, context) => {
                 return { statusCode: 201, headers, body: JSON.stringify(result) };
             }
 
-       case 'get-wears': {
+     case 'get-wears': {
     const wears = await db.collection('wears').find({}).sort({ createdAt: -1 }).toArray();
     
     const wearsWithLinks = await Promise.all(wears.map(async (wear) => {
-        // 1. Sign the Global Display Image if it exists
-        let signedDisplayImage = wear.displayImage;
-        if (wear.displayImage && typeof wear.displayImage === 'string' && !wear.displayImage.startsWith('http')) {
-            signedDisplayImage = await getSecureUrl(wear.displayImage);
+        // 1. FALLBACK LOGIC: Identify the best available image source
+        // If global displayImage is missing, grab the very first image from the first variant
+        let imageToSign = wear.displayImage;
+        if (!imageToSign && wear.variants?.[0]?.images?.[0]) {
+            imageToSign = wear.variants[0].images[0];
         }
 
-        // 2. Sign all Variant Images
+        // 2. SIGN THE DISPLAY IMAGE
+        let signedDisplayImage = imageToSign;
+        if (imageToSign && typeof imageToSign === 'string' && !imageToSign.startsWith('http') && !imageToSign.includes('…')) {
+            signedDisplayImage = await getSecureUrl(imageToSign);
+        }
+
+        // 3. SIGN ALL VARIANT IMAGES
         const signedVariants = await Promise.all((wear.variants || []).map(async v => {
             const vImgs = await Promise.all((v.images || []).map(async (k) => {
-                // Only call getSecureUrl if k is a KEY (not a full URL and not truncated)
+                // Only call getSecureUrl if k is a S3 KEY, not a full URL
                 if (typeof k === 'string' && !k.startsWith('http') && !k.includes('…')) {
                     return await getSecureUrl(k);
                 }
-                return k; // Return as-is if it's already a URL or broken
+                return k; 
             }));
             return { ...v, images: vImgs };
         }));
 
+        // 4. RETURN MERGED OBJECT
         return { 
             ...wear, 
-            displayImage: signedDisplayImage, // Ensure this is included
+            displayImage: signedDisplayImage, 
             variants: signedVariants 
         };
     }));
@@ -416,7 +437,7 @@ exports.handler = async (event, context) => {
         statusCode: 200, 
         headers: {
             ...headers,
-            'Cache-Control': 'no-cache, no-store, must-revalidate' // Crucial: don't cache expired links
+            'Cache-Control': 'no-cache, no-store, must-revalidate' // Prevents browser from caching expired links
         }, 
         body: JSON.stringify(wearsWithLinks) 
     };
@@ -514,19 +535,19 @@ exports.handler = async (event, context) => {
                 return { statusCode: 201, headers, body: JSON.stringify(result) };
             }
 
-          case 'get-shorts': {
+        case 'get-shorts': {
     const shorts = await db.collection('shorts').find({}).sort({ createdAt: -1 }).toArray();
 
     const shortsWithLinks = await Promise.all(shorts.map(async (short) => {
         /**
-         * HELPER: Extracts the actual S3 key from a potentially broken URL.
-         * This prevents the "ellipsis" truncation from breaking the signing process.
+         * HELPER: Extracts the actual S3 key and signs it.
+         * Ensures no truncated characters or full URLs break the fresh link.
          */
         const cleanAndSign = async (input) => {
             if (!input || typeof input !== 'string') return null;
 
             let key = input;
-            // If the DB has a full URL, extract just the part after 'outflickz/'
+            // If the DB has a full URL, extract just the key part
             if (input.includes('outflickz/')) {
                 key = input.split('outflickz/')[1].split('?')[0];
             }
@@ -534,16 +555,24 @@ exports.handler = async (event, context) => {
             // Remove any trailing truncation characters like '…'
             const finalKey = key.replace(/[…\s]/g, '').trim();
 
-            // Return a fresh signed URL from the private bucket
+            // Return a fresh signed URL (valid for 12 hours)
             return await getSecureUrl(finalKey);
         };
 
-        // 1. Sign the Global Display Image
-        const signedDisplay = short.displayImage ? await cleanAndSign(short.displayImage) : null;
+        // 1. FALLBACK LOGIC: Identify the best image source first
+        let imageToProcess = short.displayImage;
+        // If no global display image exists, use the first image from the first variant
+        if (!imageToProcess && short.variants?.[0]?.images?.[0]) {
+            imageToProcess = short.variants[0].images[0];
+        }
 
-        // 2. Sign all Variant Images
+        // 2. SIGN THE DISPLAY IMAGE (using the helper to clean it first)
+        const signedDisplay = await cleanAndSign(imageToProcess);
+
+        // 3. SIGN ALL VARIANT IMAGES
         const signedVariants = await Promise.all((short.variants || []).map(async v => {
             const vImgs = await Promise.all((v.images || []).map(k => cleanAndSign(k)));
+            // Remove any nulls if images were missing or broken
             return { ...v, images: vImgs.filter(img => img !== null) };
         }));
 
@@ -558,7 +587,7 @@ exports.handler = async (event, context) => {
         statusCode: 200, 
         headers: {
             ...headers,
-            'Cache-Control': 'no-cache, no-store, must-revalidate' // Prevents caching of expired private links
+            'Cache-Control': 'no-cache, no-store, must-revalidate' // Forces frontend to get new links
         }, 
         body: JSON.stringify(shortsWithLinks) 
     };
@@ -657,7 +686,6 @@ case 'add-cap': {
     
     return { statusCode: 201, headers, body: JSON.stringify(result) };
 }
-
 case 'get-caps': {
     const caps = await db.collection('caps').find({}).sort({ createdAt: -1 }).toArray();
 
@@ -672,15 +700,26 @@ case 'get-caps': {
             let key = input;
             // If the DB has a full URL, extract just the part after your bucket/vault identifier
             if (input.includes('outflickz/')) {
-                // Splits at 'outflickz/' and takes the path, then removes everything after '?' (if any)
                 key = input.split('outflickz/')[1].split('?')[0];
             }
             
             // Critical: Remove any trailing truncation characters like '…' or whitespace
             const finalKey = key.replace(/[…\s]/g, '').trim();
+            
+            // Return a fresh signed URL from the private bucket
             return await getSecureUrl(finalKey);
         };
-        const signedDisplay = cap.displayImage ? await cleanAndSign(cap.displayImage) : null;
+
+        // --- FALLBACK LOGIC START ---
+        let imageToProcess = cap.displayImage;
+        // If displayImage is missing, borrow the first image from the first variant
+        if (!imageToProcess && cap.variants?.[0]?.images?.[0]) {
+            imageToProcess = cap.variants[0].images[0];
+        }
+        // --- FALLBACK LOGIC END ---
+
+        // 1. Sign the Global Display Image (using the identified best source)
+        const signedDisplay = await cleanAndSign(imageToProcess);
 
         // 2. Sign all Variant Images
         const signedVariants = await Promise.all((cap.variants || []).map(async v => {
@@ -700,7 +739,7 @@ case 'get-caps': {
         statusCode: 200, 
         headers: {
             ...headers,
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
+            'Cache-Control': 'no-cache, no-store, must-revalidate' // Prevents browser from caching expired private links
         }, 
         body: JSON.stringify(capsWithLinks) 
     };
@@ -813,7 +852,6 @@ case 'add-jersey': {
     
     return { statusCode: 201, headers, body: JSON.stringify(result) };
 }
-
 case 'get-jerseys': {
     const jerseys = await db.collection('jerseys').find({}).sort({ createdAt: -1 }).toArray();
 
@@ -838,12 +876,21 @@ case 'get-jerseys': {
             return await getSecureUrl(finalKey);
         };
 
-        // 1. Sign the Primary Display Image
-        const signedDisplay = jersey.displayImage ? await cleanAndSign(jersey.displayImage) : null;
+        // --- NEW FALLBACK LOGIC START ---
+        let imageToProcess = jersey.displayImage;
+        // If displayImage is missing, use the first image from the first variant as a backup
+        if (!imageToProcess && jersey.variants?.[0]?.images?.[0]) {
+            imageToProcess = jersey.variants[0].images[0];
+        }
+        // --- NEW FALLBACK LOGIC END ---
+
+        // 1. Sign the Primary Display Image (using the identified best source)
+        const signedDisplay = await cleanAndSign(imageToProcess);
 
         // 2. Sign all Variant Image Arrays
         const signedVariants = await Promise.all((jersey.variants || []).map(async v => {
             const vImgs = await Promise.all((v.images || []).map(k => cleanAndSign(k)));
+            // Filter out nulls to keep the data clean for the frontend
             return { ...v, images: vImgs.filter(img => img !== null) };
         }));
 
@@ -858,7 +905,7 @@ case 'get-jerseys': {
         statusCode: 200, 
         headers: {
             ...headers,
-            'Cache-Control': 'no-cache, no-store, must-revalidate' // Ensure fresh links on every load
+            'Cache-Control': 'no-cache, no-store, must-revalidate' // Prevent stale links from being cached
         }, 
         body: JSON.stringify(jerseysWithLinks) 
     };
@@ -955,7 +1002,6 @@ case 'add-tanktop': {
     
     return { statusCode: 201, headers, body: JSON.stringify(result) };
 }
-
 case 'get-tanktops': {
     const tanktops = await db.collection('tanktops').find({}).sort({ createdAt: -1 }).toArray();
 
@@ -980,10 +1026,18 @@ case 'get-tanktops': {
             return await getSecureUrl(finalKey);
         };
 
-        // Sign the Main Image
-        const signedDisplay = tanktop.displayImage ? await cleanAndSign(tanktop.displayImage) : null;
+        // --- FALLBACK LOGIC START ---
+        let imageToProcess = tanktop.displayImage;
+        // If main displayImage is missing, borrow the first variant's first image
+        if (!imageToProcess && tanktop.variants?.[0]?.images?.[0]) {
+            imageToProcess = tanktop.variants[0].images[0];
+        }
+        // --- FALLBACK LOGIC END ---
 
-        // Sign all Variant Images
+        // 1. Sign the Main Image (using the identified best source)
+        const signedDisplay = await cleanAndSign(imageToProcess);
+
+        // 2. Sign all Variant Images
         const signedVariants = await Promise.all((tanktop.variants || []).map(async v => {
             const vImgs = await Promise.all((v.images || []).map(k => cleanAndSign(k)));
             // Filter nulls so the frontend doesn't break
@@ -1001,7 +1055,7 @@ case 'get-tanktops': {
         statusCode: 200, 
         headers: {
             ...headers,
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
+            'Cache-Control': 'no-cache, no-store, must-revalidate' // Prevents old links from staying in browser memory
         }, 
         body: JSON.stringify(tanktopsWithLinks) 
     };
@@ -1102,7 +1156,6 @@ case 'add-tracksuit': {
     
     return { statusCode: 201, headers, body: JSON.stringify(result) };
 }
-
 case 'get-tracksuits': {
     const tracksuits = await db.collection('tracksuits').find({}).sort({ createdAt: -1 }).toArray();
     
@@ -1115,7 +1168,7 @@ case 'get-tracksuits': {
             if (!input || typeof input !== 'string') return null;
 
             let key = input;
-            // 1. If the DB contains a full URL, extract the part after your bucket name
+            // 1. If the DB contains a full URL, extract the part after your bucket identifier
             if (input.includes('outflickz/')) {
                 key = input.split('outflickz/')[1].split('?')[0];
             }
@@ -1127,12 +1180,21 @@ case 'get-tracksuits': {
             return await getSecureUrl(finalKey);
         };
 
-        // Sign the Primary Display Image
-        const signedDisplay = t.displayImage ? await cleanAndSign(t.displayImage) : null;
+        // --- FALLBACK LOGIC START ---
+        let imageToProcess = t.displayImage;
+        // If main displayImage is missing, use the first image from the first variant as a backup
+        if (!imageToProcess && t.variants?.[0]?.images?.[0]) {
+            imageToProcess = t.variants[0].images[0];
+        }
+        // --- FALLBACK LOGIC END ---
 
-        // Sign all Variant Images
+        // 1. Sign the Primary Display Image (using cleaned fallback if necessary)
+        const signedDisplay = await cleanAndSign(imageToProcess);
+
+        // 2. Sign all Variant Images
         const signedVariants = await Promise.all((t.variants || []).map(async v => {
             const vImgs = await Promise.all((v.images || []).map(k => cleanAndSign(k)));
+            // Filter out nulls to keep frontend arrays clean
             return { ...v, images: vImgs.filter(img => img !== null) };
         }));
 
@@ -1147,7 +1209,7 @@ case 'get-tracksuits': {
         statusCode: 200, 
         headers: {
             ...headers,
-            'Cache-Control': 'no-cache, no-store, must-revalidate' // Prevents old/expired links from being cached
+            'Cache-Control': 'no-cache, no-store, must-revalidate' // Forces fresh links on every request
         }, 
         body: JSON.stringify(tracksuitsWithLinks) 
     };

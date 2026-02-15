@@ -499,14 +499,27 @@
         console.error("Vault Synchronization Error:", err); 
     }
 }
-
 function renderProducts(list) {
     const grid = document.getElementById('product-grid');
     if (!grid) return;
 
+    // 1. SMART UPDATE: If the grid is already populated, don't wipe it.
+    // This prevents the "flash" when fetchProducts() updates links in the background.
+    const currentCards = grid.querySelectorAll('.group[id^="container-"]');
+    if (currentCards.length > 0 && list.length === currentCards.length) {
+        console.log("Vault Refresh: Hot-swapping image sources silently...");
+        list.forEach(p => {
+            const img = document.getElementById(`img-${p._id}`);
+            if (img && p.displayImage && img.src !== p.displayImage) {
+                img.src = p.displayImage; // Only update the source
+            }
+        });
+        return; // Exit here so we don't re-render the whole HTML
+    }
+
+    // 2. FULL RENDER: (Initial load or list length change)
     let htmlContent = '';
     const isMobile = window.innerWidth < 1024;
-    // Insert lookbook after 4 items on mobile (2 rows) or 8 on desktop (2 rows)
     const insertAfter = isMobile ? 4 : 8;
 
     list.forEach((p, index) => {
@@ -520,7 +533,6 @@ function renderProducts(list) {
                         Exclusive Look
                     </h3>
                 </div>
-                
                 <div class="hide-scrollbar overflow-x-auto w-full">
                     <div class="flex gap-5 md:gap-8 px-6 md:px-12 pb-10">
                         ${COLLECTION_IMAGES.map((img) => `
@@ -622,46 +634,56 @@ function updatePreview(event, productId, newSrc, isVariantSoldOut) {
         }
     }
 }
-function handleImageError(img, id) {
-    // Prevent infinite loops if the placeholder itself fails
-    if (img.src.includes('placehold.co')) return;
 
-    console.warn('Image failed for product ID:', id);
-    
-    // 1. Clean up UI
-    const container = img.parentElement;
-    if (container) container.classList.remove('skeleton');
-    
-    // 2. SECOND CHANCE: Try to find any other image for this product
-    if (typeof MASTER_PRODUCTS !== 'undefined') {
-        const product = MASTER_PRODUCTS.find(p => p._id === id);
-        if (product && product.variants) {
-            // Find the first variant that actually has an image array
-            const fallbackVariant = product.variants.find(v => v.images && v.images.length > 0);
-            if (fallbackVariant && img.src !== fallbackVariant.images[0]) {
-                console.log('Attempting fallback image for:', id);
-                img.src = fallbackVariant.images[0];
-                return; // Stop here, we found a backup!
+async function handleImageError(img, id) {
+    // 1. Exit if placeholder fails or if we've already tried a refresh for this specific image
+    if (img.src.includes('placehold.co')) return;
+    if (img.dataset.refreshing === 'true') return; 
+
+    const isSecureLink = img.src.includes('idrivee2') || img.src.includes('amazonaws');
+
+    // 2. TRIGGER SILENT REFRESH (Only for expired S3/IDrive links)
+    if (isSecureLink && typeof fetchProducts === 'function') {
+        console.warn(`Vault link expired for: ${id}. Requesting fresh access keys...`);
+        
+        img.dataset.refreshing = 'true'; 
+        // Add a subtle pulse to let the user know it's "thinking" rather than broken
+        img.classList.add('animate-pulse');
+
+        try {
+            // Re-fetch all products to get fresh signed URLs from the backend
+            await fetchProducts(); 
+
+            // After fetchProducts updates MASTER_PRODUCTS, find the new URL
+            if (typeof MASTER_PRODUCTS !== 'undefined') {
+                const freshProduct = MASTER_PRODUCTS.find(p => p._id === id);
+                
+                // Try to find the new display image or the first available variant image
+                let newUrl = freshProduct?.displayImage;
+                if (!newUrl && freshProduct?.variants?.length > 0) {
+                    const firstVal = freshProduct.variants.find(v => v.images && v.images.length > 0);
+                    newUrl = firstVal?.images[0];
+                }
+
+                if (newUrl && newUrl !== img.src) {
+                    console.log(`Successfully swapped expired link for ${id}`);
+                    img.src = newUrl;
+                    img.classList.remove('animate-pulse', 'opacity-50');
+                    img.dataset.refreshing = 'false';
+                    return; // EXIT SUCCESS
+                }
             }
+        } catch (err) {
+            console.error("Silent refresh failed:", err);
         }
     }
 
-    // 3. FINAL FAIL: Show the placeholder
+    // 3. FALLBACK: If refresh fails or it's a permanent error, use placeholder
+    console.error(`Permanent image failure for ${id}. Showing placeholder.`);
+    img.parentElement?.classList.remove('skeleton');
     img.src = 'https://placehold.co/600x800/f4f4f5/18181b?text=OUTFLICKZ';
     img.classList.add('opacity-50');
-
-    // 4. SMART REFRESH: Only trigger if it's clearly an expired storage link
-    if (img.dataset.attemptedRefresh !== 'true' && (img.src.includes('idrivee2') || img.src.includes('amazonaws'))) {
-        img.dataset.attemptedRefresh = 'true'; // Only try once per session
-        if (typeof fetchProducts === 'function' && !window.isRefreshing) {
-            window.isRefreshing = true;
-            console.log('Refreshing expired links...');
-            setTimeout(() => {
-                fetchProducts();
-                window.isRefreshing = false;
-            }, 3000);
-        }
-    }
+    img.classList.remove('animate-pulse');
 }
 
    function scrollGallery(direction) {
@@ -869,7 +891,18 @@ function sendChatMessage() {
     
     window.open(url, '_blank');
 }
-</script>
 
+let lastFetchTime = Date.now();
+
+document.addEventListener('visibilitychange', () => {
+    const now = Date.now();
+    // Only refresh if the user has been away for more than 30 minutes (1,800,000 ms)
+    if (document.visibilityState === 'visible' && (now - lastFetchTime > 1800000)) {
+        console.log("Session aged. Refreshing secure links...");
+        fetchProducts();
+        lastFetchTime = now;
+    }
+});
+</script>
 </body>
 </html>

@@ -28,13 +28,34 @@ const s3 = new AWS.S3(s3Config);
 
 // DATABASE CONNECTION POOLING
 let cachedDb = null;
+let cachedClient = null; // Store the client to manage the connection properly
 
 async function connectToDatabase() {
-    if (cachedDb) return cachedDb;
-    const client = new MongoClient(MONGODB_URI);
-    await client.connect();
-    cachedDb = client.db('Outflickz_data'); 
-    return cachedDb;
+    // 1. If already connected, return the cached database
+    if (cachedDb && cachedClient && cachedClient.topology && cachedClient.topology.isConnected()) {
+        return cachedDb;
+    }
+
+    // 2. Setup connection options for Serverless Stability
+    const options = {
+        connectTimeoutMS: 10000,
+        serverSelectionTimeoutMS: 10000,
+        family: 4 // FORCES IPv4 (Fixes the SSL/TLS Handshake alert error)
+    };
+
+    try {
+        const client = new MongoClient(MONGODB_URI, options);
+        await client.connect();
+        
+        cachedClient = client;
+        cachedDb = client.db('Outflickz_data'); 
+        
+        console.log("=> New Database Connection Established");
+        return cachedDb;
+    } catch (err) {
+        console.error("=> MongoDB Connection Failed:", err);
+        throw err;
+    }
 }
 
 /**

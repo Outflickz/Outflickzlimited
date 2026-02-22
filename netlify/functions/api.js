@@ -1930,7 +1930,7 @@ case 'verify-payment': {
 
             // 3. --- FIX: Backend calculates tax independently ---
             // We use 0.03 to match your frontend TAX_RATE
-            const taxNaira = subtotalNaira * 0.03;
+            const taxNaira = subtotalNaira * 0.02;
             
             // 4. Update the orderData object before it goes to the DB
             // This ensures the database and emails show the correct tax amount

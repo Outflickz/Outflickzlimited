@@ -264,23 +264,63 @@
             }
         }
 
-        async function fetchTanktops() {
-            try {
-                const res = await fetch(API_ENDPOINT, { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'get-tanktops' }) 
-                });
-                const data = await res.json();
-                if (Array.isArray(data)) {
-                    MASTER_PRODUCTS = data;
-                    renderProducts(MASTER_PRODUCTS);
-                }
-            } catch (err) {
-                console.error("Error fetching tanktops:", err);
-                document.getElementById('product-grid').innerHTML = `<p class="col-span-full text-center py-20 uppercase tracking-widest text-[9px]">Server Connection Error</p>`;
-            }
+       async function fetchTanktops() {
+    try {
+        const res = await fetch(API_ENDPOINT, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'get-tanktops' }) 
+        });
+
+        if (!res.ok) {
+            console.error(`Vault API Error: ${res.status}`);
+            return;
         }
+
+        const data = await res.json();
+
+        if (Array.isArray(data)) {
+            const processedTanktops = data.map(p => {
+                let totalStock = 0;
+
+                // Standardized stock calculation for MongoDB documents
+                if (p.variants && Array.isArray(p.variants)) {
+                    p.variants.forEach(v => {
+                        // Check for size-based stock matrix
+                        if (v.stockMatrix && typeof v.stockMatrix === 'object') {
+                            Object.values(v.stockMatrix).forEach(qty => {
+                                totalStock += (Math.max(0, Number(qty) || 0));
+                            });
+                        } 
+                        // Fallback to simple stock number
+                        else if (v.stock !== undefined) {
+                            totalStock += (Math.max(0, Number(v.stock) || 0));
+                        }
+                    });
+                }
+
+                return { 
+                    ...p, 
+                    isOutOfStock: totalStock <= 0, 
+                    actualStock: totalStock 
+                };
+            });
+
+            // Sort logic: false (0) comes before true (1), 
+            // putting available items at the top.
+            processedTanktops.sort((a, b) => a.isOutOfStock - b.isOutOfStock);
+
+            MASTER_PRODUCTS = processedTanktops;
+            renderProducts(MASTER_PRODUCTS);
+        }
+    } catch (err) {
+        console.error("Error fetching tanktops:", err);
+        const grid = document.getElementById('product-grid');
+        if (grid) {
+            grid.innerHTML = `<p class="col-span-full text-center py-20 uppercase tracking-widest text-[9px]">Server Connection Error</p>`;
+        }
+    }
+}
 
         function renderProducts(list) {
             const grid = document.getElementById('product-grid');

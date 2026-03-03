@@ -265,22 +265,61 @@
         }
 
         async function fetchTracksuits() {
-            try {
-                const res = await fetch(API_ENDPOINT, { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'get-tracksuits' }) 
-                });
-                const data = await res.json();
-                if (Array.isArray(data)) {
-                    MASTER_PRODUCTS = data;
-                    renderProducts(MASTER_PRODUCTS);
-                }
-            } catch (err) {
-                console.error("Error fetching tracksuits:", err);
-                document.getElementById('product-grid').innerHTML = `<p class="col-span-full text-center py-20 uppercase tracking-widest text-[9px]">Server Connection Error</p>`;
-            }
+    try {
+        const res = await fetch(API_ENDPOINT, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'get-tracksuits' }) 
+        });
+
+        if (!res.ok) {
+            console.error(`Vault API Error: ${res.status}`);
+            return;
         }
+
+        const data = await res.json();
+
+        if (Array.isArray(data)) {
+            const processedTracksuits = data.map(p => {
+                let totalStock = 0;
+
+                // Standardized stock calculation logic
+                if (p.variants && Array.isArray(p.variants)) {
+                    p.variants.forEach(v => {
+                        // Handle stockMatrix objects (e.g., { "S": 5, "M": 2 })
+                        if (v.stockMatrix && typeof v.stockMatrix === 'object') {
+                            Object.values(v.stockMatrix).forEach(qty => {
+                                totalStock += (Math.max(0, Number(qty) || 0));
+                            });
+                        } 
+                        // Handle simple stock numbers
+                        else if (v.stock !== undefined) {
+                            totalStock += (Math.max(0, Number(v.stock) || 0));
+                        }
+                    });
+                }
+
+                return { 
+                    ...p, 
+                    isOutOfStock: totalStock <= 0, 
+                    actualStock: totalStock 
+                };
+            });
+
+            // Sort: Available items at the top, Sold Out at the bottom
+            processedTracksuits.sort((a, b) => a.isOutOfStock - b.isOutOfStock);
+
+            MASTER_PRODUCTS = processedTracksuits;
+            renderProducts(MASTER_PRODUCTS);
+        }
+    } catch (err) {
+        console.error("Error fetching tracksuits:", err);
+        const grid = document.getElementById('product-grid');
+        if (grid) {
+            grid.innerHTML = `<p class="col-span-full text-center py-20 uppercase tracking-widest text-[9px]">Server Connection Error</p>`;
+        }
+    }
+}
 
         function renderProducts(list) {
             const grid = document.getElementById('product-grid');

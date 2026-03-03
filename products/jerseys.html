@@ -264,24 +264,62 @@
             }
         }
 
-        async function fetchJerseys() {
-            try {
-                const res = await fetch(API_ENDPOINT, { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'get-jerseys' }) 
-                });
-                const data = await res.json();
-                if (Array.isArray(data)) {
-                    MASTER_PRODUCTS = data;
-                    renderProducts(MASTER_PRODUCTS);
-                }
-            } catch (err) {
-                console.error("Error fetching jerseys:", err);
-                document.getElementById('product-grid').innerHTML = `<p class="col-span-full text-center py-20 uppercase tracking-widest text-[9px]">Server Connection Error</p>`;
-            }
+       async function fetchJerseys() {
+    try {
+        const res = await fetch(API_ENDPOINT, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'get-jerseys' }) 
+        });
+
+        if (!res.ok) {
+            console.error(`Vault API Error: ${res.status}`);
+            return;
         }
 
+        const data = await res.json();
+
+        if (Array.isArray(data)) {
+            const processedJerseys = data.map(p => {
+                let totalStock = 0;
+
+                // Sync logic: Calculate total stock from variants
+                if (p.variants && Array.isArray(p.variants)) {
+                    p.variants.forEach(v => {
+                        // Handle size-specific stockMatrix from MongoDB
+                        if (v.stockMatrix && typeof v.stockMatrix === 'object') {
+                            Object.values(v.stockMatrix).forEach(qty => {
+                                totalStock += (Math.max(0, Number(qty) || 0));
+                            });
+                        } 
+                        // Fallback for direct stock values
+                        else if (v.stock !== undefined) {
+                            totalStock += (Math.max(0, Number(v.stock) || 0));
+                        }
+                    });
+                }
+
+                return { 
+                    ...p, 
+                    isOutOfStock: totalStock <= 0, 
+                    actualStock: totalStock 
+                };
+            });
+
+            // Sort: Move "Sold Out" jerseys to the bottom of the list
+            processedJerseys.sort((a, b) => a.isOutOfStock - b.isOutOfStock);
+
+            MASTER_PRODUCTS = processedJerseys;
+            renderProducts(MASTER_PRODUCTS);
+        }
+    } catch (err) {
+        console.error("Error fetching jerseys:", err);
+        const grid = document.getElementById('product-grid');
+        if (grid) {
+            grid.innerHTML = `<p class="col-span-full text-center py-20 uppercase tracking-widest text-[9px]">Server Connection Error</p>`;
+        }
+    }
+}
         function renderProducts(list) {
             const grid = document.getElementById('product-grid');
             if (list.length === 0) {

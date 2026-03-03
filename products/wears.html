@@ -264,23 +264,63 @@
             }
         }
 
-        async function fetchWears() {
-            try {
-                const res = await fetch(API_ENDPOINT, { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'get-wears' }) 
-                });
-                const data = await res.json();
-                if (Array.isArray(data)) {
-                    MASTER_PRODUCTS = data;
-                    renderProducts(MASTER_PRODUCTS);
-                }
-            } catch (err) {
-                console.error("Error fetching wears:", err);
-                document.getElementById('product-grid').innerHTML = `<p class="col-span-full text-center py-20 uppercase tracking-widest text-[9px]">Server Connection Error</p>`;
-            }
+     async function fetchWears() {
+    try {
+        const res = await fetch(API_ENDPOINT, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' },
+            // Using the 'get-wears' action as requested
+            body: JSON.stringify({ action: 'get-wears' }) 
+        });
+
+        if (!res.ok) {
+            console.error(`Vault API Error: ${res.status}`);
+            return;
         }
+
+        const data = await res.json();
+
+        if (Array.isArray(data)) {
+            const processedWears = data.map(p => {
+                let totalStock = 0;
+                
+                // Consistency Check: Apply the same stockMatrix/variants logic
+                if (p.variants && Array.isArray(p.variants)) {
+                    p.variants.forEach(v => {
+                        if (v.stockMatrix && typeof v.stockMatrix === 'object') {
+                            Object.values(v.stockMatrix).forEach(qty => {
+                                totalStock += (Math.max(0, Number(qty) || 0));
+                            });
+                        } 
+                        else if (v.stock !== undefined) {
+                            totalStock += (Math.max(0, Number(v.stock) || 0));
+                        }
+                    });
+                }
+                
+                // Return structured product object
+                return { 
+                    ...p, 
+                    isOutOfStock: totalStock <= 0, 
+                    actualStock: totalStock 
+                };
+            });
+
+            // Sort: In-stock items first, Out-of-stock items at the bottom
+            processedWears.sort((a, b) => a.isOutOfStock - b.isOutOfStock);
+
+            MASTER_PRODUCTS = processedWears;
+            renderProducts(MASTER_PRODUCTS);
+        }
+    } catch (err) {
+        console.error("Error fetching wears:", err);
+        // User-facing error message
+        const grid = document.getElementById('product-grid');
+        if (grid) {
+            grid.innerHTML = `<p class="col-span-full text-center py-20 uppercase tracking-widest text-[9px]">Server Connection Error</p>`;
+        }
+    }
+}
 
         function renderProducts(list) {
             const grid = document.getElementById('product-grid');

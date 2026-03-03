@@ -4,12 +4,15 @@ const jwt = require('jsonwebtoken');
 const AWS = require('aws-sdk');
 const sharp = require('sharp'); 
 const nodemailer = require('nodemailer');
+const Redis = require('ioredis');
 
 // Configuration from Environment Variables
 const MONGODB_URI = process.env.MONGODB_URI;
 const JWT_SECRET = process.env.JWT_SECRET;
 const MASTER_ACCESS_KEY = (process.env.MASTER_ACCESS_KEY || '').trim();
 const BUCKET_NAME = (process.env.IDRIVE_BUCKET_NAME || '').trim();
+const redis = new Redis(process.env.REDIS_URL);
+
 
 // IDRIVE / S3 CONFIGURATION
 const rawEndpoint = process.env.IDRIVE_ENDPOINT;
@@ -103,7 +106,7 @@ async function uploadToS3(fileBase64) {
 
 /**
  * HELPER: Generate Temporary Secure Link
- * Valid for 72 hours (3 Days)
+ * Valid for 604800 seconds (7 Days) - The S3 Protocol Maximum
  */
 async function getSecureUrl(key) {
     if (!key || typeof key !== 'string') return null;
@@ -111,17 +114,16 @@ async function getSecureUrl(key) {
     // If it's already a full URL, return it as is
     if (key.startsWith('http')) return key;
     
-    // SANITIZE: Remove any accidental ellipsis (…) or whitespace 
-    // that might have been stored in the DB during a bad upload.
+    // SANITIZE: Remove any accidental ellipsis (…) or whitespace
     const cleanKey = key.replace(/[…\s]/g, '').trim();
     
     try {
         // Generate the Signed URL
-        // 43200 (12h) -> 259200 (72h)
+        // 604800 seconds = 7 Days
         return await s3.getSignedUrlPromise('getObject', {
             Bucket: BUCKET_NAME,
             Key: cleanKey,
-            Expires: 259200 
+            Expires: 604800 
         });
     } catch (err) {
         console.error("S3 Signing Error for key:", cleanKey, err);
@@ -385,294 +387,359 @@ exports.handler = async (event, context) => {
         const action = queryAction || bodyAction;
 
         switch (action) {
-          case 'add-wear': {
-                const { name, price, description, variants } = body;
+case 'add-wear': {
+    const { name, price, description, variants } = body;
 
-                const processedVariants = [];
-                if (variants && Array.isArray(variants)) {
-                    for (const v of variants) {
-                        const variantImgKeys = [];
-                        if (v.images && Array.isArray(v.images)) {
-                            for (const imgBase64 of v.images) {
-                                const key = await uploadToS3(imgBase64);
-                                if (key) variantImgKeys.push(key);
-                            }
-                        }
-                        processedVariants.push({
-                            color: v.color,
-                            stockMatrix: v.stockMatrix || {},
-                            images: variantImgKeys 
-                        });
-                    }
+    const processedVariants = [];
+    if (variants && Array.isArray(variants)) {
+        for (const v of variants) {
+            const variantImgKeys = [];
+            if (v.images && Array.isArray(v.images)) {
+                for (const imgBase64 of v.images) {
+                    const key = await uploadToS3(imgBase64);
+                    if (key) variantImgKeys.push(key);
                 }
-
-                const result = await db.collection('wears').insertOne({
-                    name,
-                    price: parseFloat(price),
-                    variants: processedVariants,
-                    description,
-                    createdAt: new Date()
-                });
-                
-                return { statusCode: 201, headers, body: JSON.stringify(result) };
             }
+            processedVariants.push({
+                color: v.color,
+                stockMatrix: v.stockMatrix || {},
+                images: variantImgKeys 
+            });
+        }
+    }
 
-     case 'get-wears': {
-    const wears = await db.collection('wears').find({}).sort({ createdAt: -1 }).toArray();
+    const result = await db.collection('wears').insertOne({
+        name,
+        price: parseFloat(price),
+        variants: processedVariants,
+        description,
+        createdAt: new Date()
+    });
+
+    await redis.del("cache_wears_list");
+    await redis.del("cache_global_all_products");
+    await redis.del("cache_global_combined_products");
     
-    const wearsWithLinks = await Promise.all(wears.map(async (wear) => {
-        // 1. FALLBACK LOGIC: Identify the best available image source
-        // If global displayImage is missing, grab the very first image from the first variant
-        let imageToSign = wear.displayImage;
-        if (!imageToSign && wear.variants?.[0]?.images?.[0]) {
-            imageToSign = wear.variants[0].images[0];
-        }
-
-        // 2. SIGN THE DISPLAY IMAGE
-        let signedDisplayImage = imageToSign;
-        if (imageToSign && typeof imageToSign === 'string' && !imageToSign.startsWith('http') && !imageToSign.includes('…')) {
-            signedDisplayImage = await getSecureUrl(imageToSign);
-        }
-
-        // 3. SIGN ALL VARIANT IMAGES
-        const signedVariants = await Promise.all((wear.variants || []).map(async v => {
-            const vImgs = await Promise.all((v.images || []).map(async (k) => {
-                // Only call getSecureUrl if k is a S3 KEY, not a full URL
-                if (typeof k === 'string' && !k.startsWith('http') && !k.includes('…')) {
-                    return await getSecureUrl(k);
-                }
-                return k; 
-            }));
-            return { ...v, images: vImgs };
-        }));
-
-        // 4. RETURN MERGED OBJECT
-        return { 
-            ...wear, 
-            displayImage: signedDisplayImage, 
-            variants: signedVariants 
-        };
-    }));
-
-    return { 
-        statusCode: 200, 
-        headers: {
-            ...headers,
-            'Cache-Control': 'no-cache, no-store, must-revalidate' // Prevents browser from caching expired links
-        }, 
-        body: JSON.stringify(wearsWithLinks) 
-    };
+    return { statusCode: 201, headers, body: JSON.stringify(result) };
 }
 
-            case 'get-wear-details': {
-                const { id } = body;
-                if (!id) throw new Error("ID required");
-                const product = await db.collection('wears').findOne({ _id: new ObjectId(id) });
-                if (!product) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
-                
-                // Sign main gallery
-                const signedImages = await Promise.all((product.images || []).map(key => getSecureUrl(key)));
-                
-                // Sign variant images
-                const signedVariants = await Promise.all((product.variants || []).map(async v => {
-                    const vImgs = await Promise.all((v.images || []).map(k => getSecureUrl(k)));
-                    return { ...v, images: vImgs };
-                }));
+case 'get-wears': {
+    const CACHE_KEY = "cache_wears_list";
+    const forceRefresh = event.queryStringParameters && event.queryStringParameters.refresh === 'true';
+    const REDIS_TTL = 518400; 
 
-                return { statusCode: 200, headers, body: JSON.stringify({ ...product, images: signedImages, variants: signedVariants }) };
+    try {
+        if (!forceRefresh) {
+            const cachedData = await redis.get(CACHE_KEY);
+            if (cachedData) {
+                return { 
+                    statusCode: 200, 
+                    headers: { ...headers, 'X-Cache': 'HIT' }, 
+                    body: cachedData 
+                };
             }
-
-           case 'update-wear': {
-                const { id, name, price, description, variants } = body;
-                if (!id) throw new Error("ID required");
-
-                const existing = await db.collection('wears').findOne({ _id: new ObjectId(id) });
-                if (!existing) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
-
-                const finalVariants = await Promise.all((variants || []).map(async (v) => {
-                    const vImgKeys = [];
-                    if (v.images && Array.isArray(v.images)) {
-                        for (const img of v.images) {
-                            // If it's a new base64 string, upload it
-                            if (typeof img === 'string' && img.startsWith('data:')) {
-                                const key = await uploadToS3(img);
-                                if (key) vImgKeys.push(key);
-                            } else {
-                                // Keep existing key/URL
-                                vImgKeys.push(img);
-                            }
-                        }
-                    }
-                    return {
-                        color: v.color,
-                        stockMatrix: v.stockMatrix || {},
-                        images: vImgKeys
-                    };
-                }));
-
-                await db.collection('wears').updateOne(
-                    { _id: new ObjectId(id) },
-                    { $set: { name, price: parseFloat(price), description, variants: finalVariants, updatedAt: new Date() } }
-                );
-                
-                return { statusCode: 200, headers, body: JSON.stringify({ message: "Success" }) };
-            }
-
-            case 'delete-wear': {
-                const { id } = body;
-                await db.collection('wears').deleteOne({ _id: new ObjectId(id) });
-                return { statusCode: 200, headers, body: JSON.stringify({ message: "Removed" }) };
-            }
-
-            case 'add-short': {
-                const { name, price, description, variants } = body;
-
-                const processedVariants = [];
-                if (variants && Array.isArray(variants)) {
-                    for (const v of variants) {
-                        const variantImgKeys = [];
-                        if (v.images && Array.isArray(v.images)) {
-                            for (const imgBase64 of v.images) {
-                                const key = await uploadToS3(imgBase64);
-                                if (key) variantImgKeys.push(key);
-                            }
-                        }
-                        processedVariants.push({
-                            color: v.color,
-                            stockMatrix: v.stockMatrix || {},
-                            images: variantImgKeys 
-                        });
-                    }
-                }
-
-                const result = await db.collection('shorts').insertOne({
-                    name,
-                    price: parseFloat(price),
-                    variants: processedVariants,
-                    description,
-                    createdAt: new Date()
-                });
-                
-                return { statusCode: 201, headers, body: JSON.stringify(result) };
-            }
-
-        case 'get-shorts': {
-    const shorts = await db.collection('shorts').find({}).sort({ createdAt: -1 }).toArray();
-
-    const shortsWithLinks = await Promise.all(shorts.map(async (short) => {
-        /**
-         * HELPER: Extracts the actual S3 key and signs it.
-         * Ensures no truncated characters or full URLs break the fresh link.
-         */
-        const cleanAndSign = async (input) => {
-            if (!input || typeof input !== 'string') return null;
-
-            let key = input;
-            // If the DB has a full URL, extract just the key part
-            if (input.includes('outflickz/')) {
-                key = input.split('outflickz/')[1].split('?')[0];
-            }
-            
-            // Remove any trailing truncation characters like '…'
-            const finalKey = key.replace(/[…\s]/g, '').trim();
-
-            // Return a fresh signed URL (valid for 12 hours)
-            return await getSecureUrl(finalKey);
-        };
-
-        // 1. FALLBACK LOGIC: Identify the best image source first
-        let imageToProcess = short.displayImage;
-        // If no global display image exists, use the first image from the first variant
-        if (!imageToProcess && short.variants?.[0]?.images?.[0]) {
-            imageToProcess = short.variants[0].images[0];
         }
 
-        // 2. SIGN THE DISPLAY IMAGE (using the helper to clean it first)
-        const signedDisplay = await cleanAndSign(imageToProcess);
-
-        // 3. SIGN ALL VARIANT IMAGES
-        const signedVariants = await Promise.all((short.variants || []).map(async v => {
-            const vImgs = await Promise.all((v.images || []).map(k => cleanAndSign(k)));
-            // Remove any nulls if images were missing or broken
-            return { ...v, images: vImgs.filter(img => img !== null) };
-        }));
-
-        return { 
-            ...short, 
-            displayImage: signedDisplay,
-            variants: signedVariants 
-        };
-    }));
-
-    return { 
-        statusCode: 200, 
-        headers: {
-            ...headers,
-            'Cache-Control': 'no-cache, no-store, must-revalidate' // Forces frontend to get new links
-        }, 
-        body: JSON.stringify(shortsWithLinks) 
-    };
-}
-
-            case 'get-short-details': {
-                const { id } = body;
-                if (!id) throw new Error("ID required");
-                const product = await db.collection('shorts').findOne({ _id: new ObjectId(id) });
-                if (!product) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
-                
-                // Sign variant images
-                const signedVariants = await Promise.all((product.variants || []).map(async v => {
-                    const vImgs = await Promise.all((v.images || []).map(k => getSecureUrl(k)));
-                    return { ...v, images: vImgs };
-                }));
-
-                return { statusCode: 200, headers, body: JSON.stringify({ ...product, variants: signedVariants }) };
-            }
-
-            case 'update-short': {
-                const { id, name, price, description, variants } = body;
-                if (!id) throw new Error("ID required");
-
-                const existing = await db.collection('shorts').findOne({ _id: new ObjectId(id) });
-                if (!existing) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
-
-                const finalVariants = await Promise.all((variants || []).map(async (v) => {
-                    const vImgKeys = [];
-                    if (v.images && Array.isArray(v.images)) {
-                        for (const img of v.images) {
-                            // If it's a new base64 string, upload it
-                            if (typeof img === 'string' && img.startsWith('data:')) {
-                                const key = await uploadToS3(img);
-                                if (key) vImgKeys.push(key);
-                            } else {
-                                // Keep existing key (already an S3 key)
-                                vImgKeys.push(img);
-                            }
-                        }
-                    }
-                    return {
-                        color: v.color,
-                        stockMatrix: v.stockMatrix || {},
-                        images: vImgKeys
-                    };
-                }));
-
-                await db.collection('shorts').updateOne(
-                    { _id: new ObjectId(id) },
-                    { $set: { name, price: parseFloat(price), description, variants: finalVariants, updatedAt: new Date() } }
-                );
-                
-                return { statusCode: 200, headers, body: JSON.stringify({ message: "Success" }) };
-            }
-
-            case 'delete-short': {
-                const { id } = body;
-                if (!id) throw new Error("ID required");
-                await db.collection('shorts').deleteOne({ _id: new ObjectId(id) });
-                return { statusCode: 200, headers, body: JSON.stringify({ message: "Removed" }) };
-            }
-
+        const wears = await db.collection('wears').find({}).sort({ createdAt: -1 }).toArray();
         
+        const wearsWithLinks = await Promise.all(wears.map(async (wear) => {
+            const cleanAndSign = async (input) => {
+                if (!input || typeof input !== 'string') return null;
+                const cleanKey = input.replace(/[…\s]/g, '').trim();
+                return await getSecureUrl(cleanKey); 
+            };
+
+            let imageToSign = wear.displayImage || wear.variants?.[0]?.images?.[0];
+            const signedDisplayImage = await cleanAndSign(imageToSign);
+
+            const signedVariants = await Promise.all((wear.variants || []).map(async v => {
+                const vImgs = await Promise.all((v.images || []).map(k => cleanAndSign(k)));
+                return { ...v, images: vImgs.filter(img => img !== null) };
+            }));
+
+            return { 
+                ...wear, 
+                displayImage: signedDisplayImage, 
+                variants: signedVariants 
+            };
+        }));
+
+        const responseBody = JSON.stringify(wearsWithLinks);
+        await redis.setex(CACHE_KEY, REDIS_TTL, responseBody);
+
+        return { 
+            statusCode: 200, 
+            headers: {
+                ...headers,
+                'X-Cache': 'MISS',
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
+            }, 
+            body: responseBody 
+        };
+
+    } catch (err) {
+        console.error("Redis Error:", err);
+        const wears = await db.collection('wears').find({}).sort({ createdAt: -1 }).toArray();
+        return { statusCode: 200, headers, body: JSON.stringify(wears) };
+    }
+}
+
+case 'get-wear-details': {
+    const { id } = body;
+    if (!id) throw new Error("ID required");
+
+    const CACHE_KEY = `cache_product_detail_${id}`;
+    const REDIS_TTL = 518400;
+
+    const cachedProduct = await redis.get(CACHE_KEY);
+    if (cachedProduct) {
+        return { statusCode: 200, headers: { ...headers, 'X-Cache': 'HIT' }, body: cachedProduct };
+    }
+
+    const product = await db.collection('wears').findOne({ _id: new ObjectId(id) });
+    if (!product) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
+    
+    const signedVariants = await Promise.all((product.variants || []).map(async v => {
+        const vImgs = await Promise.all((v.images || []).map(k => getSecureUrl(k.replace(/[…\s]/g, '').trim())));
+        return { ...v, images: vImgs };
+    }));
+
+    const result = JSON.stringify({ ...product, variants: signedVariants, category: 'wears' });
+    await redis.setex(CACHE_KEY, REDIS_TTL, result);
+
+    return { statusCode: 200, headers, body: result };
+}
+
+case 'update-wear': {
+    const { id, name, price, description, variants } = body;
+    if (!id) throw new Error("ID required");
+
+    const existing = await db.collection('wears').findOne({ _id: new ObjectId(id) });
+    if (!existing) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
+
+    const finalVariants = await Promise.all((variants || []).map(async (v) => {
+        const vImgKeys = [];
+        if (v.images && Array.isArray(v.images)) {
+            for (const img of v.images) {
+                if (typeof img === 'string' && img.startsWith('data:')) {
+                    const key = await uploadToS3(img);
+                    if (key) vImgKeys.push(key);
+                } else {
+                    const cleanKey = typeof img === 'string' && img.includes('?') ? img.split('?')[0].split('/').pop() : img;
+                    vImgKeys.push(cleanKey);
+                }
+            }
+        }
+        return {
+            color: v.color,
+            stockMatrix: v.stockMatrix || {},
+            images: vImgKeys
+        };
+    }));
+
+    await db.collection('wears').updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { name, price: parseFloat(price), description, variants: finalVariants, updatedAt: new Date() } }
+    );
+    
+    await redis.del("cache_wears_list");
+    await redis.del(`cache_product_detail_${id}`);
+    await redis.del("cache_global_all_products");
+    await redis.del("cache_global_combined_products");
+    
+    return { statusCode: 200, headers, body: JSON.stringify({ message: "Success" }) };
+}
+
+case 'delete-wear': {
+    const { id } = body;
+    await db.collection('wears').deleteOne({ _id: new ObjectId(id) });
+    
+    await redis.del("cache_wears_list");
+    await redis.del(`cache_product_detail_${id}`);
+    await redis.del("cache_global_all_products");
+    await redis.del("cache_global_combined_products");
+    
+    return { statusCode: 200, headers, body: JSON.stringify({ message: "Removed" }) };
+}
+
+       case 'add-short': {
+    const { name, price, description, variants } = body;
+
+    const processedVariants = [];
+    if (variants && Array.isArray(variants)) {
+        for (const v of variants) {
+            const variantImgKeys = [];
+            if (v.images && Array.isArray(v.images)) {
+                for (const imgBase64 of v.images) {
+                    const key = await uploadToS3(imgBase64);
+                    if (key) variantImgKeys.push(key);
+                }
+            }
+            processedVariants.push({
+                color: v.color,
+                stockMatrix: v.stockMatrix || {},
+                images: variantImgKeys 
+            });
+        }
+    }
+
+    const result = await db.collection('shorts').insertOne({
+        name,
+        price: parseFloat(price),
+        variants: processedVariants,
+        description,
+        createdAt: new Date()
+    });
+    
+    await redis.del("cache_shorts_list");
+    await redis.del("cache_global_all_products");
+    await redis.del("cache_global_combined_products");
+    
+    return { statusCode: 201, headers, body: JSON.stringify(result) };
+}
+
+case 'get-shorts': {
+    const CACHE_KEY = "cache_shorts_list";
+    const forceRefresh = event.queryStringParameters && event.queryStringParameters.refresh === 'true';
+    const REDIS_TTL = 518400; // 6 Days
+
+    try {
+        if (!forceRefresh) {
+            const cachedData = await redis.get(CACHE_KEY);
+            if (cachedData) {
+                return { 
+                    statusCode: 200, 
+                    headers: { ...headers, 'X-Cache': 'HIT' }, 
+                    body: cachedData 
+                };
+            }
+        }
+
+        const shorts = await db.collection('shorts').find({}).sort({ createdAt: -1 }).toArray();
+
+        const shortsWithLinks = await Promise.all(shorts.map(async (short) => {
+            const cleanAndSign = async (input) => {
+                if (!input || typeof input !== 'string') return null;
+                let key = input;
+                if (input.includes('outflickz/')) {
+                    key = input.split('outflickz/')[1].split('?')[0];
+                }
+                const finalKey = key.replace(/[…\s]/g, '').trim();
+                return await getSecureUrl(finalKey);
+            };
+
+            let imageToProcess = short.displayImage || short.variants?.[0]?.images?.[0];
+            const signedDisplay = await cleanAndSign(imageToProcess);
+
+            const signedVariants = await Promise.all((short.variants || []).map(async v => {
+                const vImgs = await Promise.all((v.images || []).map(k => cleanAndSign(k)));
+                return { ...v, images: vImgs.filter(img => img !== null) };
+            }));
+
+            return { 
+                ...short, 
+                displayImage: signedDisplay,
+                variants: signedVariants 
+            };
+        }));
+
+        const responseBody = JSON.stringify(shortsWithLinks);
+        await redis.setex(CACHE_KEY, REDIS_TTL, responseBody);
+
+        return { 
+            statusCode: 200, 
+            headers: {
+                ...headers,
+                'X-Cache': 'MISS',
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
+            }, 
+            body: responseBody 
+        };
+    } catch (err) {
+        console.error("Redis Error in Shorts:", err);
+        const shorts = await db.collection('shorts').find({}).sort({ createdAt: -1 }).toArray();
+        return { statusCode: 200, headers, body: JSON.stringify(shorts) };
+    }
+}
+
+case 'get-short-details': {
+    const { id } = body;
+    if (!id) throw new Error("ID required");
+
+    const CACHE_KEY = `cache_product_detail_${id}`;
+    const REDIS_TTL = 518400; // 6 Days
+
+    const cachedProduct = await redis.get(CACHE_KEY);
+    if (cachedProduct) {
+        return { statusCode: 200, headers: { ...headers, 'X-Cache': 'HIT' }, body: cachedProduct };
+    }
+
+    const product = await db.collection('shorts').findOne({ _id: new ObjectId(id) });
+    if (!product) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
+    
+    const signedVariants = await Promise.all((product.variants || []).map(async v => {
+        const vImgs = await Promise.all((v.images || []).map(k => getSecureUrl(k.replace(/[…\s]/g, '').trim())));
+        return { ...v, images: vImgs };
+    }));
+
+    const result = JSON.stringify({ ...product, variants: signedVariants, category: 'shorts' });
+    await redis.setex(CACHE_KEY, REDIS_TTL, result);
+
+    return { statusCode: 200, headers, body: result };
+}
+
+case 'update-short': {
+    const { id, name, price, description, variants } = body;
+    if (!id) throw new Error("ID required");
+
+    const existing = await db.collection('shorts').findOne({ _id: new ObjectId(id) });
+    if (!existing) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
+
+    const finalVariants = await Promise.all((variants || []).map(async (v) => {
+        const vImgKeys = [];
+        if (v.images && Array.isArray(v.images)) {
+            for (const img of v.images) {
+                if (typeof img === 'string' && img.startsWith('data:')) {
+                    const key = await uploadToS3(img);
+                    if (key) vImgKeys.push(key);
+                } else {
+                    vImgKeys.push(img);
+                }
+            }
+        }
+        return {
+            color: v.color,
+            stockMatrix: v.stockMatrix || {},
+            images: vImgKeys
+        };
+    }));
+
+    await db.collection('shorts').updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { name, price: parseFloat(price), description, variants: finalVariants, updatedAt: new Date() } }
+    );
+    
+    await redis.del("cache_shorts_list");
+    await redis.del(`cache_product_detail_${id}`);
+    await redis.del("cache_global_all_products");
+    await redis.del("cache_global_combined_products");
+    
+    return { statusCode: 200, headers, body: JSON.stringify({ message: "Success" }) };
+}
+
+case 'delete-short': {
+    const { id } = body;
+    if (!id) throw new Error("ID required");
+    await db.collection('shorts').deleteOne({ _id: new ObjectId(id) });
+    
+    await redis.del("cache_shorts_list");
+    await redis.del(`cache_product_detail_${id}`);
+    await redis.del("cache_global_all_products");
+    await redis.del("cache_global_combined_products");
+    
+    return { statusCode: 200, headers, body: JSON.stringify({ message: "Removed" }) };
+}
+
 case 'add-cap': {
     const { name, price, description, variants } = body;
 
@@ -680,10 +747,9 @@ case 'add-cap': {
     if (variants && Array.isArray(variants)) {
         for (const v of variants) {
             const variantImgKeys = [];
-            // Handle the array of up to 4 images
             if (v.images && Array.isArray(v.images)) {
                 for (const imgBase64 of v.images) {
-                    if (imgBase64) { // Ensure string isn't empty
+                    if (imgBase64) {
                         const key = await uploadToS3(imgBase64);
                         if (key) variantImgKeys.push(key);
                     }
@@ -692,7 +758,7 @@ case 'add-cap': {
             processedVariants.push({
                 color: v.color,
                 stock: parseInt(v.stock) || 0,
-                images: variantImgKeys // Stores the array of S3 keys
+                images: variantImgKeys 
             });
         }
     }
@@ -704,80 +770,102 @@ case 'add-cap': {
         description,
         createdAt: new Date()
     });
+
+    await redis.del("cache_caps_list");
+    await redis.del("cache_global_all_products");
+    await redis.del("cache_global_combined_products");
     
     return { statusCode: 201, headers, body: JSON.stringify(result) };
 }
+
 case 'get-caps': {
-    const caps = await db.collection('caps').find({}).sort({ createdAt: -1 }).toArray();
+    const CACHE_KEY = "cache_caps_list";
+    const forceRefresh = event.queryStringParameters && event.queryStringParameters.refresh === 'true';
+    const REDIS_TTL = 518400; // 6 Days (Safe buffer for 7-day IDrive links)
 
-    const capsWithLinks = await Promise.all(caps.map(async (cap) => {
-        /**
-         * HELPER: Extracts the actual S3 key from a potentially broken URL.
-         * This prevents the "ellipsis" truncation from breaking the signing process.
-         */
-        const cleanAndSign = async (input) => {
-            if (!input || typeof input !== 'string') return null;
-
-            let key = input;
-            // If the DB has a full URL, extract just the part after your bucket/vault identifier
-            if (input.includes('outflickz/')) {
-                key = input.split('outflickz/')[1].split('?')[0];
+    try {
+        if (!forceRefresh) {
+            const cachedData = await redis.get(CACHE_KEY);
+            if (cachedData) {
+                return { 
+                    statusCode: 200, 
+                    headers: { ...headers, 'X-Cache': 'HIT' }, 
+                    body: cachedData 
+                };
             }
-            
-            // Critical: Remove any trailing truncation characters like '…' or whitespace
-            const finalKey = key.replace(/[…\s]/g, '').trim();
-            
-            // Return a fresh signed URL from the private bucket
-            return await getSecureUrl(finalKey);
-        };
-
-        // --- FALLBACK LOGIC START ---
-        let imageToProcess = cap.displayImage;
-        // If displayImage is missing, borrow the first image from the first variant
-        if (!imageToProcess && cap.variants?.[0]?.images?.[0]) {
-            imageToProcess = cap.variants[0].images[0];
         }
-        // --- FALLBACK LOGIC END ---
 
-        // 1. Sign the Global Display Image (using the identified best source)
-        const signedDisplay = await cleanAndSign(imageToProcess);
+        const caps = await db.collection('caps').find({}).sort({ createdAt: -1 }).toArray();
 
-        // 2. Sign all Variant Images
-        const signedVariants = await Promise.all((cap.variants || []).map(async v => {
-            const vImgs = await Promise.all((v.images || []).map(k => cleanAndSign(k)));
-            // Filter out nulls to prevent frontend crashes
-            return { ...v, images: vImgs.filter(img => img !== null) };
+        const capsWithLinks = await Promise.all(caps.map(async (cap) => {
+            const cleanAndSign = async (input) => {
+                if (!input || typeof input !== 'string') return null;
+                let key = input;
+                if (input.includes('outflickz/')) {
+                    key = input.split('outflickz/')[1].split('?')[0];
+                }
+                const finalKey = key.replace(/[…\s]/g, '').trim();
+                return await getSecureUrl(finalKey);
+            };
+
+            let imageToProcess = cap.displayImage || cap.variants?.[0]?.images?.[0];
+            const signedDisplay = await cleanAndSign(imageToProcess);
+
+            const signedVariants = await Promise.all((cap.variants || []).map(async v => {
+                const vImgs = await Promise.all((v.images || []).map(k => cleanAndSign(k)));
+                return { ...v, images: vImgs.filter(img => img !== null) };
+            }));
+
+            return { 
+                ...cap, 
+                displayImage: signedDisplay,
+                variants: signedVariants 
+            };
         }));
 
-        return { 
-            ...cap, 
-            displayImage: signedDisplay,
-            variants: signedVariants 
-        };
-    }));
+        const responseBody = JSON.stringify(capsWithLinks);
+        await redis.setex(CACHE_KEY, REDIS_TTL, responseBody);
 
-    return { 
-        statusCode: 200, 
-        headers: {
-            ...headers,
-            'Cache-Control': 'no-cache, no-store, must-revalidate' // Prevents browser from caching expired private links
-        }, 
-        body: JSON.stringify(capsWithLinks) 
-    };
+        return { 
+            statusCode: 200, 
+            headers: {
+                ...headers,
+                'X-Cache': 'MISS',
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
+            }, 
+            body: responseBody 
+        };
+    } catch (err) {
+        console.error("Redis Error in Caps:", err);
+        const caps = await db.collection('caps').find({}).sort({ createdAt: -1 }).toArray();
+        return { statusCode: 200, headers, body: JSON.stringify(caps) };
+    }
 }
 
 case 'get-cap-details': {
     const { id } = body;
     if (!id) throw new Error("ID required");
+
+    const CACHE_KEY = `cache_product_detail_${id}`;
+    const REDIS_TTL = 518400;
+
+    const cachedProduct = await redis.get(CACHE_KEY);
+    if (cachedProduct) {
+        return { statusCode: 200, headers: { ...headers, 'X-Cache': 'HIT' }, body: cachedProduct };
+    }
+
     const product = await db.collection('caps').findOne({ _id: new ObjectId(id) });
     if (!product) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
     
     const signedVariants = await Promise.all((product.variants || []).map(async v => {
-        const vImgs = await Promise.all((v.images || []).map(k => getSecureUrl(k)));
+        const vImgs = await Promise.all((v.images || []).map(k => getSecureUrl(k.replace(/[…\s]/g, '').trim())));
         return { ...v, images: vImgs };
     }));
 
-    return { statusCode: 200, headers, body: JSON.stringify({ ...product, variants: signedVariants }) };
+    const result = JSON.stringify({ ...product, variants: signedVariants, category: 'caps' });
+    await redis.setex(CACHE_KEY, REDIS_TTL, result);
+
+    return { statusCode: 200, headers, body: result };
 }
 
 case 'update-cap': {
@@ -789,25 +877,19 @@ case 'update-cap': {
 
     const finalVariants = await Promise.all((variants || []).map(async (v, index) => {
         const vImgKeys = [];
-        
-        // Match with existing variant to preserve images if no new ones are uploaded
         const existingVariant = existing.variants && existing.variants[index];
 
         if (v.images && Array.isArray(v.images) && v.images.length > 0) {
             for (const img of v.images) {
                 if (typeof img === 'string' && img.startsWith('data:')) {
-                    // It's a new upload
                     const key = await uploadToS3(img);
                     if (key) vImgKeys.push(key);
                 } else if (typeof img === 'string' && !img.startsWith('http')) {
-                    // It's an existing S3 key (not a signed URL)
-                    vImgKeys.push(img);
+                    vImgKeys.push(img.replace(/[…\s]/g, '').trim());
                 }
             }
         } 
         
-        // Fallback: If no new images were sent in the payload for this variant, 
-        // keep the old ones so they aren't wiped out.
         const imagesToSave = vImgKeys.length > 0 ? vImgKeys : (existingVariant ? existingVariant.images : []);
 
         return {
@@ -830,6 +912,11 @@ case 'update-cap': {
         }
     );
     
+    await redis.del("cache_caps_list");
+    await redis.del(`cache_product_detail_${id}`);
+    await redis.del("cache_global_all_products");
+    await redis.del("cache_global_combined_products");
+    
     return { statusCode: 200, headers, body: JSON.stringify({ message: "Success" }) };
 }
 
@@ -837,10 +924,14 @@ case 'delete-cap': {
     const { id } = body;
     if (!id) throw new Error("ID required");
     await db.collection('caps').deleteOne({ _id: new ObjectId(id) });
+    
+    await redis.del("cache_caps_list");
+    await redis.del(`cache_product_detail_${id}`);
+    await redis.del("cache_global_all_products");
+    await redis.del("cache_global_combined_products");
+    
     return { statusCode: 200, headers, body: JSON.stringify({ message: "Removed" }) };
 }
-
-// --- JERSEY ASSET ACTIONS ---
 
 case 'add-jersey': {
     const { name, price, description, variants } = body;
@@ -871,79 +962,102 @@ case 'add-jersey': {
         createdAt: new Date()
     });
     
+    // Invalidate all related caches
+    await redis.del("cache_jerseys_list");
+    await redis.del("cache_global_all_products");
+    await redis.del("cache_global_combined_products");
+
     return { statusCode: 201, headers, body: JSON.stringify(result) };
 }
+
 case 'get-jerseys': {
-    const jerseys = await db.collection('jerseys').find({}).sort({ createdAt: -1 }).toArray();
+    const CACHE_KEY = "cache_jerseys_list";
+    const forceRefresh = event.queryStringParameters && event.queryStringParameters.refresh === 'true';
+    const REDIS_TTL = 518400; // 6 Days (Syncs with 7-day IDrive link)
 
-    const jerseysWithLinks = await Promise.all(jerseys.map(async (jersey) => {
-        /**
-         * HELPER: Extracts the raw S3 key from truncated or full URLs.
-         * Ensures getSecureUrl receives a valid path like 'vault/image.webp'.
-         */
-        const cleanAndSign = async (input) => {
-            if (!input || typeof input !== 'string') return null;
-
-            let key = input;
-            // Extract the key if the DB accidentally stored a full URL
-            if (input.includes('outflickz/')) {
-                key = input.split('outflickz/')[1].split('?')[0];
+    try {
+        if (!forceRefresh) {
+            const cachedData = await redis.get(CACHE_KEY);
+            if (cachedData) {
+                return { 
+                    statusCode: 200, 
+                    headers: { ...headers, 'X-Cache': 'HIT' }, 
+                    body: cachedData 
+                };
             }
-            
-            // Remove the ellipsis (…) and any whitespace causing truncation errors
-            const finalKey = key.replace(/[…\s]/g, '').trim();
-
-            // Generate a fresh 12-hour signed URL for the private bucket
-            return await getSecureUrl(finalKey);
-        };
-
-        // --- NEW FALLBACK LOGIC START ---
-        let imageToProcess = jersey.displayImage;
-        // If displayImage is missing, use the first image from the first variant as a backup
-        if (!imageToProcess && jersey.variants?.[0]?.images?.[0]) {
-            imageToProcess = jersey.variants[0].images[0];
         }
-        // --- NEW FALLBACK LOGIC END ---
 
-        // 1. Sign the Primary Display Image (using the identified best source)
-        const signedDisplay = await cleanAndSign(imageToProcess);
+        const jerseys = await db.collection('jerseys').find({}).sort({ createdAt: -1 }).toArray();
 
-        // 2. Sign all Variant Image Arrays
-        const signedVariants = await Promise.all((jersey.variants || []).map(async v => {
-            const vImgs = await Promise.all((v.images || []).map(k => cleanAndSign(k)));
-            // Filter out nulls to keep the data clean for the frontend
-            return { ...v, images: vImgs.filter(img => img !== null) };
+        const jerseysWithLinks = await Promise.all(jerseys.map(async (jersey) => {
+            const cleanAndSign = async (input) => {
+                if (!input || typeof input !== 'string') return null;
+                let key = input;
+                if (input.includes('outflickz/')) {
+                    key = input.split('outflickz/')[1].split('?')[0];
+                }
+                const finalKey = key.replace(/[…\s]/g, '').trim();
+                return await getSecureUrl(finalKey);
+            };
+
+            let imageToProcess = jersey.displayImage || jersey.variants?.[0]?.images?.[0];
+            const signedDisplay = await cleanAndSign(imageToProcess);
+
+            const signedVariants = await Promise.all((jersey.variants || []).map(async v => {
+                const vImgs = await Promise.all((v.images || []).map(k => cleanAndSign(k)));
+                return { ...v, images: vImgs.filter(img => img !== null) };
+            }));
+
+            return { 
+                ...jersey, 
+                displayImage: signedDisplay,
+                variants: signedVariants 
+            };
         }));
 
-        return { 
-            ...jersey, 
-            displayImage: signedDisplay,
-            variants: signedVariants 
-        };
-    }));
+        const responseBody = JSON.stringify(jerseysWithLinks);
+        await redis.setex(CACHE_KEY, REDIS_TTL, responseBody);
 
-    return { 
-        statusCode: 200, 
-        headers: {
-            ...headers,
-            'Cache-Control': 'no-cache, no-store, must-revalidate' // Prevent stale links from being cached
-        }, 
-        body: JSON.stringify(jerseysWithLinks) 
-    };
+        return { 
+            statusCode: 200, 
+            headers: {
+                ...headers,
+                'X-Cache': 'MISS',
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
+            }, 
+            body: responseBody 
+        };
+    } catch (err) {
+        console.error("Redis Error in Jerseys:", err);
+        const jerseys = await db.collection('jerseys').find({}).sort({ createdAt: -1 }).toArray();
+        return { statusCode: 200, headers, body: JSON.stringify(jerseys) };
+    }
 }
 
 case 'get-jersey-details': {
     const { id } = body;
     if (!id) throw new Error("ID required");
+
+    const CACHE_KEY = `cache_product_detail_${id}`;
+    const REDIS_TTL = 518400; // 6 Days
+
+    const cachedProduct = await redis.get(CACHE_KEY);
+    if (cachedProduct) {
+        return { statusCode: 200, headers: { ...headers, 'X-Cache': 'HIT' }, body: cachedProduct };
+    }
+
     const product = await db.collection('jerseys').findOne({ _id: new ObjectId(id) });
     if (!product) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
     
     const signedVariants = await Promise.all((product.variants || []).map(async v => {
-        const vImgs = await Promise.all((v.images || []).map(k => getSecureUrl(k)));
+        const vImgs = await Promise.all((v.images || []).map(k => getSecureUrl(k.replace(/[…\s]/g, '').trim())));
         return { ...v, images: vImgs };
     }));
 
-    return { statusCode: 200, headers, body: JSON.stringify({ ...product, variants: signedVariants }) };
+    const result = JSON.stringify({ ...product, variants: signedVariants, category: 'jerseys' });
+    await redis.setex(CACHE_KEY, REDIS_TTL, result);
+
+    return { statusCode: 200, headers, body: result };
 }
 
 case 'update-jersey': {
@@ -957,14 +1071,10 @@ case 'update-jersey': {
         const vImgKeys = [];
         if (v.images && Array.isArray(v.images)) {
             for (const img of v.images) {
-                // If it's a new base64 string, upload it to S3
                 if (typeof img === 'string' && img.startsWith('data:')) {
                     const key = await uploadToS3(img);
                     if (key) vImgKeys.push(key);
                 } else {
-                    // It's already a key or a URL, keep it
-                    // Note: If you store full URLs, you might need to strip the domain back to a key 
-                    // depending on how your getSecureUrl handles inputs.
                     vImgKeys.push(img);
                 }
             }
@@ -981,17 +1091,28 @@ case 'update-jersey': {
         { $set: { name, price: parseFloat(price), description, variants: finalVariants, updatedAt: new Date() } }
     );
     
+    // Clear all caches for this specific product and its lists
+    await redis.del("cache_jerseys_list");
+    await redis.del(`cache_product_detail_${id}`);
+    await redis.del("cache_global_all_products");
+    await redis.del("cache_global_combined_products");
+
     return { statusCode: 200, headers, body: JSON.stringify({ message: "Success" }) };
 }
 
 case 'delete-jersey': {
     const { id } = body;
+    if (!id) throw new Error("ID required");
+
     await db.collection('jerseys').deleteOne({ _id: new ObjectId(id) });
+    
+    await redis.del("cache_jerseys_list");
+    await redis.del(`cache_product_detail_${id}`);
+    await redis.del("cache_global_all_products");
+    await redis.del("cache_global_combined_products");
+
     return { statusCode: 200, headers, body: JSON.stringify({ message: "Removed" }) };
 }
-
-// --- TANKTOP ASSET ACTIONS ---
-
 case 'add-tanktop': {
     const { name, price, description, variants } = body;
 
@@ -1020,80 +1141,102 @@ case 'add-tanktop': {
         description,
         createdAt: new Date()
     });
+
+    await redis.del("cache_tanktops_list");
+    await redis.del("cache_global_all_products");
+    await redis.del("cache_global_combined_products");
     
     return { statusCode: 201, headers, body: JSON.stringify(result) };
 }
+
 case 'get-tanktops': {
-    const tanktops = await db.collection('tanktops').find({}).sort({ createdAt: -1 }).toArray();
+    const CACHE_KEY = "cache_tanktops_list";
+    const forceRefresh = event.queryStringParameters && event.queryStringParameters.refresh === 'true';
+    const REDIS_TTL = 518400; // 6 Days (Safe buffer for 7-day IDrive links)
 
-    const tanktopsWithLinks = await Promise.all(tanktops.map(async (tanktop) => {
-        /**
-         * HELPER: Strips URLs and ellipsis to recover the raw S3 Key.
-         * This ensures getSecureUrl receives a valid path (e.g., 'vault/file.webp').
-         */
-        const cleanAndSign = async (input) => {
-            if (!input || typeof input !== 'string') return null;
-
-            let key = input;
-            // 1. If it's a full URL, extract the path after 'outflickz/'
-            if (input.includes('outflickz/')) {
-                key = input.split('outflickz/')[1].split('?')[0];
+    try {
+        if (!forceRefresh) {
+            const cachedData = await redis.get(CACHE_KEY);
+            if (cachedData) {
+                return { 
+                    statusCode: 200, 
+                    headers: { ...headers, 'X-Cache': 'HIT' }, 
+                    body: cachedData 
+                };
             }
-            
-            // 2. Remove the '…' character and any whitespace
-            const finalKey = key.replace(/[…\s]/g, '').trim();
-
-            // 3. Generate a fresh temporary link for the Private Bucket
-            return await getSecureUrl(finalKey);
-        };
-
-        // --- FALLBACK LOGIC START ---
-        let imageToProcess = tanktop.displayImage;
-        // If main displayImage is missing, borrow the first variant's first image
-        if (!imageToProcess && tanktop.variants?.[0]?.images?.[0]) {
-            imageToProcess = tanktop.variants[0].images[0];
         }
-        // --- FALLBACK LOGIC END ---
 
-        // 1. Sign the Main Image (using the identified best source)
-        const signedDisplay = await cleanAndSign(imageToProcess);
+        const tanktops = await db.collection('tanktops').find({}).sort({ createdAt: -1 }).toArray();
 
-        // 2. Sign all Variant Images
-        const signedVariants = await Promise.all((tanktop.variants || []).map(async v => {
-            const vImgs = await Promise.all((v.images || []).map(k => cleanAndSign(k)));
-            // Filter nulls so the frontend doesn't break
-            return { ...v, images: vImgs.filter(img => img !== null) };
+        const tanktopsWithLinks = await Promise.all(tanktops.map(async (tanktop) => {
+            const cleanAndSign = async (input) => {
+                if (!input || typeof input !== 'string') return null;
+                let key = input;
+                if (input.includes('outflickz/')) {
+                    key = input.split('outflickz/')[1].split('?')[0];
+                }
+                const finalKey = key.replace(/[…\s]/g, '').trim();
+                return await getSecureUrl(finalKey);
+            };
+
+            let imageToProcess = tanktop.displayImage || tanktop.variants?.[0]?.images?.[0];
+            const signedDisplay = await cleanAndSign(imageToProcess);
+
+            const signedVariants = await Promise.all((tanktop.variants || []).map(async v => {
+                const vImgs = await Promise.all((v.images || []).map(k => cleanAndSign(k)));
+                return { ...v, images: vImgs.filter(img => img !== null) };
+            }));
+
+            return { 
+                ...tanktop, 
+                displayImage: signedDisplay,
+                variants: signedVariants 
+            };
         }));
 
-        return { 
-            ...tanktop, 
-            displayImage: signedDisplay,
-            variants: signedVariants 
-        };
-    }));
+        const responseBody = JSON.stringify(tanktopsWithLinks);
+        await redis.setex(CACHE_KEY, REDIS_TTL, responseBody);
 
-    return { 
-        statusCode: 200, 
-        headers: {
-            ...headers,
-            'Cache-Control': 'no-cache, no-store, must-revalidate' // Prevents old links from staying in browser memory
-        }, 
-        body: JSON.stringify(tanktopsWithLinks) 
-    };
+        return { 
+            statusCode: 200, 
+            headers: {
+                ...headers,
+                'X-Cache': 'MISS',
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
+            }, 
+            body: responseBody 
+        };
+    } catch (err) {
+        console.error("Redis Error in Tanktops:", err);
+        const tanktops = await db.collection('tanktops').find({}).sort({ createdAt: -1 }).toArray();
+        return { statusCode: 200, headers, body: JSON.stringify(tanktops) };
+    }
 }
 
 case 'get-tanktop-details': {
     const { id } = body;
     if (!id) throw new Error("ID required");
+
+    const CACHE_KEY = `cache_product_detail_${id}`;
+    const REDIS_TTL = 518400;
+
+    const cachedProduct = await redis.get(CACHE_KEY);
+    if (cachedProduct) {
+        return { statusCode: 200, headers: { ...headers, 'X-Cache': 'HIT' }, body: cachedProduct };
+    }
+
     const product = await db.collection('tanktops').findOne({ _id: new ObjectId(id) });
     if (!product) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
     
     const signedVariants = await Promise.all((product.variants || []).map(async v => {
-        const vImgs = await Promise.all((v.images || []).map(k => getSecureUrl(k)));
+        const vImgs = await Promise.all((v.images || []).map(k => getSecureUrl(k.replace(/[…\s]/g, '').trim())));
         return { ...v, images: vImgs };
     }));
 
-    return { statusCode: 200, headers, body: JSON.stringify({ ...product, variants: signedVariants }) };
+    const result = JSON.stringify({ ...product, variants: signedVariants, category: 'tanktops' });
+    await redis.setex(CACHE_KEY, REDIS_TTL, result);
+
+    return { statusCode: 200, headers, body: result };
 }
 
 case 'update-tanktop': {
@@ -1107,7 +1250,6 @@ case 'update-tanktop': {
         const vImgKeys = [];
         if (v.images && Array.isArray(v.images)) {
             for (const img of v.images) {
-                // If new base64, upload; otherwise keep existing key
                 if (typeof img === 'string' && img.startsWith('data:')) {
                     const key = await uploadToS3(img);
                     if (key) vImgKeys.push(key);
@@ -1134,17 +1276,25 @@ case 'update-tanktop': {
         } }
     );
     
+    await redis.del("cache_tanktops_list");
+    await redis.del(`cache_product_detail_${id}`);
+    await redis.del("cache_global_all_products");
+    await redis.del("cache_global_combined_products");
+    
     return { statusCode: 200, headers, body: JSON.stringify({ message: "Success" }) };
 }
 
 case 'delete-tanktop': {
     const { id } = body;
     await db.collection('tanktops').deleteOne({ _id: new ObjectId(id) });
+
+    await redis.del("cache_tanktops_list");
+    await redis.del(`cache_product_detail_${id}`);
+    await redis.del("cache_global_all_products");
+    await redis.del("cache_global_combined_products");
+    
     return { statusCode: 200, headers, body: JSON.stringify({ message: "Removed" }) };
 }
-
-// --- TRACKSUIT HANDLERS ---
-
 case 'add-tracksuit': {
     const { name, price, description, variants } = body;
 
@@ -1154,7 +1304,6 @@ case 'add-tracksuit': {
             const variantImgKeys = [];
             if (v.images && Array.isArray(v.images)) {
                 for (const imgBase64 of v.images) {
-                    // Uploads each base64 image string to S3 and gets a key
                     const key = await uploadToS3(imgBase64);
                     if (key) variantImgKeys.push(key);
                 }
@@ -1175,79 +1324,102 @@ case 'add-tracksuit': {
         createdAt: new Date()
     });
     
+    // Global Cache Invalidation
+    await redis.del("cache_tracksuits_list");
+    await redis.del("cache_global_all_products");
+    await redis.del("cache_global_combined_products");
+
     return { statusCode: 201, headers, body: JSON.stringify(result) };
 }
+
 case 'get-tracksuits': {
-    const tracksuits = await db.collection('tracksuits').find({}).sort({ createdAt: -1 }).toArray();
-    
-    const tracksuitsWithLinks = await Promise.all(tracksuits.map(async (t) => {
-        /**
-         * HELPER: Extracts the raw S3 key from truncated or full URLs.
-         * Resolves the "ellipsis" issue by stripping garbage characters.
-         */
-        const cleanAndSign = async (input) => {
-            if (!input || typeof input !== 'string') return null;
+    const CACHE_KEY = "cache_tracksuits_list";
+    const forceRefresh = event.queryStringParameters && event.queryStringParameters.refresh === 'true';
+    const REDIS_TTL = 518400; // 6 Days (Ensures fresh 7-day IDrive links)
 
-            let key = input;
-            // 1. If the DB contains a full URL, extract the part after your bucket identifier
-            if (input.includes('outflickz/')) {
-                key = input.split('outflickz/')[1].split('?')[0];
+    try {
+        if (!forceRefresh) {
+            const cachedData = await redis.get(CACHE_KEY);
+            if (cachedData) {
+                return { 
+                    statusCode: 200, 
+                    headers: { ...headers, 'X-Cache': 'HIT' }, 
+                    body: cachedData 
+                };
             }
-            
-            // 2. Critical: Strip the truncation ellipsis (…) and any stray whitespace
-            const finalKey = key.replace(/[…\s]/g, '').trim();
-
-            // 3. Generate the 12-hour temporary link for the Private Bucket
-            return await getSecureUrl(finalKey);
-        };
-
-        // --- FALLBACK LOGIC START ---
-        let imageToProcess = t.displayImage;
-        // If main displayImage is missing, use the first image from the first variant as a backup
-        if (!imageToProcess && t.variants?.[0]?.images?.[0]) {
-            imageToProcess = t.variants[0].images[0];
         }
-        // --- FALLBACK LOGIC END ---
 
-        // 1. Sign the Primary Display Image (using cleaned fallback if necessary)
-        const signedDisplay = await cleanAndSign(imageToProcess);
+        const tracksuits = await db.collection('tracksuits').find({}).sort({ createdAt: -1 }).toArray();
+        
+        const tracksuitsWithLinks = await Promise.all(tracksuits.map(async (t) => {
+            const cleanAndSign = async (input) => {
+                if (!input || typeof input !== 'string') return null;
+                let key = input;
+                if (input.includes('outflickz/')) {
+                    key = input.split('outflickz/')[1].split('?')[0];
+                }
+                const finalKey = key.replace(/[…\s]/g, '').trim();
+                return await getSecureUrl(finalKey);
+            };
 
-        // 2. Sign all Variant Images
-        const signedVariants = await Promise.all((t.variants || []).map(async v => {
-            const vImgs = await Promise.all((v.images || []).map(k => cleanAndSign(k)));
-            // Filter out nulls to keep frontend arrays clean
-            return { ...v, images: vImgs.filter(img => img !== null) };
+            let imageToProcess = t.displayImage || t.variants?.[0]?.images?.[0];
+            const signedDisplay = await cleanAndSign(imageToProcess);
+
+            const signedVariants = await Promise.all((t.variants || []).map(async v => {
+                const vImgs = await Promise.all((v.images || []).map(k => cleanAndSign(k)));
+                return { ...v, images: vImgs.filter(img => img !== null) };
+            }));
+
+            return { 
+                ...t, 
+                displayImage: signedDisplay,
+                variants: signedVariants 
+            };
         }));
 
+        const responseBody = JSON.stringify(tracksuitsWithLinks);
+        await redis.setex(CACHE_KEY, REDIS_TTL, responseBody);
+
         return { 
-            ...t, 
-            displayImage: signedDisplay,
-            variants: signedVariants 
+            statusCode: 200, 
+            headers: {
+                ...headers,
+                'X-Cache': 'MISS',
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
+            }, 
+            body: responseBody 
         };
-    }));
-    
-    return { 
-        statusCode: 200, 
-        headers: {
-            ...headers,
-            'Cache-Control': 'no-cache, no-store, must-revalidate' // Forces fresh links on every request
-        }, 
-        body: JSON.stringify(tracksuitsWithLinks) 
-    };
+    } catch (err) {
+        console.error("Redis Error in Tracksuits:", err);
+        const tracksuits = await db.collection('tracksuits').find({}).sort({ createdAt: -1 }).toArray();
+        return { statusCode: 200, headers, body: JSON.stringify(tracksuits) };
+    }
 }
 
 case 'get-tracksuit-details': {
     const { id } = body;
     if (!id) throw new Error("ID required");
+
+    const CACHE_KEY = `cache_product_detail_${id}`;
+    const REDIS_TTL = 518400;
+
+    const cachedProduct = await redis.get(CACHE_KEY);
+    if (cachedProduct) {
+        return { statusCode: 200, headers: { ...headers, 'X-Cache': 'HIT' }, body: cachedProduct };
+    }
+
     const product = await db.collection('tracksuits').findOne({ _id: new ObjectId(id) });
     if (!product) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
     
     const signedVariants = await Promise.all((product.variants || []).map(async v => {
-        const vImgs = await Promise.all((v.images || []).map(k => getSecureUrl(k)));
+        const vImgs = await Promise.all((v.images || []).map(k => getSecureUrl(k.replace(/[…\s]/g, '').trim())));
         return { ...v, images: vImgs };
     }));
 
-    return { statusCode: 200, headers, body: JSON.stringify({ ...product, variants: signedVariants }) };
+    const result = JSON.stringify({ ...product, variants: signedVariants, category: 'tracksuits' });
+    await redis.setex(CACHE_KEY, REDIS_TTL, result);
+
+    return { statusCode: 200, headers, body: result };
 }
 
 case 'update-tracksuit': {
@@ -1261,13 +1433,10 @@ case 'update-tracksuit': {
         const vImgKeys = [];
         if (v.images && Array.isArray(v.images)) {
             for (const img of v.images) {
-                // If it's a new base64 string (from file upload), upload to S3
                 if (typeof img === 'string' && img.startsWith('data:')) {
                     const key = await uploadToS3(img);
                     if (key) vImgKeys.push(key);
                 } else {
-                    // If it's already a key (not a base64), keep it as is
-                    // This handles cases where images weren't changed during edit
                     const cleanKey = typeof img === 'string' && img.includes('?') ? img.split('?')[0].split('/').pop() : img;
                     vImgKeys.push(cleanKey);
                 }
@@ -1285,6 +1454,11 @@ case 'update-tracksuit': {
         { $set: { name, price: parseFloat(price), description, variants: finalVariants, updatedAt: new Date() } }
     );
     
+    await redis.del("cache_tracksuits_list");
+    await redis.del(`cache_product_detail_${id}`);
+    await redis.del("cache_global_all_products");
+    await redis.del("cache_global_combined_products");
+
     return { statusCode: 200, headers, body: JSON.stringify({ message: "Success" }) };
 }
 
@@ -1292,6 +1466,12 @@ case 'delete-tracksuit': {
     const { id } = body;
     if (!id) throw new Error("ID required");
     await db.collection('tracksuits').deleteOne({ _id: new ObjectId(id) });
+    
+    await redis.del("cache_tracksuits_list");
+    await redis.del(`cache_product_detail_${id}`);
+    await redis.del("cache_global_all_products");
+    await redis.del("cache_global_combined_products");
+
     return { statusCode: 200, headers, body: JSON.stringify({ message: "Removed" }) };
 }
 
@@ -1671,85 +1851,151 @@ case 'delete-social-post': {
 case 'get-any-product-details': {
     const { id } = body;
     if (!id) throw new Error("ID required");
-    
-    const collections = ['wears', 'shorts', 'caps', 'jerseys', 'tanktops', 'tracksuits'];
-    let product = null;
-    let foundCollection = '';
 
-    for (const col of collections) {
-        // Ensure id is a valid ObjectId before searching
-        try {
-            product = await db.collection(col).findOne({ _id: new ObjectId(id) });
-            if (product) {
-                foundCollection = col;
-                break; 
+    const CACHE_KEY = `cache_product_detail_${id}`;
+    // Redis expires in 6 days (518400s) to stay ahead of 7-day IDrive link
+    const REDIS_TTL = 518400;
+
+    try {
+        // 1. Try Redis first for this specific product ID
+        const cachedProduct = await redis.get(CACHE_KEY);
+        if (cachedProduct) {
+            return { 
+                statusCode: 200, 
+                headers: { ...headers, 'X-Cache': 'HIT' }, 
+                body: cachedProduct 
+            };
+        }
+
+        const collections = ['wears', 'shorts', 'caps', 'jerseys', 'tanktops', 'tracksuits'];
+        let product = null;
+        let foundCollection = '';
+
+        // 2. Cache MISS: Find the product in MongoDB
+        for (const col of collections) {
+            try {
+                product = await db.collection(col).findOne({ _id: new ObjectId(id) });
+                if (product) {
+                    foundCollection = col;
+                    break; 
+                }
+            } catch (oidErr) {
+                continue; 
             }
-        } catch (oidErr) {
-            continue; // Skip if ID format is invalid for this collection
         }
-    }
 
-    if (!product) {
-        return { statusCode: 404, headers, body: JSON.stringify({ message: "Product not found" }) };
-    }
-
-    // 1. SIGN TOP-LEVEL PRODUCT IMAGES (Optional, but safe)
-    if (product.images && Array.isArray(product.images)) {
-        product.images = await Promise.all(product.images.map(k => getSecureUrl(k)));
-    }
-
-    // 2. SIGN VARIANT IMAGES
-    const signedVariants = await Promise.all((product.variants || []).map(async v => {
-        let signedVImgs = [];
-        if (v.images && Array.isArray(v.images)) {
-            // Sign each key in the variant's image array
-            signedVImgs = await Promise.all(v.images.map(k => getSecureUrl(k)));
+        if (!product) {
+            return { statusCode: 404, headers, body: JSON.stringify({ message: "Product not found" }) };
         }
-        return { ...v, images: signedVImgs };
-    }));
 
-    // 3. RETURN DATA WITH CATEGORY
-    return { 
-        statusCode: 200, 
-        headers, 
-        body: JSON.stringify({ 
+        // 3. Clean and Sign Images (7-day IDrive signature)
+        // Top-level images
+        if (product.images && Array.isArray(product.images)) {
+            product.images = await Promise.all(product.images.map(k => getSecureUrl(k)));
+        }
+
+        // Variant images
+        const signedVariants = await Promise.all((product.variants || []).map(async v => {
+            let signedVImgs = [];
+            if (v.images && Array.isArray(v.images)) {
+                signedVImgs = await Promise.all(v.images.map(k => getSecureUrl(k)));
+            }
+            return { ...v, images: signedVImgs };
+        }));
+
+        const result = { 
             ...product, 
             variants: signedVariants,
-            category: foundCollection // Critical for the "Fitment" vs "Size" label logic
-        }) 
-    };
+            category: foundCollection 
+        };
+
+        const responseBody = JSON.stringify(result);
+
+        // 4. Save this specific product to Redis for 6 days
+        await redis.setex(CACHE_KEY, REDIS_TTL, responseBody);
+
+        return { 
+            statusCode: 200, 
+            headers: { ...headers, 'X-Cache': 'MISS' }, 
+            body: responseBody 
+        };
+
+    } catch (err) {
+        console.error("Product Details Error:", err);
+        return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
+    }
 }
 
 case 'get-all-products-combined': {
-    // Fetch all collections in parallel for maximum speed
-    const [wears, shorts, caps, jerseys, tracksuits, tanktops] = await Promise.all([
-        db.collection('wears').find({}).toArray(),
-        db.collection('shorts').find({}).toArray(),
-        db.collection('caps').find({}).toArray(),
-        db.collection('jerseys').find({}).toArray(),
-        db.collection('tracksuits').find({}).toArray(),
-        db.collection('tanktops').find({}).toArray()
-    ]);
+    const CACHE_KEY = "cache_global_combined_products";
+    const forceRefresh = event.queryStringParameters && event.queryStringParameters.refresh === 'true';
 
-    // Combine them and label them so the frontend knows what is what
-    const allProducts = [
-        ...wears.map(p => ({ ...p, category: 'wear' })),
-        ...shorts.map(p => ({ ...p, category: 'short' })),
-        ...caps.map(p => ({ ...p, category: 'cap' })),
-        ...jerseys.map(p => ({ ...p, category: 'jersey' })),
-        ...tracksuits.map(p => ({ ...p, category: 'tracksuit' })),
-        ...tanktops.map(p => ({ ...p, category: 'tanktop' }))
-    ];
+    // 7 Days for IDrive link (604800s)
+    // 6 Days for Redis Cache (518400s) to stay ahead of link expiration
+    const REDIS_TTL = 518400; 
 
-    // Sign the first image of each product for the slider preview
-    const signedProducts = await Promise.all(allProducts.map(async (p) => {
-        // Get the first image of the first variant
-        const firstKey = p.variants?.[0]?.images?.[0];
-        const signedUrl = firstKey ? await getSecureUrl(firstKey) : null;
-        return { ...p, displayImage: signedUrl };
-    }));
+    try {
+        // 1. Try Redis first
+        if (!forceRefresh) {
+            const cachedData = await redis.get(CACHE_KEY);
+            if (cachedData) {
+                return { 
+                    statusCode: 200, 
+                    headers: { ...headers, 'X-Cache': 'HIT' }, 
+                    body: cachedData 
+                };
+            }
+        }
 
-    return { statusCode: 200, headers, body: JSON.stringify(signedProducts) };
+        // 2. Cache MISS: Fetch all collections in parallel for maximum speed
+        const collections = ['wears', 'shorts', 'caps', 'jerseys', 'tracksuits', 'tanktops'];
+        const results = await Promise.all(
+            collections.map(async (col) => {
+                const data = await db.collection(col).find({}).toArray();
+                // Label category (e.g., 'wears' becomes 'wear')
+                const categoryLabel = col.endsWith('s') ? col.slice(0, -1) : col;
+                return data.map(p => ({ ...p, category: categoryLabel }));
+            })
+        );
+
+        const allProducts = results.flat();
+
+        // 3. Sign the first image of each product for IDrive e2
+        const signedProducts = await Promise.all(allProducts.map(async (p) => {
+            const firstKey = p.variants?.[0]?.images?.[0];
+            
+            // Clean the key (removes ellipsis/whitespace) and sign for 7 days
+            const signedUrl = firstKey ? await getSecureUrl(firstKey) : null;
+            
+            return { 
+                ...p, 
+                displayImage: signedUrl 
+            };
+        }));
+
+        const responseBody = JSON.stringify(signedProducts);
+
+        // 4. Save to Redis for 6 days
+        await redis.setex(CACHE_KEY, REDIS_TTL, responseBody);
+
+        return { 
+            statusCode: 200, 
+            headers: {
+                ...headers,
+                'X-Cache': 'MISS',
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
+            }, 
+            body: responseBody 
+        };
+
+    } catch (err) {
+        console.error("Combined Products Error:", err);
+        return { 
+            statusCode: 500, 
+            headers, 
+            body: JSON.stringify({ error: "Failed to load combined products", detail: err.message }) 
+        };
+    }
 }
 
 
@@ -2497,27 +2743,80 @@ case 'get-broadcast-audience': {
     }
 }
 
-// --- 3. GET ALL PRODUCTS (Keep for other Admin tools if needed) ---
 case 'get-all-products': {
+    const CACHE_KEY = "cache_global_all_products";
+    const forceRefresh = event.queryStringParameters && event.queryStringParameters.refresh === 'true';
+
+    // 7 Days for IDrive link (604800s)
+    // 6 Days for Redis Cache (518400s) to prevent serving expired links
+    const REDIS_TTL = 518400; 
+
     try {
+        // 1. Try Redis first
+        if (!forceRefresh) {
+            const cachedData = await redis.get(CACHE_KEY);
+            if (cachedData) {
+                return { 
+                    statusCode: 200, 
+                    headers: { ...headers, 'X-Cache': 'HIT' }, 
+                    body: cachedData 
+                };
+            }
+        }
+
+        // 2. Cache MISS: Aggregate from all collections
         const collections = ['wears', 'shorts', 'caps', 'jerseys', 'tanktops', 'tracksuits'];
         const allResults = await Promise.all(
             collections.map(col => 
-                db.collection(col).find({}, { projection: { name: 1, price: 1, mainImage: 1 } }).toArray()
+                db.collection(col).find({}, { projection: { name: 1, price: 1, mainImage: 1, variants: 1 } }).toArray()
             )
         );
         
         const products = allResults.flat();
+
+        // 3. Clean and Sign main images with the updated helper
         const signedProducts = await Promise.all(products.map(async (p) => {
-            const url = p.mainImage ? await getSecureUrl(p.mainImage) : null;
-            return { ...p, mainImage: url };
+            let imgKey = p.mainImage;
+            if (!imgKey && p.variants?.[0]?.images?.[0]) {
+                imgKey = p.variants[0].images[0];
+            }
+
+            if (imgKey) {
+                const cleanKey = imgKey.includes('outflickz/') 
+                    ? imgKey.split('outflickz/')[1].split('?')[0] 
+                    : imgKey.replace(/[…\s]/g, '').trim();
+                
+                // This calls your updated helper with the 7-day expiry
+                const url = await getSecureUrl(cleanKey); 
+                return { ...p, mainImage: url, variants: undefined }; 
+            }
+            return { ...p, mainImage: null, variants: undefined };
         }));
 
-        return { statusCode: 200, headers, body: JSON.stringify({ success: true, products: signedProducts }) };
+        const responseBody = JSON.stringify({ success: true, products: signedProducts });
+
+        // 4. Cache the flattened list for 6 days (syncing with IDrive expiry)
+        await redis.setex(CACHE_KEY, REDIS_TTL, responseBody);
+
+        return { 
+            statusCode: 200, 
+            headers: {
+                ...headers,
+                'X-Cache': 'MISS',
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
+            }, 
+            body: responseBody 
+        };
     } catch (err) {
-        return { statusCode: 500, headers, body: JSON.stringify({ success: false, message: err.message }) };
+        console.error("Global Products Error:", err);
+        return { 
+            statusCode: 500, 
+            headers, 
+            body: JSON.stringify({ success: false, message: err.message }) 
+        };
     }
 }
+
 case 'mass-broadcast': {
     try {
         const { template, subject, message, imageAssets } = JSON.parse(event.body);

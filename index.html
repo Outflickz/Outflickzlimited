@@ -73,7 +73,6 @@
     }
 
     @keyframes shimmer { 100% { transform: translateX(100%); } }
-
     #heroVideo {
         aspect-ratio: 16 / 9;
         background: #000;
@@ -238,16 +237,16 @@
     <div id="mobile-auth-section" class="mt-auto border-t border-black/5 pt-8"></div>
 </div>
 
-    <section class="relative w-full min-h-[60vh] lg:h-screen bg-black flex items-center justify-center overflow-hidden">
-        <video id="heroVideo" 
+<section class="relative w-full min-h-[60vh] lg:h-screen bg-black flex items-center justify-center overflow-hidden">
+      <video id="heroVideo" 
        autoplay 
        muted 
        loop 
        playsinline 
        preload="metadata" 
        poster="https://www.outflickz.com/assets/og-preview.jpg" 
-       class="w-full h-full lg:w-auto lg:h-full max-w-none object-contain opacity-90">
-    <source src="outflickz.mov" type="video/mp4">
+       class="absolute inset-0 w-full h-full object-cover opacity-90">
+    <source src="outflickz.mp4" type="video/mp4">
 </video>
         
         <button id="muteBtn" onclick="toggleMute()" class="absolute top-24 right-6 z-20 border border-white/40 text-white backdrop-blur-md">
@@ -259,6 +258,7 @@
             <p class="text-[8px] md:text-[10px] tracking-[0.4em] uppercase mt-3 opacity-80">Shop Now</p>
         </div>
     </section>
+
 
   <main class="py-2 md:py-4 bg-white min-h-screen">
     <div class="px-6 md:px-10 mb-8 bg-white py-4 border-b border-black/5">
@@ -387,6 +387,7 @@
     const SESSION_TIMEOUT = 24 * 60 * 60 * 1000;
     let MASTER_PRODUCTS = []; 
     let selectedPlatform = 'wa';
+    let IS_REFRESHING_WEARS = false;
 
     const COLLECTION_IMAGES = [
         'https://i.imgur.com/2h1w5kp.jpeg',
@@ -466,6 +467,11 @@
             body: JSON.stringify({ action: 'get-all-products-combined' }) 
         });
 
+        if (!res.ok) {
+            console.error(`Vault API Error: ${res.status}`);
+            return;
+        }
+
         const data = await res.json();
 
         if (Array.isArray(data)) {
@@ -473,23 +479,19 @@
                 let totalStock = 0;
                 if (p.variants && Array.isArray(p.variants)) {
                     p.variants.forEach(v => {
-                        // Check for the Size/Stock Matrix (the most accurate)
                         if (v.stockMatrix && typeof v.stockMatrix === 'object') {
                             Object.values(v.stockMatrix).forEach(qty => {
                                 totalStock += (Math.max(0, Number(qty) || 0));
                             });
                         } 
-                        // Fallback for flat stock numbers
                         else if (v.stock !== undefined) {
                             totalStock += (Math.max(0, Number(v.stock) || 0));
                         }
                     });
                 }
-                // Flag product as Out of Stock if sum of all variants is 0
                 return { ...p, isOutOfStock: totalStock <= 0, actualStock: totalStock };
             });
 
-            // Keep Sold Out items at the bottom so they don't hurt conversion
             processedProducts.sort((a, b) => a.isOutOfStock - b.isOutOfStock);
 
             MASTER_PRODUCTS = processedProducts;
@@ -499,6 +501,7 @@
         console.error("Vault Synchronization Error:", err); 
     }
 }
+
 function renderProducts(list) {
     const grid = document.getElementById('product-grid');
     if (!grid) return;
@@ -634,9 +637,8 @@ function updatePreview(event, productId, newSrc, isVariantSoldOut) {
         }
     }
 }
-
 async function handleImageError(img, id) {
-    // 1. Exit if placeholder fails or if we've already tried a refresh for this specific image
+    // 1. Exit if placeholder fails or if this specific image is already in retry mode
     if (img.src.includes('placehold.co')) return;
     if (img.dataset.refreshing === 'true') return; 
 
@@ -644,46 +646,60 @@ async function handleImageError(img, id) {
 
     // 2. TRIGGER SILENT REFRESH (Only for expired S3/IDrive links)
     if (isSecureLink && typeof fetchProducts === 'function') {
-        console.warn(`Vault link expired for: ${id}. Requesting fresh access keys...`);
-        
         img.dataset.refreshing = 'true'; 
-        // Add a subtle pulse to let the user know it's "thinking" rather than broken
-        img.classList.add('animate-pulse');
+        img.classList.add('animate-pulse', 'opacity-50');
 
         try {
-            // Re-fetch all products to get fresh signed URLs from the backend
-            await fetchProducts(); 
+            // DEBOUNCE LOGIC: If another image already started the fetch, just wait for it
+            if (!IS_FETCHING_REFRESH) {
+                IS_FETCHING_REFRESH = true;
+                console.warn(`Vault links expired. Synchronizing with MongoDB/Redis...`);
+                await fetchProducts(); 
+                IS_FETCHING_REFRESH = false;
+            } else {
+                // Wait a moment for the primary fetch to populate MASTER_PRODUCTS
+                await new Promise(resolve => setTimeout(resolve, 1500));
+            }
 
-            // After fetchProducts updates MASTER_PRODUCTS, find the new URL
-            if (typeof MASTER_PRODUCTS !== 'undefined') {
+            // 3. FIND FRESH DATA
+            if (typeof MASTER_PRODUCTS !== 'undefined' && Array.isArray(MASTER_PRODUCTS)) {
                 const freshProduct = MASTER_PRODUCTS.find(p => p._id === id);
                 
-                // Try to find the new display image or the first available variant image
-                let newUrl = freshProduct?.displayImage;
-                if (!newUrl && freshProduct?.variants?.length > 0) {
-                    const firstVal = freshProduct.variants.find(v => v.images && v.images.length > 0);
-                    newUrl = firstVal?.images[0];
-                }
+                if (freshProduct) {
+                    // Search for primary image or variant fallback
+                    let newUrl = freshProduct.displayImage;
+                    if (!newUrl && freshProduct.variants?.length > 0) {
+                        const variantWithImg = freshProduct.variants.find(v => v.images && v.images.length > 0);
+                        newUrl = variantWithImg?.images[0];
+                    }
 
-                if (newUrl && newUrl !== img.src) {
-                    console.log(`Successfully swapped expired link for ${id}`);
-                    img.src = newUrl;
-                    img.classList.remove('animate-pulse', 'opacity-50');
-                    img.dataset.refreshing = 'false';
-                    return; // EXIT SUCCESS
+                    // Only update if the URL is actually new
+                    if (newUrl && newUrl !== img.src) {
+                        console.log(`Updated link for: ${id}`);
+                        img.src = newUrl;
+                        
+                        // Clean up UI once new image loads
+                        img.onload = () => {
+                            img.classList.remove('animate-pulse', 'opacity-50');
+                            img.dataset.refreshing = 'false';
+                        };
+                        return; // SUCCESS
+                    }
                 }
             }
         } catch (err) {
-            console.error("Silent refresh failed:", err);
+            console.error("Vault Refresh Error:", err);
+            IS_FETCHING_REFRESH = false;
         }
     }
 
-    // 3. FALLBACK: If refresh fails or it's a permanent error, use placeholder
+    // 4. FALLBACK: Permanent error handling
     console.error(`Permanent image failure for ${id}. Showing placeholder.`);
     img.parentElement?.classList.remove('skeleton');
-    img.src = 'https://placehold.co/600x800/f4f4f5/18181b?text=OUTFLICKZ';
-    img.classList.add('opacity-50');
+    img.src = 'https://placehold.co/600x800/000000/FFFFFF?text=OUTFLICKZ';
+    img.classList.add('opacity-40'); // Dim the placeholder slightly
     img.classList.remove('animate-pulse');
+    img.dataset.refreshing = 'false';
 }
 
    function scrollGallery(direction) {
@@ -901,6 +917,24 @@ document.addEventListener('visibilitychange', () => {
         console.log("Session aged. Refreshing secure links...");
         fetchProducts();
         lastFetchTime = now;
+    }
+});
+// Change 'load' to 'DOMContentLoaded' for a much faster start
+document.addEventListener('DOMContentLoaded', () => {
+    const video = document.getElementById('heroVideo');
+    
+    if (video) {
+        video.muted = true;
+        
+        // Play as soon as enough data is buffered (faster than 'load')
+        video.addEventListener('canplay', () => {
+            video.play().catch(err => console.log("Manual play required"));
+        }, { once: true });
+
+        // If it's already ready, play it now
+        if (video.readyState >= 3) {
+            video.play();
+        }
     }
 });
 </script>

@@ -837,10 +837,21 @@ function toggleSidebar(open) {
     }
 
     function toggleMute() {
-        const video = document.getElementById('heroVideo');
-        video.muted = !video.muted;
-        document.getElementById('muteIcon').innerHTML = video.muted ? '🔇' : '🔊';
-    }
+    // Select all video elements inside your hero section
+    const videos = document.querySelectorAll('section video');
+    const muteIcon = document.getElementById('muteIcon');
+    
+    // Check the current state of the first video to determine the toggle direction
+    const isCurrentlyMuted = videos[0].muted;
+
+    videos.forEach(video => {
+        // Apply the new state to all videos simultaneously
+        video.muted = !isCurrentlyMuted;
+    });
+
+    // Update the button icon based on the new state
+    muteIcon.innerHTML = !isCurrentlyMuted ? '🔇' : '🔊';
+}
 
 
 
@@ -929,23 +940,31 @@ document.addEventListener('visibilitychange', () => {
         lastFetchTime = now;
     }
 });
-// Change 'load' to 'DOMContentLoaded' for a much faster start
 document.addEventListener('DOMContentLoaded', () => {
-    const video = document.getElementById('heroVideo');
+    // Select all videos in the hero section to handle the dual-video layout
+    const heroVideos = document.querySelectorAll('section video');
     
-    if (video) {
+    heroVideos.forEach(video => {
         video.muted = true;
-        
-        // Play as soon as enough data is buffered (faster than 'load')
+        video.setAttribute('muted', ''); 
+
+        // 2. Play as soon as the individual video has buffered enough
         video.addEventListener('canplay', () => {
-            video.play().catch(err => console.log("Manual play required"));
+            video.play().catch(err => {
+                console.warn("Autoplay prevented by browser. User interaction needed.");
+            });
         }, { once: true });
 
-        // If it's already ready, play it now
+        // 3. Immediate check: if video is already buffered, play now
         if (video.readyState >= 3) {
             video.play();
         }
-    }
+
+        // 4. Recovery: If a video stalls due to your "Slow Network" warning, try to resume
+        video.addEventListener('waiting', () => {
+            console.log("Video buffering due to network... attempting resume.");
+        });
+    });
 });
 </script>
 </body>

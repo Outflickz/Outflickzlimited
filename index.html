@@ -238,22 +238,23 @@
 </div>
 <section class="relative w-full min-h-[80vh] lg:h-screen bg-black overflow-hidden">
     
-    <div class="absolute inset-0 grid grid-cols-1 lg:grid-cols-2 w-full h-full">
-        
-        <div class="relative h-full w-full overflow-hidden">
-            <video autoplay muted loop playsinline preload="auto" 
-                   class="w-full h-full object-cover opacity-90 border-b lg:border-b-0 lg:border-r border-white/10">
+    <div class="hidden lg:grid grid-cols-2 w-full h-full absolute inset-0">
+        <div class="relative h-full w-full overflow-hidden bg-zinc-900">
+            <video autoplay muted loop playsinline preload="auto" class="w-full h-full object-cover opacity-90 border-r border-white/10">
                 <source src="outflickz.mp4" type="video/mp4">
             </video>
         </div>
-
-        <div class="relative h-full w-full overflow-hidden">
-            <video autoplay muted loop playsinline preload="auto" 
-                   class="w-full h-full object-cover opacity-90">
-                <source src="outflickz.mov" type="video/quicktime">
+        <div class="relative h-full w-full overflow-hidden bg-zinc-900">
+            <video autoplay muted loop playsinline preload="auto" class="w-full h-full object-cover opacity-90">
+                <source src="outflickz1.mp4" type="video/mp4">
             </video>
         </div>
+    </div>
 
+    <div class="block lg:hidden w-full h-full absolute inset-0 bg-zinc-900">
+        <video id="mobileHeroVideo" autoplay muted playsinline preload="auto" class="w-full h-full object-cover opacity-90">
+            <source id="mobileSource" src="outflickz.mp4" type="video/mp4">
+        </video>
     </div>
 
     <button id="muteBtn" onclick="toggleMute()" class="absolute top-24 right-6 z-20 px-4 py-2 border border-white/60 text-white backdrop-blur-md rounded-full transition-all hover:bg-white/10">
@@ -261,12 +262,9 @@
     </button>
 
     <div class="absolute bottom-[10%] left-[5%] text-white z-10 pointer-events-none">
-        <h1 class="text-6xl md:text-8xl font-black italic tracking-tighter uppercase leading-none drop-shadow-2xl">
-            STYLE<br>REDEFINED
-        </h1>
+        <h1 class="text-6xl md:text-8xl font-black italic tracking-tighter uppercase leading-none drop-shadow-2xl">STYLE<br>REDEFINED</h1>
         <p class="text-[10px] md:text-[12px] tracking-[0.9em] uppercase mt-4 opacity-80">Shop Now</p>
     </div>
-
 </section>
 
 
@@ -397,7 +395,8 @@
     const SESSION_TIMEOUT = 24 * 60 * 60 * 1000;
     let MASTER_PRODUCTS = []; 
     let selectedPlatform = 'wa';
-    let IS_REFRESHING_WEARS = false;
+let IS_FETCHING_REFRESH = false; 
+let IS_REFRESHING_WEARS = false; 
 
     const COLLECTION_IMAGES = [
         'https://i.imgur.com/2h1w5kp.jpeg',
@@ -647,59 +646,53 @@ function updatePreview(event, productId, newSrc, isVariantSoldOut) {
         }
     }
 }
+
+
+// 2. THE MAIN HANDLE ERROR FUNCTION
 async function handleImageError(img, id) {
-    // 1. Exit if placeholder fails or if this specific image is already in retry mode
     if (img.src.includes('placehold.co')) return;
     if (img.dataset.refreshing === 'true') return; 
 
     const isSecureLink = img.src.includes('idrivee2') || img.src.includes('amazonaws');
 
-    // 2. TRIGGER SILENT REFRESH (Only for expired S3/IDrive links)
     if (isSecureLink && typeof fetchProducts === 'function') {
         img.dataset.refreshing = 'true'; 
         img.classList.add('animate-pulse', 'opacity-50');
 
         try {
-            // DEBOUNCE LOGIC: If another image already started the fetch, just wait for it
+            // This now correctly references the global variable above
             if (!IS_FETCHING_REFRESH) {
                 IS_FETCHING_REFRESH = true;
                 console.warn(`Vault links expired. Synchronizing with MongoDB/Redis...`);
                 await fetchProducts(); 
                 IS_FETCHING_REFRESH = false;
             } else {
-                // Wait a moment for the primary fetch to populate MASTER_PRODUCTS
                 await new Promise(resolve => setTimeout(resolve, 1500));
             }
 
-            // 3. FIND FRESH DATA
             if (typeof MASTER_PRODUCTS !== 'undefined' && Array.isArray(MASTER_PRODUCTS)) {
                 const freshProduct = MASTER_PRODUCTS.find(p => p._id === id);
                 
                 if (freshProduct) {
-                    // Search for primary image or variant fallback
                     let newUrl = freshProduct.displayImage;
                     if (!newUrl && freshProduct.variants?.length > 0) {
                         const variantWithImg = freshProduct.variants.find(v => v.images && v.images.length > 0);
                         newUrl = variantWithImg?.images[0];
                     }
 
-                    // Only update if the URL is actually new
                     if (newUrl && newUrl !== img.src) {
-                        console.log(`Updated link for: ${id}`);
                         img.src = newUrl;
-                        
-                        // Clean up UI once new image loads
                         img.onload = () => {
                             img.classList.remove('animate-pulse', 'opacity-50');
                             img.dataset.refreshing = 'false';
                         };
-                        return; // SUCCESS
+                        return; 
                     }
                 }
             }
         } catch (err) {
             console.error("Vault Refresh Error:", err);
-            IS_FETCHING_REFRESH = false;
+            IS_FETCHING_REFRESH = false; // Reset so retries can happen
         }
     }
 
@@ -707,7 +700,7 @@ async function handleImageError(img, id) {
     console.error(`Permanent image failure for ${id}. Showing placeholder.`);
     img.parentElement?.classList.remove('skeleton');
     img.src = 'https://placehold.co/600x800/000000/FFFFFF?text=OUTFLICKZ';
-    img.classList.add('opacity-40'); // Dim the placeholder slightly
+    img.classList.add('opacity-40');
     img.classList.remove('animate-pulse');
     img.dataset.refreshing = 'false';
 }
@@ -836,24 +829,6 @@ function toggleSidebar(open) {
         cartCount.innerText = cart.length;
     }
 
-    function toggleMute() {
-    // Select all video elements inside your hero section
-    const videos = document.querySelectorAll('section video');
-    const muteIcon = document.getElementById('muteIcon');
-    
-    // Check the current state of the first video to determine the toggle direction
-    const isCurrentlyMuted = videos[0].muted;
-
-    videos.forEach(video => {
-        // Apply the new state to all videos simultaneously
-        video.muted = !isCurrentlyMuted;
-    });
-
-    // Update the button icon based on the new state
-    muteIcon.innerHTML = !isCurrentlyMuted ? '🔇' : '🔊';
-}
-
-
 
     function filterProducts() {
         const query = document.getElementById('productSearch').value.toLowerCase();
@@ -941,31 +916,62 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 document.addEventListener('DOMContentLoaded', () => {
-    // Select all videos in the hero section to handle the dual-video layout
-    const heroVideos = document.querySelectorAll('section video');
-    
-    heroVideos.forEach(video => {
+    const mobileVideo = document.getElementById('mobileHeroVideo');
+    const mobileSource = document.getElementById('mobileSource');
+    const allVideos = document.querySelectorAll('section video');
+
+    // MOBILE SEQUENCE CONFIG
+    const playlist = ["outflickz.mp4", "outflickz1.mp4"];
+    let currentIdx = 0;
+
+    // 1. Initialize all videos for instant start
+    allVideos.forEach(video => {
         video.muted = true;
-        video.setAttribute('muted', ''); 
-
-        // 2. Play as soon as the individual video has buffered enough
-        video.addEventListener('canplay', () => {
-            video.play().catch(err => {
-                console.warn("Autoplay prevented by browser. User interaction needed.");
-            });
-        }, { once: true });
-
-        // 3. Immediate check: if video is already buffered, play now
-        if (video.readyState >= 3) {
-            video.play();
-        }
-
-        // 4. Recovery: If a video stalls due to your "Slow Network" warning, try to resume
-        video.addEventListener('waiting', () => {
-            console.log("Video buffering due to network... attempting resume.");
+        video.play().catch(() => {
+            console.warn("Autoplay interaction pending...");
         });
     });
+
+    // 2. Mobile Playlist Logic (Play Fully -> Load Next -> Repeat)
+    if (mobileVideo) {
+        mobileVideo.addEventListener('ended', () => {
+            // Check if mobile player is the active one
+            if (window.getComputedStyle(mobileVideo.closest('div')).display !== 'none') {
+                
+                // Move to next video index
+                currentIdx = (currentIdx + 1) % playlist.length;
+                
+                // Update source path
+                mobileSource.src = playlist[currentIdx];
+                
+                // CRITICAL: Reload the video object to recognize the new source
+                mobileVideo.load();
+                
+                // Play immediately after load
+                const playPromise = mobileVideo.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        console.error("Sequence transition error:", error);
+                    });
+                }
+                
+                console.log(`Now playing on mobile: ${playlist[currentIdx]}`);
+            }
+        });
+    }
 });
+
+// Master Mute Toggle
+function toggleMute() {
+    const videos = document.querySelectorAll('video');
+    const muteIcon = document.getElementById('muteIcon');
+    if (videos.length === 0) return;
+
+    const isMuted = videos[0].muted;
+    videos.forEach(v => v.muted = !isMuted);
+    muteIcon.innerHTML = !isMuted ? '🔇' : '🔊';
+}
 </script>
 </body>
 </html>

@@ -236,28 +236,38 @@
 
     <div id="mobile-auth-section" class="mt-auto border-t border-black/5 pt-8"></div>
 </div>
-
-<section class="relative w-full min-h-[80vh] lg:h-screen bg-black flex items-center justify-center overflow-hidden">
-      <video id="heroVideo" 
-       autoplay 
-       muted 
-       loop 
-       playsinline 
-       preload="metadata" 
-       poster="https://www.outflickz.com/og-preview.jpg" 
-       class="absolute inset-0 w-full h-full object-cover opacity-90">
-    <source src="OUTFLICKZ.MOV" type="video/mp4">
-</video>
+<section class="relative w-full min-h-[80vh] lg:h-screen bg-black overflow-hidden">
+    
+    <div class="absolute inset-0 grid grid-cols-1 lg:grid-cols-2 w-full h-full">
         
-        <button id="muteBtn" onclick="toggleMute()" class="absolute top-24 right-6 z-20 border border-white/60 text-white backdrop-blur-md">
-            <span id="muteIcon">🔇</span>
-        </button>
-
-        <div class="absolute bottom-[10%] left-[5%] text-white z-10 pointer-events-none">
-            <h1 class="text-6xl md:text-8xl font-black italic tracking-tighter uppercase leading-none drop-shadow-2xl">STYLE<br>REDEFINED</h1>
-            <p class="text-[10px] md:text-[12px] tracking-[0.9em] uppercase mt-4 opacity-80">Shop Now</p>
+        <div class="relative h-full w-full overflow-hidden">
+            <video autoplay muted loop playsinline preload="auto" 
+                   class="w-full h-full object-cover opacity-90 border-b lg:border-b-0 lg:border-r border-white/10">
+                <source src="outflickz.mp4" type="video/mp4">
+            </video>
         </div>
-    </section>
+
+        <div class="relative h-full w-full overflow-hidden">
+            <video autoplay muted loop playsinline preload="auto" 
+                   class="w-full h-full object-cover opacity-90">
+                <source src="outflickz.mov" type="video/quicktime">
+            </video>
+        </div>
+
+    </div>
+
+    <button id="muteBtn" onclick="toggleMute()" class="absolute top-24 right-6 z-20 px-4 py-2 border border-white/60 text-white backdrop-blur-md rounded-full transition-all hover:bg-white/10">
+        <span id="muteIcon">🔇</span>
+    </button>
+
+    <div class="absolute bottom-[10%] left-[5%] text-white z-10 pointer-events-none">
+        <h1 class="text-6xl md:text-8xl font-black italic tracking-tighter uppercase leading-none drop-shadow-2xl">
+            STYLE<br>REDEFINED
+        </h1>
+        <p class="text-[10px] md:text-[12px] tracking-[0.9em] uppercase mt-4 opacity-80">Shop Now</p>
+    </div>
+
+</section>
 
 
   <main class="py-2 md:py-4 bg-white min-h-screen">

@@ -6,7 +6,6 @@ const sharp = require('sharp');
 const nodemailer = require('nodemailer');
 const Redis = require('ioredis');
 
-// Configuration from Environment Variables
 const MONGODB_URI = process.env.MONGODB_URI;
 const JWT_SECRET = process.env.JWT_SECRET;
 const MASTER_ACCESS_KEY = (process.env.MASTER_ACCESS_KEY || '').trim();
@@ -14,7 +13,6 @@ const BUCKET_NAME = (process.env.IDRIVE_BUCKET_NAME || '').trim();
 const redis = new Redis(process.env.REDIS_URL);
 
 
-// IDRIVE / S3 CONFIGURATION
 const rawEndpoint = process.env.IDRIVE_ENDPOINT;
 const s3Config = {
     accessKeyId: (process.env.IDRIVE_ACCESS_KEY || '').trim(), 
@@ -29,9 +27,8 @@ if (rawEndpoint) {
 }
 const s3 = new AWS.S3(s3Config);
 
-// DATABASE CONNECTION POOLING
 let cachedDb = null;
-let cachedClient = null; // Store the client to manage the connection properly
+let cachedClient = null; 
 
 async function connectToDatabase() {
     // 1. If already connected, return the cached database

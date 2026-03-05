@@ -10,7 +10,6 @@
   force = true
 
 # 2. Pretty URLs (Clean Routing)
-# This allows users to go to /products/wears instead of /products/wears.html
 [[redirects]]
   from = "/products/*"
   to = "/products/:splat.html"
@@ -37,6 +36,13 @@
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Headers = "Content-Type, Authorization"
     Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+
+# 4. IMAGE CDN CONFIGURATION
+[images]
+  remote_images = [
+    "https://s3\\.us-west-1\\.idrivee2\\.com/.*",
+    "https://.*\\.amazonaws\\.com/.*" 
+  ]
 
 [functions]
   node_bundler = "esbuild"

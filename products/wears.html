@@ -239,292 +239,302 @@
     </div>
 </footer>
 
-    <script>
-        const API_ENDPOINT = "/.netlify/functions/api"; 
-        let MASTER_PRODUCTS = []; 
-        let isRefreshing = false;
-        let selectedPlatform = 'wa';
+  <script>
+    const API_ENDPOINT = "/.netlify/functions/api"; 
+    let MASTER_PRODUCTS = []; 
+    let isRefreshing = false;
+    let selectedPlatform = 'wa';
 
-
-        window.onload = () => {
-            updateAuthUI();
-            fetchWears();
-            updateCartCount();
-            loadRelatedProducts(); // TRIGGER LOADED
-        };
-
-        function toggleSidebar(open) {
-            const menu = document.getElementById('mobile-menu');
-            if (open) {
-                menu.classList.add('open');
-                document.body.classList.add('menu-open');
-            } else {
-                menu.classList.remove('open');
-                document.body.classList.remove('menu-open');
-            }
+    /**
+     * Netlify Image CDN Optimizer
+     * Shrinks 5MB+ raw files into optimized web versions on the fly.
+     */
+    function getOptimizedUrl(url, width = 800, quality = 75) {
+        if (!url || typeof url !== 'string') return url;
+        if (url.includes('.netlify/images') || url.includes('idrivee2') || url.includes('amazonaws')) {
+            const baseUrl = url.split('?')[0]; 
+            const proxyPath = baseUrl.includes('http') 
+                ? `/.netlify/images?url=${encodeURIComponent(baseUrl)}` 
+                : baseUrl;
+            return `${proxyPath}&w=${width}&q=${quality}`;
         }
+        return url;
+    }
 
-     async function fetchWears() {
-    try {
-        const res = await fetch(API_ENDPOINT, { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' },
-            // Using the 'get-wears' action as requested
-            body: JSON.stringify({ action: 'get-wears' }) 
-        });
+    window.onload = () => {
+        updateAuthUI();
+        fetchWears();
+        updateCartCount();
+        loadRelatedProducts(); 
+    };
 
-        if (!res.ok) {
-            console.error(`Vault API Error: ${res.status}`);
+    function toggleSidebar(open) {
+        const menu = document.getElementById('mobile-menu');
+        if (open) {
+            menu.classList.add('open');
+            document.body.classList.add('menu-open');
+        } else {
+            menu.classList.remove('open');
+            document.body.classList.remove('menu-open');
+        }
+    }
+
+    async function fetchWears() {
+        try {
+            const res = await fetch(API_ENDPOINT, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'get-wears' }) 
+            });
+
+            if (!res.ok) throw new Error(`Vault API Error: ${res.status}`);
+
+            const data = await res.json();
+
+            if (data && Array.isArray(data)) {
+                const processedWears = data.map(p => {
+                    let totalStock = 0;
+                    if (p.variants && Array.isArray(p.variants)) {
+                        p.variants.forEach(v => {
+                            if (v.stockMatrix) {
+                                Object.values(v.stockMatrix).forEach(qty => totalStock += (Math.max(0, Number(qty) || 0)));
+                            } else if (v.stock !== undefined) {
+                                totalStock += (Math.max(0, Number(v.stock) || 0));
+                            }
+                        });
+                    }
+                    return { ...p, isOutOfStock: totalStock <= 0, actualStock: totalStock };
+                });
+
+                processedWears.sort((a, b) => a.isOutOfStock - b.isOutOfStock);
+                MASTER_PRODUCTS = processedWears;
+                renderProducts(MASTER_PRODUCTS);
+            }
+        } catch (err) {
+            console.error("Error fetching wears:", err);
+            const grid = document.getElementById('product-grid');
+            if (grid) grid.innerHTML = `<p class="col-span-full text-center py-20 uppercase tracking-widest text-[9px]">Server Connection Error</p>`;
+        }
+    }
+
+    function renderProducts(list) {
+        const grid = document.getElementById('product-grid');
+        if (!grid) return;
+        if (list.length === 0) {
+            grid.innerHTML = `<p class="col-span-full text-center py-20 uppercase tracking-widest text-[10px] opacity-40">No items available.</p>`;
             return;
         }
+        grid.innerHTML = list.map(p => createProductCard(p)).join('');
+    }
 
-        const data = await res.json();
+    function createProductCard(p) {
+        const variants = Array.isArray(p.variants) ? p.variants : [];
+        const isValidUrl = (url) => (typeof url === 'string' && url.startsWith('http') && url.length > 30);
 
-        if (Array.isArray(data)) {
-            const processedWears = data.map(p => {
-                let totalStock = 0;
-                
-                // Consistency Check: Apply the same stockMatrix/variants logic
-                if (p.variants && Array.isArray(p.variants)) {
-                    p.variants.forEach(v => {
-                        if (v.stockMatrix && typeof v.stockMatrix === 'object') {
-                            Object.values(v.stockMatrix).forEach(qty => {
-                                totalStock += (Math.max(0, Number(qty) || 0));
-                            });
-                        } 
-                        else if (v.stock !== undefined) {
-                            totalStock += (Math.max(0, Number(v.stock) || 0));
-                        }
-                    });
-                }
-                
-                // Return structured product object
-                return { 
-                    ...p, 
-                    isOutOfStock: totalStock <= 0, 
-                    actualStock: totalStock 
-                };
-            });
+        const processedVariants = variants.map(v => {
+            let vStock = 0;
+            if (v.stockMatrix) {
+                Object.values(v.stockMatrix).forEach(qty => vStock += (Number(qty) || 0));
+            } else { vStock = Number(v.stock) || 0; }
+            const cleanImages = (Array.isArray(v.images) ? v.images : []).filter(img => isValidUrl(img));
+            return { ...v, totalStock: vStock, cleanImages };
+        });
 
-            // Sort: In-stock items first, Out-of-stock items at the bottom
-            processedWears.sort((a, b) => a.isOutOfStock - b.isOutOfStock);
+        const isOutOfStock = p.isOutOfStock;
+        const backupImages = processedVariants.flatMap(v => v.cleanImages);
+        const globalDisplay = isValidUrl(p.displayImage) ? p.displayImage : null;
+        let defaultImgRaw = globalDisplay || (backupImages.length > 0 ? backupImages[0] : 'https://placehold.co/600x800/f4f4f5/000?text=OUTFLICKZ');
+        
+        // CDN Optimization for grid view (800px is perfect for sharp mobile viewing)
+        const defaultImg = getOptimizedUrl(defaultImgRaw, 800, 75);
 
-            MASTER_PRODUCTS = processedWears;
-            renderProducts(MASTER_PRODUCTS);
+        return `
+            <div class="group relative cursor-pointer animate-item" onclick="window.location.href='product-detail.html?id=${p._id}'">
+                <div id="container-${p._id}" class="aspect-[3/4] bg-zinc-100 overflow-hidden relative border border-black/5 skeleton"> 
+                    <div id="sold-out-overlay-${p._id}" class="absolute inset-0 z-30 flex items-center justify-center bg-black/10 ${isOutOfStock ? '' : 'hidden'}">
+                        <span class="sold-out-badge">SOLD OUT</span>
+                    </div>
+                    <img id="img-${p._id}" src="${defaultImg}" 
+                         onerror="handleImageError(this, '${p._id}')"
+                         loading="lazy" 
+                         class="absolute inset-0 w-full h-full object-cover transition-all duration-700 ${isOutOfStock ? 'opacity-70' : 'group-hover:scale-105'}"
+                         onload="this.parentElement.classList.remove('skeleton');">
+                    <div class="absolute bottom-3 left-3 flex flex-wrap gap-1.5 z-40 opacity-0 group-hover:opacity-100 transition-opacity">
+                        ${processedVariants.map(v => {
+                            const rawVImg = (v.cleanImages && v.cleanImages.length > 0) ? v.cleanImages[0] : defaultImgRaw;
+                            const vPreview = getOptimizedUrl(rawVImg, 800, 75);
+                            const vIsSoldOut = v.totalStock <= 0;
+                            return `<button type="button" 
+                                        onmouseover="updatePreview(event, '${p._id}', '${vPreview}', ${vIsSoldOut})" 
+                                        onmouseleave="updatePreview(event, '${p._id}', '${defaultImg}', ${isOutOfStock})"
+                                        class="color-dot w-2.5 h-2.5 rounded-full border border-white/60 relative ${vIsSoldOut ? 'opacity-40' : ''}" 
+                                        style="background-color: ${v.color ? v.color.toLowerCase() : '#ccc'};">
+                                        ${vIsSoldOut ? '<div class="absolute inset-0 flex items-center justify-center"><div class="w-full h-[1px] bg-white rotate-45"></div></div>' : ''}
+                                    </button>`;
+                        }).join('')}
+                    </div>
+                </div>
+                <div class="mt-4 space-y-1">
+                    <div class="flex justify-between items-start">
+                        <h3 class="font-bold uppercase text-[9px] tracking-wider text-black">${p.name}</h3>
+                        <p class="font-bold text-[9px] text-black">${isOutOfStock ? '<span class="text-red-600">SOLD OUT</span>' : `₦${Number(p.price).toLocaleString()}`}</p>
+                    </div>
+                    <p class="text-zinc-400 text-[7px] uppercase tracking-widest">${p.category || 'Collection'} / ${processedVariants.filter(v => v.totalStock > 0).length} Colors Available</p>
+                </div>
+            </div>`;
+    }
+
+    function updatePreview(event, productId, newSrc, isVariantSoldOut) {
+        if (event) event.stopPropagation(); 
+        const img = document.getElementById(`img-${productId}`);
+        const overlay = document.getElementById(`sold-out-overlay-${productId}`);
+        if (img && newSrc) {
+            img.src = newSrc;
+            img.style.opacity = isVariantSoldOut ? "0.7" : "1";
         }
-    } catch (err) {
-        console.error("Error fetching wears:", err);
-        // User-facing error message
-        const grid = document.getElementById('product-grid');
-        if (grid) {
-            grid.innerHTML = `<p class="col-span-full text-center py-20 uppercase tracking-widest text-[9px]">Server Connection Error</p>`;
+        if (overlay) isVariantSoldOut ? overlay.classList.remove('hidden') : overlay.classList.add('hidden');
+    }
+
+    function handleImageError(img, id) {
+        img.parentElement?.classList.remove('skeleton');
+        if (img.src.includes('placehold.co')) return;
+
+        console.warn(`Image expired for ID: ${id}. Refreshing...`);
+        img.src = 'https://placehold.co/600x800/f4f4f5/18181b?text=RELOADING...';
+        
+        if (!isRefreshing) {
+            isRefreshing = true;
+            // Silent refresh of the wears data to get new signed URLs
+            fetchWears().finally(() => {
+                setTimeout(() => { isRefreshing = false; }, 10000);
+            });
         }
     }
-}
 
-        function renderProducts(list) {
-            const grid = document.getElementById('product-grid');
-            if (list.length === 0) {
-                grid.innerHTML = `<p class="col-span-full text-center py-20 uppercase tracking-widest text-[10px] opacity-40">No items available.</p>`;
-                return;
-            }
-            grid.innerHTML = list.map(p => createProductCard(p)).join('');
-        }
-
-        function createProductCard(p) {
-            const variants = Array.isArray(p.variants) ? p.variants : [];
-            const isValidUrl = (url) => (typeof url === 'string' && !url.includes('…') && url.startsWith('http') && url.length > 50);
-
-            const processedVariants = variants.map(v => {
-                let vStock = 0;
-                if (v.stockMatrix && typeof v.stockMatrix === 'object') {
-                    Object.values(v.stockMatrix).forEach(qty => vStock += (Number(qty) || 0));
-                } else { vStock = Number(v.stock) || 0; }
-                const cleanImages = (Array.isArray(v.images) ? v.images : []).filter(img => isValidUrl(img));
-                return { ...v, totalStock: vStock, cleanImages };
+    async function loadRelatedProducts(currentId) {
+        try {
+            const res = await fetch(API_ENDPOINT, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'get-all-products-combined' }) 
             });
+            let allItems = await res.json();
+            if (Array.isArray(allItems)) {
+                let processedItems = allItems.filter(p => p._id !== currentId);
+                processedItems = processedItems.map(p => {
+                    let totalStock = 0;
+                    (p.variants || []).forEach(v => {
+                        if (v.stockMatrix) Object.values(v.stockMatrix).forEach(qty => totalStock += Number(qty) || 0);
+                        else if (v.stock) totalStock += Number(v.stock) || 0;
+                    });
+                    return { ...p, isGloballySoldOut: totalStock <= 0 };
+                });
+                processedItems.sort((a, b) => a.isGloballySoldOut - b.isGloballySoldOut);
+                renderRelatedSlider(processedItems.slice(0, 8));
+            }
+        } catch (err) { console.error("Related Products Error:", err); }
+    }
 
-            const isOutOfStock = p.isOutOfStock || (processedVariants.length > 0 && processedVariants.every(v => v.totalStock <= 0));
-            const backupImages = processedVariants.flatMap(v => v.cleanImages);
-            const globalDisplay = isValidUrl(p.displayImage) ? p.displayImage : null;
-            let defaultImg = globalDisplay || (backupImages.length > 0 ? backupImages[0] : 'https://placehold.co/600x800/f4f4f5/000?text=OUTFLICKZ');
+    function renderRelatedSlider(items) {
+        const slider = document.getElementById('related-slider');
+        if (!slider) return;
+        slider.innerHTML = items.map(p => {
+            const rawImg = p.displayImage || (p.variants?.[0]?.images?.[0]) || 'https://placehold.co/600x800/f4f4f5/000?text=OUTFLICKZ';
+            const displayImg = getOptimizedUrl(rawImg, 600, 70);
+            const pCategory = p.category || 'wear'; 
+            const isSoldOut = p.isGloballySoldOut;
+
+            const swatches = (p.variants || []).map(v => {
+                const sImg = getOptimizedUrl(v.images?.[0] || rawImg, 600, 70);
+                return `
+                <div class="color-dot w-2 h-2 rounded-full border border-white/50" 
+                     style="background-color: ${v.color.toLowerCase()};" 
+                     onmouseover="document.getElementById('rel-img-${p._id}').src='${sImg}'" 
+                     onclick="event.stopPropagation();">
+                </div>`;
+            }).join('');
 
             return `
-                <div class="group relative cursor-pointer animate-item" onclick="window.location.href='product-detail.html?id=${p._id}'">
-                    <div id="container-${p._id}" class="aspect-[3/4] bg-zinc-100 overflow-hidden relative border border-black/5 skeleton"> 
-                        <div id="sold-out-overlay-${p._id}" class="absolute inset-0 z-30 flex items-center justify-center bg-black/10 ${isOutOfStock ? '' : 'hidden'}">
-                            <span class="sold-out-badge">SOLD OUT</span>
-                        </div>
-                        <img id="img-${p._id}" src="${defaultImg}" loading="lazy" class="absolute inset-0 w-full h-full object-cover transition-all duration-700 ${isOutOfStock ? 'opacity-70' : 'group-hover:scale-105'}"
-                             onload="this.parentElement.classList.remove('skeleton');" onerror="handleImageError(this, '${p._id}')">
-                        <div class="absolute bottom-3 left-3 flex flex-wrap gap-1.5 z-40 opacity-0 group-hover:opacity-100 transition-opacity">
-                            ${processedVariants.map(v => {
-                                const vPreview = (v.cleanImages && v.cleanImages.length > 0) ? v.cleanImages[0] : defaultImg;
-                                const vIsSoldOut = v.totalStock <= 0;
-                                return `<button type="button" onmouseover="updatePreview(event, '${p._id}', '${vPreview}', ${vIsSoldOut})" 
-                                            onmouseleave="updatePreview(event, '${p._id}', '${defaultImg}', ${isOutOfStock})"
-                                            class="color-dot w-2.5 h-2.5 rounded-full border border-white/60 relative ${vIsSoldOut ? 'opacity-40' : ''}" 
-                                            style="background-color: ${v.color ? v.color.toLowerCase() : '#ccc'};">
-                                            ${vIsSoldOut ? '<div class="absolute inset-0 flex items-center justify-center"><div class="w-full h-[1px] bg-white rotate-45"></div></div>' : ''}
-                                        </button>`;
-                            }).join('')}
+                <div class="related-item group cursor-pointer relative" onclick="window.location.href='product-detail.html?id=${p._id}&category=${pCategory}'">
+                    <div class="aspect-[3/4] bg-zinc-100 overflow-hidden relative border border-black/5">
+                        ${isSoldOut ? `<div class="absolute inset-0 bg-black/10 z-20 flex items-center justify-center"><span class="sold-out-badge">SOLD OUT</span></div>` : ''}
+                        <img id="rel-img-${p._id}" src="${displayImg}" alt="${p.name}" loading="lazy" 
+                             onerror="handleImageError(this, '${p._id}')"
+                             class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-700 ${isSoldOut ? 'opacity-70' : ''}">
+                        <div class="absolute bottom-3 left-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            ${swatches}
                         </div>
                     </div>
-                    <div class="mt-4 space-y-1">
+                    <div class="mt-4 space-y-1 ${isSoldOut ? 'opacity-50' : ''}">
                         <div class="flex justify-between items-start">
-                            <h3 class="font-bold uppercase text-[9px] tracking-wider text-black">${p.name}</h3>
-                            <p class="font-bold text-[9px] text-black">${isOutOfStock ? '<span class="text-red-600">SOLD OUT</span>' : `₦${Number(p.price).toLocaleString()}`}</p>
+                            <h3 class="font-bold uppercase text-[9px] tracking-wider">${p.name}</h3>
+                            <p class="font-bold text-[9px]">₦${Number(p.price).toLocaleString()}</p>
                         </div>
-                        <p class="text-zinc-400 text-[7px] uppercase tracking-widest">${p.category || 'Collection'} / ${processedVariants.filter(v => v.totalStock > 0).length} Colors Available</p>
+                        <p class="text-zinc-400 text-[8px] uppercase tracking-widest">${pCategory} / ${p.variants?.length || 0} Colors</p>
                     </div>
                 </div>`;
-        }
-
-        function updatePreview(event, productId, newSrc, isVariantSoldOut) {
-            if (event) event.stopPropagation(); 
-            const img = document.getElementById(`img-${productId}`);
-            const overlay = document.getElementById(`sold-out-overlay-${productId}`);
-            if (img && newSrc && newSrc !== 'undefined') {
-                img.src = newSrc;
-                img.style.opacity = isVariantSoldOut ? "0.7" : "1";
-            }
-            if (overlay) isVariantSoldOut ? overlay.classList.remove('hidden') : overlay.classList.add('hidden');
-        }
-
-        function handleImageError(img, id) {
-            img.parentElement?.classList.remove('skeleton');
-            img.src = 'https://placehold.co/600x800/f4f4f5/18181b?text=IMAGE+ERROR';
-            if (img.src.includes('idrivee2.com') && !isRefreshing) {
-                isRefreshing = true;
-                setTimeout(() => { fetchWears(); isRefreshing = false; }, 5000);
-            }
-        }
-
-        async function loadRelatedProducts(currentId) {
-            try {
-                const res = await fetch(API_ENDPOINT, { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'get-all-products-combined' }) 
-                });
-                
-                let allItems = await res.json();
-                if (Array.isArray(allItems)) {
-                    let processedItems = allItems.filter(p => p._id !== currentId);
-                    processedItems = processedItems.map(p => {
-                        let totalStock = 0;
-                        (p.variants || []).forEach(v => {
-                            if (v.stockMatrix) Object.values(v.stockMatrix).forEach(qty => totalStock += Number(qty) || 0);
-                            else if (v.stock) totalStock += Number(v.stock) || 0;
-                        });
-                        return { ...p, isGloballySoldOut: totalStock <= 0 };
-                    });
-                    processedItems.sort((a, b) => a.isGloballySoldOut - b.isGloballySoldOut);
-                    renderRelatedSlider(processedItems.slice(0, 8));
-                }
-            } catch (err) { console.error("Related Products Error:", err); }
-        }
-
-        function renderRelatedSlider(items) {
-            const slider = document.getElementById('related-slider');
-            if (!slider) return;
-            slider.innerHTML = items.map(p => {
-                const defaultImg = p.displayImage || (p.variants?.[0]?.images?.[0]) || 'https://placehold.co/600x800/f4f4f5/000?text=OUTFLICKZ';
-                const pCategory = p.category || 'wear'; 
-                const isSoldOut = p.isGloballySoldOut;
-
-                const swatches = (p.variants || []).map(v => `
-                    <div class="color-dot w-2 h-2 rounded-full border border-white/50" 
-                         style="background-color: ${v.color.toLowerCase()};" 
-                         onmouseover="document.getElementById('rel-img-${p._id}').src='${v.images?.[0] || defaultImg}'" 
-                         onclick="event.stopPropagation();">
-                    </div>`).join('');
-
-                return `
-                    <div class="related-item group cursor-pointer relative" onclick="window.location.href='product-detail.html?id=${p._id}&category=${pCategory}'">
-                        <div class="aspect-[3/4] bg-zinc-100 overflow-hidden relative border border-black/5">
-                            ${isSoldOut ? `<div class="absolute inset-0 bg-black/10 z-20 flex items-center justify-center"><span class="sold-out-badge">SOLD OUT</span></div>` : ''}
-                            <img id="rel-img-${p._id}" src="${defaultImg}" alt="${p.name}" loading="lazy" 
-                                 class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-700 ${isSoldOut ? 'opacity-70' : ''}">
-                            <div class="absolute bottom-3 left-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                ${swatches}
-                            </div>
-                        </div>
-                        <div class="mt-4 space-y-1 ${isSoldOut ? 'opacity-50' : ''}">
-                            <div class="flex justify-between items-start">
-                                <h3 class="font-bold uppercase text-[9px] tracking-wider">${p.name}</h3>
-                                <p class="font-bold text-[9px]">₦${Number(p.price).toLocaleString()}</p>
-                            </div>
-                            <p class="text-zinc-400 text-[8px] uppercase tracking-widest">${pCategory} / ${p.variants?.length || 0} Colors</p>
-                        </div>
-                    </div>`;
-            }).join('');
-        }
-
-        function handleSearch() {
-            const query = document.getElementById('productSearch').value.toLowerCase();
-            renderProducts(MASTER_PRODUCTS.filter(p => p.name.toLowerCase().includes(query)));
-        }
-
-        function toggleSearch() { 
-            const wrapper = document.getElementById('search-wrapper');
-            wrapper.classList.toggle('active');
-            if (wrapper.classList.contains('active')) document.getElementById('productSearch').focus();
-        }
-
-        function updateAuthUI() {
-            const authSection = document.getElementById('nav-auth-section');
-            const mobileAuth = document.getElementById('mobile-auth-section');
-            const userData = JSON.parse(localStorage.getItem('outflickz_user_data') || '{}');
-            const html = userData.firstName ? `<a href="/account/profile.html" class="text-[9px] font-bold uppercase tracking-widest">Hi, ${userData.firstName}</a>` : `<a href="/account/login.html" class="text-[9px] font-bold uppercase tracking-widest bg-black text-white px-3 py-1.5 rounded-sm">Join Outflickz</a>`;
-            if(authSection) authSection.innerHTML = html;
-            if(mobileAuth) mobileAuth.innerHTML = html;
-        }
-
-        function updateCartCount() {
-            document.getElementById('cart-count').innerText = JSON.parse(localStorage.getItem('outflickz_cart') || '[]').length;
-        }
-        
-function toggleChat() {
-    const windowEl = document.getElementById('chat-window');
-    const isHidden = windowEl.classList.contains('hidden');
-
-    if (isHidden) {
-        windowEl.classList.remove('hidden');
-        setTimeout(() => {
-            windowEl.classList.remove('scale-95', 'opacity-0');
-            windowEl.classList.add('scale-100', 'opacity-100');
-        }, 10);
-    } else {
-        windowEl.classList.add('scale-95', 'opacity-0');
-        windowEl.classList.remove('scale-100', 'opacity-100');
-        setTimeout(() => windowEl.classList.add('hidden'), 300);
+        }).join('');
     }
-}
 
-function setPlatform(platform) {
-    selectedPlatform = platform;
-    
-    // UI Feedback for selection
-    document.getElementById('btn-wa').classList.toggle('bg-zinc-100', platform === 'wa');
-    document.getElementById('btn-wa').classList.toggle('border-black', platform === 'wa');
-    document.getElementById('btn-tg').classList.toggle('bg-zinc-100', platform === 'tg');
-    document.getElementById('btn-tg').classList.toggle('border-black', platform === 'tg');
-}
+    function handleSearch() {
+        const query = document.getElementById('productSearch').value.toLowerCase();
+        renderProducts(MASTER_PRODUCTS.filter(p => p.name.toLowerCase().includes(query)));
+    }
 
-function sendChatMessage() {
-    const message = document.getElementById('chat-input').value || "Hello Outflickz, I need assistance.";
-    const encodedMessage = encodeURIComponent(message);
-    
-    let url = "";
-    if (selectedPlatform === 'wa') {
-        url = `https://wa.me/2347042882706?text=${encodedMessage}`;
-    } else {
-        url = `https://t.me/+2349125898200?text=${encodedMessage}`;
+    function toggleSearch() { 
+        const wrapper = document.getElementById('search-wrapper');
+        wrapper.classList.toggle('active');
+        if (wrapper.classList.contains('active')) document.getElementById('productSearch').focus();
+    }
+
+    function updateAuthUI() {
+        const authSection = document.getElementById('nav-auth-section');
+        const mobileAuth = document.getElementById('mobile-auth-section');
+        const userData = JSON.parse(localStorage.getItem('outflickz_user_data') || '{}');
+        const html = userData.firstName 
+            ? `<a href="/account/profile.html" class="text-[9px] font-bold uppercase tracking-widest">Hi, ${userData.firstName}</a>` 
+            : `<a href="/account/login.html" class="text-[9px] font-bold uppercase tracking-widest bg-black text-white px-3 py-1.5 rounded-sm">Join Outflickz</a>`;
+        if(authSection) authSection.innerHTML = html;
+        if(mobileAuth) mobileAuth.innerHTML = html;
+    }
+
+    function updateCartCount() {
+        const count = JSON.parse(localStorage.getItem('outflickz_cart') || '[]').length;
+        const el = document.getElementById('cart-count');
+        if (el) el.innerText = count;
     }
     
-    window.open(url, '_blank');
-}
-    </script>
+    function toggleChat() {
+        const windowEl = document.getElementById('chat-window');
+        if (!windowEl) return;
+        const isHidden = windowEl.classList.contains('hidden');
+        if (isHidden) {
+            windowEl.classList.remove('hidden');
+            setTimeout(() => {
+                windowEl.classList.remove('scale-95', 'opacity-0');
+                windowEl.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        } else {
+            windowEl.classList.add('scale-95', 'opacity-0');
+            windowEl.classList.remove('scale-100', 'opacity-100');
+            setTimeout(() => windowEl.classList.add('hidden'), 300);
+        }
+    }
+
+    function setPlatform(platform) {
+        selectedPlatform = platform;
+        document.getElementById('btn-wa').classList.toggle('bg-zinc-100', platform === 'wa');
+        document.getElementById('btn-tg').classList.toggle('bg-zinc-100', platform === 'tg');
+    }
+
+    function sendChatMessage() {
+        const message = document.getElementById('chat-input').value || "Hello Outflickz, I need assistance.";
+        const encodedMessage = encodeURIComponent(message);
+        let url = (selectedPlatform === 'wa') 
+            ? `https://wa.me/2347042882706?text=${encodedMessage}` 
+            : `https://t.me/+2349125898200?text=${encodedMessage}`;
+        window.open(url, '_blank');
+    }
+</script>
 </body>
 </html>

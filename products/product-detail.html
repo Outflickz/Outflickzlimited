@@ -296,7 +296,7 @@
     </div>
 </footer>
 
-   <script>
+<script>
     const API_ENDPOINT = "/.netlify/functions/api"; 
     const SESSION_TIMEOUT = 24 * 60 * 60 * 1000;
     let currentProduct = null;
@@ -305,20 +305,58 @@
     let currentStockLimit = 0;
     let purchaseQty = 1;
 
-  function initializeSession() {
-    const userToken = localStorage.getItem('outflickz_token');
-    const userData = localStorage.getItem('outflickz_user_data');
-    const guestId = localStorage.getItem('outflickz_guest_id');
+    // --- NEW: VAULT REFRESH STATES ---
+    let IS_FETCHING_REFRESH = false;
 
-    if (userToken && userData) {
-        console.log("Session: Member Active");
-        // You could trigger a silent 'verify-token' API call here if needed
-    } else if (!guestId) {
-        const newGuestId = 'GUEST-' + Math.random().toString(36).substr(2, 9).toUpperCase();
-        localStorage.setItem('outflickz_guest_id', newGuestId);
-        console.log("Session: Guest Mode");
+    /**
+     * Netlify Image CDN Optimizer
+     * Transforms raw storage URLs into optimized, compressed versions.
+     */
+    function getOptimizedUrl(url, width = 1000, quality = 80) {
+        if (!url || typeof url !== 'string') return url;
+        // Check if the URL is already routed through Netlify's image proxy
+        if (url.includes('.netlify/images') || url.includes('idrivee2') || url.includes('amazonaws')) {
+            const baseUrl = url.split('?')[0]; 
+            const proxyPath = baseUrl.includes('http') 
+                ? `/.netlify/images?url=${encodeURIComponent(baseUrl)}` 
+                : baseUrl;
+            return `${proxyPath}&w=${width}&q=${quality}`;
+        }
+        return url;
     }
-}
+
+    /**
+     * Image Error Handler for Product Details
+     * If a high-res link expires, we re-fetch the product data.
+     */
+    async function handleImageError(img) {
+        if (img.src.includes('placehold.co') || img.dataset.refreshing === 'true') return;
+        
+        img.dataset.refreshing = 'true';
+        img.classList.add('animate-pulse', 'opacity-50');
+
+        try {
+            console.warn("Detail image expired. Refreshing product data...");
+            await loadProduct(currentProduct._id); 
+        } catch (err) {
+            console.error("Vault Refresh Error:", err);
+            img.src = 'https://placehold.co/600x800/000000/FFFFFF?text=OUTFLICKZ';
+        }
+    }
+
+    function initializeSession() {
+        const userToken = localStorage.getItem('outflickz_token');
+        const userData = localStorage.getItem('outflickz_user_data');
+        const guestId = localStorage.getItem('outflickz_guest_id');
+
+        if (userToken && userData) {
+            console.log("Session: Member Active");
+        } else if (!guestId) {
+            const newGuestId = 'GUEST-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+            localStorage.setItem('outflickz_guest_id', newGuestId);
+            console.log("Session: Guest Mode");
+        }
+    }
 
     function showModal(title, message, type = 'success') {
         const modal = document.getElementById('custom-modal');
@@ -342,107 +380,97 @@
         content.classList.replace('scale-100', 'scale-95');
         setTimeout(() => { modal.classList.add('hidden'); }, 300);
     }
-window.onload = async () => {
-    // 1. Wipe expired data before the UI even renders
-    autoClearSession(); 
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const productId = urlParams.get('id');
-    
-    if (!productId) { 
-        window.location.href = '../index.html'; 
-        return; 
-    }
+    window.onload = async () => {
+        autoClearSession(); 
 
-    // 2. Set up current session states
-    initializeSession();
-    updateAuthUI();
-    updateCartCount();
-
-    // 3. Fetch product data
-    await loadProduct(productId);
-    // Note: If loadProduct already calls loadRelatedProducts, 
-    // you can remove the line below to save one API call.
-    loadRelatedProducts(productId); 
-};
-
-async function loadProduct(id) {
-    try {
-        let res = await fetch(API_ENDPOINT, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'get-any-product-details', id })
-        });
-
-        let data = await res.json();
-
-        if (data && !data.message) {
-            // 1. CALCULATE STOCK AND REORDER VARIANTS
-            let totalProductStock = 0;
-            
-            if (data.variants && Array.isArray(data.variants)) {
-                data.variants = data.variants.map(v => {
-                    let vStock = 0;
-                    if (v.stockMatrix) {
-                        Object.values(v.stockMatrix).forEach(qty => vStock += Number(qty) || 0);
-                    } else {
-                        vStock = Number(v.stock) || 0;
-                    }
-                    return { ...v, variantTotalStock: vStock };
-                });
-
-                // MOVE IN-STOCK VARIANTS TO THE FRONT
-                data.variants.sort((a, b) => {
-                    const aIn = a.variantTotalStock > 0 ? 1 : 0;
-                    const bIn = b.variantTotalStock > 0 ? 1 : 0;
-                    return bIn - aIn;
-                });
-
-                data.variants.forEach(v => totalProductStock += v.variantTotalStock);
-            }
-
-            currentProduct = data;
-
-            // 2. APPLY MOBILE FONT REDUCTION
-            const nameEl = document.getElementById('p-name');
-            nameEl.className = "text-[24px] md:text-4xl font-black italic tracking-tighter uppercase leading-none mb-4 min-h-[40px]";
-
-            renderProductData(data.category === 'caps');
-
-            // 3. GLOBAL STOCK CHECK
-            if (totalProductStock <= 0) {
-                const buyBtn = document.getElementById('buy-btn');
-                const addBtn = document.getElementById('add-btn');
-                buyBtn.disabled = true;
-                addBtn.disabled = true;
-                buyBtn.innerText = "SOLD OUT";
-                addBtn.innerText = "OUT OF STOCK";
-            }
-            
-            loadRelatedProducts(id); 
+        const urlParams = new URLSearchParams(window.location.search);
+        const productId = urlParams.get('id');
+        
+        if (!productId) { 
+            window.location.href = '../index.html'; 
+            return; 
         }
-    } catch (err) {
-        console.error("Product Load Error:", err);
+
+        initializeSession();
+        updateAuthUI();
+        updateCartCount();
+
+        await loadProduct(productId);
+    };
+
+    async function loadProduct(id) {
+        try {
+            let res = await fetch(API_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'get-any-product-details', id })
+            });
+
+            let data = await res.json();
+
+            if (data && !data.message) {
+                let totalProductStock = 0;
+                
+                if (data.variants && Array.isArray(data.variants)) {
+                    data.variants = data.variants.map(v => {
+                        let vStock = 0;
+                        if (v.stockMatrix) {
+                            Object.values(v.stockMatrix).forEach(qty => vStock += Number(qty) || 0);
+                        } else {
+                            vStock = Number(v.stock) || 0;
+                        }
+                        return { ...v, variantTotalStock: vStock };
+                    });
+
+                    data.variants.sort((a, b) => {
+                        const aIn = a.variantTotalStock > 0 ? 1 : 0;
+                        const bIn = b.variantTotalStock > 0 ? 1 : 0;
+                        return bIn - aIn;
+                    });
+
+                    data.variants.forEach(v => totalProductStock += v.variantTotalStock);
+                }
+
+                currentProduct = data;
+
+                const nameEl = document.getElementById('p-name');
+                nameEl.className = "text-[24px] md:text-4xl font-black italic tracking-tighter uppercase leading-none mb-4 min-h-[40px]";
+
+                renderProductData(data.category === 'caps');
+
+                if (totalProductStock <= 0) {
+                    const buyBtn = document.getElementById('buy-btn');
+                    const addBtn = document.getElementById('add-btn');
+                    buyBtn.disabled = true;
+                    addBtn.disabled = true;
+                    buyBtn.innerText = "SOLD OUT";
+                    addBtn.innerText = "OUT OF STOCK";
+                }
+                
+                loadRelatedProducts(id); 
+            }
+        } catch (err) {
+            console.error("Product Load Error:", err);
+        }
     }
-}
 
-// Locate this function in your <script> tag
-function renderColors(isCap) {
-    const variants = currentProduct.variants || [];
-    const container = document.getElementById('color-container');
-    
-    container.innerHTML = variants.map(v => {
-        const isVOut = v.variantTotalStock <= 0;
-        return `
-            <button onclick="selectColor('${v.color}', ${isCap})" 
-                class="color-pill px-4 py-2 border border-black/10 text-[10px] font-bold uppercase tracking-widest transition-all ${isVOut ? 'opacity-40' : ''}">
-                ${v.color} ${isVOut ? '<span class="text-[7px] block text-red-500">SOLD OUT</span>' : ''}
-            </button>
-        `;
-    }).join('');
+    function renderColors(isCap) {
+        const variants = currentProduct.variants || [];
+        const container = document.getElementById('color-container');
+        
+        container.innerHTML = variants.map(v => {
+            const isVOut = v.variantTotalStock <= 0;
+            return `
+                <button onclick="selectColor('${v.color}', ${isCap})" 
+                    class="color-pill px-4 py-2 border border-black/10 text-[10px] font-bold uppercase tracking-widest transition-all ${isVOut ? 'opacity-40' : ''}">
+                    ${v.color} ${isVOut ? '<span class="text-[7px] block text-red-500">SOLD OUT</span>' : ''}
+                </button>
+            `;
+        }).join('');
 
-    if (variants.length > 0) selectColor(variants[0].color, isCap);
-}
+        if (variants.length > 0) selectColor(variants[0].color, isCap);
+    }
 
     function renderProductData(isCap) {
         document.getElementById('p-name').innerText = currentProduct.name;
@@ -452,19 +480,25 @@ function renderColors(isCap) {
         renderColors(isCap);
     }
 
-   
-
     function selectColor(colorName, isCap) {
         selectedVariant = currentProduct.variants.find(v => v.color === colorName);
         document.querySelectorAll('.color-pill').forEach(btn => {
             btn.classList.toggle('active', btn.innerText.trim() === colorName.toUpperCase());
         });
+        
         const images = (selectedVariant?.images?.length) ? selectedVariant.images : (currentProduct.images || []);
+        
+        // OPTIMIZED: Gallery uses high-res 1200px width with CDN
         document.getElementById('image-gallery').innerHTML = images.map((img, idx) => `
             <div class="img-container aspect-[3/4] border border-black/5 flex-shrink-0">
-                <img src="${img}" fetchpriority="${idx === 0 ? 'high' : 'low'}" class="w-full h-full object-cover img-blur" onload="this.classList.add('img-clear')">
+                <img src="${getOptimizedUrl(img, 1200, 85)}" 
+                     onerror="handleImageError(this)"
+                     fetchpriority="${idx === 0 ? 'high' : 'low'}" 
+                     class="w-full h-full object-cover img-blur" 
+                     onload="this.classList.add('img-clear'); this.dataset.refreshing='false';">
             </div>
         `).join('');
+        
         isCap ? renderCapSize(selectedVariant.stock) : renderSizes(selectedVariant.stockMatrix);
     }
 
@@ -497,334 +531,291 @@ function renderColors(isCap) {
         if(!out) selectSize('OS', stockVal);
     }
 
-function selectSize(size, stock) {
-    selectedSize = size;
-    currentStockLimit = Number(stock);
-    
-    // Reset purchase quantity to 1 when switching sizes
-    purchaseQty = 1;
-    document.getElementById('qty-count').innerText = purchaseQty;
+    function selectSize(size, stock) {
+        selectedSize = size;
+        currentStockLimit = Number(stock);
+        purchaseQty = 1;
+        document.getElementById('qty-count').innerText = purchaseQty;
 
-    // Cross-check with current cart contents
-    const cart = JSON.parse(localStorage.getItem('outflickz_cart') || '[]');
-    const itemInCart = cart.find(i => 
-        i.id === currentProduct._id && 
-        i.size === size && 
-        i.color === selectedVariant.color
-    );
-    const qtyInCart = itemInCart ? Number(itemInCart.qty) : 0;
+        const cart = JSON.parse(localStorage.getItem('outflickz_cart') || '[]');
+        const itemInCart = cart.find(i => 
+            i.id === currentProduct._id && 
+            i.size === size && 
+            i.color === selectedVariant.color
+        );
+        const qtyInCart = itemInCart ? Number(itemInCart.qty) : 0;
+        const realAvailability = currentStockLimit - qtyInCart;
 
-    // Calculate actual availability for this specific user session
-    const realAvailability = currentStockLimit - qtyInCart;
-
-    // Update UI Status
-    const statusEl = document.getElementById('stock-status');
-    if (realAvailability <= 0) {
-        statusEl.innerHTML = `<span class="text-red-500">MAX CAPACITY IN STORE</span>`;
-    } else {
-        statusEl.innerText = `${realAvailability} UNITS AVAILABLE TO SECURE`;
-    }
-    
-    // Update Size Button Visuals
-    document.querySelectorAll('.size-btn').forEach(btn => {
-        const btnText = btn.querySelector('span:last-child').innerText.trim();
-        const matchTxt = (size === 'OS' ? "ONE SIZE / ADJ" : size.toUpperCase());
-        btn.classList.toggle('active', btnText === matchTxt);
-    });
-
-    // Control Button States
-    const addBtn = document.getElementById('add-btn');
-    const buyBtn = document.getElementById('buy-btn');
-
-    if (realAvailability <= 0) {
-        addBtn.disabled = true;
-        buyBtn.disabled = true;
-        addBtn.innerText = "LIMIT REACHED";
-    } else {
-        addBtn.disabled = false;
-        buyBtn.disabled = false;
-        addBtn.innerText = "ADD TO CART";
-    }
-}
-
-async function addToCart(showFeedback = true) {
-    if (!selectedVariant || !selectedSize) { 
-        showModal('Selection Required', 'PLEASE SELECT COLOR AND SIZE', 'error');
-        return false; 
-    }
-
-    const stockLimit = Number(currentStockLimit);
-    let cart = JSON.parse(localStorage.getItem('outflickz_cart') || '[]');
-    
-    const existingIndex = cart.findIndex(i => 
-        i.id === currentProduct._id && 
-        i.color === selectedVariant.color && 
-        i.size === selectedSize
-    );
-
-    const currentCartQty = existingIndex > -1 ? Number(cart[existingIndex].qty) : 0;
-    const requestedTotal = currentCartQty + purchaseQty;
-
-    if (requestedTotal > stockLimit) {
-        showModal('Cart Limit', `ONLY ${stockLimit} TOTAL UNITS ALLOWED PER CUSTOMER.`, 'error');
-        return false;
-    }
-
-    // UPDATED: Now captures 'category' from the backend response
-    const cartItem = {
-        id: currentProduct._id,
-        name: currentProduct.name,
-        price: currentProduct.price,
-        category: currentProduct.category || "item", // Captured from your backend foundCollection
-        color: selectedVariant.color,
-        size: selectedSize,
-        image: selectedVariant.images[0],
-        maxStock: stockLimit,
-        qty: requestedTotal
-    };
-
-    if (existingIndex > -1) {
-        // Update existing item while preserving type
-        cart[existingIndex].qty = requestedTotal;
-        cart[existingIndex].category = cartItem.category; 
-    } else {
-        // Add new item with quantity
-        cart.push(cartItem);
-    }
-
-    localStorage.setItem('outflickz_cart', JSON.stringify(cart));
-    updateCartCount();
-    
-    selectSize(selectedSize, currentStockLimit);
-
-    if (showFeedback) {
-        showModal('Secured', `${currentProduct.name.toUpperCase()} HAS BEEN ADDED TO YOUR CART.`);
-    }
-    return true;
-}
-
-  async function buyNow() {
-    const buyBtn = document.getElementById('buy-btn');
-    const originalContent = buyBtn.innerHTML;
-    
-    // Set Loading State
-    buyBtn.disabled = true;
-    buyBtn.innerHTML = `
-        <div class="flex items-center justify-center space-x-2">
-            <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span>VERIFYING ORDER...</span>
-        </div>
-    `;
-
-    // Wait for the cart logic to finish
-    const success = await addToCart(false);
-    
-    if(success) {
-        // Smooth transition to cart
-        setTimeout(() => {
-            window.location.href = 'cart.html';
-        }, 500); 
-    } else {
-        // Reset if failed (e.g., didn't select size)
-        buyBtn.innerHTML = originalContent;
-        buyBtn.disabled = false;
-    }
-}
-
-  async function loadRelatedProducts(currentId) {
-    try {
-        const res = await fetch(API_ENDPOINT, { 
-            method: 'POST', 
-            body: JSON.stringify({ action: 'get-all-products-combined' }) 
-        });
-        
-        let allItems = await res.json();
-        
-        if (Array.isArray(allItems)) {
-            // Filter out current product
-            let processedItems = allItems.filter(p => p._id !== currentId);
-
-            // Add a helper property to each product to determine if it is globally sold out
-            processedItems = processedItems.map(p => {
-                let totalStock = 0;
-                (p.variants || []).forEach(v => {
-                    if (v.stockMatrix) {
-                        Object.values(v.stockMatrix).forEach(qty => totalStock += Number(qty) || 0);
-                    } else if (v.stock) {
-                        totalStock += Number(v.stock) || 0;
-                    }
-                });
-                return { ...p, isGloballySoldOut: totalStock <= 0 };
-            });
-
-            // SORTING: In Stock (false) comes before Sold Out (true)
-            processedItems.sort((a, b) => a.isGloballySoldOut - b.isGloballySoldOut);
-            
-            // Take the top 8 (which will be in-stock items first)
-            renderRelatedSlider(processedItems.slice(0, 8));
+        const statusEl = document.getElementById('stock-status');
+        if (realAvailability <= 0) {
+            statusEl.innerHTML = `<span class="text-red-500">MAX CAPACITY IN STORE</span>`;
+        } else {
+            statusEl.innerText = `${realAvailability} UNITS AVAILABLE TO SECURE`;
         }
-    } catch (err) { 
-        console.error("Related Products Error:", err); 
+        
+        document.querySelectorAll('.size-btn').forEach(btn => {
+            const btnText = btn.querySelector('span:last-child').innerText.trim();
+            const matchTxt = (size === 'OS' ? "ONE SIZE / ADJ" : size.toUpperCase());
+            btn.classList.toggle('active', btnText === matchTxt);
+        });
+
+        const addBtn = document.getElementById('add-btn');
+        const buyBtn = document.getElementById('buy-btn');
+
+        if (realAvailability <= 0) {
+            addBtn.disabled = true;
+            buyBtn.disabled = true;
+            addBtn.innerText = "LIMIT REACHED";
+        } else {
+            addBtn.disabled = false;
+            buyBtn.disabled = false;
+            addBtn.innerText = "ADD TO CART";
+        }
     }
-}
 
- function renderRelatedSlider(items) {
-    const slider = document.getElementById('related-slider');
-    if (!slider) return;
+    async function addToCart(showFeedback = true) {
+        if (!selectedVariant || !selectedSize) { 
+            showModal('Selection Required', 'PLEASE SELECT COLOR AND SIZE', 'error');
+            return false; 
+        }
 
-    slider.innerHTML = items.map(p => {
-        const defaultImg = p.displayImage || (p.variants?.[0]?.images?.[0]) || 'placeholder.jpg';
-        const pCategory = p.category || 'wear'; 
-        const isSoldOut = p.isGloballySoldOut; // Using the property we created in the sort
+        const stockLimit = Number(currentStockLimit);
+        let cart = JSON.parse(localStorage.getItem('outflickz_cart') || '[]');
+        
+        const existingIndex = cart.findIndex(i => 
+            i.id === currentProduct._id && 
+            i.color === selectedVariant.color && 
+            i.size === selectedSize
+        );
 
-        const swatches = (p.variants || []).map(v => `
-            <div class="color-dot w-2 h-2 rounded-full border border-white/50" 
-                 style="background-color: ${v.color.toLowerCase()};" 
-                 onmouseover="document.getElementById('rel-img-${p._id}').src='${v.images[0]}'" 
-                 onclick="event.stopPropagation();">
-            </div>`).join('');
+        const currentCartQty = existingIndex > -1 ? Number(cart[existingIndex].qty) : 0;
+        const requestedTotal = currentCartQty + purchaseQty;
 
-        return `
-            <div class="related-item group cursor-pointer relative" 
-                 onclick="window.location.href='product-detail.html?id=${p._id}&category=${pCategory}'">
-                
-                <div class="aspect-[3/4] bg-zinc-100 overflow-hidden relative border border-black/5">
-                    
-                    ${isSoldOut ? `
-                        <div class="absolute inset-0 bg-white/40 z-20 pointer-events-none"></div>
-                        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-red-600 text-white text-[8px] font-black px-3 py-1.5 z-30 border border-white uppercase tracking-tighter rotate-[-5deg] shadow-xl">
-                            SOLD OUT
+        if (requestedTotal > stockLimit) {
+            showModal('Cart Limit', `ONLY ${stockLimit} TOTAL UNITS ALLOWED PER CUSTOMER.`, 'error');
+            return false;
+        }
+
+        const cartItem = {
+            id: currentProduct._id,
+            name: currentProduct.name,
+            price: currentProduct.price,
+            category: currentProduct.category || "item",
+            color: selectedVariant.color,
+            size: selectedSize,
+            image: selectedVariant.images[0],
+            maxStock: stockLimit,
+            qty: requestedTotal
+        };
+
+        if (existingIndex > -1) {
+            cart[existingIndex].qty = requestedTotal;
+            cart[existingIndex].category = cartItem.category; 
+        } else {
+            cart.push(cartItem);
+        }
+
+        localStorage.setItem('outflickz_cart', JSON.stringify(cart));
+        updateCartCount();
+        selectSize(selectedSize, currentStockLimit);
+
+        if (showFeedback) {
+            showModal('Secured', `${currentProduct.name.toUpperCase()} HAS BEEN ADDED TO YOUR CART.`);
+        }
+        return true;
+    }
+
+    async function buyNow() {
+        const buyBtn = document.getElementById('buy-btn');
+        const originalContent = buyBtn.innerHTML;
+        buyBtn.disabled = true;
+        buyBtn.innerHTML = `
+            <div class="flex items-center justify-center space-x-2">
+                <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>VERIFYING ORDER...</span>
+            </div>
+        `;
+
+        const success = await addToCart(false);
+        if(success) {
+            setTimeout(() => { window.location.href = 'cart.html'; }, 500); 
+        } else {
+            buyBtn.innerHTML = originalContent;
+            buyBtn.disabled = false;
+        }
+    }
+
+    async function loadRelatedProducts(currentId) {
+        try {
+            const res = await fetch(API_ENDPOINT, { 
+                method: 'POST', 
+                body: JSON.stringify({ action: 'get-all-products-combined' }) 
+            });
+            let allItems = await res.json();
+            
+            if (Array.isArray(allItems)) {
+                let processedItems = allItems.filter(p => p._id !== currentId);
+                processedItems = processedItems.map(p => {
+                    let totalStock = 0;
+                    (p.variants || []).forEach(v => {
+                        if (v.stockMatrix) {
+                            Object.values(v.stockMatrix).forEach(qty => totalStock += Number(qty) || 0);
+                        } else if (v.stock) {
+                            totalStock += Number(v.stock) || 0;
+                        }
+                    });
+                    return { ...p, isGloballySoldOut: totalStock <= 0 };
+                });
+
+                processedItems.sort((a, b) => a.isGloballySoldOut - b.isGloballySoldOut);
+                renderRelatedSlider(processedItems.slice(0, 8));
+            }
+        } catch (err) { 
+            console.error("Related Products Error:", err); 
+        }
+    }
+
+    function renderRelatedSlider(items) {
+        const slider = document.getElementById('related-slider');
+        if (!slider) return;
+
+        slider.innerHTML = items.map(p => {
+            const rawImg = p.displayImage || (p.variants?.[0]?.images?.[0]) || 'placeholder.jpg';
+            // OPTIMIZED: Related items use 600px width for performance
+            const displayImg = getOptimizedUrl(rawImg, 600, 75);
+            const pCategory = p.category || 'wear'; 
+            const isSoldOut = p.isGloballySoldOut;
+
+            const swatches = (p.variants || []).map(v => {
+                const swatchHoverImg = getOptimizedUrl(v.images[0], 600, 75);
+                return `
+                <div class="color-dot w-2 h-2 rounded-full border border-white/50" 
+                     style="background-color: ${v.color.toLowerCase()};" 
+                     onmouseover="document.getElementById('rel-img-${p._id}').src='${swatchHoverImg}'" 
+                     onclick="event.stopPropagation();">
+                </div>`;
+            }).join('');
+
+            return `
+                <div class="related-item group cursor-pointer relative" 
+                     onclick="window.location.href='product-detail.html?id=${p._id}&category=${pCategory}'">
+                    <div class="aspect-[3/4] bg-zinc-100 overflow-hidden relative border border-black/5">
+                        ${isSoldOut ? `
+                            <div class="absolute inset-0 bg-white/40 z-20 pointer-events-none"></div>
+                            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-red-600 text-white text-[8px] font-black px-3 py-1.5 z-30 border border-white uppercase tracking-tighter rotate-[-5deg] shadow-xl">
+                                SOLD OUT
+                            </div>
+                        ` : ''}
+                        <img id="rel-img-${p._id}" 
+                             src="${displayImg}" 
+                             onerror="handleImageError(this)"
+                             alt="${p.name}" 
+                             loading="lazy" 
+                             class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-700 ${isSoldOut ? 'grayscale contrast-75' : ''}">
+                        <div class="absolute bottom-3 left-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            ${swatches}
                         </div>
-                    ` : ''}
-
-                    <img id="rel-img-${p._id}" 
-                         src="${defaultImg}" 
-                         alt="${p.name}" 
-                         loading="lazy" 
-                         class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-700 ${isSoldOut ? 'grayscale contrast-75' : ''}">
-                    
-                    <div class="absolute bottom-3 left-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        ${swatches}
                     </div>
-                </div>
-
-                <div class="mt-4 space-y-1 ${isSoldOut ? 'opacity-40' : ''}">
-                    <div class="flex justify-between items-start">
-                        <h3 class="font-bold uppercase text-[9px] tracking-wider">${p.name}</h3>
-                        <p class="font-bold text-[9px] ${isSoldOut ? 'line-through text-zinc-400' : ''}">₦${Number(p.price).toLocaleString()}</p>
+                    <div class="mt-4 space-y-1 ${isSoldOut ? 'opacity-40' : ''}">
+                        <div class="flex justify-between items-start">
+                            <h3 class="font-bold uppercase text-[9px] tracking-wider">${p.name}</h3>
+                            <p class="font-bold text-[9px] ${isSoldOut ? 'line-through text-zinc-400' : ''}">₦${Number(p.price).toLocaleString()}</p>
+                        </div>
+                        <p class="text-zinc-400 text-[8px] uppercase tracking-widest">
+                            ${isSoldOut ? 'OUTFLICKZ CLOSED' : `${pCategory} / ${p.variants?.length || 0} Colors`}
+                        </p>
                     </div>
-                    <p class="text-zinc-400 text-[8px] uppercase tracking-widest">
-                        ${isSoldOut ? 'OUTFLICKZ CLOSED' : `${pCategory} / ${p.variants?.length || 0} Colors`}
-                    </p>
-                </div>
-            </div>`;
-    }).join('');
-}
+                </div>`;
+        }).join('');
+    }
 
     function updateCartCount() {
         const cart = JSON.parse(localStorage.getItem('outflickz_cart') || '[]');
         document.getElementById('cart-count').innerText = cart.length;
     }
-function toggleSidebar(open) {
-    const menu = document.getElementById('mobile-menu');
-    if (open) {
-        menu.classList.add('open');
-        menu.classList.remove('translate-x-full');
-        document.body.style.overflow = 'hidden';
-    } else {
-        menu.classList.remove('open');
-        menu.classList.add('translate-x-full');
-        document.body.style.overflow = 'auto';
-    }
-}
-   
- function updateAuthUI() {
-   const authSection = document.getElementById('nav-auth-section');
-    const mobileAuth = document.getElementById('mobile-auth-section');
-    const userData = JSON.parse(localStorage.getItem('outflickz_user_data') || '{}');
-    const token = localStorage.getItem('outflickz_token');
 
-    if (token && userData.firstName) {
-        authSection.innerHTML = `
-            <a href="../account/profile.html" class="flex items-center space-x-2 group">
-                <span class="text-[9px] font-bold uppercase tracking-widest group-hover:text-zinc-500 transition-colors">
-                    Hi, ${userData.firstName}
-                </span>
-                <div class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-            </a>
-        `;
-    } else {
-        // Guest View - Keeping it clean but inviting
-        authSection.innerHTML = `
-            <div class="flex items-center space-x-4">
-                <a href="/account/login.html" class="text-[9px] font-bold uppercase tracking-widest hover:text-zinc-500 transition">Login</a>
-                <span class="text-zinc-300">|</span>
-                <a href="/account/login.html" class="text-[9px] font-bold uppercase tracking-widest bg-black text-white px-3 py-1.5 rounded-sm hover:bg-zinc-800 transition">Join Outflickz</a>
-            </div>
-        `;
-    }
-}
-
-function autoClearSession() {
-    const now = new Date().getTime();
-    const lastActive = localStorage.getItem('outflickz_last_active');
-
-    if (lastActive && (now - lastActive > SESSION_TIMEOUT)) {
-        console.warn("Outflickz: Session stale. Wiping storage to prevent hanging.");
-        
-        localStorage.removeItem('outflickz_token');
-        localStorage.removeItem('outflickz_user_data');
-        // We leave the cart alone so users don't get frustrated
-        localStorage.removeItem('outflickz_guest_id');
+    function toggleSidebar(open) {
+        const menu = document.getElementById('mobile-menu');
+        if (open) {
+            menu.classList.add('open');
+            menu.classList.remove('translate-x-full');
+            document.body.style.overflow = 'hidden';
+        } else {
+            menu.classList.remove('open');
+            menu.classList.add('translate-x-full');
+            document.body.style.overflow = 'auto';
+        }
     }
 
-    // Update timestamp so the clock restarts on this visit
-    localStorage.setItem('outflickz_last_active', now.toString());
-}
+    function updateAuthUI() {
+        const authSection = document.getElementById('nav-auth-section');
+        const userData = JSON.parse(localStorage.getItem('outflickz_user_data') || '{}');
+        const token = localStorage.getItem('outflickz_token');
 
-function toggleChat() {
-    const windowEl = document.getElementById('chat-window');
-    const isHidden = windowEl.classList.contains('hidden');
-
-    if (isHidden) {
-        windowEl.classList.remove('hidden');
-        setTimeout(() => {
-            windowEl.classList.remove('scale-95', 'opacity-0');
-            windowEl.classList.add('scale-100', 'opacity-100');
-        }, 10);
-    } else {
-        windowEl.classList.add('scale-95', 'opacity-0');
-        windowEl.classList.remove('scale-100', 'opacity-100');
-        setTimeout(() => windowEl.classList.add('hidden'), 300);
+        if (token && userData.firstName) {
+            authSection.innerHTML = `
+                <a href="../account/profile.html" class="flex items-center space-x-2 group">
+                    <span class="text-[9px] font-bold uppercase tracking-widest group-hover:text-zinc-500 transition-colors">
+                        Hi, ${userData.firstName}
+                    </span>
+                    <div class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                </a>
+            `;
+        } else {
+            authSection.innerHTML = `
+                <div class="flex items-center space-x-4">
+                    <a href="/account/login.html" class="text-[9px] font-bold uppercase tracking-widest hover:text-zinc-500 transition">Login</a>
+                    <span class="text-zinc-300">|</span>
+                    <a href="/account/login.html" class="text-[9px] font-bold uppercase tracking-widest bg-black text-white px-3 py-1.5 rounded-sm hover:bg-zinc-800 transition">Join Outflickz</a>
+                </div>
+            `;
+        }
     }
-}
 
-function setPlatform(platform) {
-    selectedPlatform = platform;
-    
-    // UI Feedback for selection
-    document.getElementById('btn-wa').classList.toggle('bg-zinc-100', platform === 'wa');
-    document.getElementById('btn-wa').classList.toggle('border-black', platform === 'wa');
-    document.getElementById('btn-tg').classList.toggle('bg-zinc-100', platform === 'tg');
-    document.getElementById('btn-tg').classList.toggle('border-black', platform === 'tg');
-}
-
-function sendChatMessage() {
-    const message = document.getElementById('chat-input').value || "Hello Outflickz, I need assistance.";
-    const encodedMessage = encodeURIComponent(message);
-    
-    let url = "";
-    if (selectedPlatform === 'wa') {
-        url = `https://wa.me/2347042882706?text=${encodedMessage}`;
-    } else {
-        url = `https://t.me/+2349125898200?text=${encodedMessage}`;
+    function autoClearSession() {
+        const now = new Date().getTime();
+        const lastActive = localStorage.getItem('outflickz_last_active');
+        if (lastActive && (now - lastActive > SESSION_TIMEOUT)) {
+            localStorage.removeItem('outflickz_token');
+            localStorage.removeItem('outflickz_user_data');
+            localStorage.removeItem('outflickz_guest_id');
+        }
+        localStorage.setItem('outflickz_last_active', now.toString());
     }
-    
-    window.open(url, '_blank');
-}
+
+    function toggleChat() {
+        const windowEl = document.getElementById('chat-window');
+        const isHidden = windowEl.classList.contains('hidden');
+        if (isHidden) {
+            windowEl.classList.remove('hidden');
+            setTimeout(() => {
+                windowEl.classList.remove('scale-95', 'opacity-0');
+                windowEl.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        } else {
+            windowEl.classList.add('scale-95', 'opacity-0');
+            windowEl.classList.remove('scale-100', 'opacity-100');
+            setTimeout(() => windowEl.classList.add('hidden'), 300);
+        }
+    }
+
+    function setPlatform(platform) {
+        selectedPlatform = platform;
+        document.getElementById('btn-wa').classList.toggle('bg-zinc-100', platform === 'wa');
+        document.getElementById('btn-tg').classList.toggle('bg-zinc-100', platform === 'tg');
+    }
+
+    function sendChatMessage() {
+        const message = document.getElementById('chat-input').value || "Hello Outflickz, I need assistance.";
+        const encodedMessage = encodeURIComponent(message);
+        let url = (selectedPlatform === 'wa') 
+            ? `https://wa.me/2347042882706?text=${encodedMessage}` 
+            : `https://t.me/+2349125898200?text=${encodedMessage}`;
+        window.open(url, '_blank');
+    }
 </script>
 </body>
 </html>

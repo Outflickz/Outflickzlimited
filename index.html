@@ -237,27 +237,26 @@
     <div id="mobile-auth-section" class="mt-auto border-t border-black/5 pt-8"></div>
 </div>
 <section class="relative w-full min-h-[80vh] lg:h-screen bg-black overflow-hidden">
-    
     <div class="hidden lg:grid grid-cols-2 w-full h-full absolute inset-0">
         <div class="relative h-full w-full overflow-hidden bg-zinc-900">
-            <video autoplay muted loop playsinline preload="auto" class="w-full h-full object-cover opacity-90 border-r border-white/10">
+            <video id="desktopVideo1" autoplay muted loop playsinline preload="auto" class="w-full h-full object-cover opacity-90 border-r border-white/10">
                 <source src="outflickz.mp4" type="video/mp4">
             </video>
         </div>
         <div class="relative h-full w-full overflow-hidden bg-zinc-900">
-            <video autoplay muted loop playsinline preload="auto" class="w-full h-full object-cover opacity-90">
+            <video id="desktopVideo2" autoplay muted loop playsinline preload="auto" class="w-full h-full object-cover opacity-90">
                 <source src="outflickz1.mp4" type="video/mp4">
             </video>
         </div>
     </div>
 
     <div class="block lg:hidden w-full h-full absolute inset-0 bg-zinc-900">
-        <video id="mobileHeroVideo" autoplay muted playsinline preload="auto" class="w-full h-full object-cover opacity-90">
+        <video id="mobileHeroVideo" autoplay muted loop playsinline preload="auto" class="w-full h-full object-cover opacity-90">
             <source id="mobileSource" src="outflickz.mp4" type="video/mp4">
         </video>
     </div>
 
-    <button id="muteBtn" onclick="toggleMute()" class="absolute top-24 right-6 z-20 px-4 py-2 border border-white/60 text-white backdrop-blur-md rounded-full transition-all hover:bg-white/10">
+    <button id="muteBtn" onclick="toggleHeroMute()" class="absolute top-24 right-6 z-20 px-4 py-2 border border-white/60 text-white backdrop-blur-md rounded-full transition-all hover:bg-white/10">
         <span id="muteIcon">🔇</span>
     </button>
 
@@ -515,19 +514,21 @@ function renderProducts(list) {
     const grid = document.getElementById('product-grid');
     if (!grid) return;
 
-    // 1. SMART UPDATE: If the grid is already populated, don't wipe it.
-    // This prevents the "flash" when fetchProducts() updates links in the background.
     const currentCards = grid.querySelectorAll('.group[id^="container-"]');
-    if (currentCards.length > 0 && list.length === currentCards.length) {
-        console.log("Vault Refresh: Hot-swapping image sources silently...");
-        list.forEach(p => {
-            const img = document.getElementById(`img-${p._id}`);
-            if (img && p.displayImage && img.src !== p.displayImage) {
-                img.src = p.displayImage; // Only update the source
-            }
-        });
-        return; // Exit here so we don't re-render the whole HTML
-    }
+   // Inside renderProducts(list)
+if (currentCards.length > 0 && list.length === currentCards.length) {
+    console.log("Vault Refresh: Hot-swapping image sources silently...");
+    list.forEach(p => {
+        const img = document.getElementById(`img-${p._id}`);
+        // ADDED: Append width and quality to the refresh
+        const optimizedUrl = p.displayImage ? `${p.displayImage}&w=600&q=80` : null;
+        
+        if (img && optimizedUrl && img.src !== optimizedUrl) {
+            img.src = optimizedUrl;
+        }
+    });
+    return;
+}
 
     // 2. FULL RENDER: (Initial load or list length change)
     let htmlContent = '';
@@ -564,24 +565,43 @@ function renderProducts(list) {
     grid.innerHTML = htmlContent;
 }
 
-        function createProductCard(p) {
-            const variants = Array.isArray(p.variants) ? p.variants : [];
-// Change this line in your createProductCard
-const isValidUrl = (url) => (typeof url === 'string' && !url.includes('…') && url.startsWith('http') && url.length > 10);
+/**
+ * FRONTEND HELPER: Apply Netlify CDN Transformations
+ * This ensures we don't download 2MB images on a mobile device.
+ */
+function getOptimizedUrl(url, width = 600, quality = 75) {
+    if (!url || typeof url !== 'string') return url;
+    // Only append parameters if it's a Netlify CDN proxied URL
+    if (url.startsWith('/.netlify/images')) {
+        // Check if parameters already exist to avoid double nesting
+        const connector = url.includes('?') ? '&' : '?';
+        return `${url}${connector}w=${width}&q=${quality}`;
+    }
+    return url;
+}
 
-            const processedVariants = variants.map(v => {
-                let vStock = 0;
-                if (v.stockMatrix && typeof v.stockMatrix === 'object') {
-                    Object.values(v.stockMatrix).forEach(qty => vStock += (Number(qty) || 0));
-                } else { vStock = Number(v.stock) || 0; }
-                const cleanImages = (Array.isArray(v.images) ? v.images : []).filter(img => isValidUrl(img));
-                return { ...v, totalStock: vStock, cleanImages };
-            });
+function createProductCard(p) {
+    const variants = Array.isArray(p.variants) ? p.variants : [];
+    const isValidUrl = (url) => (typeof url === 'string' && !url.includes('…') && url.startsWith('http') && url.length > 10);
 
-            const isOutOfStock = p.isOutOfStock || (processedVariants.length > 0 && processedVariants.every(v => v.totalStock <= 0));
-            const backupImages = processedVariants.flatMap(v => v.cleanImages);
-            const globalDisplay = isValidUrl(p.displayImage) ? p.displayImage : null;
-            let defaultImg = globalDisplay || (backupImages.length > 0 ? backupImages[0] : 'https://placehold.co/600x800/f4f4f5/000?text=OUTFLICKZ');
+    const processedVariants = variants.map(v => {
+        let vStock = 0;
+        if (v.stockMatrix && typeof v.stockMatrix === 'object') {
+            Object.values(v.stockMatrix).forEach(qty => vStock += (Number(qty) || 0));
+        } else { vStock = Number(v.stock) || 0; }
+        const cleanImages = (Array.isArray(v.images) ? v.images : []).filter(img => isValidUrl(img));
+        return { ...v, totalStock: vStock, cleanImages };
+    });
+
+    const isOutOfStock = p.isOutOfStock || (processedVariants.length > 0 && processedVariants.every(v => v.totalStock <= 0));
+    const backupImages = processedVariants.flatMap(v => v.cleanImages);
+    const globalDisplay = isValidUrl(p.displayImage) ? p.displayImage : null;
+    
+    // Get the raw source link
+    let rawImg = globalDisplay || (backupImages.length > 0 ? backupImages[0] : 'https://placehold.co/600x800/f4f4f5/000?text=OUTFLICKZ');
+    
+    // OPTIMIZED: Apply CDN sizing for the grid (600px is sweet spot for mobile/desktop grid)
+    const defaultImg = getOptimizedUrl(rawImg, 600, 80);
 
     return `
 <div class="group relative cursor-pointer animate-item" onclick="window.location.href='/products/product-detail.html?id=${p._id}'">
@@ -598,7 +618,10 @@ const isValidUrl = (url) => (typeof url === 'string' && !url.includes('…') && 
 
         <div class="swatch-container absolute bottom-3 left-3 flex flex-wrap gap-1.5 z-50 opacity-0 group-hover:opacity-100 transition-opacity">
             ${processedVariants.map(v => {
-                const vPreview = (v.cleanImages && v.cleanImages.length > 0) ? v.cleanImages[0] : defaultImg;
+                const vRaw = (v.cleanImages && v.cleanImages.length > 0) ? v.cleanImages[0] : rawImg;
+                
+                // OPTIMIZED: Swatches only need to be 400px for the preview hover
+                const vPreview = getOptimizedUrl(vRaw, 400, 75);
                 const vIsSoldOut = v.totalStock <= 0;
                 
                 return `<button type="button" 
@@ -619,7 +642,7 @@ const isValidUrl = (url) => (typeof url === 'string' && !url.includes('…') && 
         <p class="text-zinc-400 text-[12px] uppercase tracking-widest">${p.category || 'Collection'} / ${processedVariants.filter(v => v.totalStock > 0).length} Colors Available</p>
     </div>
 </div>`;
-        }
+}
 
 function updatePreview(event, productId, newSrc, isVariantSoldOut) {
     if (event) event.stopPropagation(); 
@@ -647,27 +670,31 @@ function updatePreview(event, productId, newSrc, isVariantSoldOut) {
     }
 }
 
-
-// 2. THE MAIN HANDLE ERROR FUNCTION
+/**
+ * REFINED: Handle Image Error with CDN Optimization
+ */
 async function handleImageError(img, id) {
     if (img.src.includes('placehold.co')) return;
     if (img.dataset.refreshing === 'true') return; 
 
-    const isSecureLink = img.src.includes('idrivee2') || img.src.includes('amazonaws');
+    // We check for idrivee2, amazonaws, OR our new Netlify proxy path
+    const isSecureLink = img.src.includes('idrivee2') || 
+                         img.src.includes('amazonaws') || 
+                         img.src.includes('.netlify/images');
 
     if (isSecureLink && typeof fetchProducts === 'function') {
         img.dataset.refreshing = 'true'; 
         img.classList.add('animate-pulse', 'opacity-50');
 
         try {
-            // This now correctly references the global variable above
             if (!IS_FETCHING_REFRESH) {
                 IS_FETCHING_REFRESH = true;
                 console.warn(`Vault links expired. Synchronizing with MongoDB/Redis...`);
                 await fetchProducts(); 
                 IS_FETCHING_REFRESH = false;
             } else {
-                await new Promise(resolve => setTimeout(resolve, 1500));
+                // Wait for the primary fetch to finish
+                await new Promise(resolve => setTimeout(resolve, 2000));
             }
 
             if (typeof MASTER_PRODUCTS !== 'undefined' && Array.isArray(MASTER_PRODUCTS)) {
@@ -680,10 +707,15 @@ async function handleImageError(img, id) {
                         newUrl = variantWithImg?.images[0];
                     }
 
-                    if (newUrl && newUrl !== img.src) {
-                        img.src = newUrl;
+                    // CRITICAL: Apply the CDN optimization to the fresh URL
+                    // We use the same 600px width as the original card
+                    const optimizedNewUrl = getOptimizedUrl(newUrl, 600, 80);
+
+                    if (optimizedNewUrl && optimizedNewUrl !== img.src) {
+                        img.src = optimizedNewUrl;
                         img.onload = () => {
                             img.classList.remove('animate-pulse', 'opacity-50');
+                            img.parentElement?.classList.remove('skeleton');
                             img.dataset.refreshing = 'false';
                         };
                         return; 
@@ -692,7 +724,7 @@ async function handleImageError(img, id) {
             }
         } catch (err) {
             console.error("Vault Refresh Error:", err);
-            IS_FETCHING_REFRESH = false; // Reset so retries can happen
+            IS_FETCHING_REFRESH = false;
         }
     }
 
@@ -962,15 +994,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Master Mute Toggle
-function toggleMute() {
-    const videos = document.querySelectorAll('video');
+function toggleHeroMute() {
     const muteIcon = document.getElementById('muteIcon');
-    if (videos.length === 0) return;
+    
+    // 1. Create a list of all your hero video IDs
+    const heroIds = ['desktopVideo1', 'desktopVideo2', 'mobileHeroVideo'];
+    
+    // 2. Filter to get only the videos that are currently in the DOM
+    const activeVideos = heroIds
+        .map(id => document.getElementById(id))
+        .filter(video => video !== null);
 
-    const isMuted = videos[0].muted;
-    videos.forEach(v => v.muted = !isMuted);
-    muteIcon.innerHTML = !isMuted ? '🔇' : '🔊';
+    if (activeVideos.length === 0) return;
+
+    // 3. Determine action based on the first video's current state
+    const isCurrentlyMuted = activeVideos[0].muted;
+
+    // 4. Synchronize all active hero videos
+    activeVideos.forEach(v => {
+        v.muted = !isCurrentlyMuted;
+    });
+
+    // 5. Update the UI Icon
+    // If it was muted, we just unmuted it, so show 🔊
+    muteIcon.innerHTML = !isCurrentlyMuted ? '🔊' : '🔇';
 }
 </script>
 </body>

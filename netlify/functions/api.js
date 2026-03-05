@@ -57,73 +57,57 @@ async function connectToDatabase() {
         throw err;
     }
 }
-
-/**
- * HELPER: Upload Base64 to Private IDrive/S3 with Compression
- */
 async function uploadToS3(fileBase64) {
     if (!fileBase64) return null;
 
     try {
-        // Remove the data URL prefix (e.g., data:image/jpeg;base64,)
         const base64Data = fileBase64.replace(/^data:image\/\w+;base64,/, "");
         const buffer = Buffer.from(base64Data, 'base64');
 
-        // 2. IMAGE PROCESSING PIPELINE
         const compressedBuffer = await sharp(buffer)
-            .rotate() // Auto-rotates based on EXIF data (fixes sideways phone uploads)
-            .resize(1000, 1333, { 
-                fit: 'cover', 
+            .rotate() 
+            .resize(1500, 2000, { 
+                fit: 'inside', 
                 withoutEnlargement: true 
-            }) // Standardize to a 3:4 aspect ratio common for streetwear
-            .webp({ quality: 75, effort: 4 }) // Convert to WebP with 75% quality
+            }) 
+            .jpeg({ quality: 90 }) // Upload high-quality JPEG master
             .toBuffer();
 
-        // Use .webp extension for the key
-        const key = `vault/${Date.now()}-${Math.random().toString(36).substring(7)}.webp`;
+        const key = `vault/${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
 
         const params = {
             Bucket: BUCKET_NAME,
             Key: key,
             Body: compressedBuffer,
-            ContentType: 'image/webp',
-            // 3. CACHE CONTROL (Crucial for bad network performance)
-            // Tells the browser to keep the image for 1 year so it doesn't re-download
+            ContentType: 'image/jpeg',
             CacheControl: 'public, max-age=31536000, immutable'
         };
 
         await s3.upload(params).promise();
         return key; 
     } catch (error) {
-        console.error("Compression/Upload Error:", error);
-        // Fallback: If sharp fails, return null or handle accordingly
+        console.error("Upload Error:", error);
         return null;
     }
 }
 
-/**
- * HELPER: Generate Temporary Secure Link
- * Valid for 604800 seconds (7 Days) - The S3 Protocol Maximum
- */
 async function getSecureUrl(key) {
     if (!key || typeof key !== 'string') return null;
     
-    // If it's already a full URL, return it as is
-    if (key.startsWith('http')) return key;
-    
-    // SANITIZE: Remove any accidental ellipsis (…) or whitespace
     const cleanKey = key.replace(/[…\s]/g, '').trim();
     
     try {
-        // Generate the Signed URL
-        // 604800 seconds = 7 Days
-        return await s3.getSignedUrlPromise('getObject', {
+        const rawSignedUrl = await s3.getSignedUrlPromise('getObject', {
             Bucket: BUCKET_NAME,
             Key: cleanKey,
             Expires: 604800 
         });
+
+        const encodedUrl = encodeURIComponent(rawSignedUrl);
+        
+        return `/.netlify/images?url=${encodedUrl}`;
     } catch (err) {
-        console.error("S3 Signing Error for key:", cleanKey, err);
+        console.error("S3 Signing Error:", cleanKey, err);
         return null;
     }
 }
@@ -367,9 +351,10 @@ exports.handler = async (event, context) => {
     context.callbackWaitsForEmptyEventLoop = false;
 
     const headers = {
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": "https://outflickz.com",
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
         "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Credentials": "true",
         "Content-Type": "application/json"
     };
 

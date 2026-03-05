@@ -310,6 +310,24 @@
 
 
     /**
+ * Resolves images for the Detail Page.
+ * Since api.js already secured the URLs, we just pass them through.
+ */
+function getOptimizedUrl(url) {
+    if (!url || typeof url !== 'string' || url.includes('placehold.co')) {
+        return 'https://placehold.co/600x800/f4f4f5/000?text=OUTFLICKZ';
+    }
+    
+    // If the API hasn't secured it yet (e.g. it's still "vault/..."), 
+    // we handle it here just in case.
+    if (url.startsWith('vault/')) {
+        return `/.netlify/functions/outflickz-image-proxy?key=${encodeURIComponent(url)}`;
+    }
+
+    return url;
+}
+
+    /**
      * Image Error Handler for Product Details
      * If a high-res link expires, we re-fetch the product data.
      */

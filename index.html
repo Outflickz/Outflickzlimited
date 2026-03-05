@@ -242,11 +242,18 @@
             <video id="desktopVideo1" autoplay muted loop playsinline preload="auto" class="w-full h-full object-cover opacity-90 border-r border-white/10">
                 <source src="outflickz.mp4" type="video/mp4">
             </video>
+            <button onclick="toggleVideoMute(this, 'desktopVideo1')" class="absolute bottom-6 right-6 z-20 px-4 py-2 border border-white/60 text-white backdrop-blur-md rounded-full transition-all hover:bg-white/10">
+                <span>🔇</span>
+            </button>
         </div>
+
         <div class="relative h-full w-full overflow-hidden bg-zinc-900">
             <video id="desktopVideo2" autoplay muted loop playsinline preload="auto" class="w-full h-full object-cover opacity-90">
                 <source src="outflickz1.mp4" type="video/mp4">
             </video>
+            <button onclick="toggleVideoMute(this, 'desktopVideo2')" class="absolute bottom-6 right-6 z-20 px-4 py-2 border border-white/60 text-white backdrop-blur-md rounded-full transition-all hover:bg-white/10">
+                <span>🔇</span>
+            </button>
         </div>
     </div>
 
@@ -254,11 +261,10 @@
         <video id="mobileHeroVideo" autoplay muted loop playsinline preload="auto" class="w-full h-full object-cover opacity-90">
             <source id="mobileSource" src="outflickz.mp4" type="video/mp4">
         </video>
+        <button onclick="toggleVideoMute(this, 'mobileHeroVideo')" class="absolute bottom-6 right-6 z-20 px-4 py-2 border border-white/60 text-white backdrop-blur-md rounded-full transition-all hover:bg-white/10">
+            <span>🔇</span>
+        </button>
     </div>
-
-    <button id="muteBtn" onclick="toggleHeroMute()" class="absolute top-24 right-6 z-20 px-4 py-2 border border-white/60 text-white backdrop-blur-md rounded-full transition-all hover:bg-white/10">
-        <span id="muteIcon">🔇</span>
-    </button>
 
     <div class="absolute bottom-[10%] left-[5%] text-white z-10 pointer-events-none">
         <h1 class="text-6xl md:text-8xl font-black italic tracking-tighter uppercase leading-none drop-shadow-2xl">STYLE<br>REDEFINED</h1>
@@ -994,30 +1000,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-function toggleHeroMute() {
-    const muteIcon = document.getElementById('muteIcon');
-    
-    // 1. Create a list of all your hero video IDs
-    const heroIds = ['desktopVideo1', 'desktopVideo2', 'mobileHeroVideo'];
-    
-    // 2. Filter to get only the videos that are currently in the DOM
-    const activeVideos = heroIds
-        .map(id => document.getElementById(id))
-        .filter(video => video !== null);
+/**
+ * Independent Video Mute Toggle
+ * @param {HTMLElement} btn - The specific button element clicked
+ * @param {string} videoId - The ID of the video to toggle
+ */
+function toggleVideoMute(btn, videoId) {
+    const video = document.getElementById(videoId);
+    if (!video) return;
 
-    if (activeVideos.length === 0) return;
+    // Find the icon span inside the clicked button
+    const icon = btn.querySelector('span');
 
-    // 3. Determine action based on the first video's current state
-    const isCurrentlyMuted = activeVideos[0].muted;
+    // Toggle mute state for this specific video ONLY
+    video.muted = !video.muted;
 
-    // 4. Synchronize all active hero videos
-    activeVideos.forEach(v => {
-        v.muted = !isCurrentlyMuted;
-    });
+    // Update the icon for this button ONLY
+    icon.innerHTML = video.muted ? '🔇' : '🔊';
 
-    // 5. Update the UI Icon
-    // If it was muted, we just unmuted it, so show 🔊
-    muteIcon.innerHTML = !isCurrentlyMuted ? '🔊' : '🔇';
+    // Optional: Add a subtle glow/background when unmuted to show it's active
+    if (!video.muted) {
+        btn.classList.add('bg-white/20');
+    } else {
+        btn.classList.remove('bg-white/20');
+    }
 }
 </script>
 </body>

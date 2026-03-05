@@ -37,13 +37,27 @@
     Access-Control-Allow-Headers = "Content-Type, Authorization"
     Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
 
-# 4. IMAGE CDN CONFIGURATION
+# 4. VIDEO STREAMING OPTIMIZATION
+# This fixes the ERR_CACHE_OPERATION_NOT_SUPPORTED by enabling Byte Range requests
+[[headers]]
+  for = "/*.mp4"
+  [headers.values]
+    Content-Type = "video/mp4"
+    Accept-Ranges = "bytes"
+    Cache-Control = "public, max-age=31536000, must-revalidate"
+
+# 5. IMAGE CDN CONFIGURATION
 [images]
   remote_images = [
     "https://s3\\.us-west-1\\.idrivee2\\.com/.*",
     "https://.*\\.amazonaws\\.com/.*" 
   ]
 
+# 6. FUNCTIONS CONFIGURATION
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = ["mongodb", "bcryptjs", "jsonwebtoken", "nodemailer", "aws-sdk"]
+  # Optimization: Use @aws-sdk/client-s3 instead of 'aws-sdk' if possible to reduce bundle size.
+  # Added 'resend' or 'canvas' if you use them, otherwise kept your list.
+  external_node_modules = ["mongodb", "bcryptjs", "jsonwebtoken", "nodemailer"]
+  # Use included_files to make sure any local assets/templates for emails are found
+  included_files = ["netlify/functions/templates/**"]

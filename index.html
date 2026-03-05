@@ -573,17 +573,31 @@ if (currentCards.length > 0 && list.length === currentCards.length) {
 
 /**
  * FRONTEND HELPER: Apply Netlify CDN Transformations
- * This ensures we don't download 2MB images on a mobile device.
+ * Strips expired signatures and proxies through Netlify Image CDN.
  */
 function getOptimizedUrl(url, width = 600, quality = 75) {
-    if (!url || typeof url !== 'string') return url;
-    // Only append parameters if it's a Netlify CDN proxied URL
-    if (url.startsWith('/.netlify/images')) {
-        // Check if parameters already exist to avoid double nesting
-        const connector = url.includes('?') ? '&' : '?';
-        return `${url}${connector}w=${width}&q=${quality}`;
+    if (!url || typeof url !== 'string' || url.includes('placehold.co')) return url;
+
+    // 1. STRIP SIGNATURES: Remove everything after the '?' 
+    // This is critical because expired S3/iDrive signatures cause 404s in the CDN.
+    const cleanUrl = url.split('?')[0];
+
+    // 2. CHECK SOURCE: Only proxy images from your external storage (iDrive/AWS)
+    const isExternalStorage = cleanUrl.includes('idrivee2.com') || cleanUrl.includes('amazonaws.com');
+
+    if (isExternalStorage) {
+        // Construct the Netlify Image CDN path
+        // w: width, q: quality, fm: format (auto selects webp/avif for speed)
+        return `/.netlify/images?url=${encodeURIComponent(cleanUrl)}&w=${width}&q=${quality}&fm=webp`;
     }
-    return url;
+
+    if (url.startsWith('/.netlify/images')) {
+        const baseUrl = url.split('&w=')[0].split('?w=')[0]; // Get the base proxy path
+        const connector = baseUrl.includes('?') ? '&' : '?';
+        return `${baseUrl}${connector}w=${width}&q=${quality}&fm=webp`;
+    }
+
+    return cleanUrl;
 }
 
 function createProductCard(p) {
@@ -675,71 +689,81 @@ function updatePreview(event, productId, newSrc, isVariantSoldOut) {
         }
     }
 }
-
 /**
  * REFINED: Handle Image Error with CDN Optimization
+ * Prevents signature loops and cleans Netlify Image CDN paths
  */
 async function handleImageError(img, id) {
-    if (img.src.includes('placehold.co')) return;
-    if (img.dataset.refreshing === 'true') return; 
+    // 1. Prevent infinite loops
+    if (img.src.includes('placehold.co') || img.dataset.refreshing === 'true') return;
 
-    // We check for idrivee2, amazonaws, OR our new Netlify proxy path
-    const isSecureLink = img.src.includes('idrivee2') || 
-                         img.src.includes('amazonaws') || 
-                         img.src.includes('.netlify/images');
+    // Check if the link belongs to our storage providers
+    const isVaultLink = img.src.includes('idrivee2') || 
+                        img.src.includes('amazonaws') || 
+                        img.src.includes('.netlify/images');
 
-    if (isSecureLink && typeof fetchProducts === 'function') {
+    if (isVaultLink) {
         img.dataset.refreshing = 'true'; 
         img.classList.add('animate-pulse', 'opacity-50');
 
         try {
-            if (!IS_FETCHING_REFRESH) {
+            // Global lock to prevent multiple simultaneous API calls
+            if (typeof IS_FETCHING_REFRESH !== 'undefined' && !IS_FETCHING_REFRESH) {
                 IS_FETCHING_REFRESH = true;
-                console.warn(`Vault links expired. Synchronizing with MongoDB/Redis...`);
-                await fetchProducts(); 
+                console.warn(`Vault links expired for ${id}. Refreshing...`);
+                
+                // Re-fetch the list from your backend to get fresh signatures
+                if (typeof fetchCaps === 'function') await fetchCaps();
+                else if (typeof fetchProducts === 'function') await fetchProducts();
+                
                 IS_FETCHING_REFRESH = false;
             } else {
-                // Wait for the primary fetch to finish
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                // If another image already started a refresh, just wait
+                await new Promise(resolve => setTimeout(resolve, 2500));
             }
 
+            // 2. Find the fresh data in the Master list
             if (typeof MASTER_PRODUCTS !== 'undefined' && Array.isArray(MASTER_PRODUCTS)) {
                 const freshProduct = MASTER_PRODUCTS.find(p => p._id === id);
                 
                 if (freshProduct) {
-                    let newUrl = freshProduct.displayImage;
-                    if (!newUrl && freshProduct.variants?.length > 0) {
-                        const variantWithImg = freshProduct.variants.find(v => v.images && v.images.length > 0);
-                        newUrl = variantWithImg?.images[0];
+                    let rawUrl = freshProduct.displayImage;
+                    
+                    // Fallback to variant image if display image is empty
+                    if (!rawUrl && freshProduct.variants?.length > 0) {
+                        const vWithImg = freshProduct.variants.find(v => v.images?.length > 0);
+                        rawUrl = vWithImg?.images[0];
                     }
 
-                    // CRITICAL: Apply the CDN optimization to the fresh URL
-                    // We use the same 600px width as the original card
-                    const optimizedNewUrl = getOptimizedUrl(newUrl, 600, 80);
+                    if (rawUrl) {
+                        // CRITICAL: Clean the URL (remove existing Netlify proxy and signatures)
+                        // This prevents passing an expired signature TO the Netlify CDN
+                        let cleanUrl = rawUrl.split('?')[0]; 
+                        
+                        // Re-apply optimization
+                        const optimizedNewUrl = getOptimizedUrl(cleanUrl, 800, 75);
 
-                    if (optimizedNewUrl && optimizedNewUrl !== img.src) {
-                        img.src = optimizedNewUrl;
-                        img.onload = () => {
-                            img.classList.remove('animate-pulse', 'opacity-50');
-                            img.parentElement?.classList.remove('skeleton');
-                            img.dataset.refreshing = 'false';
-                        };
-                        return; 
+                        if (optimizedNewUrl && optimizedNewUrl !== img.src) {
+                            img.src = optimizedNewUrl;
+                            img.onload = () => {
+                                img.classList.remove('animate-pulse', 'opacity-50');
+                                img.dataset.refreshing = 'false';
+                            };
+                            return; 
+                        }
                     }
                 }
             }
         } catch (err) {
             console.error("Vault Refresh Error:", err);
-            IS_FETCHING_REFRESH = false;
+            if (typeof IS_FETCHING_REFRESH !== 'undefined') IS_FETCHING_REFRESH = false;
         }
     }
 
-    // 4. FALLBACK: Permanent error handling
-    console.error(`Permanent image failure for ${id}. Showing placeholder.`);
-    img.parentElement?.classList.remove('skeleton');
-    img.src = 'https://placehold.co/600x800/000000/FFFFFF?text=OUTFLICKZ';
-    img.classList.add('opacity-40');
-    img.classList.remove('animate-pulse');
+    // 3. FALLBACK: If refresh fails, show the placeholder
+    console.error(`Permanent failure for item: ${id}`);
+    img.src = 'https://placehold.co/600x800/f4f4f5/18181b?text=OUTFLICKZ';
+    img.classList.remove('animate-pulse', 'opacity-50');
     img.dataset.refreshing = 'false';
 }
 

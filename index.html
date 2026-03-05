@@ -571,31 +571,28 @@ if (currentCards.length > 0 && list.length === currentCards.length) {
     grid.innerHTML = htmlContent;
 }
 function getOptimizedUrl(url, width = 600, quality = 75) {
-    // 1. Safety Check: If no URL, return placeholder immediately to prevent 400 error
     if (!url || typeof url !== 'string' || url.includes('placehold.co')) {
         return 'https://placehold.co/600x800/18181b/ffffff?text=OUTFLICKZ';
     }
 
-    // 2. Strip signatures
-    const cleanUrl = url.split('?')[0];
+    let finalUrl = url;
 
-    // 3. Check if it's an external storage link
-    const isExternal = cleanUrl.includes('idrivee2.com') || cleanUrl.includes('amazonaws.com');
-
-    if (isExternal) {
-        // We REMOVE &fm=webp for now to fix the 415 error. 
-        // Netlify will serve the original format (webp) without trying to re-encode it.
-        return `/.netlify/images?url=${encodeURIComponent(cleanUrl)}&w=${width}&q=${quality}`;
+    // Check if the URL is already pointing to our new proxy
+    if (url.includes('key=')) {
+        const urlParams = new URLSearchParams(url.split('?')[1]);
+        const key = urlParams.get('key');
+        if (key) {
+            // UPDATED: Matches your new filename 'outflickz-image-proxy'
+            finalUrl = `/.netlify/functions/outflickz-image-proxy?key=${encodeURIComponent(key)}`;
+        }
+    } else if (url.includes('idrivee2.com') || url.includes('amazonaws.com')) {
+        // If it's a raw S3 link, convert it to use our proxy
+        const key = url.split('?')[0].split('.com/')[1]; 
+        finalUrl = `/.netlify/functions/outflickz-image-proxy?key=${encodeURIComponent(key)}`;
     }
 
-    // 4. Handle internal Netlify paths
-    if (url.startsWith('/.netlify/images')) {
-        // Ensure we don't lose the 'url=' parameter
-        if (!url.includes('url=')) return 'https://placehold.co/600x800/18181b/ffffff?text=INVALID+URL';
-        return url;
-    }
-
-    return cleanUrl;
+    // Wrap in Netlify Image CDN for performance
+    return `/.netlify/images?url=${encodeURIComponent(finalUrl)}&w=${width}&q=${quality}`;
 }
 
 function createProductCard(p) {

@@ -90,24 +90,17 @@ async function uploadToS3(fileBase64) {
         return null;
     }
 }
-
 async function getSecureUrl(key) {
     if (!key || typeof key !== 'string') return null;
     
     const cleanKey = key.replace(/[…\s]/g, '').trim();
     
     try {
-        const rawSignedUrl = await s3.getSignedUrlPromise('getObject', {
-            Bucket: BUCKET_NAME,
-            Key: cleanKey,
-            Expires: 604800 
-        });
-
-        const encodedUrl = encodeURIComponent(rawSignedUrl);
+        const proxyUrl = `/.netlify/functions/outflickz-image-proxy?key=${encodeURIComponent(cleanKey)}`;
         
-        return `/.netlify/images?url=${encodedUrl}`;
+        return `/.netlify/images?url=${encodeURIComponent(proxyUrl)}`;
     } catch (err) {
-        console.error("S3 Signing Error:", cleanKey, err);
+        console.error("URL Formatting Error:", cleanKey, err);
         return null;
     }
 }

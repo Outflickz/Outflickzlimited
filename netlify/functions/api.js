@@ -4,13 +4,13 @@ const jwt = require('jsonwebtoken');
 const AWS = require('aws-sdk');
 const sharp = require('sharp'); 
 const nodemailer = require('nodemailer');
-const Redis = require('ioredis');
+//const Redis = require('ioredis');
 
 const MONGODB_URI = process.env.MONGODB_URI;
 const JWT_SECRET = process.env.JWT_SECRET;
 const MASTER_ACCESS_KEY = (process.env.MASTER_ACCESS_KEY || '').trim();
 const BUCKET_NAME = (process.env.IDRIVE_BUCKET_NAME || '').trim();
-const redis = new Redis(process.env.REDIS_URL);
+//const redis = new Redis(process.env.REDIS_URL);
 
 
 const rawEndpoint = process.env.IDRIVE_ENDPOINT;
@@ -90,19 +90,25 @@ async function uploadToS3(fileBase64) {
         return null;
     }
 }
-async function getSecureUrl(key) {
+// Remove 'async' so it returns a string immediately
+function getSecureUrl(key) {
     if (!key || typeof key !== 'string') return null;
     
-    const cleanKey = key.replace(/[…\s]/g, '').trim();
-    
-    try {
-        const proxyUrl = `/.netlify/functions/outflickz-image-proxy?key=${encodeURIComponent(cleanKey)}`;
-        
-        return `/.netlify/images?url=${encodeURIComponent(proxyUrl)}`;
-    } catch (err) {
-        console.error("URL Formatting Error:", cleanKey, err);
-        return null;
+    let cleanKey = key.split('?')[0].trim(); 
+
+    if (cleanKey.includes('.com/')) {
+        cleanKey = cleanKey.split('.com/').pop();
     }
+
+    const bucket = "outflickz";
+    if (cleanKey.startsWith(bucket + '/')) {
+        cleanKey = cleanKey.substring(bucket.length + 1);
+    }
+    
+    cleanKey = cleanKey.replace(/^\/+/, '');
+
+    // No need to await anything here, it's just string building
+    return `/.netlify/functions/outflickz-image-proxy?key=${encodeURIComponent(cleanKey)}`;
 }
 
 const transporter = nodemailer.createTransport({
@@ -344,7 +350,7 @@ exports.handler = async (event, context) => {
     context.callbackWaitsForEmptyEventLoop = false;
 
     const headers = {
-        "Access-Control-Allow-Origin": "https://outflickz.com",
+        "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
         "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
         "Access-Control-Allow-Credentials": "true",
@@ -353,7 +359,7 @@ exports.handler = async (event, context) => {
 
     if (event.httpMethod === "OPTIONS") return { statusCode: 200, headers, body: "OK" };
 
-   try {
+    try {
         const db = await connectToDatabase();
 
         const queryAction = event.queryStringParameters && event.queryStringParameters.action;
@@ -362,7 +368,140 @@ exports.handler = async (event, context) => {
         const action = queryAction || bodyAction;
 
         switch (action) {
-case 'add-wear': {
+            case 'add-wear': {
+                const { name, price, description, variants } = body;
+
+                const processedVariants = [];
+                if (variants && Array.isArray(variants)) {
+                    for (const v of variants) {
+                        const variantImgKeys = [];
+                        if (v.images && Array.isArray(v.images)) {
+                            for (const imgBase64 of v.images) {
+                                // Only upload if it's a new base64 string
+                                if (imgBase64 && imgBase64.startsWith('data:')) {
+                                    const key = await uploadToS3(imgBase64);
+                                    if (key) variantImgKeys.push(key);
+                                }
+                            }
+                        }
+                        processedVariants.push({
+                            color: v.color,
+                            stockMatrix: v.stockMatrix || {},
+                            images: variantImgKeys 
+                        });
+                    }
+                }
+
+                const result = await db.collection('wears').insertOne({
+                    name,
+                    price: parseFloat(price),
+                    variants: processedVariants,
+                    description,
+                    createdAt: new Date()
+                });
+
+                return { statusCode: 201, headers, body: JSON.stringify(result) };
+            }
+
+            case 'get-wears': {
+                try {
+                    const wears = await db.collection('wears').find({}).sort({ createdAt: -1 }).toArray();
+                    
+                    const wearsWithLinks = await Promise.all(wears.map(async (wear) => {
+                        const imageToSign = wear.displayImage || wear.variants?.[0]?.images?.[0];
+                        const signedDisplayImage = await getSecureUrl(imageToSign);
+
+                        const signedVariants = await Promise.all((wear.variants || []).map(async v => {
+                            const vImgs = await Promise.all((v.images || []).map(k => getSecureUrl(k)));
+                            return { ...v, images: vImgs.filter(img => img !== null) };
+                        }));
+
+                        return { 
+                            ...wear, 
+                            displayImage: signedDisplayImage, 
+                            variants: signedVariants 
+                        };
+                    }));
+
+                    return { statusCode: 200, headers, body: JSON.stringify(wearsWithLinks) };
+                } catch (err) {
+                    console.error("Fetch Wears Error:", err);
+                    return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
+                }
+            }
+
+            case 'get-wear-details': {
+                const { id } = body;
+                if (!id) return { statusCode: 400, headers, body: JSON.stringify({ message: "ID required" }) };
+
+                try {
+                    const product = await db.collection('wears').findOne({ _id: new ObjectId(id) });
+                    if (!product) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
+                    
+                    const signedVariants = await Promise.all((product.variants || []).map(async v => {
+                        const vImgs = await Promise.all((v.images || []).map(async k => {
+                            return await getSecureUrl(k);
+                        }));
+                        return { ...v, images: vImgs };
+                    }));
+
+                    const result = { 
+                        ...product, 
+                        variants: signedVariants, 
+                        category: 'wears' 
+                    };
+
+                    return { statusCode: 200, headers, body: JSON.stringify(result) };
+                } catch (err) {
+                    console.error("Product Details Error:", err);
+                    return { statusCode: 500, headers, body: JSON.stringify({ success: false }) };
+                }
+            }
+
+            case 'update-wear': {
+                const { id, name, price, description, variants } = body;
+                if (!id) throw new Error("ID required");
+
+                const finalVariants = await Promise.all((variants || []).map(async (v) => {
+                    const vImgKeys = [];
+                    if (v.images && Array.isArray(v.images)) {
+                        for (const img of v.images) {
+                            if (typeof img === 'string' && img.startsWith('data:')) {
+                                const key = await uploadToS3(img);
+                                if (key) vImgKeys.push(key);
+                            } else if (typeof img === 'string') {
+                                // Clean the key if it's already a URL
+                                let cleanKey = img.split('?')[0];
+                                if (cleanKey.includes('.com/')) {
+                                    cleanKey = cleanKey.split('.com/')[1];
+                                }
+                                const bucketName = process.env.IDRIVE_BUCKET_NAME;
+                                if (cleanKey.startsWith(`${bucketName}/`)) {
+                                    cleanKey = cleanKey.replace(`${bucketName}/`, '');
+                                }
+                                vImgKeys.push(cleanKey.replace(/^\/+/, ''));
+                            }
+                        }
+                    }
+                    return { color: v.color, stockMatrix: v.stockMatrix || {}, images: vImgKeys };
+                }));
+
+                await db.collection('wears').updateOne(
+                    { _id: new ObjectId(id) },
+                    { $set: { name, price: parseFloat(price), description, variants: finalVariants, updatedAt: new Date() } }
+                );
+                
+                return { statusCode: 200, headers, body: JSON.stringify({ message: "Success" }) };
+            }
+
+            case 'delete-wear': {
+                const { id } = body;
+                await db.collection('wears').deleteOne({ _id: new ObjectId(id) });
+                
+                return { statusCode: 200, headers, body: JSON.stringify({ message: "Removed" }) };
+            }
+       
+case 'add-short': {
     const { name, price, description, variants } = body;
 
     const processedVariants = [];
@@ -371,183 +510,10 @@ case 'add-wear': {
             const variantImgKeys = [];
             if (v.images && Array.isArray(v.images)) {
                 for (const imgBase64 of v.images) {
-                    const key = await uploadToS3(imgBase64);
-                    if (key) variantImgKeys.push(key);
-                }
-            }
-            processedVariants.push({
-                color: v.color,
-                stockMatrix: v.stockMatrix || {},
-                images: variantImgKeys 
-            });
-        }
-    }
-
-    const result = await db.collection('wears').insertOne({
-        name,
-        price: parseFloat(price),
-        variants: processedVariants,
-        description,
-        createdAt: new Date()
-    });
-
-    await redis.del("cache_wears_list");
-    await redis.del("cache_global_all_products");
-    await redis.del("cache_global_combined_products");
-    
-    return { statusCode: 201, headers, body: JSON.stringify(result) };
-}
-
-case 'get-wears': {
-    const CACHE_KEY = "cache_wears_list";
-    const forceRefresh = event.queryStringParameters && event.queryStringParameters.refresh === 'true';
-    const REDIS_TTL = 518400; 
-
-    try {
-        if (!forceRefresh) {
-            const cachedData = await redis.get(CACHE_KEY);
-            if (cachedData) {
-                return { 
-                    statusCode: 200, 
-                    headers: { ...headers, 'X-Cache': 'HIT' }, 
-                    body: cachedData 
-                };
-            }
-        }
-
-        const wears = await db.collection('wears').find({}).sort({ createdAt: -1 }).toArray();
-        
-        const wearsWithLinks = await Promise.all(wears.map(async (wear) => {
-            const cleanAndSign = async (input) => {
-                if (!input || typeof input !== 'string') return null;
-                const cleanKey = input.replace(/[…\s]/g, '').trim();
-                return await getSecureUrl(cleanKey); 
-            };
-
-            let imageToSign = wear.displayImage || wear.variants?.[0]?.images?.[0];
-            const signedDisplayImage = await cleanAndSign(imageToSign);
-
-            const signedVariants = await Promise.all((wear.variants || []).map(async v => {
-                const vImgs = await Promise.all((v.images || []).map(k => cleanAndSign(k)));
-                return { ...v, images: vImgs.filter(img => img !== null) };
-            }));
-
-            return { 
-                ...wear, 
-                displayImage: signedDisplayImage, 
-                variants: signedVariants 
-            };
-        }));
-
-        const responseBody = JSON.stringify(wearsWithLinks);
-        await redis.setex(CACHE_KEY, REDIS_TTL, responseBody);
-
-        return { 
-            statusCode: 200, 
-            headers: {
-                ...headers,
-                'X-Cache': 'MISS',
-                'Cache-Control': 'no-cache, no-store, must-revalidate'
-            }, 
-            body: responseBody 
-        };
-
-    } catch (err) {
-        console.error("Redis Error:", err);
-        const wears = await db.collection('wears').find({}).sort({ createdAt: -1 }).toArray();
-        return { statusCode: 200, headers, body: JSON.stringify(wears) };
-    }
-}
-
-case 'get-wear-details': {
-    const { id } = body;
-    if (!id) throw new Error("ID required");
-
-    const CACHE_KEY = `cache_product_detail_${id}`;
-    const REDIS_TTL = 518400;
-
-    const cachedProduct = await redis.get(CACHE_KEY);
-    if (cachedProduct) {
-        return { statusCode: 200, headers: { ...headers, 'X-Cache': 'HIT' }, body: cachedProduct };
-    }
-
-    const product = await db.collection('wears').findOne({ _id: new ObjectId(id) });
-    if (!product) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
-    
-    const signedVariants = await Promise.all((product.variants || []).map(async v => {
-        const vImgs = await Promise.all((v.images || []).map(k => getSecureUrl(k.replace(/[…\s]/g, '').trim())));
-        return { ...v, images: vImgs };
-    }));
-
-    const result = JSON.stringify({ ...product, variants: signedVariants, category: 'wears' });
-    await redis.setex(CACHE_KEY, REDIS_TTL, result);
-
-    return { statusCode: 200, headers, body: result };
-}
-
-case 'update-wear': {
-    const { id, name, price, description, variants } = body;
-    if (!id) throw new Error("ID required");
-
-    const existing = await db.collection('wears').findOne({ _id: new ObjectId(id) });
-    if (!existing) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
-
-    const finalVariants = await Promise.all((variants || []).map(async (v) => {
-        const vImgKeys = [];
-        if (v.images && Array.isArray(v.images)) {
-            for (const img of v.images) {
-                if (typeof img === 'string' && img.startsWith('data:')) {
-                    const key = await uploadToS3(img);
-                    if (key) vImgKeys.push(key);
-                } else {
-                    const cleanKey = typeof img === 'string' && img.includes('?') ? img.split('?')[0].split('/').pop() : img;
-                    vImgKeys.push(cleanKey);
-                }
-            }
-        }
-        return {
-            color: v.color,
-            stockMatrix: v.stockMatrix || {},
-            images: vImgKeys
-        };
-    }));
-
-    await db.collection('wears').updateOne(
-        { _id: new ObjectId(id) },
-        { $set: { name, price: parseFloat(price), description, variants: finalVariants, updatedAt: new Date() } }
-    );
-    
-    await redis.del("cache_wears_list");
-    await redis.del(`cache_product_detail_${id}`);
-    await redis.del("cache_global_all_products");
-    await redis.del("cache_global_combined_products");
-    
-    return { statusCode: 200, headers, body: JSON.stringify({ message: "Success" }) };
-}
-
-case 'delete-wear': {
-    const { id } = body;
-    await db.collection('wears').deleteOne({ _id: new ObjectId(id) });
-    
-    await redis.del("cache_wears_list");
-    await redis.del(`cache_product_detail_${id}`);
-    await redis.del("cache_global_all_products");
-    await redis.del("cache_global_combined_products");
-    
-    return { statusCode: 200, headers, body: JSON.stringify({ message: "Removed" }) };
-}
-
-       case 'add-short': {
-    const { name, price, description, variants } = body;
-
-    const processedVariants = [];
-    if (variants && Array.isArray(variants)) {
-        for (const v of variants) {
-            const variantImgKeys = [];
-            if (v.images && Array.isArray(v.images)) {
-                for (const imgBase64 of v.images) {
-                    const key = await uploadToS3(imgBase64);
-                    if (key) variantImgKeys.push(key);
+                    if (imgBase64 && imgBase64.startsWith('data:')) {
+                        const key = await uploadToS3(imgBase64);
+                        if (key) variantImgKeys.push(key);
+                    }
                 }
             }
             processedVariants.push({
@@ -566,38 +532,22 @@ case 'delete-wear': {
         createdAt: new Date()
     });
     
-    await redis.del("cache_shorts_list");
-    await redis.del("cache_global_all_products");
-    await redis.del("cache_global_combined_products");
-    
     return { statusCode: 201, headers, body: JSON.stringify(result) };
 }
 
 case 'get-shorts': {
-    const CACHE_KEY = "cache_shorts_list";
-    const forceRefresh = event.queryStringParameters && event.queryStringParameters.refresh === 'true';
-    const REDIS_TTL = 518400; // 6 Days
-
     try {
-        if (!forceRefresh) {
-            const cachedData = await redis.get(CACHE_KEY);
-            if (cachedData) {
-                return { 
-                    statusCode: 200, 
-                    headers: { ...headers, 'X-Cache': 'HIT' }, 
-                    body: cachedData 
-                };
-            }
-        }
-
         const shorts = await db.collection('shorts').find({}).sort({ createdAt: -1 }).toArray();
 
         const shortsWithLinks = await Promise.all(shorts.map(async (short) => {
             const cleanAndSign = async (input) => {
                 if (!input || typeof input !== 'string') return null;
                 let key = input;
-                if (input.includes('outflickz/')) {
-                    key = input.split('outflickz/')[1].split('?')[0];
+                // Strip URL parts and query params to get raw key
+                if (input.includes('.com/')) {
+                    key = input.split('.com/')[1].split('?')[0];
+                } else if (input.includes('?')) {
+                    key = input.split('?')[0];
                 }
                 const finalKey = key.replace(/[…\s]/g, '').trim();
                 return await getSecureUrl(finalKey);
@@ -618,22 +568,14 @@ case 'get-shorts': {
             };
         }));
 
-        const responseBody = JSON.stringify(shortsWithLinks);
-        await redis.setex(CACHE_KEY, REDIS_TTL, responseBody);
-
         return { 
             statusCode: 200, 
-            headers: {
-                ...headers,
-                'X-Cache': 'MISS',
-                'Cache-Control': 'no-cache, no-store, must-revalidate'
-            }, 
-            body: responseBody 
+            headers, 
+            body: JSON.stringify(shortsWithLinks) 
         };
     } catch (err) {
-        console.error("Redis Error in Shorts:", err);
-        const shorts = await db.collection('shorts').find({}).sort({ createdAt: -1 }).toArray();
-        return { statusCode: 200, headers, body: JSON.stringify(shorts) };
+        console.error("Error in Get Shorts:", err);
+        return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
     }
 }
 
@@ -641,34 +583,31 @@ case 'get-short-details': {
     const { id } = body;
     if (!id) throw new Error("ID required");
 
-    const CACHE_KEY = `cache_product_detail_${id}`;
-    const REDIS_TTL = 518400; // 6 Days
+    try {
+        const product = await db.collection('shorts').findOne({ _id: new ObjectId(id) });
+        if (!product) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
+        
+        const signedVariants = await Promise.all((product.variants || []).map(async v => {
+            const vImgs = await Promise.all((v.images || []).map(async k => {
+                const cleanKey = k.split('?')[0].replace(/[…\s]/g, '').trim();
+                return await getSecureUrl(cleanKey);
+            }));
+            return { ...v, images: vImgs };
+        }));
 
-    const cachedProduct = await redis.get(CACHE_KEY);
-    if (cachedProduct) {
-        return { statusCode: 200, headers: { ...headers, 'X-Cache': 'HIT' }, body: cachedProduct };
+        return { 
+            statusCode: 200, 
+            headers, 
+            body: JSON.stringify({ ...product, variants: signedVariants, category: 'shorts' }) 
+        };
+    } catch (err) {
+        return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
     }
-
-    const product = await db.collection('shorts').findOne({ _id: new ObjectId(id) });
-    if (!product) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
-    
-    const signedVariants = await Promise.all((product.variants || []).map(async v => {
-        const vImgs = await Promise.all((v.images || []).map(k => getSecureUrl(k.replace(/[…\s]/g, '').trim())));
-        return { ...v, images: vImgs };
-    }));
-
-    const result = JSON.stringify({ ...product, variants: signedVariants, category: 'shorts' });
-    await redis.setex(CACHE_KEY, REDIS_TTL, result);
-
-    return { statusCode: 200, headers, body: result };
 }
 
 case 'update-short': {
     const { id, name, price, description, variants } = body;
     if (!id) throw new Error("ID required");
-
-    const existing = await db.collection('shorts').findOne({ _id: new ObjectId(id) });
-    if (!existing) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
 
     const finalVariants = await Promise.all((variants || []).map(async (v) => {
         const vImgKeys = [];
@@ -677,8 +616,17 @@ case 'update-short': {
                 if (typeof img === 'string' && img.startsWith('data:')) {
                     const key = await uploadToS3(img);
                     if (key) vImgKeys.push(key);
-                } else {
-                    vImgKeys.push(img);
+                } else if (typeof img === 'string') {
+                    // Extract CLEAN key (path/file.jpg) before saving back to DB
+                    let cleanKey = img.split('?')[0];
+                    if (cleanKey.includes('.com/')) {
+                        cleanKey = cleanKey.split('.com/')[1];
+                    }
+                    const bucketName = process.env.IDRIVE_BUCKET_NAME;
+                    if (cleanKey.startsWith(`${bucketName}/`)) {
+                        cleanKey = cleanKey.replace(`${bucketName}/`, '');
+                    }
+                    vImgKeys.push(cleanKey.replace(/^\/+/, '').trim());
                 }
             }
         }
@@ -694,11 +642,6 @@ case 'update-short': {
         { $set: { name, price: parseFloat(price), description, variants: finalVariants, updatedAt: new Date() } }
     );
     
-    await redis.del("cache_shorts_list");
-    await redis.del(`cache_product_detail_${id}`);
-    await redis.del("cache_global_all_products");
-    await redis.del("cache_global_combined_products");
-    
     return { statusCode: 200, headers, body: JSON.stringify({ message: "Success" }) };
 }
 
@@ -707,14 +650,8 @@ case 'delete-short': {
     if (!id) throw new Error("ID required");
     await db.collection('shorts').deleteOne({ _id: new ObjectId(id) });
     
-    await redis.del("cache_shorts_list");
-    await redis.del(`cache_product_detail_${id}`);
-    await redis.del("cache_global_all_products");
-    await redis.del("cache_global_combined_products");
-    
     return { statusCode: 200, headers, body: JSON.stringify({ message: "Removed" }) };
 }
-
 case 'add-cap': {
     const { name, price, description, variants } = body;
 
@@ -724,7 +661,7 @@ case 'add-cap': {
             const variantImgKeys = [];
             if (v.images && Array.isArray(v.images)) {
                 for (const imgBase64 of v.images) {
-                    if (imgBase64) {
+                    if (imgBase64 && imgBase64.startsWith('data:')) {
                         const key = await uploadToS3(imgBase64);
                         if (key) variantImgKeys.push(key);
                     }
@@ -746,38 +683,22 @@ case 'add-cap': {
         createdAt: new Date()
     });
 
-    await redis.del("cache_caps_list");
-    await redis.del("cache_global_all_products");
-    await redis.del("cache_global_combined_products");
-    
     return { statusCode: 201, headers, body: JSON.stringify(result) };
 }
 
 case 'get-caps': {
-    const CACHE_KEY = "cache_caps_list";
-    const forceRefresh = event.queryStringParameters && event.queryStringParameters.refresh === 'true';
-    const REDIS_TTL = 518400; // 6 Days (Safe buffer for 7-day IDrive links)
-
     try {
-        if (!forceRefresh) {
-            const cachedData = await redis.get(CACHE_KEY);
-            if (cachedData) {
-                return { 
-                    statusCode: 200, 
-                    headers: { ...headers, 'X-Cache': 'HIT' }, 
-                    body: cachedData 
-                };
-            }
-        }
-
         const caps = await db.collection('caps').find({}).sort({ createdAt: -1 }).toArray();
 
         const capsWithLinks = await Promise.all(caps.map(async (cap) => {
             const cleanAndSign = async (input) => {
                 if (!input || typeof input !== 'string') return null;
                 let key = input;
-                if (input.includes('outflickz/')) {
-                    key = input.split('outflickz/')[1].split('?')[0];
+                // Strip URL and query params to get clean path
+                if (input.includes('.com/')) {
+                    key = input.split('.com/')[1].split('?')[0];
+                } else if (input.includes('?')) {
+                    key = input.split('?')[0];
                 }
                 const finalKey = key.replace(/[…\s]/g, '').trim();
                 return await getSecureUrl(finalKey);
@@ -798,22 +719,14 @@ case 'get-caps': {
             };
         }));
 
-        const responseBody = JSON.stringify(capsWithLinks);
-        await redis.setex(CACHE_KEY, REDIS_TTL, responseBody);
-
         return { 
             statusCode: 200, 
-            headers: {
-                ...headers,
-                'X-Cache': 'MISS',
-                'Cache-Control': 'no-cache, no-store, must-revalidate'
-            }, 
-            body: responseBody 
+            headers, 
+            body: JSON.stringify(capsWithLinks) 
         };
     } catch (err) {
-        console.error("Redis Error in Caps:", err);
-        const caps = await db.collection('caps').find({}).sort({ createdAt: -1 }).toArray();
-        return { statusCode: 200, headers, body: JSON.stringify(caps) };
+        console.error("Fetch Caps Error:", err);
+        return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
     }
 }
 
@@ -821,26 +734,26 @@ case 'get-cap-details': {
     const { id } = body;
     if (!id) throw new Error("ID required");
 
-    const CACHE_KEY = `cache_product_detail_${id}`;
-    const REDIS_TTL = 518400;
+    try {
+        const product = await db.collection('caps').findOne({ _id: new ObjectId(id) });
+        if (!product) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
+        
+        const signedVariants = await Promise.all((product.variants || []).map(async v => {
+            const vImgs = await Promise.all((v.images || []).map(async k => {
+                const cleanKey = k.split('?')[0].replace(/[…\s]/g, '').trim();
+                return await getSecureUrl(cleanKey);
+            }));
+            return { ...v, images: vImgs };
+        }));
 
-    const cachedProduct = await redis.get(CACHE_KEY);
-    if (cachedProduct) {
-        return { statusCode: 200, headers: { ...headers, 'X-Cache': 'HIT' }, body: cachedProduct };
+        return { 
+            statusCode: 200, 
+            headers, 
+            body: JSON.stringify({ ...product, variants: signedVariants, category: 'caps' }) 
+        };
+    } catch (err) {
+        return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
     }
-
-    const product = await db.collection('caps').findOne({ _id: new ObjectId(id) });
-    if (!product) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
-    
-    const signedVariants = await Promise.all((product.variants || []).map(async v => {
-        const vImgs = await Promise.all((v.images || []).map(k => getSecureUrl(k.replace(/[…\s]/g, '').trim())));
-        return { ...v, images: vImgs };
-    }));
-
-    const result = JSON.stringify({ ...product, variants: signedVariants, category: 'caps' });
-    await redis.setex(CACHE_KEY, REDIS_TTL, result);
-
-    return { statusCode: 200, headers, body: result };
 }
 
 case 'update-cap': {
@@ -850,27 +763,34 @@ case 'update-cap': {
     const existing = await db.collection('caps').findOne({ _id: new ObjectId(id) });
     if (!existing) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
 
-    const finalVariants = await Promise.all((variants || []).map(async (v, index) => {
+    const finalVariants = await Promise.all((variants || []).map(async (v) => {
         const vImgKeys = [];
-        const existingVariant = existing.variants && existing.variants[index];
 
-        if (v.images && Array.isArray(v.images) && v.images.length > 0) {
+        if (v.images && Array.isArray(v.images)) {
             for (const img of v.images) {
                 if (typeof img === 'string' && img.startsWith('data:')) {
+                    // New base64 upload
                     const key = await uploadToS3(img);
                     if (key) vImgKeys.push(key);
-                } else if (typeof img === 'string' && !img.startsWith('http')) {
-                    vImgKeys.push(img.replace(/[…\s]/g, '').trim());
+                } else if (typeof img === 'string') {
+                    // Existing image - Extract only the clean file path
+                    let cleanKey = img.split('?')[0];
+                    if (cleanKey.includes('.com/')) {
+                        cleanKey = cleanKey.split('.com/')[1];
+                    }
+                    const bucketName = process.env.IDRIVE_BUCKET_NAME;
+                    if (cleanKey.startsWith(`${bucketName}/`)) {
+                        cleanKey = cleanKey.replace(`${bucketName}/`, '');
+                    }
+                    vImgKeys.push(cleanKey.replace(/^\/+/, '').trim());
                 }
             }
         } 
         
-        const imagesToSave = vImgKeys.length > 0 ? vImgKeys : (existingVariant ? existingVariant.images : []);
-
         return {
             color: v.color,
             stock: parseInt(v.stock) || 0,
-            images: imagesToSave
+            images: vImgKeys
         };
     }));
 
@@ -887,11 +807,6 @@ case 'update-cap': {
         }
     );
     
-    await redis.del("cache_caps_list");
-    await redis.del(`cache_product_detail_${id}`);
-    await redis.del("cache_global_all_products");
-    await redis.del("cache_global_combined_products");
-    
     return { statusCode: 200, headers, body: JSON.stringify({ message: "Success" }) };
 }
 
@@ -900,14 +815,8 @@ case 'delete-cap': {
     if (!id) throw new Error("ID required");
     await db.collection('caps').deleteOne({ _id: new ObjectId(id) });
     
-    await redis.del("cache_caps_list");
-    await redis.del(`cache_product_detail_${id}`);
-    await redis.del("cache_global_all_products");
-    await redis.del("cache_global_combined_products");
-    
     return { statusCode: 200, headers, body: JSON.stringify({ message: "Removed" }) };
 }
-
 case 'add-jersey': {
     const { name, price, description, variants } = body;
 
@@ -917,8 +826,10 @@ case 'add-jersey': {
             const variantImgKeys = [];
             if (v.images && Array.isArray(v.images)) {
                 for (const imgBase64 of v.images) {
-                    const key = await uploadToS3(imgBase64);
-                    if (key) variantImgKeys.push(key);
+                    if (imgBase64 && imgBase64.startsWith('data:')) {
+                        const key = await uploadToS3(imgBase64);
+                        if (key) variantImgKeys.push(key);
+                    }
                 }
             }
             processedVariants.push({
@@ -937,39 +848,22 @@ case 'add-jersey': {
         createdAt: new Date()
     });
     
-    // Invalidate all related caches
-    await redis.del("cache_jerseys_list");
-    await redis.del("cache_global_all_products");
-    await redis.del("cache_global_combined_products");
-
     return { statusCode: 201, headers, body: JSON.stringify(result) };
 }
 
 case 'get-jerseys': {
-    const CACHE_KEY = "cache_jerseys_list";
-    const forceRefresh = event.queryStringParameters && event.queryStringParameters.refresh === 'true';
-    const REDIS_TTL = 518400; // 6 Days (Syncs with 7-day IDrive link)
-
     try {
-        if (!forceRefresh) {
-            const cachedData = await redis.get(CACHE_KEY);
-            if (cachedData) {
-                return { 
-                    statusCode: 200, 
-                    headers: { ...headers, 'X-Cache': 'HIT' }, 
-                    body: cachedData 
-                };
-            }
-        }
-
         const jerseys = await db.collection('jerseys').find({}).sort({ createdAt: -1 }).toArray();
 
         const jerseysWithLinks = await Promise.all(jerseys.map(async (jersey) => {
             const cleanAndSign = async (input) => {
                 if (!input || typeof input !== 'string') return null;
                 let key = input;
-                if (input.includes('outflickz/')) {
-                    key = input.split('outflickz/')[1].split('?')[0];
+                // Strip URL parts and query parameters
+                if (input.includes('.com/')) {
+                    key = input.split('.com/')[1].split('?')[0];
+                } else if (input.includes('?')) {
+                    key = input.split('?')[0];
                 }
                 const finalKey = key.replace(/[…\s]/g, '').trim();
                 return await getSecureUrl(finalKey);
@@ -990,22 +884,14 @@ case 'get-jerseys': {
             };
         }));
 
-        const responseBody = JSON.stringify(jerseysWithLinks);
-        await redis.setex(CACHE_KEY, REDIS_TTL, responseBody);
-
         return { 
             statusCode: 200, 
-            headers: {
-                ...headers,
-                'X-Cache': 'MISS',
-                'Cache-Control': 'no-cache, no-store, must-revalidate'
-            }, 
-            body: responseBody 
+            headers, 
+            body: JSON.stringify(jerseysWithLinks) 
         };
     } catch (err) {
-        console.error("Redis Error in Jerseys:", err);
-        const jerseys = await db.collection('jerseys').find({}).sort({ createdAt: -1 }).toArray();
-        return { statusCode: 200, headers, body: JSON.stringify(jerseys) };
+        console.error("Error in Get Jerseys:", err);
+        return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
     }
 }
 
@@ -1013,34 +899,31 @@ case 'get-jersey-details': {
     const { id } = body;
     if (!id) throw new Error("ID required");
 
-    const CACHE_KEY = `cache_product_detail_${id}`;
-    const REDIS_TTL = 518400; // 6 Days
+    try {
+        const product = await db.collection('jerseys').findOne({ _id: new ObjectId(id) });
+        if (!product) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
+        
+        const signedVariants = await Promise.all((product.variants || []).map(async v => {
+            const vImgs = await Promise.all((v.images || []).map(async k => {
+                const cleanKey = k.split('?')[0].replace(/[…\s]/g, '').trim();
+                return await getSecureUrl(cleanKey);
+            }));
+            return { ...v, images: vImgs };
+        }));
 
-    const cachedProduct = await redis.get(CACHE_KEY);
-    if (cachedProduct) {
-        return { statusCode: 200, headers: { ...headers, 'X-Cache': 'HIT' }, body: cachedProduct };
+        return { 
+            statusCode: 200, 
+            headers, 
+            body: JSON.stringify({ ...product, variants: signedVariants, category: 'jerseys' }) 
+        };
+    } catch (err) {
+        return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
     }
-
-    const product = await db.collection('jerseys').findOne({ _id: new ObjectId(id) });
-    if (!product) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
-    
-    const signedVariants = await Promise.all((product.variants || []).map(async v => {
-        const vImgs = await Promise.all((v.images || []).map(k => getSecureUrl(k.replace(/[…\s]/g, '').trim())));
-        return { ...v, images: vImgs };
-    }));
-
-    const result = JSON.stringify({ ...product, variants: signedVariants, category: 'jerseys' });
-    await redis.setex(CACHE_KEY, REDIS_TTL, result);
-
-    return { statusCode: 200, headers, body: result };
 }
 
 case 'update-jersey': {
     const { id, name, price, description, variants } = body;
     if (!id) throw new Error("ID required");
-
-    const existing = await db.collection('jerseys').findOne({ _id: new ObjectId(id) });
-    if (!existing) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
 
     const finalVariants = await Promise.all((variants || []).map(async (v) => {
         const vImgKeys = [];
@@ -1049,8 +932,17 @@ case 'update-jersey': {
                 if (typeof img === 'string' && img.startsWith('data:')) {
                     const key = await uploadToS3(img);
                     if (key) vImgKeys.push(key);
-                } else {
-                    vImgKeys.push(img);
+                } else if (typeof img === 'string') {
+                    // Extract CLEAN key (path/file.jpg)
+                    let cleanKey = img.split('?')[0];
+                    if (cleanKey.includes('.com/')) {
+                        cleanKey = cleanKey.split('.com/')[1];
+                    }
+                    const bucketName = process.env.IDRIVE_BUCKET_NAME;
+                    if (cleanKey.startsWith(`${bucketName}/`)) {
+                        cleanKey = cleanKey.replace(`${bucketName}/`, '');
+                    }
+                    vImgKeys.push(cleanKey.replace(/^\/+/, '').trim());
                 }
             }
         }
@@ -1066,12 +958,6 @@ case 'update-jersey': {
         { $set: { name, price: parseFloat(price), description, variants: finalVariants, updatedAt: new Date() } }
     );
     
-    // Clear all caches for this specific product and its lists
-    await redis.del("cache_jerseys_list");
-    await redis.del(`cache_product_detail_${id}`);
-    await redis.del("cache_global_all_products");
-    await redis.del("cache_global_combined_products");
-
     return { statusCode: 200, headers, body: JSON.stringify({ message: "Success" }) };
 }
 
@@ -1081,13 +967,9 @@ case 'delete-jersey': {
 
     await db.collection('jerseys').deleteOne({ _id: new ObjectId(id) });
     
-    await redis.del("cache_jerseys_list");
-    await redis.del(`cache_product_detail_${id}`);
-    await redis.del("cache_global_all_products");
-    await redis.del("cache_global_combined_products");
-
     return { statusCode: 200, headers, body: JSON.stringify({ message: "Removed" }) };
 }
+
 case 'add-tanktop': {
     const { name, price, description, variants } = body;
 
@@ -1097,8 +979,10 @@ case 'add-tanktop': {
             const variantImgKeys = [];
             if (v.images && Array.isArray(v.images)) {
                 for (const imgBase64 of v.images) {
-                    const key = await uploadToS3(imgBase64);
-                    if (key) variantImgKeys.push(key);
+                    if (imgBase64 && imgBase64.startsWith('data:')) {
+                        const key = await uploadToS3(imgBase64);
+                        if (key) variantImgKeys.push(key);
+                    }
                 }
             }
             processedVariants.push({
@@ -1117,38 +1001,21 @@ case 'add-tanktop': {
         createdAt: new Date()
     });
 
-    await redis.del("cache_tanktops_list");
-    await redis.del("cache_global_all_products");
-    await redis.del("cache_global_combined_products");
-    
     return { statusCode: 201, headers, body: JSON.stringify(result) };
 }
 
 case 'get-tanktops': {
-    const CACHE_KEY = "cache_tanktops_list";
-    const forceRefresh = event.queryStringParameters && event.queryStringParameters.refresh === 'true';
-    const REDIS_TTL = 518400; // 6 Days (Safe buffer for 7-day IDrive links)
-
     try {
-        if (!forceRefresh) {
-            const cachedData = await redis.get(CACHE_KEY);
-            if (cachedData) {
-                return { 
-                    statusCode: 200, 
-                    headers: { ...headers, 'X-Cache': 'HIT' }, 
-                    body: cachedData 
-                };
-            }
-        }
-
         const tanktops = await db.collection('tanktops').find({}).sort({ createdAt: -1 }).toArray();
 
         const tanktopsWithLinks = await Promise.all(tanktops.map(async (tanktop) => {
             const cleanAndSign = async (input) => {
                 if (!input || typeof input !== 'string') return null;
                 let key = input;
-                if (input.includes('outflickz/')) {
-                    key = input.split('outflickz/')[1].split('?')[0];
+                if (input.includes('.com/')) {
+                    key = input.split('.com/')[1].split('?')[0];
+                } else if (input.includes('?')) {
+                    key = input.split('?')[0];
                 }
                 const finalKey = key.replace(/[…\s]/g, '').trim();
                 return await getSecureUrl(finalKey);
@@ -1169,22 +1036,14 @@ case 'get-tanktops': {
             };
         }));
 
-        const responseBody = JSON.stringify(tanktopsWithLinks);
-        await redis.setex(CACHE_KEY, REDIS_TTL, responseBody);
-
         return { 
             statusCode: 200, 
-            headers: {
-                ...headers,
-                'X-Cache': 'MISS',
-                'Cache-Control': 'no-cache, no-store, must-revalidate'
-            }, 
-            body: responseBody 
+            headers, 
+            body: JSON.stringify(tanktopsWithLinks) 
         };
     } catch (err) {
-        console.error("Redis Error in Tanktops:", err);
-        const tanktops = await db.collection('tanktops').find({}).sort({ createdAt: -1 }).toArray();
-        return { statusCode: 200, headers, body: JSON.stringify(tanktops) };
+        console.error("Fetch Tanktops Error:", err);
+        return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
     }
 }
 
@@ -1192,34 +1051,31 @@ case 'get-tanktop-details': {
     const { id } = body;
     if (!id) throw new Error("ID required");
 
-    const CACHE_KEY = `cache_product_detail_${id}`;
-    const REDIS_TTL = 518400;
+    try {
+        const product = await db.collection('tanktops').findOne({ _id: new ObjectId(id) });
+        if (!product) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
+        
+        const signedVariants = await Promise.all((product.variants || []).map(async v => {
+            const vImgs = await Promise.all((v.images || []).map(async k => {
+                const cleanKey = k.split('?')[0].replace(/[…\s]/g, '').trim();
+                return await getSecureUrl(cleanKey);
+            }));
+            return { ...v, images: vImgs };
+        }));
 
-    const cachedProduct = await redis.get(CACHE_KEY);
-    if (cachedProduct) {
-        return { statusCode: 200, headers: { ...headers, 'X-Cache': 'HIT' }, body: cachedProduct };
+        return { 
+            statusCode: 200, 
+            headers, 
+            body: JSON.stringify({ ...product, variants: signedVariants, category: 'tanktops' }) 
+        };
+    } catch (err) {
+        return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
     }
-
-    const product = await db.collection('tanktops').findOne({ _id: new ObjectId(id) });
-    if (!product) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
-    
-    const signedVariants = await Promise.all((product.variants || []).map(async v => {
-        const vImgs = await Promise.all((v.images || []).map(k => getSecureUrl(k.replace(/[…\s]/g, '').trim())));
-        return { ...v, images: vImgs };
-    }));
-
-    const result = JSON.stringify({ ...product, variants: signedVariants, category: 'tanktops' });
-    await redis.setex(CACHE_KEY, REDIS_TTL, result);
-
-    return { statusCode: 200, headers, body: result };
 }
 
 case 'update-tanktop': {
     const { id, name, price, description, variants } = body;
     if (!id) throw new Error("ID required");
-
-    const existing = await db.collection('tanktops').findOne({ _id: new ObjectId(id) });
-    if (!existing) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
 
     const finalVariants = await Promise.all((variants || []).map(async (v) => {
         const vImgKeys = [];
@@ -1228,8 +1084,16 @@ case 'update-tanktop': {
                 if (typeof img === 'string' && img.startsWith('data:')) {
                     const key = await uploadToS3(img);
                     if (key) vImgKeys.push(key);
-                } else {
-                    vImgKeys.push(img);
+                } else if (typeof img === 'string') {
+                    let cleanKey = img.split('?')[0];
+                    if (cleanKey.includes('.com/')) {
+                        cleanKey = cleanKey.split('.com/')[1];
+                    }
+                    const bucketName = process.env.IDRIVE_BUCKET_NAME;
+                    if (cleanKey.startsWith(`${bucketName}/`)) {
+                        cleanKey = cleanKey.replace(`${bucketName}/`, '');
+                    }
+                    vImgKeys.push(cleanKey.replace(/^\/+/, '').trim());
                 }
             }
         }
@@ -1251,22 +1115,12 @@ case 'update-tanktop': {
         } }
     );
     
-    await redis.del("cache_tanktops_list");
-    await redis.del(`cache_product_detail_${id}`);
-    await redis.del("cache_global_all_products");
-    await redis.del("cache_global_combined_products");
-    
     return { statusCode: 200, headers, body: JSON.stringify({ message: "Success" }) };
 }
 
 case 'delete-tanktop': {
     const { id } = body;
     await db.collection('tanktops').deleteOne({ _id: new ObjectId(id) });
-
-    await redis.del("cache_tanktops_list");
-    await redis.del(`cache_product_detail_${id}`);
-    await redis.del("cache_global_all_products");
-    await redis.del("cache_global_combined_products");
     
     return { statusCode: 200, headers, body: JSON.stringify({ message: "Removed" }) };
 }
@@ -1279,8 +1133,10 @@ case 'add-tracksuit': {
             const variantImgKeys = [];
             if (v.images && Array.isArray(v.images)) {
                 for (const imgBase64 of v.images) {
-                    const key = await uploadToS3(imgBase64);
-                    if (key) variantImgKeys.push(key);
+                    if (imgBase64 && imgBase64.startsWith('data:')) {
+                        const key = await uploadToS3(imgBase64);
+                        if (key) variantImgKeys.push(key);
+                    }
                 }
             }
             processedVariants.push({
@@ -1299,39 +1155,22 @@ case 'add-tracksuit': {
         createdAt: new Date()
     });
     
-    // Global Cache Invalidation
-    await redis.del("cache_tracksuits_list");
-    await redis.del("cache_global_all_products");
-    await redis.del("cache_global_combined_products");
-
     return { statusCode: 201, headers, body: JSON.stringify(result) };
 }
 
 case 'get-tracksuits': {
-    const CACHE_KEY = "cache_tracksuits_list";
-    const forceRefresh = event.queryStringParameters && event.queryStringParameters.refresh === 'true';
-    const REDIS_TTL = 518400; // 6 Days (Ensures fresh 7-day IDrive links)
-
     try {
-        if (!forceRefresh) {
-            const cachedData = await redis.get(CACHE_KEY);
-            if (cachedData) {
-                return { 
-                    statusCode: 200, 
-                    headers: { ...headers, 'X-Cache': 'HIT' }, 
-                    body: cachedData 
-                };
-            }
-        }
-
         const tracksuits = await db.collection('tracksuits').find({}).sort({ createdAt: -1 }).toArray();
         
         const tracksuitsWithLinks = await Promise.all(tracksuits.map(async (t) => {
             const cleanAndSign = async (input) => {
                 if (!input || typeof input !== 'string') return null;
                 let key = input;
-                if (input.includes('outflickz/')) {
-                    key = input.split('outflickz/')[1].split('?')[0];
+                // Strip URL parts and query parameters
+                if (input.includes('.com/')) {
+                    key = input.split('.com/')[1].split('?')[0];
+                } else if (input.includes('?')) {
+                    key = input.split('?')[0];
                 }
                 const finalKey = key.replace(/[…\s]/g, '').trim();
                 return await getSecureUrl(finalKey);
@@ -1352,22 +1191,14 @@ case 'get-tracksuits': {
             };
         }));
 
-        const responseBody = JSON.stringify(tracksuitsWithLinks);
-        await redis.setex(CACHE_KEY, REDIS_TTL, responseBody);
-
         return { 
             statusCode: 200, 
-            headers: {
-                ...headers,
-                'X-Cache': 'MISS',
-                'Cache-Control': 'no-cache, no-store, must-revalidate'
-            }, 
-            body: responseBody 
+            headers, 
+            body: JSON.stringify(tracksuitsWithLinks) 
         };
     } catch (err) {
-        console.error("Redis Error in Tracksuits:", err);
-        const tracksuits = await db.collection('tracksuits').find({}).sort({ createdAt: -1 }).toArray();
-        return { statusCode: 200, headers, body: JSON.stringify(tracksuits) };
+        console.error("Fetch Tracksuits Error:", err);
+        return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
     }
 }
 
@@ -1375,45 +1206,51 @@ case 'get-tracksuit-details': {
     const { id } = body;
     if (!id) throw new Error("ID required");
 
-    const CACHE_KEY = `cache_product_detail_${id}`;
-    const REDIS_TTL = 518400;
+    try {
+        const product = await db.collection('tracksuits').findOne({ _id: new ObjectId(id) });
+        if (!product) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
+        
+        const signedVariants = await Promise.all((product.variants || []).map(async v => {
+            const vImgs = await Promise.all((v.images || []).map(async k => {
+                const cleanKey = k.split('?')[0].replace(/[…\s]/g, '').trim();
+                return await getSecureUrl(cleanKey);
+            }));
+            return { ...v, images: vImgs };
+        }));
 
-    const cachedProduct = await redis.get(CACHE_KEY);
-    if (cachedProduct) {
-        return { statusCode: 200, headers: { ...headers, 'X-Cache': 'HIT' }, body: cachedProduct };
+        return { 
+            statusCode: 200, 
+            headers, 
+            body: JSON.stringify({ ...product, variants: signedVariants, category: 'tracksuits' }) 
+        };
+    } catch (err) {
+        return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
     }
-
-    const product = await db.collection('tracksuits').findOne({ _id: new ObjectId(id) });
-    if (!product) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
-    
-    const signedVariants = await Promise.all((product.variants || []).map(async v => {
-        const vImgs = await Promise.all((v.images || []).map(k => getSecureUrl(k.replace(/[…\s]/g, '').trim())));
-        return { ...v, images: vImgs };
-    }));
-
-    const result = JSON.stringify({ ...product, variants: signedVariants, category: 'tracksuits' });
-    await redis.setex(CACHE_KEY, REDIS_TTL, result);
-
-    return { statusCode: 200, headers, body: result };
 }
 
 case 'update-tracksuit': {
     const { id, name, price, description, variants } = body;
     if (!id) throw new Error("ID required");
 
-    const existing = await db.collection('tracksuits').findOne({ _id: new ObjectId(id) });
-    if (!existing) return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
-
     const finalVariants = await Promise.all((variants || []).map(async (v) => {
         const vImgKeys = [];
         if (v.images && Array.isArray(v.images)) {
             for (const img of v.images) {
                 if (typeof img === 'string' && img.startsWith('data:')) {
+                    // New Upload
                     const key = await uploadToS3(img);
                     if (key) vImgKeys.push(key);
-                } else {
-                    const cleanKey = typeof img === 'string' && img.includes('?') ? img.split('?')[0].split('/').pop() : img;
-                    vImgKeys.push(cleanKey);
+                } else if (typeof img === 'string') {
+                    // Existing Image - Clean the key
+                    let cleanKey = img.split('?')[0];
+                    if (cleanKey.includes('.com/')) {
+                        cleanKey = cleanKey.split('.com/')[1];
+                    }
+                    const bucketName = process.env.IDRIVE_BUCKET_NAME;
+                    if (cleanKey.startsWith(`${bucketName}/`)) {
+                        cleanKey = cleanKey.replace(`${bucketName}/`, '');
+                    }
+                    vImgKeys.push(cleanKey.replace(/^\/+/, '').trim());
                 }
             }
         }
@@ -1429,11 +1266,6 @@ case 'update-tracksuit': {
         { $set: { name, price: parseFloat(price), description, variants: finalVariants, updatedAt: new Date() } }
     );
     
-    await redis.del("cache_tracksuits_list");
-    await redis.del(`cache_product_detail_${id}`);
-    await redis.del("cache_global_all_products");
-    await redis.del("cache_global_combined_products");
-
     return { statusCode: 200, headers, body: JSON.stringify({ message: "Success" }) };
 }
 
@@ -1442,14 +1274,8 @@ case 'delete-tracksuit': {
     if (!id) throw new Error("ID required");
     await db.collection('tracksuits').deleteOne({ _id: new ObjectId(id) });
     
-    await redis.del("cache_tracksuits_list");
-    await redis.del(`cache_product_detail_${id}`);
-    await redis.del("cache_global_all_products");
-    await redis.del("cache_global_combined_products");
-
     return { statusCode: 200, headers, body: JSON.stringify({ message: "Removed" }) };
 }
-
             case 'admin-register': {
                 const { firstName, lastName, email, password, masterKey } = body;
                 if (!masterKey || masterKey.trim() !== MASTER_ACCESS_KEY) {
@@ -1822,60 +1648,70 @@ case 'delete-social-post': {
         };
     }
 }
-
 case 'get-any-product-details': {
     const { id } = body;
     if (!id) throw new Error("ID required");
 
-    const CACHE_KEY = `cache_product_detail_${id}`;
-    // Redis expires in 6 days (518400s) to stay ahead of 7-day IDrive link
-    const REDIS_TTL = 518400;
-
     try {
-        // 1. Try Redis first for this specific product ID
-        const cachedProduct = await redis.get(CACHE_KEY);
-        if (cachedProduct) {
-            return { 
-                statusCode: 200, 
-                headers: { ...headers, 'X-Cache': 'HIT' }, 
-                body: cachedProduct 
-            };
-        }
-
         const collections = ['wears', 'shorts', 'caps', 'jerseys', 'tanktops', 'tracksuits'];
         let product = null;
         let foundCollection = '';
 
-        // 2. Cache MISS: Find the product in MongoDB
+        // 1. Search across all MongoDB collections
         for (const col of collections) {
             try {
-                product = await db.collection(col).findOne({ _id: new ObjectId(id) });
+                // Ensure id is a valid ObjectId before querying
+                const queryId = id.length === 24 ? new ObjectId(id) : id;
+                product = await db.collection(col).findOne({ _id: queryId });
+                
                 if (product) {
                     foundCollection = col;
                     break; 
                 }
             } catch (oidErr) {
+                // If ObjectId conversion fails for one collection, move to the next
                 continue; 
             }
         }
 
         if (!product) {
-            return { statusCode: 404, headers, body: JSON.stringify({ message: "Product not found" }) };
+            return { 
+                statusCode: 404, 
+                headers, 
+                body: JSON.stringify({ message: "Product not found" }) 
+            };
         }
 
-        // 3. Clean and Sign Images (7-day IDrive signature)
-        // Top-level images
+        // 2. Helper to clean and sign keys (prevents broken links if full URLs are in DB)
+        const cleanAndSign = async (input) => {
+            if (!input || typeof input !== 'string') return null;
+            let key = input;
+            if (input.includes('.com/')) {
+                key = input.split('.com/')[1].split('?')[0];
+            } else if (input.includes('?')) {
+                key = input.split('?')[0];
+            }
+            const finalKey = key.replace(/[…\s]/g, '').trim();
+            return await getSecureUrl(finalKey);
+        };
+
+        // 3. Sign Top-level images
         if (product.images && Array.isArray(product.images)) {
-            product.images = await Promise.all(product.images.map(k => getSecureUrl(k)));
+            product.images = await Promise.all(
+                product.images.map(k => cleanAndSign(k))
+            );
         }
 
-        // Variant images
+        // 4. Sign Variant images
         const signedVariants = await Promise.all((product.variants || []).map(async v => {
             let signedVImgs = [];
             if (v.images && Array.isArray(v.images)) {
-                signedVImgs = await Promise.all(v.images.map(k => getSecureUrl(k)));
+                signedVImgs = await Promise.all(
+                    v.images.map(k => cleanAndSign(k))
+                );
             }
-            return { ...v, images: signedVImgs };
+            // Filter out any nulls from failed signs
+            return { ...v, images: signedVImgs.filter(img => img !== null) };
         }));
 
         const result = { 
@@ -1884,81 +1720,76 @@ case 'get-any-product-details': {
             category: foundCollection 
         };
 
-        const responseBody = JSON.stringify(result);
-
-        // 4. Save this specific product to Redis for 6 days
-        await redis.setex(CACHE_KEY, REDIS_TTL, responseBody);
-
         return { 
             statusCode: 200, 
-            headers: { ...headers, 'X-Cache': 'MISS' }, 
-            body: responseBody 
+            headers: {
+                ...headers,
+                'X-Cache': 'DISABLED',
+                'Cache-Control': 'no-store, no-cache, must-revalidate'
+            }, 
+            body: JSON.stringify(result)
         };
 
     } catch (err) {
         console.error("Product Details Error:", err);
-        return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
+        return { 
+            statusCode: 500, 
+            headers, 
+            body: JSON.stringify({ error: "An error occurred retrieving product details" }) 
+        };
     }
 }
 
 case 'get-all-products-combined': {
-    const CACHE_KEY = "cache_global_combined_products";
-    const forceRefresh = event.queryStringParameters && event.queryStringParameters.refresh === 'true';
-
-    // 7 Days for IDrive link (604800s)
-    // 6 Days for Redis Cache (518400s) to stay ahead of link expiration
-    const REDIS_TTL = 518400; 
+    // 1. Redis logic completely removed.
+    // 2. Cache headers set to 'no-cache' to ensure the frontend always gets fresh signed URLs.
 
     try {
-        // 1. Try Redis first
-        if (!forceRefresh) {
-            const cachedData = await redis.get(CACHE_KEY);
-            if (cachedData) {
-                return { 
-                    statusCode: 200, 
-                    headers: { ...headers, 'X-Cache': 'HIT' }, 
-                    body: cachedData 
-                };
-            }
-        }
-
-        // 2. Cache MISS: Fetch all collections in parallel for maximum speed
+        // 3. Fetch from MongoDB collections in parallel for speed
         const collections = ['wears', 'shorts', 'caps', 'jerseys', 'tracksuits', 'tanktops'];
+        
         const results = await Promise.all(
-            collections.map(async (col) => {
-                const data = await db.collection(col).find({}).toArray();
-                // Label category (e.g., 'wears' becomes 'wear')
-                const categoryLabel = col.endsWith('s') ? col.slice(0, -1) : col;
+            collections.map(async (colName) => {
+                const data = await db.collection(colName).find({}).toArray();
+                // Standardize category labels (e.g., 'shorts' becomes 'short')
+                const categoryLabel = colName.endsWith('s') ? colName.slice(0, -1) : colName;
                 return data.map(p => ({ ...p, category: categoryLabel }));
             })
         );
 
+        // Flatten the array of arrays into one single list
         const allProducts = results.flat();
 
-        // 3. Sign the first image of each product for IDrive e2
+        // 4. Map to Secure/Proxy URLs
         const signedProducts = await Promise.all(allProducts.map(async (p) => {
-            const firstKey = p.variants?.[0]?.images?.[0];
+            // Priority: mainImage field > first image of the first variant
+            const imgKey = p.mainImage || p.displayImage || p.variants?.[0]?.images?.[0];
             
-            // Clean the key (removes ellipsis/whitespace) and sign for 7 days
-            const signedUrl = firstKey ? await getSecureUrl(firstKey) : null;
+            let proxyUrl = null;
+            if (imgKey && typeof imgKey === 'string') {
+                // Clean the key (strip existing URLs/params if any)
+                let cleanKey = imgKey.split('?')[0];
+                if (cleanKey.includes('.com/')) {
+                    cleanKey = cleanKey.split('.com/')[1];
+                }
+                const finalKey = cleanKey.replace(/[…\s]/g, '').trim();
+                proxyUrl = await getSecureUrl(finalKey);
+            }
             
             return { 
                 ...p, 
-                displayImage: signedUrl 
+                displayImage: proxyUrl 
             };
         }));
 
         const responseBody = JSON.stringify(signedProducts);
 
-        // 4. Save to Redis for 6 days
-        await redis.setex(CACHE_KEY, REDIS_TTL, responseBody);
-
         return { 
             statusCode: 200, 
             headers: {
                 ...headers,
-                'X-Cache': 'MISS',
-                'Cache-Control': 'no-cache, no-store, must-revalidate'
+                'X-Cache': 'DISABLED', // Explicitly letting you know Redis is off
+                'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate'
             }, 
             body: responseBody 
         };
@@ -1968,11 +1799,10 @@ case 'get-all-products-combined': {
         return { 
             statusCode: 500, 
             headers, 
-            body: JSON.stringify({ error: "Failed to load combined products", detail: err.message }) 
+            body: JSON.stringify({ error: "Failed to load products from database" }) 
         };
     }
 }
-
 
 async function processOrderDeduction(db, reference, orderData, paymentData, method) {
     const { ObjectId } = require('mongodb');
@@ -2717,29 +2547,12 @@ case 'get-broadcast-audience': {
         return { statusCode: 500, headers, body: JSON.stringify({ success: false, message: err.message }) };
     }
 }
-
 case 'get-all-products': {
-    const CACHE_KEY = "cache_global_all_products";
-    const forceRefresh = event.queryStringParameters && event.queryStringParameters.refresh === 'true';
-
-    // 7 Days for IDrive link (604800s)
-    // 6 Days for Redis Cache (518400s) to prevent serving expired links
-    const REDIS_TTL = 518400; 
+    // 1. Redis logic completely removed to prevent 500 errors.
+    // 2. We no longer check for forceRefresh as every call is now "fresh".
 
     try {
-        // 1. Try Redis first
-        if (!forceRefresh) {
-            const cachedData = await redis.get(CACHE_KEY);
-            if (cachedData) {
-                return { 
-                    statusCode: 200, 
-                    headers: { ...headers, 'X-Cache': 'HIT' }, 
-                    body: cachedData 
-                };
-            }
-        }
-
-        // 2. Cache MISS: Aggregate from all collections
+        // 3. Fetching from MongoDB collections in parallel
         const collections = ['wears', 'shorts', 'caps', 'jerseys', 'tanktops', 'tracksuits'];
         const allResults = await Promise.all(
             collections.map(col => 
@@ -2749,36 +2562,35 @@ case 'get-all-products': {
         
         const products = allResults.flat();
 
-        // 3. Clean and Sign main images with the updated helper
+        // 4. Generate Proxy URLs on the fly
         const signedProducts = await Promise.all(products.map(async (p) => {
-            let imgKey = p.mainImage;
-            if (!imgKey && p.variants?.[0]?.images?.[0]) {
-                imgKey = p.variants[0].images[0];
-            }
+            // Pulling the raw key (e.g., "vault/image.jpg")
+            let imgKey = p.mainImage || p.variants?.[0]?.images?.[0];
 
-            if (imgKey) {
-                const cleanKey = imgKey.includes('outflickz/') 
-                    ? imgKey.split('outflickz/')[1].split('?')[0] 
-                    : imgKey.replace(/[…\s]/g, '').trim();
-                
-                // This calls your updated helper with the 7-day expiry
-                const url = await getSecureUrl(cleanKey); 
+            if (imgKey && typeof imgKey === 'string') {
+                // Ensure we are passing only the path, not a full URL with old tokens
+                let cleanKey = imgKey.split('?')[0];
+                if (cleanKey.includes('.com/')) {
+                    cleanKey = cleanKey.split('.com/')[1];
+                }
+                const finalKey = cleanKey.replace(/[…\s]/g, '').trim();
+
+                // Generate the Proxy URL
+                const url = await getSecureUrl(finalKey); 
                 return { ...p, mainImage: url, variants: undefined }; 
             }
+            
             return { ...p, mainImage: null, variants: undefined };
         }));
 
         const responseBody = JSON.stringify({ success: true, products: signedProducts });
 
-        // 4. Cache the flattened list for 6 days (syncing with IDrive expiry)
-        await redis.setex(CACHE_KEY, REDIS_TTL, responseBody);
-
         return { 
             statusCode: 200, 
             headers: {
                 ...headers,
-                'X-Cache': 'MISS',
-                'Cache-Control': 'no-cache, no-store, must-revalidate'
+                'X-Cache': 'DISABLED',
+                'Cache-Control': 'no-store, no-cache, must-revalidate'
             }, 
             body: responseBody 
         };
@@ -2787,7 +2599,7 @@ case 'get-all-products': {
         return { 
             statusCode: 500, 
             headers, 
-            body: JSON.stringify({ success: false, message: err.message }) 
+            body: JSON.stringify({ success: false, message: "Database fetch failed" }) 
         };
     }
 }

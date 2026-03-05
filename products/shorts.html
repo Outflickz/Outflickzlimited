@@ -247,18 +247,7 @@
     let isRefreshing = false;
     let selectedPlatform = 'wa';
 
-    /**
-     * Netlify Image CDN Helper
-     * Transforms raw links into optimized versions to save bandwidth and speed up mobile
-     */
-    function getOptimizedUrl(url, width = 800, quality = 75) {
-        if (!url || typeof url !== 'string') return url;
-        if (url.includes('idrivee2') || url.includes('amazonaws') || url.includes('digitaloceanspaces')) {
-            const baseUrl = url.split('?')[0]; 
-            return `/.netlify/images?url=${encodeURIComponent(baseUrl)}&w=${width}&q=${quality}`;
-        }
-        return url;
-    }
+   
 
     window.onload = () => {
         updateAuthUI();
@@ -325,70 +314,125 @@
         }
     }
 
-    function renderProducts(list) {
-        const grid = document.getElementById('product-grid');
-        if (!grid) return;
-        if (list.length === 0) {
-            grid.innerHTML = `<p class="col-span-full text-center py-20 uppercase tracking-widest text-[10px] opacity-40">No shorts currently available.</p>`;
-            return;
-        }
-        grid.innerHTML = list.map(p => createProductCard(p)).join('');
+   function renderProducts(list) {
+    const grid = document.getElementById('product-grid');
+    if (!grid) return;
+
+    const currentCards = grid.querySelectorAll('.group[id^="container-"]');
+
+    if (currentCards.length > 0 && list.length === currentCards.length) {
+        list.forEach(p => {
+            const img = document.getElementById(`img-${p._id}`);
+            
+            // FIX: Use p.displayImage directly. 
+            // It is already the /.netlify/functions/... link from your api.js
+            const secureUrl = p.displayImage; 
+            
+            if (img && secureUrl && img.src !== secureUrl) {
+                img.src = secureUrl;
+            }
+        });
+        return;
     }
 
-    function createProductCard(p) {
-        const variants = Array.isArray(p.variants) ? p.variants : [];
-        const isValidUrl = (url) => (typeof url === 'string' && url.startsWith('http') && url.length > 40);
+    let htmlContent = '';
+    const isMobile = window.innerWidth < 1024;
+    const insertAfter = isMobile ? 4 : 8;
 
-        const processedVariants = variants.map(v => {
-            let vStock = 0;
-            if (v.stockMatrix) {
-                Object.values(v.stockMatrix).forEach(qty => vStock += (Number(qty) || 0));
-            } else { vStock = Number(v.stock) || 0; }
-            const cleanImages = (Array.isArray(v.images) ? v.images : []).filter(img => isValidUrl(img));
-            return { ...v, totalStock: vStock, cleanImages };
-        });
+    list.forEach((p, index) => {
+        htmlContent += createProductCard(p);
 
-        const isOutOfStock = p.isOutOfStock;
-        const backupImages = processedVariants.flatMap(v => v.cleanImages);
-        const globalDisplay = isValidUrl(p.displayImage) ? p.displayImage : null;
-        
-        let rawImg = globalDisplay || (backupImages.length > 0 ? backupImages[0] : 'https://placehold.co/600x800/f4f4f5/000?text=OUTFLICKZ');
-        const defaultImg = getOptimizedUrl(rawImg, 800, 75);
-
-        return `
-            <div class="group relative cursor-pointer animate-item" onclick="window.location.href='product-detail.html?id=${p._id}'">
-                <div id="container-${p._id}" class="aspect-[3/4] bg-zinc-100 overflow-hidden relative border border-black/5 skeleton"> 
-                    <div id="sold-out-overlay-${p._id}" class="absolute inset-0 z-30 flex items-center justify-center bg-black/10 ${isOutOfStock ? '' : 'hidden'}">
-                        <span class="sold-out-badge">SOLD OUT</span>
-                    </div>
-                    <img id="img-${p._id}" src="${defaultImg}" loading="lazy" 
-                         class="absolute inset-0 w-full h-full object-cover transition-all duration-700 ${isOutOfStock ? 'opacity-70' : 'group-hover:scale-105'}"
-                         onload="this.parentElement.classList.remove('skeleton');" 
-                         onerror="handleImageError(this, '${p._id}')">
-                    
-                    <div class="absolute bottom-3 left-3 flex flex-wrap gap-1.5 z-40 opacity-0 group-hover:opacity-100 transition-opacity">
-                        ${processedVariants.map(v => {
-                            const vRaw = (v.cleanImages && v.cleanImages.length > 0) ? v.cleanImages[0] : rawImg;
-                            const vPreview = getOptimizedUrl(vRaw, 800, 75);
-                            const vIsSoldOut = v.totalStock <= 0;
-                            return `<button type="button" onmouseover="updatePreview(event, '${p._id}', '${vPreview}', ${vIsSoldOut})" 
-                                        onmouseleave="updatePreview(event, '${p._id}', '${defaultImg}', ${isOutOfStock})"
-                                        class="color-dot w-2.5 h-2.5 rounded-full border border-white/60 relative ${vIsSoldOut ? 'opacity-40' : ''}" 
-                                        style="background-color: ${v.color ? v.color.toLowerCase() : '#ccc'};">
-                                        ${vIsSoldOut ? '<div class="absolute inset-0 flex items-center justify-center"><div class="w-full h-[1px] bg-white rotate-45"></div></div>' : ''}
-                                    </button>`;
-                        }).join('')}
-                    </div>
+        if (index === insertAfter - 1) {
+            htmlContent += `
+            <div id="lookbook-section" class="col-span-full w-full py-12 md:py-24 bg-white">
+                <div class="text-center mb-10 md:mb-16">
+                    <h3 class="text-[11px] md:text-[13px] font-black uppercase tracking-[0.5em] text-black">
+                        Exclusive Look
+                    </h3>
                 </div>
-                <div class="mt-4 space-y-1">
-                    <div class="flex justify-between items-start">
-                        <h3 class="font-bold uppercase text-[9px] tracking-wider text-black">${p.name}</h3>
-                        <p class="font-bold text-[9px] text-black">${isOutOfStock ? '<span class="text-red-600">SOLD OUT</span>' : `₦${Number(p.price).toLocaleString()}`}</p>
+                <div class="hide-scrollbar overflow-x-auto w-full">
+                    <div class="flex gap-5 md:gap-8 px-6 md:px-12 pb-10">
+                        ${COLLECTION_IMAGES.map((img) => `
+                            <div class="flex-shrink-0 w-[80vw] md:w-[450px] aspect-[2/3] overflow-hidden rounded-sm shadow-xl">
+                                <img src="${img}" 
+                                     class="w-full h-full object-cover hover:scale-105 transition-transform duration-1000" 
+                                     loading="lazy" 
+                                     onerror="this.src='https://placehold.co/600x900?text=OUTFLICKZ'">
+                            </div>
+                        `).join('')}
                     </div>
-                    <p class="text-zinc-400 text-[7px] uppercase tracking-widest">${p.category || 'Shorts'} / ${processedVariants.filter(v => v.totalStock > 0).length} Colors</p>
                 </div>
             </div>`;
-    }
+        }
+    });
+
+    grid.innerHTML = htmlContent;
+}
+function createProductCard(p) {
+    const variants = Array.isArray(p.variants) ? p.variants : [];
+    
+    // UPDATED: Allow relative paths (like vault/...) and proxy paths
+    const isValidUrl = (url) => {
+        if (!url || typeof url !== 'string') return false;
+        return url.startsWith('vault/') || url.startsWith('/.netlify/') || url.startsWith('http');
+    };
+
+    const processedVariants = variants.map(v => {
+        let vStock = 0;
+        if (v.stockMatrix && typeof v.stockMatrix === 'object') {
+            Object.values(v.stockMatrix).forEach(qty => vStock += (Number(qty) || 0));
+        } else { vStock = Number(v.stock) || 0; }
+        
+        const cleanImages = (Array.isArray(v.images) ? v.images : []).filter(img => isValidUrl(img));
+        return { ...v, totalStock: vStock, cleanImages };
+    });
+
+    const isOutOfStock = p.isOutOfStock || (processedVariants.length > 0 && processedVariants.every(v => v.totalStock <= 0));
+    const backupImages = processedVariants.flatMap(v => v.cleanImages);
+    
+    // Get the raw source link from p.displayImage (which is now a secure proxy link)
+    let rawImg = p.displayImage || (backupImages.length > 0 ? backupImages[0] : 'https://placehold.co/600x800/f4f4f5/000?text=OUTFLICKZ');
+    
+    // UPDATED: We use the URL as-is because api.js already secured it
+    const defaultImg = rawImg;
+
+    return `
+<div class="group relative cursor-pointer animate-item" onclick="window.location.href='/products/product-detail.html?id=${p._id}'">
+    <div id="container-${p._id}" class="aspect-[3/4] bg-zinc-100 overflow-hidden relative border border-black/5 skeleton"> 
+        
+        <div id="sold-out-overlay-${p._id}" class="absolute inset-0 z-10 flex items-center justify-center bg-black/10 pointer-events-none ${isOutOfStock ? '' : 'hidden'}" style="${isOutOfStock ? 'display: flex;' : 'display: none;'}">
+            <span class="sold-out-badge">SOLD OUT</span>
+        </div>
+
+        <img id="img-${p._id}" src="${defaultImg}" loading="lazy" 
+             class="absolute inset-0 w-full h-full object-cover transition-all duration-700 z-0 ${isOutOfStock ? 'opacity-70' : 'group-hover:scale-105'}"
+             onload="this.parentElement.classList.remove('skeleton');" 
+             onerror="this.src='https://placehold.co/600x800/f4f4f5/000?text=OUTFLICKZ'">
+
+        <div class="swatch-container absolute bottom-3 left-3 flex flex-wrap gap-1.5 z-50 opacity-0 group-hover:opacity-100 transition-opacity">
+            ${processedVariants.map(v => {
+                const vRaw = (v.cleanImages && v.cleanImages.length > 0) ? v.cleanImages[0] : rawImg;
+                const vIsSoldOut = v.totalStock <= 0;
+                
+                return `<button type="button" 
+                            onmouseover="updatePreview(event, '${p._id}', '${vRaw}', ${vIsSoldOut})" 
+                            onmouseleave="updatePreview(event, '${p._id}', '${defaultImg}', ${isOutOfStock})"
+                            class="color-dot w-3.5 h-3.5 rounded-full border border-white/60 relative pointer-events-auto" 
+                            style="background-color: ${v.color ? v.color.toLowerCase() : '#ccc'};">
+                            ${vIsSoldOut ? '<div class="absolute inset-0 flex items-center justify-center pointer-events-none"><div class="w-full h-[1px] bg-white rotate-45"></div></div>' : ''}
+                        </button>`;
+            }).join('')}
+        </div>
+    </div>
+    <div class="mt-4 space-y-1">
+        <div class="flex justify-between items-start">
+            <h3 class="font-bold uppercase text-[20px] tracking-wider text-black">${p.name}</h3>
+            <p class="font-bold text-[18px] text-black">${isOutOfStock ? '<span class="text-red-600">SOLD OUT</span>' : `₦${Number(p.price).toLocaleString()}`}</p>
+        </div>
+        <p class="text-zinc-400 text-[12px] uppercase tracking-widest">${p.category || 'Collection'} / ${processedVariants.filter(v => v.totalStock > 0).length} Colors Available</p>
+    </div>
+</div>`;
+}
 
     function updatePreview(event, productId, newSrc, isVariantSoldOut) {
         if (event) event.stopPropagation(); 
@@ -401,14 +445,25 @@
         if (overlay) isVariantSoldOut ? overlay.classList.remove('hidden') : overlay.classList.add('hidden');
     }
 
-    function handleImageError(img, id) {
-        img.parentElement?.classList.remove('skeleton');
-        img.src = 'https://placehold.co/600x800/f4f4f5/18181b?text=IMAGE+ERROR';
-        if (img.src.includes('idrivee2.com') && !isRefreshing) {
-            isRefreshing = true;
-            setTimeout(() => { fetchShorts(); isRefreshing = false; }, 6000);
+  /**
+     * Image Error Handler for Product Details
+     * If a high-res link expires, we re-fetch the product data.
+     */
+    async function handleImageError(img) {
+        if (img.src.includes('placehold.co') || img.dataset.refreshing === 'true') return;
+        
+        img.dataset.refreshing = 'true';
+        img.classList.add('animate-pulse', 'opacity-50');
+
+        try {
+            console.warn("Detail image expired. Refreshing product data...");
+            await loadProduct(currentProduct._id); 
+        } catch (err) {
+            console.error("Vault Refresh Error:", err);
+            img.src = 'https://placehold.co/600x800/000000/FFFFFF?text=OUTFLICKZ';
         }
     }
+    
 
     async function loadRelatedProducts(currentId) {
         try {

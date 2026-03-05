@@ -6,54 +6,47 @@ const s3 = new AWS.S3({
     endpoint: new AWS.Endpoint(process.env.IDRIVE_ENDPOINT),
     region: process.env.IDRIVE_REGION, 
     s3ForcePathStyle: true,
+    signatureVersion: 'v4'
 });
 
 exports.handler = async (event) => {
-    let key = event.queryStringParameters.key;
+    const bucketName = process.env.IDRIVE_BUCKET_NAME || 'outflickz';
+    const key = event.queryStringParameters ? event.queryStringParameters.key : null;
+
     if (!key) return { statusCode: 400, body: "Missing Key" };
 
     try {
-        // 1. Decode the key in case it was double-encoded by the CDN wrap
-        // This converts %252F back to /
-        key = decodeURIComponent(key);
+        let finalKey = decodeURIComponent(key).trim().split('?')[0];
 
-        // 2. If the key is a full URL, extract just the path
-        if (key.includes('.com/')) {
-            key = key.split('.com/')[1].split('?')[0];
+        // If it's a full URL, extract the path after the domain
+        if (finalKey.includes('.com/')) {
+            finalKey = finalKey.split('.com/').pop();
         }
 
-        // 3. Remove the bucket name if it's prepended to the path
-        const bucketName = process.env.IDRIVE_BUCKET_NAME;
-        if (key.startsWith(`${bucketName}/`)) {
-            key = key.replace(`${bucketName}/`, '');
+        // Remove bucket name if it's at the start (e.g., "outflickz/vault/img.jpg")
+        const bucketPrefix = bucketName + '/';
+        if (finalKey.startsWith(bucketPrefix)) {
+            finalKey = finalKey.substring(bucketPrefix.length);
         }
 
-        // 4. Clean leading/trailing slashes and whitespace
-        key = key.replace(/^\/+|\/+$/g, '').trim();
+        // Clean leading slashes so we get "vault/image.jpg"
+        finalKey = finalKey.replace(/^\/+/, '');
 
-        const data = await s3.getObject({
+        console.log(`DEBUG_IDRIVE: Bucket=${bucketName} | Key=${finalKey}`);
+
+        const signedUrl = await s3.getSignedUrlPromise('getObject', {
             Bucket: bucketName,
-            Key: key
-        }).promise();
+            Key: finalKey,
+            Expires: 3600 
+        });
 
         return {
-            statusCode: 200,
-            headers: {
-                "Content-Type": data.ContentType || "image/webp",
-                "Cache-Control": "public, max-age=2592000, immutable",
-                // Help Netlify CDN understand this is an image
-                "X-Content-Type-Options": "nosniff"
-            },
-            body: data.Body.toString('base64'),
-            isBase64Encoded: true,
+            statusCode: 302,
+            headers: { "Location": signedUrl, "Access-Control-Allow-Origin": "*" },
+            body: '' 
         };
     } catch (err) {
-        // Log the exact key that failed so you can check it in iDrive
-        console.error(`S3 Proxy Error | Bucket: ${process.env.IDRIVE_BUCKET_NAME} | Key: [${key}] | Error: ${err.message}`);
-        
-        return { 
-            statusCode: 404, 
-            body: JSON.stringify({ error: "Image Not Found", key: key }) 
-        };
+        console.error("PROXY_ERROR:", err.message);
+        return { statusCode: 500, body: err.message };
     }
 };

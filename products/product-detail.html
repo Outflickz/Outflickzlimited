@@ -308,22 +308,6 @@
     // --- NEW: VAULT REFRESH STATES ---
     let IS_FETCHING_REFRESH = false;
 
-    /**
-     * Netlify Image CDN Optimizer
-     * Transforms raw storage URLs into optimized, compressed versions.
-     */
-    function getOptimizedUrl(url, width = 1000, quality = 80) {
-        if (!url || typeof url !== 'string') return url;
-        // Check if the URL is already routed through Netlify's image proxy
-        if (url.includes('.netlify/images') || url.includes('idrivee2') || url.includes('amazonaws')) {
-            const baseUrl = url.split('?')[0]; 
-            const proxyPath = baseUrl.includes('http') 
-                ? `/.netlify/images?url=${encodeURIComponent(baseUrl)}` 
-                : baseUrl;
-            return `${proxyPath}&w=${width}&q=${quality}`;
-        }
-        return url;
-    }
 
     /**
      * Image Error Handler for Product Details

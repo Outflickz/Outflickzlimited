@@ -521,22 +521,22 @@ function renderProducts(list) {
     if (!grid) return;
 
     const currentCards = grid.querySelectorAll('.group[id^="container-"]');
-   // Inside renderProducts(list)
-if (currentCards.length > 0 && list.length === currentCards.length) {
-    console.log("Vault Refresh: Hot-swapping image sources silently...");
-    list.forEach(p => {
-        const img = document.getElementById(`img-${p._id}`);
-        // ADDED: Append width and quality to the refresh
-        const optimizedUrl = p.displayImage ? `${p.displayImage}&w=600&q=80` : null;
-        
-        if (img && optimizedUrl && img.src !== optimizedUrl) {
-            img.src = optimizedUrl;
-        }
-    });
-    return;
-}
 
-    // 2. FULL RENDER: (Initial load or list length change)
+    if (currentCards.length > 0 && list.length === currentCards.length) {
+        list.forEach(p => {
+            const img = document.getElementById(`img-${p._id}`);
+            
+            // FIX: Use p.displayImage directly. 
+            // It is already the /.netlify/functions/... link from your api.js
+            const secureUrl = p.displayImage; 
+            
+            if (img && secureUrl && img.src !== secureUrl) {
+                img.src = secureUrl;
+            }
+        });
+        return;
+    }
+
     let htmlContent = '';
     const isMobile = window.innerWidth < 1024;
     const insertAfter = isMobile ? 4 : 8;
@@ -570,45 +570,33 @@ if (currentCards.length > 0 && list.length === currentCards.length) {
 
     grid.innerHTML = htmlContent;
 }
-function getOptimizedUrl(url, width = 600, quality = 75) {
-    if (!url || typeof url !== 'string' || url.includes('placehold.co')) {
-        return 'https://placehold.co/600x800/18181b/ffffff?text=OUTFLICKZ';
-    }
-
-    if (url.startsWith('/.netlify/images')) return url;
-
-    let cleanKey = url.split('?')[0];
-    if (cleanKey.includes('.com/')) {
-        cleanKey = cleanKey.split('.com/')[1];
-    }
-
-    // Build the proxy path
-    const proxyPath = `/.netlify/functions/outflickz-image-proxy?key=${encodeURIComponent(cleanKey)}`;
-    return `/.netlify/images?url=${encodeURIComponent(proxyPath)}&w=${width}&q=${quality}`;
-}
-
 function createProductCard(p) {
     const variants = Array.isArray(p.variants) ? p.variants : [];
-    const isValidUrl = (url) => (typeof url === 'string' && !url.includes('…') && url.startsWith('http') && url.length > 10);
+    
+    // UPDATED: Allow relative paths (like vault/...) and proxy paths
+    const isValidUrl = (url) => {
+        if (!url || typeof url !== 'string') return false;
+        return url.startsWith('vault/') || url.startsWith('/.netlify/') || url.startsWith('http');
+    };
 
     const processedVariants = variants.map(v => {
         let vStock = 0;
         if (v.stockMatrix && typeof v.stockMatrix === 'object') {
             Object.values(v.stockMatrix).forEach(qty => vStock += (Number(qty) || 0));
         } else { vStock = Number(v.stock) || 0; }
+        
         const cleanImages = (Array.isArray(v.images) ? v.images : []).filter(img => isValidUrl(img));
         return { ...v, totalStock: vStock, cleanImages };
     });
 
     const isOutOfStock = p.isOutOfStock || (processedVariants.length > 0 && processedVariants.every(v => v.totalStock <= 0));
     const backupImages = processedVariants.flatMap(v => v.cleanImages);
-    const globalDisplay = isValidUrl(p.displayImage) ? p.displayImage : null;
     
-    // Get the raw source link
-    let rawImg = globalDisplay || (backupImages.length > 0 ? backupImages[0] : 'https://placehold.co/600x800/f4f4f5/000?text=OUTFLICKZ');
+    // Get the raw source link from p.displayImage (which is now a secure proxy link)
+    let rawImg = p.displayImage || (backupImages.length > 0 ? backupImages[0] : 'https://placehold.co/600x800/f4f4f5/000?text=OUTFLICKZ');
     
-    // OPTIMIZED: Apply CDN sizing for the grid (600px is sweet spot for mobile/desktop grid)
-    const defaultImg = getOptimizedUrl(rawImg, 600, 80);
+    // UPDATED: We use the URL as-is because api.js already secured it
+    const defaultImg = rawImg;
 
     return `
 <div class="group relative cursor-pointer animate-item" onclick="window.location.href='/products/product-detail.html?id=${p._id}'">
@@ -621,18 +609,15 @@ function createProductCard(p) {
         <img id="img-${p._id}" src="${defaultImg}" loading="lazy" 
              class="absolute inset-0 w-full h-full object-cover transition-all duration-700 z-0 ${isOutOfStock ? 'opacity-70' : 'group-hover:scale-105'}"
              onload="this.parentElement.classList.remove('skeleton');" 
-             onerror="handleImageError(this, '${p._id}')">
+             onerror="this.src='https://placehold.co/600x800/f4f4f5/000?text=OUTFLICKZ'">
 
         <div class="swatch-container absolute bottom-3 left-3 flex flex-wrap gap-1.5 z-50 opacity-0 group-hover:opacity-100 transition-opacity">
             ${processedVariants.map(v => {
                 const vRaw = (v.cleanImages && v.cleanImages.length > 0) ? v.cleanImages[0] : rawImg;
-                
-                // OPTIMIZED: Swatches only need to be 400px for the preview hover
-                const vPreview = getOptimizedUrl(vRaw, 400, 75);
                 const vIsSoldOut = v.totalStock <= 0;
                 
                 return `<button type="button" 
-                            onmouseover="updatePreview(event, '${p._id}', '${vPreview}', ${vIsSoldOut})" 
+                            onmouseover="updatePreview(event, '${p._id}', '${vRaw}', ${vIsSoldOut})" 
                             onmouseleave="updatePreview(event, '${p._id}', '${defaultImg}', ${isOutOfStock})"
                             class="color-dot w-3.5 h-3.5 rounded-full border border-white/60 relative pointer-events-auto" 
                             style="background-color: ${v.color ? v.color.toLowerCase() : '#ccc'};">
@@ -676,31 +661,25 @@ function updatePreview(event, productId, newSrc, isVariantSoldOut) {
         }
     }
 }
+ /**
+     * Image Error Handler for Product Details
+     * If a high-res link expires, we re-fetch the product data.
+     */
+    async function handleImageError(img) {
+        if (img.src.includes('placehold.co') || img.dataset.refreshing === 'true') return;
+        
+        img.dataset.refreshing = 'true';
+        img.classList.add('animate-pulse', 'opacity-50');
 
-async function handleImageError(img, id) {
-    if (img.src.includes('placehold.co') || img.dataset.errorHandled === 'true') return;
-
-    img.dataset.errorHandled = 'true'; 
-    console.warn(`Image Load Failed: ${id}. Attempting recovery...`);
-
-    if (typeof MASTER_PRODUCTS !== 'undefined' && Array.isArray(MASTER_PRODUCTS)) {
-        const product = MASTER_PRODUCTS.find(p => p._id === id);
-        if (product) {
-            const rawKey = product.displayImage || (product.variants?.[0]?.images?.[0]);
-            if (rawKey) {
-                const recoveredUrl = getOptimizedUrl(rawKey, 800, 75);
-                if (recoveredUrl && recoveredUrl !== img.src) {
-                    img.src = recoveredUrl;
-                    return;
-                }
-            }
+        try {
+            console.warn("Detail image expired. Refreshing product data...");
+            await loadProduct(currentProduct._id); 
+        } catch (err) {
+            console.error("Vault Refresh Error:", err);
+            img.src = 'https://placehold.co/600x800/000000/FFFFFF?text=OUTFLICKZ';
         }
     }
 
-    // Final Fallback
-    img.src = 'https://placehold.co/600x800/f4f4f5/18181b?text=OUTFLICKZ';
-    img.classList.remove('animate-pulse', 'opacity-50');
-}
 
    function scrollGallery(direction) {
     const grid = document.getElementById('social-gallery-grid');
@@ -903,15 +882,16 @@ function sendChatMessage() {
 
 let lastFetchTime = Date.now();
 
-document.addEventListener('visibilitychange', () => {
-    const now = Date.now();
+// document.addEventListener('visibilitychange', () => {
+   // const now = Date.now();
     // Only refresh if the user has been away for more than 30 minutes (1,800,000 ms)
-    if (document.visibilityState === 'visible' && (now - lastFetchTime > 1800000)) {
-        console.log("Session aged. Refreshing secure links...");
-        fetchProducts();
-        lastFetchTime = now;
-    }
-});
+   // if (document.visibilityState === 'visible' && (now - lastFetchTime > 1800000)) {
+   //     console.log("Session aged. Refreshing secure links...");
+   //     fetchProducts();
+   //     lastFetchTime = now;
+  //  }
+// });
+
 document.addEventListener('DOMContentLoaded', () => {
     const mobileVideo = document.getElementById('mobileHeroVideo');
     const mobileSource = document.getElementById('mobileSource');

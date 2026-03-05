@@ -49,6 +49,8 @@
 # 5. IMAGE CDN CONFIGURATION
 [images]
   remote_images = [
+    "https://outflickss\\.netlify\\.app/.*",   # Authorize your own domain
+    "https://outflickz\\.com/.*",              # Authorize custom domain if active
     "https://s3\\.us-west-1\\.idrivee2\\.com/.*",
     "https://.*\\.amazonaws\\.com/.*" 
   ]

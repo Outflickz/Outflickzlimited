@@ -575,24 +575,16 @@ function getOptimizedUrl(url, width = 600, quality = 75) {
         return 'https://placehold.co/600x800/18181b/ffffff?text=OUTFLICKZ';
     }
 
-    let finalUrl = url;
+    if (url.startsWith('/.netlify/images')) return url;
 
-    // Check if the URL is already pointing to our new proxy
-    if (url.includes('key=')) {
-        const urlParams = new URLSearchParams(url.split('?')[1]);
-        const key = urlParams.get('key');
-        if (key) {
-            // UPDATED: Matches your new filename 'outflickz-image-proxy'
-            finalUrl = `/.netlify/functions/outflickz-image-proxy?key=${encodeURIComponent(key)}`;
-        }
-    } else if (url.includes('idrivee2.com') || url.includes('amazonaws.com')) {
-        // If it's a raw S3 link, convert it to use our proxy
-        const key = url.split('?')[0].split('.com/')[1]; 
-        finalUrl = `/.netlify/functions/outflickz-image-proxy?key=${encodeURIComponent(key)}`;
+    let cleanKey = url.split('?')[0];
+    if (cleanKey.includes('.com/')) {
+        cleanKey = cleanKey.split('.com/')[1];
     }
 
-    // Wrap in Netlify Image CDN for performance
-    return `/.netlify/images?url=${encodeURIComponent(finalUrl)}&w=${width}&q=${quality}`;
+    // Build the proxy path
+    const proxyPath = `/.netlify/functions/outflickz-image-proxy?key=${encodeURIComponent(cleanKey)}`;
+    return `/.netlify/images?url=${encodeURIComponent(proxyPath)}&w=${width}&q=${quality}`;
 }
 
 function createProductCard(p) {
@@ -684,82 +676,30 @@ function updatePreview(event, productId, newSrc, isVariantSoldOut) {
         }
     }
 }
-/**
- * REFINED: Handle Image Error with CDN Optimization
- * Prevents signature loops and cleans Netlify Image CDN paths
- */
+
 async function handleImageError(img, id) {
-    // 1. Prevent infinite loops
-    if (img.src.includes('placehold.co') || img.dataset.refreshing === 'true') return;
+    if (img.src.includes('placehold.co') || img.dataset.errorHandled === 'true') return;
 
-    // Check if the link belongs to our storage providers
-    const isVaultLink = img.src.includes('idrivee2') || 
-                        img.src.includes('amazonaws') || 
-                        img.src.includes('.netlify/images');
+    img.dataset.errorHandled = 'true'; 
+    console.warn(`Image Load Failed: ${id}. Attempting recovery...`);
 
-    if (isVaultLink) {
-        img.dataset.refreshing = 'true'; 
-        img.classList.add('animate-pulse', 'opacity-50');
-
-        try {
-            // Global lock to prevent multiple simultaneous API calls
-            if (typeof IS_FETCHING_REFRESH !== 'undefined' && !IS_FETCHING_REFRESH) {
-                IS_FETCHING_REFRESH = true;
-                console.warn(`Vault links expired for ${id}. Refreshing...`);
-                
-                // Re-fetch the list from your backend to get fresh signatures
-                if (typeof fetchCaps === 'function') await fetchCaps();
-                else if (typeof fetchProducts === 'function') await fetchProducts();
-                
-                IS_FETCHING_REFRESH = false;
-            } else {
-                // If another image already started a refresh, just wait
-                await new Promise(resolve => setTimeout(resolve, 2500));
-            }
-
-            // 2. Find the fresh data in the Master list
-            if (typeof MASTER_PRODUCTS !== 'undefined' && Array.isArray(MASTER_PRODUCTS)) {
-                const freshProduct = MASTER_PRODUCTS.find(p => p._id === id);
-                
-                if (freshProduct) {
-                    let rawUrl = freshProduct.displayImage;
-                    
-                    // Fallback to variant image if display image is empty
-                    if (!rawUrl && freshProduct.variants?.length > 0) {
-                        const vWithImg = freshProduct.variants.find(v => v.images?.length > 0);
-                        rawUrl = vWithImg?.images[0];
-                    }
-
-                    if (rawUrl) {
-                        // CRITICAL: Clean the URL (remove existing Netlify proxy and signatures)
-                        // This prevents passing an expired signature TO the Netlify CDN
-                        let cleanUrl = rawUrl.split('?')[0]; 
-                        
-                        // Re-apply optimization
-                        const optimizedNewUrl = getOptimizedUrl(cleanUrl, 800, 75);
-
-                        if (optimizedNewUrl && optimizedNewUrl !== img.src) {
-                            img.src = optimizedNewUrl;
-                            img.onload = () => {
-                                img.classList.remove('animate-pulse', 'opacity-50');
-                                img.dataset.refreshing = 'false';
-                            };
-                            return; 
-                        }
-                    }
+    if (typeof MASTER_PRODUCTS !== 'undefined' && Array.isArray(MASTER_PRODUCTS)) {
+        const product = MASTER_PRODUCTS.find(p => p._id === id);
+        if (product) {
+            const rawKey = product.displayImage || (product.variants?.[0]?.images?.[0]);
+            if (rawKey) {
+                const recoveredUrl = getOptimizedUrl(rawKey, 800, 75);
+                if (recoveredUrl && recoveredUrl !== img.src) {
+                    img.src = recoveredUrl;
+                    return;
                 }
             }
-        } catch (err) {
-            console.error("Vault Refresh Error:", err);
-            if (typeof IS_FETCHING_REFRESH !== 'undefined') IS_FETCHING_REFRESH = false;
         }
     }
 
-    // 3. FALLBACK: If refresh fails, show the placeholder
-    console.error(`Permanent failure for item: ${id}`);
+    // Final Fallback
     img.src = 'https://placehold.co/600x800/f4f4f5/18181b?text=OUTFLICKZ';
     img.classList.remove('animate-pulse', 'opacity-50');
-    img.dataset.refreshing = 'false';
 }
 
    function scrollGallery(direction) {

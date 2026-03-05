@@ -570,31 +570,29 @@ if (currentCards.length > 0 && list.length === currentCards.length) {
 
     grid.innerHTML = htmlContent;
 }
-
-/**
- * FRONTEND HELPER: Apply Netlify CDN Transformations
- * Strips expired signatures and proxies through Netlify Image CDN.
- */
 function getOptimizedUrl(url, width = 600, quality = 75) {
-    if (!url || typeof url !== 'string' || url.includes('placehold.co')) return url;
-
-    // 1. STRIP SIGNATURES: Remove everything after the '?' 
-    // This is critical because expired S3/iDrive signatures cause 404s in the CDN.
-    const cleanUrl = url.split('?')[0];
-
-    // 2. CHECK SOURCE: Only proxy images from your external storage (iDrive/AWS)
-    const isExternalStorage = cleanUrl.includes('idrivee2.com') || cleanUrl.includes('amazonaws.com');
-
-    if (isExternalStorage) {
-        // Construct the Netlify Image CDN path
-        // w: width, q: quality, fm: format (auto selects webp/avif for speed)
-        return `/.netlify/images?url=${encodeURIComponent(cleanUrl)}&w=${width}&q=${quality}&fm=webp`;
+    // 1. Safety Check: If no URL, return placeholder immediately to prevent 400 error
+    if (!url || typeof url !== 'string' || url.includes('placehold.co')) {
+        return 'https://placehold.co/600x800/18181b/ffffff?text=OUTFLICKZ';
     }
 
+    // 2. Strip signatures
+    const cleanUrl = url.split('?')[0];
+
+    // 3. Check if it's an external storage link
+    const isExternal = cleanUrl.includes('idrivee2.com') || cleanUrl.includes('amazonaws.com');
+
+    if (isExternal) {
+        // We REMOVE &fm=webp for now to fix the 415 error. 
+        // Netlify will serve the original format (webp) without trying to re-encode it.
+        return `/.netlify/images?url=${encodeURIComponent(cleanUrl)}&w=${width}&q=${quality}`;
+    }
+
+    // 4. Handle internal Netlify paths
     if (url.startsWith('/.netlify/images')) {
-        const baseUrl = url.split('&w=')[0].split('?w=')[0]; // Get the base proxy path
-        const connector = baseUrl.includes('?') ? '&' : '?';
-        return `${baseUrl}${connector}w=${width}&q=${quality}&fm=webp`;
+        // Ensure we don't lose the 'url=' parameter
+        if (!url.includes('url=')) return 'https://placehold.co/600x800/18181b/ffffff?text=INVALID+URL';
+        return url;
     }
 
     return cleanUrl;

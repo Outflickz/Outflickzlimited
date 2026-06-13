@@ -286,7 +286,7 @@
                             <span id="shipping-fee">₦0.00</span>
                         </div>
                         <div class="flex justify-between text-gray-500 uppercase font-bold text-[9px] tracking-widest">
-                            <span>Estimated Tax (2%)</span>
+                            <span>Estimated Tax (0%)</span>
                             <span id="tax-amount">₦0</span>
                         </div>
                         <div class="flex justify-between text-black uppercase font-black text-[12px] tracking-widest pt-3 border-t border-black/5">
@@ -414,9 +414,9 @@
         "UK": ["Greater London", "West Midlands", "Greater Manchester", "West Yorkshire", "Lower Mainland", "Berkshire", "Buckinghamshire", "Cambridgeshire", "Cheshire", "Cornwall", "Cumbria", "Derbyshire", "Devon", "Dorset", "Durham", "East Sussex", "Essex", "Gloucestershire", "Hampshire", "Hertfordshire", "Kent", "Lancashire", "Leicestershire", "Lincolnshire", "Merseyside", "Norfolk", "North Yorkshire", "Northamptonshire", "Northumberland", "Nottinghamshire", "Oxfordshire", "Shropshire", "Somerset", "Staffordshire", "Suffolk", "Surrey", "Tyne and Wear", "Warwickshire", "West Sussex", "Wiltshire", "Worcestershire", "Scotland", "Wales", "Northern Ireland"]
     };
 
-   const TAX_RATE = 0.02; 
-const SHIPPING_LAGOS = 3000;    // Within Lagos
-const SHIPPING_OUTSIDE = 5000;  // Outside Lagos (Nigeria)
+   const TAX_RATE = 0; 
+const SHIPPING_LAGOS = 0;    // Within Lagos
+const SHIPPING_OUTSIDE = 0;  // Outside Lagos (Nigeria)
 const SHIPPING_PICKUP = 0;      // Local Pickup
 let currentShippingFee = 0; // <--- ADD THIS LINE
 
@@ -574,8 +574,6 @@ async function finalizeOrder() {
         }
     }
 
-    // --- MATH CALCULATIONS START ---
-    // We calculate these BEFORE creating the orderData object
     const subtotal = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
     const calculatedTax = subtotal * TAX_RATE; // Using the TAX_RATE global variable
     const calculatedTotal = subtotal + calculatedTax + currentShippingFee;

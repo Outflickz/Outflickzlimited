@@ -142,13 +142,9 @@ async function sendOrderEmails(order, status = 'New') {
     }));
 
     // 2. Updated Financial Calculations
-    // Subtotal based on items
     const subtotal = signedItems.reduce((acc, item) => acc + (Number(item.price || 0) * Number(item.qty || 1)), 0);
     
-    // Support both naming conventions (shippingCost or shippingFee)
     const shipping = Number(order.shippingFee || order.shippingCost || 0);
-    
-    // Support both naming conventions (tax or taxAmount)
     const tax = Number(order.taxAmount || order.tax || 0);
     
     const total = subtotal + shipping + tax;
@@ -1974,13 +1970,7 @@ case 'verify-payment': {
             const shippingNaira = orderData.deliveryMethod === 'pickup' 
                 ? 0 
                 : (Number(orderData.shippingFee) || 0);
-
-            // 3. --- FIX: Backend calculates tax independently ---
-            // We use 0.03 to match your frontend TAX_RATE
-            const taxNaira = subtotalNaira * 0.02;
-            
-            // 4. Update the orderData object before it goes to the DB
-            // This ensures the database and emails show the correct tax amount
+            const taxNaira = subtotalNaira * 0;
             orderData.taxAmount = taxNaira;
 
             // 5. Convert all to Kobo for precise comparison

@@ -247,78 +247,88 @@
     animate();
 
     // --- UPDATED AUTH LOGIC ---
-    async function handleAuth(type) {
-        const btn = document.getElementById(`${type}-btn`);
-        const originalText = btn.innerHTML;
+async function handleAuth(type) {
+    // 1. FIX: Dynamically target 'reg-btn' if type is 'register', otherwise fallback to layout type
+    const buttonId = type === 'register' ? 'reg-btn' : `${type}-btn`;
+    const btn = document.getElementById(buttonId);
+    
+    if (!btn) {
+        console.error(`DOM Error: Button element with ID "${buttonId}" could not be located.`);
+        return;
+    }
+    const originalText = btn.innerHTML;
 
-        const email = document.getElementById(`${type}-email`).value.trim();
-        const masterKey = document.getElementById(`${type}-master`).value.trim();
-        const password = document.getElementById(`${type}-pass`).value.trim();
+    // 2. Read the common fields across all login layouts cleanly
+    const email = document.getElementById(`${type}-email`).value.trim();
+    const masterKey = document.getElementById(`${type}-master`).value.trim();
+    const password = document.getElementById(`${type}-pass`).value.trim();
 
-        if (!email || !password || !masterKey) {
-            showModal("Attention", "All security fields are required.", "error");
-            return;
-        }
+    if (!email || !password || !masterKey) {
+        showModal("Attention", "All security fields are required.", "error");
+        return;
+    }
 
-        btn.disabled = true;
-        btn.innerHTML = `<div class="loader"></div>`;
+    // Lock button and activate visual loading state
+    btn.disabled = true;
+    btn.innerHTML = `<div class="loader"></div>`;
 
-        let action;
-        if(type === 'login') action = 'admin-login';
-        else if(type === 'register') action = 'admin-register';
-        else action = 'admin-reset-password';
+    let action;
+    if(type === 'login') action = 'admin-login';
+    else if(type === 'register') action = 'admin-register';
+    else action = 'admin-reset-password';
 
-        let payload = { 
-            action, 
-            email: email.toLowerCase(), 
-            masterKey,
-            // For reset, the backend expects 'newPassword', for login/reg it expects 'password'
-            ...(type === 'reset' ? { newPassword: password } : { password })
-        };
+    let payload = { 
+        action, 
+        email: email.toLowerCase(), 
+        masterKey,
+        // For reset, the backend expects 'newPassword', for login/reg it expects 'password'
+        ...(type === 'reset' ? { newPassword: password } : { password })
+    };
 
-        if (type === 'register') {
-            const names = document.getElementById('reg-name').value.trim().split(' ');
-            payload.firstName = names[0];
-            payload.lastName = names.slice(1).join(' ') || 'Admin';
-        }
+    if (type === 'register') {
+        const nameInput = document.getElementById('reg-name');
+        const names = nameInput ? nameInput.value.trim().split(' ') : ['Admin'];
+        payload.firstName = names[0] || 'Admin';
+        payload.lastName = names.slice(1).join(' ') || 'User';
+    }
 
-        try {
-            const response = await fetch(API_ENDPOINT, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+    try {
+        const response = await fetch(API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
 
-            const data = await response.json();
+        const data = await response.json();
 
-            if (response.ok) {
-                if (type === 'login') {
-                    localStorage.setItem('outflickz_admin_token', data.token);
-                    btn.innerHTML = "GRANTED";
-                    btn.style.backgroundColor = "#00C851";
-                    setTimeout(() => { window.location.href = 'dashboard.html'; }, 1000);
-                } else if (type === 'reset') {
-                    showModal("Success", "Credentials updated. Please log in with your new password.", "success");
-                    toggleResetForm(); // Go back to login
-                    btn.disabled = false;
-                    btn.innerHTML = originalText;
-                } else {
-                    showModal("Success", "Profile created. Log in to continue.", "success");
-                    toggleForm();
-                    btn.disabled = false;
-                    btn.innerHTML = originalText;
-                }
+        if (response.ok) {
+            if (type === 'login') {
+                localStorage.setItem('outflickz_admin_token', data.token);
+                btn.innerHTML = "GRANTED";
+                btn.style.backgroundColor = "#00C851";
+                setTimeout(() => { window.location.href = 'dashboard.html'; }, 1000);
+            } else if (type === 'reset') {
+                showModal("Success", "Credentials updated. Please log in with your new password.", "success");
+                toggleResetForm(); // Go back to login
+                btn.disabled = false;
+                btn.innerHTML = originalText;
             } else {
-                showModal("Access Denied", data.message || "Credential verification failed.", "error");
+                showModal("Success", "Profile created. Log in to continue.", "success");
+                toggleForm();
                 btn.disabled = false;
                 btn.innerHTML = originalText;
             }
-        } catch (err) {
-            showModal("Offline", "Terminal connection failure.", "error");
+        } else {
+            showModal("Access Denied", data.message || "Credential verification failed.", "error");
             btn.disabled = false;
             btn.innerHTML = originalText;
         }
+    } catch (err) {
+        showModal("Offline", "Terminal connection failure.", "error");
+        btn.disabled = false;
+        btn.innerHTML = originalText;
     }
+}
 
     window.addEventListener('resize', () => {
         camera.aspect = container.clientWidth / container.clientHeight;

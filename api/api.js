@@ -4,14 +4,11 @@ const jwt = require('jsonwebtoken');
 const AWS = require('aws-sdk');
 const sharp = require('sharp'); 
 const nodemailer = require('nodemailer');
-//const Redis = require('ioredis');
 
 const MONGODB_URI = process.env.MONGODB_URI;
 const JWT_SECRET = process.env.JWT_SECRET;
 const MASTER_ACCESS_KEY = (process.env.MASTER_ACCESS_KEY || '').trim();
 const BUCKET_NAME = (process.env.IDRIVE_BUCKET_NAME || '').trim();
-//const redis = new Redis(process.env.REDIS_URL);
-
 
 const rawEndpoint = process.env.IDRIVE_ENDPOINT;
 const s3Config = {
@@ -36,7 +33,6 @@ async function connectToDatabase() {
         return cachedDb;
     }
 
-    // 2. Setup connection options for Serverless Stability
     const options = {
         connectTimeoutMS: 10000,
         serverSelectionTimeoutMS: 10000,
@@ -107,8 +103,7 @@ function getSecureUrl(key) {
     
     cleanKey = cleanKey.replace(/^\/+/, '');
 
-    // No need to await anything here, it's just string building
-    return `/.netlify/functions/outflickz-image-proxy?key=${encodeURIComponent(cleanKey)}`;
+   return `/api/proxy-image?key=${encodeURIComponent(cleanKey)}`;
 }
 
 const transporter = nodemailer.createTransport({
@@ -346,26 +341,27 @@ async function sendVerificationEmail(email, otp, firstName) {
     }
 }
 
-exports.handler = async (event, context) => {
-    context.callbackWaitsForEmptyEventLoop = false;
+module.exports = async (req, res) => {
+    // 1. Set CORS Headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
 
-    const headers = {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-        "Access-Control-Allow-Credentials": "true",
-        "Content-Type": "application/json"
-    };
-
-    if (event.httpMethod === "OPTIONS") return { statusCode: 200, headers, body: "OK" };
+    // 2. Handle Preflight (OPTIONS)
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
 
     try {
         const db = await connectToDatabase();
+        
+        // 3. Vercel automatically parses the body, so no JSON.parse needed
+        const queryAction = req.query && req.query.action;
+        const body = req.body || {};
+        const action = queryAction || body.action;
 
-        const queryAction = event.queryStringParameters && event.queryStringParameters.action;
-        const body = JSON.parse(event.body || "{}");
-        const bodyAction = body.action;
-        const action = queryAction || bodyAction;
+        console.log("=> Executing Action:", action);
 
         switch (action) {
             case 'add-wear': {
@@ -403,32 +399,35 @@ exports.handler = async (event, context) => {
                 return { statusCode: 201, headers, body: JSON.stringify(result) };
             }
 
-            case 'get-wears': {
-                try {
-                    const wears = await db.collection('wears').find({}).sort({ createdAt: -1 }).toArray();
-                    
-                    const wearsWithLinks = await Promise.all(wears.map(async (wear) => {
-                        const imageToSign = wear.displayImage || wear.variants?.[0]?.images?.[0];
-                        const signedDisplayImage = await getSecureUrl(imageToSign);
+           case 'get-wears': {
+    try {
+        const wears = await db.collection('wears').find({}).sort({ createdAt: -1 }).toArray();
+        
+        const wearsWithLinks = await Promise.all(wears.map(async (wear) => {
+            const imageToSign = wear.displayImage || wear.variants?.[0]?.images?.[0];
+            const signedDisplayImage = await getSecureUrl(imageToSign);
 
-                        const signedVariants = await Promise.all((wear.variants || []).map(async v => {
-                            const vImgs = await Promise.all((v.images || []).map(k => getSecureUrl(k)));
-                            return { ...v, images: vImgs.filter(img => img !== null) };
-                        }));
+            const signedVariants = await Promise.all((wear.variants || []).map(async v => {
+                const vImgs = await Promise.all((v.images || []).map(k => getSecureUrl(k)));
+                return { ...v, images: vImgs.filter(img => img !== null) };
+            }));
 
-                        return { 
-                            ...wear, 
-                            displayImage: signedDisplayImage, 
-                            variants: signedVariants 
-                        };
-                    }));
+            return { 
+                ...wear, 
+                displayImage: signedDisplayImage, 
+                variants: signedVariants 
+            };
+        }));
 
-                    return { statusCode: 200, headers, body: JSON.stringify(wearsWithLinks) };
-                } catch (err) {
-                    console.error("Fetch Wears Error:", err);
-                    return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
-                }
-            }
+        // VERCEL FIX: Use res.status().json() instead of returning a status object
+        return res.status(200).json(wearsWithLinks);
+
+    } catch (err) {
+        console.error("Fetch Wears Error:", err);
+        // VERCEL FIX: Send JSON error response
+        return res.status(500).json({ error: err.message });
+    }
+}
 
             case 'get-wear-details': {
                 const { id } = body;
@@ -1302,7 +1301,7 @@ case 'delete-tracksuit': {
                 return { statusCode: 200, headers, body: JSON.stringify({ token, admin: { firstName: admin.firstName } }) };
             }
 
-          case 'admin-reset-password': {
+         case 'admin-reset-password': {
     const { email, masterKey, newPassword } = body;
 
     if (!email || !masterKey || !newPassword) {
@@ -1312,6 +1311,7 @@ case 'delete-tracksuit': {
         return { statusCode: 403, headers, body: JSON.stringify({ message: "Invalid Master Secret Key" }) };
     }
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
     const updateResult = await db.collection('admins').updateOne(
         { email: email.toLowerCase().trim() },
         { $set: { password: hashedNewPassword } } 
@@ -1327,6 +1327,7 @@ case 'delete-tracksuit': {
         body: JSON.stringify({ success: true, message: "Credentials updated successfully" }) 
     };
 }
+
 // --- CASE 1: FETCH PROFILE DETAILS ---
 case 'get-admin-profile': {
     const { token, masterKey } = body;

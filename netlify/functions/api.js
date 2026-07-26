@@ -1970,7 +1970,7 @@ case 'verify-payment': {
             const shippingNaira = orderData.deliveryMethod === 'pickup' 
                 ? 0 
                 : (Number(orderData.shippingFee) || 0);
-            const taxNaira = subtotalNaira * 0;
+            const taxNaira = subtotalNaira * 0.009; // 0.9% tax rate
             orderData.taxAmount = taxNaira;
 
             // 5. Convert all to Kobo for precise comparison

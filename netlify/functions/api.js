@@ -2322,7 +2322,7 @@ case 'get-order-details': {
             order.amountPaid = Number(order.amountPaid || 0);
             order.shippingFee = Number(order.shippingFee || 0);
             order.taxAmount = Number(order.taxAmount || 0);
-            order.taxRate = Number(order.taxRate || 500);
+            order.taxRate = Number(order.taxRate || 0);
 
             // --- PROCESS IMAGE URLS ---
             // Process all items in parallel to generate secure signed URLs

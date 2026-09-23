@@ -6,6 +6,7 @@
     <title>Outflickz | Product Detail</title>
     <link rel="icon" type="image/jpeg" href="https://i.imgur.com/fu8N7I2.jpeg">
     <script src="https://cdn.tailwindcss.com"></script>
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap');
         body { font-family: 'Space Grotesk', sans-serif; -webkit-font-smoothing: antialiased; }
@@ -401,61 +402,73 @@ function getOptimizedUrl(url) {
         await loadProduct(productId);
     };
 
-    async function loadProduct(id) {
-        try {
-            let res = await fetch(API_ENDPOINT, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'get-any-product-details', id })
-            });
+   async function loadProduct(id) {
+    try {
+        let res = await fetch(API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'get-any-product-details', id })
+        });
 
-            let data = await res.json();
+        let data = await res.json();
 
-            if (data && !data.message) {
-                let totalProductStock = 0;
-                
-                if (data.variants && Array.isArray(data.variants)) {
-                    data.variants = data.variants.map(v => {
-                        let vStock = 0;
-                        if (v.stockMatrix) {
-                            Object.values(v.stockMatrix).forEach(qty => vStock += Number(qty) || 0);
-                        } else {
-                            vStock = Number(v.stock) || 0;
-                        }
-                        return { ...v, variantTotalStock: vStock };
-                    });
+        if (data && !data.message) {
+            let totalProductStock = 0;
+            
+            if (data.variants && Array.isArray(data.variants)) {
+                data.variants = data.variants.map(v => {
+                    let vStock = 0;
+                    if (v.stockMatrix) {
+                        Object.values(v.stockMatrix).forEach(qty => vStock += Number(qty) || 0);
+                    } else {
+                        vStock = Number(v.stock) || 0;
+                    }
+                    return { ...v, variantTotalStock: vStock };
+                });
 
-                    data.variants.sort((a, b) => {
-                        const aIn = a.variantTotalStock > 0 ? 1 : 0;
-                        const bIn = b.variantTotalStock > 0 ? 1 : 0;
-                        return bIn - aIn;
-                    });
+                data.variants.sort((a, b) => {
+                    const aIn = a.variantTotalStock > 0 ? 1 : 0;
+                    const bIn = b.variantTotalStock > 0 ? 1 : 0;
+                    return bIn - aIn;
+                });
 
-                    data.variants.forEach(v => totalProductStock += v.variantTotalStock);
-                }
-
-                currentProduct = data;
-
-                const nameEl = document.getElementById('p-name');
-                nameEl.className = "text-[24px] md:text-4xl font-black italic tracking-tighter uppercase leading-none mb-4 min-h-[40px]";
-
-                renderProductData(data.category === 'caps');
-
-                if (totalProductStock <= 0) {
-                    const buyBtn = document.getElementById('buy-btn');
-                    const addBtn = document.getElementById('add-btn');
-                    buyBtn.disabled = true;
-                    addBtn.disabled = true;
-                    buyBtn.innerText = "SOLD OUT";
-                    addBtn.innerText = "OUT OF STOCK";
-                }
-                
-                loadRelatedProducts(id); 
+                data.variants.forEach(v => totalProductStock += v.variantTotalStock);
             }
-        } catch (err) {
-            console.error("Product Load Error:", err);
+
+            currentProduct = data;
+
+            // Inject or Update Backend JSON-LD Schema
+            if (data.schemaData) {
+                let scriptTag = document.getElementById('product-schema');
+                if (!scriptTag) {
+                    scriptTag = document.createElement('script');
+                    scriptTag.id = 'product-schema';
+                    scriptTag.type = 'application/ld+json';
+                    document.head.appendChild(scriptTag);
+                }
+                scriptTag.textContent = JSON.stringify(data.schemaData);
+            }
+
+            const nameEl = document.getElementById('p-name');
+            nameEl.className = "text-[24px] md:text-4xl font-black italic tracking-tighter uppercase leading-none mb-4 min-h-[40px]";
+
+            renderProductData(data.category === 'caps');
+
+            if (totalProductStock <= 0) {
+                const buyBtn = document.getElementById('buy-btn');
+                const addBtn = document.getElementById('add-btn');
+                buyBtn.disabled = true;
+                addBtn.disabled = true;
+                buyBtn.innerText = "SOLD OUT";
+                addBtn.innerText = "OUT OF STOCK";
+            }
+            
+            loadRelatedProducts(id); 
         }
+    } catch (err) {
+        console.error("Product Load Error:", err);
     }
+}
 
     function renderColors(isCap) {
         const variants = currentProduct.variants || [];
@@ -474,10 +487,32 @@ function getOptimizedUrl(url) {
         if (variants.length > 0) selectColor(variants[0].color, isCap);
     }
 
-    function renderProductData(isCap) {
+function renderProductData(isCap) {
         document.getElementById('p-name').innerText = currentProduct.name;
-        document.getElementById('p-price').innerText = `₦${Number(currentProduct.price).toLocaleString()}`;
         document.getElementById('p-desc').innerText = currentProduct.description || 'Exclusive Outflickz streetwear.';
+        
+        // --- PRICING DISPLAY FIX: Current Price + Original Price Side-by-Side ---
+        const priceContainer = document.getElementById('p-price').parentElement; // assuming parent holds price or update target directly
+        const currentPriceFormatted = `₦${Number(currentProduct.price).toLocaleString()}`;
+        
+        // Check if original price exists (checking for comparePrice or originalPrice fields)
+        const originalPriceVal = currentProduct.comparePrice || currentProduct.originalPrice;
+        
+        if (originalPriceVal && Number(originalPriceVal) > Number(currentProduct.price)) {
+            const originalPriceFormatted = `₦${Number(originalPriceVal).toLocaleString()}`;
+            document.getElementById('p-price').innerHTML = `
+                <span class="text-black">${currentPriceFormatted}</span>
+                <span class="ml-3 text-red-400 line-through text-lg md:text-xl font-normal">${originalPriceFormatted}</span>
+                <span class="ml-3 bg-black text-white text-[18px] font-bold px-2 py-1 uppercase tracking-wider align-middle">30% OFF</span>
+            `;
+        } else {
+            // Fallback if no comparison price is set, but 30% badge is forced or desired based on schema
+            document.getElementById('p-price').innerHTML = `
+                <span class="text-black">${currentPriceFormatted}</span>
+                <span class="ml-3 bg-black text-white text-[18px] font-bold px-2 py-1 uppercase tracking-wider align-middle">30% OFF</span>
+            `;
+        }
+
         if (isCap) document.getElementById('size-label').innerText = "Fitment";
         renderColors(isCap);
     }
@@ -490,9 +525,14 @@ function getOptimizedUrl(url) {
         
         const images = (selectedVariant?.images?.length) ? selectedVariant.images : (currentProduct.images || []);
         
-        // OPTIMIZED: Gallery uses high-res 1200px width with CDN
+        // --- IMAGE BADGE FIX: Added 30% OFF Badge overlay on the main product image container ---
         document.getElementById('image-gallery').innerHTML = images.map((img, idx) => `
-            <div class="img-container aspect-[3/4] border border-black/5 flex-shrink-0">
+            <div class="img-container aspect-[3/4] border border-black/5 flex-shrink-0 relative">
+                ${idx === 0 ? `
+                    <div class="absolute top-4 left-4 z-20 bg-black text-white text-[10px] font-black px-3 py-1.5 uppercase tracking-widest shadow-md">
+                        30% OFF
+                    </div>
+                ` : ''}
                 <img src="${getOptimizedUrl(img, 1200, 85)}" 
                      onerror="handleImageError(this)"
                      fetchpriority="${idx === 0 ? 'high' : 'low'}" 

@@ -2777,6 +2777,105 @@ case 'get-broadcast-history': {
     }
 }
 
+case 'create-sales-account': {
+    // Read from process.env instead of body.masterKey
+    const { fullName, email, password } = body;
+    
+    // Optional: If you want to keep a backend check, compare against process.env
+    // (Or better yet, validate the admin token from headers instead)
+    
+    if (!fullName || !email || !password) {
+        return res.status(400).json({ success: false, message: "All fields are required" });
+    }
+
+    const existingUser = await db.collection('users').findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+        return res.status(400).json({ success: false, message: "Account with this email already exists" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await db.collection('users').insertOne({
+        fullName,
+        email: email.toLowerCase(),
+        password: hashedPassword,
+        role: 'sales',
+        isBlocked: false,
+        createdAt: new Date()
+    });
+
+    return res.status(200).json({ success: true, message: "Sales account provisioned successfully" });
+}
+
+case 'get-sales-accounts': {
+    const salesAccounts = await db.collection('users')
+        .find({ role: 'sales' })
+        .project({ password: 0 })
+        .sort({ createdAt: -1 })
+        .toArray();
+
+    return res.status(200).json({ success: true, salesAccounts });
+}
+
+case 'toggle-sales-status': {
+    const { email, isBlocked } = body;
+    if (!email) {
+        return res.status(400).json({ success: false, message: "Email required" });
+    }
+
+    const result = await db.collection('users').updateOne(
+        { email: email.toLowerCase(), role: 'sales' },
+        { $set: { isBlocked: Boolean(isBlocked) } }
+    );
+
+    if (result.matchedCount === 0) {
+        return res.status(404).json({ success: false, message: "Sales account not found" });
+    }
+
+    return res.status(200).json({ success: true, message: "Sales clearance status updated" });
+}
+
+case 'sales-login': {
+    const { email, password } = body;
+    if (!email || !password) {
+        return { statusCode: 400, headers, body: JSON.stringify({ success: false, message: "Email and password are required" }) };
+    }
+
+    const user = await db.collection('users').findOne({ email: email.toLowerCase(), role: 'sales' });
+    if (!user) {
+        return { statusCode: 401, headers, body: JSON.stringify({ success: false, message: "Invalid credentials or unauthorized role" }) };
+    }
+
+    if (user.isBlocked) {
+        return { statusCode: 403, headers, body: JSON.stringify({ success: false, message: "Access denied: Account is blocked by administrator" }) };
+    }
+
+    const passwordHash = user.hashedPassword || user.password;
+    if (!passwordHash) {
+        return { statusCode: 401, headers, body: JSON.stringify({ success: false, message: "Invalid credentials" }) };
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, passwordHash);
+    if (!isPasswordValid) {
+        return { statusCode: 401, headers, body: JSON.stringify({ success: false, message: "Invalid credentials" }) };
+    }
+
+    const token = jwt.sign(
+        { email: user.email, role: 'sales', fullName: user.fullName },
+        process.env.JWT_SECRET,
+        { expiresIn: '12h' }
+    );
+
+    return { 
+        statusCode: 200, 
+        headers, 
+        body: JSON.stringify({ 
+            success: true, 
+            token, 
+            fullName: user.fullName,
+            message: "Login authorized successfully" 
+        }) 
+    };
+}
             default:
                 return { statusCode: 404, headers, body: JSON.stringify({ message: "Action Not Recognized" }) };
         }

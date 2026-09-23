@@ -8,8 +8,6 @@
     <meta name="keywords" content="Outflickz Roundnecks, Premium Polos Nigeria, Streetwear Tees, Oversized Roundnecks, Outflickz Wears, High Fashion Polos">
     <meta name="robots" content="index, follow"> 
     <link rel="canonical" href="https://www.outflickz.com/products/wears"> 
-    <meta name="google-site-verification" content="Z6ROK89ZCUVN1i5qEFeLCyaaeJHYp5-33t4Mi4pxzJs" />
-    <meta name="google-site-verification" content="DeJxVatGUGl_-7N6hsw_9U0lgw7wFgVKMKVok3UNRhg" />
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://www.outflickz.com/products/wears">
     <meta property="og:title" content="Roundneck Tees & Premium Polos | Outflickz">
@@ -239,13 +237,11 @@
     </div>
 </footer>
 
-  <script>
+<script>
     const API_ENDPOINT = "/.netlify/functions/api"; 
     let MASTER_PRODUCTS = []; 
     let isRefreshing = false;
     let selectedPlatform = 'wa';
-
-  
 
     window.onload = () => {
         updateAuthUI();
@@ -303,65 +299,61 @@
         }
     }
 
+    function renderProducts(list) {
+        const grid = document.getElementById('product-grid');
+        if (!grid) return;
 
-function renderProducts(list) {
-    const grid = document.getElementById('product-grid');
-    if (!grid) return;
+        const currentCards = grid.querySelectorAll('.group[id^="container-"]');
 
-    const currentCards = grid.querySelectorAll('.group[id^="container-"]');
+        if (currentCards.length > 0 && list.length === currentCards.length) {
+            list.forEach(p => {
+                const img = document.getElementById(`img-${p._id}`);
+                const secureUrl = p.displayImage; 
+                
+                if (img && secureUrl && img.src !== secureUrl) {
+                    img.src = secureUrl;
+                }
+            });
+            return;
+        }
 
-    if (currentCards.length > 0 && list.length === currentCards.length) {
-        list.forEach(p => {
-            const img = document.getElementById(`img-${p._id}`);
-            
-            // FIX: Use p.displayImage directly. 
-            // It is already the /.netlify/functions/... link from your api.js
-            const secureUrl = p.displayImage; 
-            
-            if (img && secureUrl && img.src !== secureUrl) {
-                img.src = secureUrl;
+        let htmlContent = '';
+        const isMobile = window.innerWidth < 1024;
+        const insertAfter = isMobile ? 4 : 8;
+
+        list.forEach((p, index) => {
+            htmlContent += createProductCard(p);
+
+            if (index === insertAfter - 1) {
+                htmlContent += `
+                <div id="lookbook-section" class="col-span-full w-full py-12 md:py-24 bg-white">
+                    <div class="text-center mb-10 md:mb-16">
+                        <h3 class="text-[11px] md:text-[13px] font-black uppercase tracking-[0.5em] text-black">
+                            Exclusive Look
+                        </h3>
+                    </div>
+                    <div class="hide-scrollbar overflow-x-auto w-full">
+                        <div class="flex gap-5 md:gap-8 px-6 md:px-12 pb-10">
+                            ${COLLECTION_IMAGES.map((img) => `
+                                <div class="flex-shrink-0 w-[80vw] md:w-[450px] aspect-[2/3] overflow-hidden rounded-sm shadow-xl">
+                                    <img src="${img}" 
+                                         class="w-full h-full object-cover hover:scale-105 transition-transform duration-1000" 
+                                         loading="lazy" 
+                                         onerror="this.src='https://placehold.co/600x900?text=OUTFLICKZ'">
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>`;
             }
         });
-        return;
+
+        grid.innerHTML = htmlContent;
     }
 
-    let htmlContent = '';
-    const isMobile = window.innerWidth < 1024;
-    const insertAfter = isMobile ? 4 : 8;
-
-    list.forEach((p, index) => {
-        htmlContent += createProductCard(p);
-
-        if (index === insertAfter - 1) {
-            htmlContent += `
-            <div id="lookbook-section" class="col-span-full w-full py-12 md:py-24 bg-white">
-                <div class="text-center mb-10 md:mb-16">
-                    <h3 class="text-[11px] md:text-[13px] font-black uppercase tracking-[0.5em] text-black">
-                        Exclusive Look
-                    </h3>
-                </div>
-                <div class="hide-scrollbar overflow-x-auto w-full">
-                    <div class="flex gap-5 md:gap-8 px-6 md:px-12 pb-10">
-                        ${COLLECTION_IMAGES.map((img) => `
-                            <div class="flex-shrink-0 w-[80vw] md:w-[450px] aspect-[2/3] overflow-hidden rounded-sm shadow-xl">
-                                <img src="${img}" 
-                                     class="w-full h-full object-cover hover:scale-105 transition-transform duration-1000" 
-                                     loading="lazy" 
-                                     onerror="this.src='https://placehold.co/600x900?text=OUTFLICKZ'">
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            </div>`;
-        }
-    });
-
-    grid.innerHTML = htmlContent;
-}
-function createProductCard(p) {
+   function createProductCard(p) {
     const variants = Array.isArray(p.variants) ? p.variants : [];
     
-    // UPDATED: Allow relative paths (like vault/...) and proxy paths
     const isValidUrl = (url) => {
         if (!url || typeof url !== 'string') return false;
         return url.startsWith('vault/') || url.startsWith('/.netlify/') || url.startsWith('http');
@@ -380,48 +372,64 @@ function createProductCard(p) {
     const isOutOfStock = p.isOutOfStock || (processedVariants.length > 0 && processedVariants.every(v => v.totalStock <= 0));
     const backupImages = processedVariants.flatMap(v => v.cleanImages);
     
-    // Get the raw source link from p.displayImage (which is now a secure proxy link)
     let rawImg = p.displayImage || (backupImages.length > 0 ? backupImages[0] : 'https://placehold.co/600x800/f4f4f5/000?text=OUTFLICKZ');
-    
-    // UPDATED: We use the URL as-is because api.js already secured it
     const defaultImg = rawImg;
 
+    // Price handling for original vs sale price
+    const originalPrice = Number(p.compareAtPrice || p.originalPrice || 0);
+    const currentPrice = Number(p.price || 0);
+    const hasDiscount = originalPrice > currentPrice;
+
+    // Price HTML with increased font size for the current selling price
+    const priceHtml = isOutOfStock 
+        ? '<span class="text-red-600 text-[18px]">SOLD OUT</span>' 
+        : (hasDiscount 
+            ? `<div class="flex items-center gap-2 justify-end"><span class="line-through text-red-600 font-bold text-[14px]">₦${originalPrice.toLocaleString()}</span><span class="text-black font-black text-[22px]">₦${currentPrice.toLocaleString()}</span></div>`
+            : `<span class="text-black font-black text-[22px]">₦${currentPrice.toLocaleString()}</span>`);
+
     return `
-<div class="group relative cursor-pointer animate-item" onclick="window.location.href='/products/product-detail.html?id=${p._id}'">
-    <div id="container-${p._id}" class="aspect-[3/4] bg-zinc-100 overflow-hidden relative border border-black/5 skeleton"> 
-        
-        <div id="sold-out-overlay-${p._id}" class="absolute inset-0 z-10 flex items-center justify-center bg-black/10 pointer-events-none ${isOutOfStock ? '' : 'hidden'}" style="${isOutOfStock ? 'display: flex;' : 'display: none;'}">
-            <span class="sold-out-badge">SOLD OUT</span>
-        </div>
+    <div class="group relative cursor-pointer animate-item" onclick="window.location.href='/products/product-detail.html?id=${p._id}'">
+        <div id="container-${p._id}" class="aspect-[3/4] bg-zinc-100 overflow-hidden relative border border-black/5 skeleton"> 
+            
+            <!-- Hardcoded -30% OFF Sale Badge Label at the Top -->
+            ${hasDiscount && !isOutOfStock ? `
+                <div class="absolute top-3 left-3 z-20 bg-black text-white px-2 py-1 text-[18px] font-black uppercase tracking-widest shadow-md">
+                    30% OFF
+                </div>
+            ` : ''}
 
-        <img id="img-${p._id}" src="${defaultImg}" loading="lazy" 
-             class="absolute inset-0 w-full h-full object-cover transition-all duration-700 z-0 ${isOutOfStock ? 'opacity-70' : 'group-hover:scale-105'}"
-             onload="this.parentElement.classList.remove('skeleton');" 
-             onerror="this.src='https://placehold.co/600x800/f4f4f5/000?text=OUTFLICKZ'">
+            <div id="sold-out-overlay-${p._id}" class="absolute inset-0 z-10 flex items-center justify-center bg-black/10 pointer-events-none ${isOutOfStock ? '' : 'hidden'}" style="${isOutOfStock ? 'display: flex;' : 'display: none;'}">
+                <span class="sold-out-badge">SOLD OUT</span>
+            </div>
 
-        <div class="swatch-container absolute bottom-3 left-3 flex flex-wrap gap-1.5 z-50 opacity-0 group-hover:opacity-100 transition-opacity">
-            ${processedVariants.map(v => {
-                const vRaw = (v.cleanImages && v.cleanImages.length > 0) ? v.cleanImages[0] : rawImg;
-                const vIsSoldOut = v.totalStock <= 0;
-                
-                return `<button type="button" 
-                            onmouseover="updatePreview(event, '${p._id}', '${vRaw}', ${vIsSoldOut})" 
-                            onmouseleave="updatePreview(event, '${p._id}', '${defaultImg}', ${isOutOfStock})"
-                            class="color-dot w-3.5 h-3.5 rounded-full border border-white/60 relative pointer-events-auto" 
-                            style="background-color: ${v.color ? v.color.toLowerCase() : '#ccc'};">
-                            ${vIsSoldOut ? '<div class="absolute inset-0 flex items-center justify-center pointer-events-none"><div class="w-full h-[1px] bg-white rotate-45"></div></div>' : ''}
-                        </button>`;
-            }).join('')}
+            <img id="img-${p._id}" src="${defaultImg}" loading="lazy" 
+                 class="absolute inset-0 w-full h-full object-cover transition-all duration-700 z-0 ${isOutOfStock ? 'opacity-70' : 'group-hover:scale-105'}"
+                 onload="this.parentElement.classList.remove('skeleton');" 
+                 onerror="this.src='https://placehold.co/600x800/f4f4f5/000?text=OUTFLICKZ'">
+
+            <div class="swatch-container absolute bottom-3 left-3 flex flex-wrap gap-1.5 z-50 opacity-0 group-hover:opacity-100 transition-opacity">
+                ${processedVariants.map(v => {
+                    const vRaw = (v.cleanImages && v.cleanImages.length > 0) ? v.cleanImages[0] : rawImg;
+                    const vIsSoldOut = v.totalStock <= 0;
+                    
+                    return `<button type="button" 
+                                onmouseover="updatePreview(event, '${p._id}', '${vRaw}', ${vIsSoldOut})" 
+                                onmouseleave="updatePreview(event, '${p._id}', '${defaultImg}', ${isOutOfStock})"
+                                class="color-dot w-3.5 h-3.5 rounded-full border border-white/60 relative pointer-events-auto" 
+                                style="background-color: ${v.color ? v.color.toLowerCase() : '#ccc'};">
+                                ${vIsSoldOut ? '<div class="absolute inset-0 flex items-center justify-center pointer-events-none"><div class="w-full h-[1px] bg-white rotate-45"></div></div>' : ''}
+                            </button>`;
+                }).join('')}
+            </div>
         </div>
-    </div>
-    <div class="mt-4 space-y-1">
-        <div class="flex justify-between items-start">
-            <h3 class="font-bold uppercase text-[20px] tracking-wider text-black">${p.name}</h3>
-            <p class="font-bold text-[18px] text-black">${isOutOfStock ? '<span class="text-red-600">SOLD OUT</span>' : `₦${Number(p.price).toLocaleString()}`}</p>
+        <div class="mt-4 space-y-1">
+            <div class="flex justify-between items-start">
+                <h3 class="font-bold uppercase text-[20px] tracking-wider text-black">${p.name}</h3>
+                <div class="text-right">${priceHtml}</div>
+            </div>
+            <p class="text-zinc-400 text-[12px] uppercase tracking-widest">${p.category || 'Collection'} / ${processedVariants.filter(v => v.totalStock > 0).length} Colors Available</p>
         </div>
-        <p class="text-zinc-400 text-[12px] uppercase tracking-widest">${p.category || 'Collection'} / ${processedVariants.filter(v => v.totalStock > 0).length} Colors Available</p>
-    </div>
-</div>`;
+    </div>`;
 }
 
     function updatePreview(event, productId, newSrc, isVariantSoldOut) {
@@ -435,10 +443,6 @@ function createProductCard(p) {
         if (overlay) isVariantSoldOut ? overlay.classList.remove('hidden') : overlay.classList.add('hidden');
     }
 
-  /**
-     * Image Error Handler for Product Details
-     * If a high-res link expires, we re-fetch the product data.
-     */
     async function handleImageError(img) {
         if (img.src.includes('placehold.co') || img.dataset.refreshing === 'true') return;
         
@@ -453,7 +457,6 @@ function createProductCard(p) {
             img.src = 'https://placehold.co/600x800/000000/FFFFFF?text=OUTFLICKZ';
         }
     }
-
 
     async function loadRelatedProducts(currentId) {
         try {
@@ -479,17 +482,31 @@ function createProductCard(p) {
         } catch (err) { console.error("Related Products Error:", err); }
     }
 
+    function getOptimizedUrl(url) {
+        return url || '';
+    }
+
     function renderRelatedSlider(items) {
         const slider = document.getElementById('related-slider');
         if (!slider) return;
         slider.innerHTML = items.map(p => {
             const rawImg = p.displayImage || (p.variants?.[0]?.images?.[0]) || 'https://placehold.co/600x800/f4f4f5/000?text=OUTFLICKZ';
-            const displayImg = getOptimizedUrl(rawImg, 600, 70);
+            const displayImg = getOptimizedUrl(rawImg);
             const pCategory = p.category || 'wear'; 
             const isSoldOut = p.isGloballySoldOut;
 
+            const originalPrice = Number(p.compareAtPrice || p.originalPrice || 0);
+            const currentPrice = Number(p.price || 0);
+            const hasDiscount = originalPrice > currentPrice;
+
+            const priceHtml = isSoldOut 
+                ? '<span class="text-red-600">SOLD OUT</span>' 
+                : (hasDiscount 
+                    ? `<span class="line-through text-zinc-400 mr-1 text-[8px]">₦${originalPrice.toLocaleString()}</span><span>₦${currentPrice.toLocaleString()}</span>` 
+                    : `₦${currentPrice.toLocaleString()}`);
+
             const swatches = (p.variants || []).map(v => {
-                const sImg = getOptimizedUrl(v.images?.[0] || rawImg, 600, 70);
+                const sImg = getOptimizedUrl(v.images?.[0] || rawImg);
                 return `
                 <div class="color-dot w-2 h-2 rounded-full border border-white/50" 
                      style="background-color: ${v.color.toLowerCase()};" 
@@ -512,7 +529,7 @@ function createProductCard(p) {
                     <div class="mt-4 space-y-1 ${isSoldOut ? 'opacity-50' : ''}">
                         <div class="flex justify-between items-start">
                             <h3 class="font-bold uppercase text-[9px] tracking-wider">${p.name}</h3>
-                            <p class="font-bold text-[9px]">₦${Number(p.price).toLocaleString()}</p>
+                            <p class="font-bold text-[9px]">${priceHtml}</p>
                         </div>
                         <p class="text-zinc-400 text-[8px] uppercase tracking-widest">${pCategory} / ${p.variants?.length || 0} Colors</p>
                     </div>

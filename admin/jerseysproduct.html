@@ -61,7 +61,8 @@
                         
                         <div class="space-y-2">
                             <input type="text" id="j-name" placeholder="Jersey Name (e.g. 25' Home Kit)" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus font-medium" required>
-                            <input type="number" id="j-price" placeholder="Price ₦" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus font-bold" required>
+                            <input type="number" id="j-price" placeholder="Current Price ₦" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus font-bold" required>
+                            <input type="number" id="j-original-price" placeholder="Original Price ₦ (Optional)" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus font-medium">
                         </div>
 
                         <div class="space-y-2">
@@ -243,6 +244,8 @@
                     return `<div class="mb-1"><span class="font-black text-[8px] uppercase text-zinc-900">${v.color}:</span> <div class="flex flex-wrap gap-1 mt-0.5">${stockDetails || '<span class="text-red-500 font-bold">SOLD OUT</span>'}</div></div>`;
                 }).join('');
 
+                const originalPriceHtml = j.originalPrice ? `<span class="text-[7px] text-gray-400 line-through block">₦${Number(j.originalPrice).toLocaleString()}</span>` : '';
+
                 return `
                 <tr class="hover:bg-blue-50/30 transition-colors">
                     <td class="p-4">
@@ -256,7 +259,10 @@
                     </td>
                     <td class="p-4">${matrixHtml}</td>
                     <td class="p-4"><span class="${grandTotal < 5 ? 'bg-red-50 text-red-600 border-red-100' : 'bg-blue-50 text-blue-700 border-blue-100'} border px-2 py-1 rounded text-[9px] font-black uppercase">${grandTotal} Units</span></td>
-                    <td class="p-4 text-right"><span class="text-[9px] font-black tracking-tighter">₦${Number(j.price).toLocaleString()}</span></td>
+                    <td class="p-4 text-right">
+                        ${originalPriceHtml}
+                        <span class="text-[9px] font-black tracking-tighter">₦${Number(j.price).toLocaleString()}</span>
+                    </td>
                     <td class="p-4 text-center">
                         <div class="flex justify-center space-x-3">
                             <button onclick="enterEditMode('${j._id}')" class="text-zinc-400 hover:text-blue-700 font-black uppercase text-[8px]">Edit</button>
@@ -291,7 +297,6 @@
                 for (let i = 0; i < imgInputs.length; i++) {
                     const input = imgInputs[i];
                     if (input.files[0]) {
-                        // COMPRESSION INJECTED
                         const compressedBase64 = await compressImage(input.files[0]);
                         variantImages.push(compressedBase64);
                     } else if (input.getAttribute('data-existing-url')) {
@@ -311,6 +316,7 @@
                 id: document.getElementById('edit-id').value,
                 name: document.getElementById('j-name').value,
                 price: document.getElementById('j-price').value,
+                originalPrice: document.getElementById('j-original-price').value || null,
                 description: document.getElementById('j-desc').value,
                 variants: variants
             };
@@ -340,6 +346,7 @@
         document.getElementById('edit-id').value = jersey._id;
         document.getElementById('j-name').value = jersey.name;
         document.getElementById('j-price').value = jersey.price;
+        document.getElementById('j-original-price').value = jersey.originalPrice || '';
         document.getElementById('j-desc').value = jersey.description || '';
         const container = document.getElementById('variants-container');
         container.innerHTML = '';

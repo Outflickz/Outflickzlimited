@@ -29,7 +29,7 @@
         <nav class="space-y-1 flex-1">
             <a href="dashboard.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Vault Overview</a>
             <button class="flex items-center w-full p-2.5 rounded-md bg-black text-white text-[9px] uppercase tracking-widest font-bold shadow-sm">Shorts Manager</button>
-               <a href="wearsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Wears Manager</a>
+            <a href="wearsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Wears Manager</a>
             <a href="capsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Caps Manager</a>
             <a href="jerseysproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Jerseys Manager</a>
             <a href="tankstopproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">TankTop Manager</a>
@@ -38,7 +38,7 @@
             <a href="orderConfirmation.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Order Confirmation</a>
             <a href="membership.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Membership</a>
             <a href="newsletter.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Global Broadcast</a>
-           <a href="settings.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Settings</a>      
+            <a href="settings.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Settings</a>      
         </nav>
         <div class="pt-6 border-t border-gray-100">
             <button onclick="handleLogout()" class="text-[8px] uppercase tracking-[0.2em] text-red-600 font-bold hover:opacity-70 transition-all">TERMINATE SESSION</button>
@@ -62,7 +62,10 @@
                         
                         <div class="space-y-2">
                             <input type="text" id="s-name" placeholder="Short Name" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus" required>
-                            <input type="number" id="s-price" placeholder="Price ₦" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus" required>
+                            <div class="grid grid-cols-2 gap-2">
+                                <input type="number" id="s-price" placeholder="Sale Price ₦" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus" required>
+                                <input type="number" id="s-original-price" placeholder="Original Price ₦ (Opt)" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus">
+                            </div>
                         </div>
 
                         <div class="space-y-2">
@@ -252,6 +255,15 @@
                     return `<div class="mb-1"><span class="font-black text-[8px] uppercase">${v.color}:</span> <span class="text-[8px] flex flex-wrap gap-1">${stockDetails || 'OUT'}</span></div>`;
                 }).join('');
 
+                const origPrice = Number(s.compareAtPrice || s.originalPrice || 0);
+                const sellPrice = Number(s.price || 0);
+                const priceDisplay = (origPrice > sellPrice) 
+                    ? `<div class="flex flex-col items-end">
+                        <span class="text-red-400 line-through text-[8px]">₦${origPrice.toLocaleString()}</span>
+                        <span class="text-[9px] font-black tracking-tighter">₦${sellPrice.toLocaleString()}</span>
+                       </div>`
+                    : `<span class="text-[9px] font-black tracking-tighter">₦${sellPrice.toLocaleString()}</span>`;
+
                 return `
                 <tr class="hover:bg-gray-50 transition-colors">
                     <td class="p-4">
@@ -265,7 +277,7 @@
                     </td>
                     <td class="p-4">${matrixHtml}</td>
                     <td class="p-4"><span class="${grandTotal < 5 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'} px-2 py-1 rounded text-[9px] font-black uppercase">${grandTotal} Units</span></td>
-                    <td class="p-4 text-right"><span class="text-[9px] font-black tracking-tighter">₦${Number(s.price).toLocaleString()}</span></td>
+                    <td class="p-4 text-right">${priceDisplay}</td>
                     <td class="p-4 text-center">
                         <div class="flex justify-center space-x-3">
                             <button onclick="enterShortEditMode('${s._id}')" class="text-zinc-400 hover:text-black font-black uppercase text-[8px]">Edit</button>
@@ -315,11 +327,15 @@
                 }
             }
 
+            const origPriceVal = document.getElementById('s-original-price').value;
+
             const payload = {
                 action: isEditingShort ? 'update-short' : 'add-short',
                 id: document.getElementById('edit-short-id').value,
                 name: document.getElementById('s-name').value,
                 price: document.getElementById('s-price').value,
+                originalPrice: origPriceVal ? Number(origPriceVal) : null,
+                compareAtPrice: origPriceVal ? Number(origPriceVal) : null,
                 description: document.getElementById('s-desc').value,
                 variants: variants
             };
@@ -349,6 +365,7 @@
         document.getElementById('edit-short-id').value = short._id;
         document.getElementById('s-name').value = short.name;
         document.getElementById('s-price').value = short.price;
+        document.getElementById('s-original-price').value = short.originalPrice || short.compareAtPrice || '';
         document.getElementById('s-desc').value = short.description || '';
         const container = document.getElementById('short-variants-container');
         container.innerHTML = '';
@@ -359,6 +376,7 @@
         isEditingShort = false;
         document.getElementById('short-form').reset();
         document.getElementById('edit-short-id').value = '';
+        document.getElementById('s-original-price').value = '';
         document.getElementById('form-header').innerText = "Create New Short";
         document.getElementById('cancel-edit').classList.add('hidden');
         document.getElementById('short-variants-container').innerHTML = '';

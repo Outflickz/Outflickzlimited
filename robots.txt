@@ -1,4 +1,6 @@
 User-agent: *
+Disallow: /admin/
+Disallow: /salesperson/
 Allow: /
 
 Sitemap: https://www.outflickz.com/sitemap.xml

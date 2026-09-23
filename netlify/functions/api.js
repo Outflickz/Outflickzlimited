@@ -4,14 +4,15 @@ const jwt = require('jsonwebtoken');
 const AWS = require('aws-sdk');
 const sharp = require('sharp'); 
 const nodemailer = require('nodemailer');
-//const Redis = require('ioredis');
+const { Redis } = require('@upstash/redis');
+
+
 
 const MONGODB_URI = process.env.MONGODB_URI;
 const JWT_SECRET = process.env.JWT_SECRET;
 const MASTER_ACCESS_KEY = (process.env.MASTER_ACCESS_KEY || '').trim();
 const BUCKET_NAME = (process.env.IDRIVE_BUCKET_NAME || '').trim();
-//const redis = new Redis(process.env.REDIS_URL);
-
+const redis = Redis.fromEnv();
 
 const rawEndpoint = process.env.IDRIVE_ENDPOINT;
 const s3Config = {
@@ -122,6 +123,23 @@ const transporter = nodemailer.createTransport({
     debug: true,
     logger: true 
 });
+
+async function isRateLimited(ip, limit = 30, windowInSeconds = 60) {
+    if (!ip) return false; // Fallback if IP is not resolved
+    
+    try {
+        const key = `ratelimit:${ip}`;
+        const current = await redis.incr(key);
+        if (current === 1) {
+            await redis.expire(key, windowInSeconds);
+        }
+        return current > limit;
+    } catch (err) {
+        console.error("REDIS_RATE_LIMIT_ERROR:", err);
+        return false; // Fail open so users aren't blocked if Redis drops
+    }
+}
+
 async function sendOrderEmails(order, status = 'New') {
     if (!order || !order.email) {
         console.error("EMAIL_ABORTED: No recipient email found.");
@@ -343,7 +361,7 @@ async function sendVerificationEmail(email, otp, firstName) {
 }
 
 exports.handler = async (event, context) => {
-    context.callbackWaitsForEmptyEventLoop = false;
+ context.callbackWaitsForEmptyEventLoop = false;
 
     const headers = {
         "Access-Control-Allow-Origin": "*",
@@ -355,6 +373,16 @@ exports.handler = async (event, context) => {
 
     if (event.httpMethod === "OPTIONS") return { statusCode: 200, headers, body: "OK" };
 
+    const clientIp = (event.headers['x-forwarded-for'] || event.headers['client-ip'] || '').split(',')[0].trim();
+    
+    if (clientIp && await isRateLimited(clientIp, 30, 60)) {
+        return {
+            statusCode: 429,
+            headers,
+            body: JSON.stringify({ success: false, message: "Too many requests. Please try again later." })
+        };
+    }
+
     try {
         const db = await connectToDatabase();
 
@@ -364,8 +392,8 @@ exports.handler = async (event, context) => {
         const action = queryAction || bodyAction;
 
         switch (action) {
-            case 'add-wear': {
-                const { name, price, description, variants } = body;
+          case 'add-wear': {
+                const { name, price, originalPrice, description, variants } = body;
 
                 const processedVariants = [];
                 if (variants && Array.isArray(variants)) {
@@ -391,6 +419,7 @@ exports.handler = async (event, context) => {
                 const result = await db.collection('wears').insertOne({
                     name,
                     price: parseFloat(price),
+                    originalPrice: originalPrice ? parseFloat(originalPrice) : null, // Added here
                     variants: processedVariants,
                     description,
                     createdAt: new Date()
@@ -399,7 +428,7 @@ exports.handler = async (event, context) => {
                 return { statusCode: 201, headers, body: JSON.stringify(result) };
             }
 
-            case 'get-wears': {
+           case 'get-wears': {
                 try {
                     const wears = await db.collection('wears').find({}).sort({ createdAt: -1 }).toArray();
                     
@@ -415,7 +444,10 @@ exports.handler = async (event, context) => {
                         return { 
                             ...wear, 
                             displayImage: signedDisplayImage, 
-                            variants: signedVariants 
+                            variants: signedVariants,
+                            // Ensure price fields are explicitly passed through
+                            price: Number(wear.price) || 0,
+                            compareAtPrice: Number(wear.compareAtPrice || wear.originalPrice) || 0
                         };
                     }));
 
@@ -444,7 +476,10 @@ exports.handler = async (event, context) => {
                     const result = { 
                         ...product, 
                         variants: signedVariants, 
-                        category: 'wears' 
+                        category: 'wears',
+                        // Ensure price fields are explicitly passed through
+                        price: Number(product.price) || 0,
+                        compareAtPrice: Number(product.compareAtPrice || product.originalPrice) || 0
                     };
 
                     return { statusCode: 200, headers, body: JSON.stringify(result) };
@@ -454,42 +489,63 @@ exports.handler = async (event, context) => {
                 }
             }
 
-            case 'update-wear': {
-                const { id, name, price, description, variants } = body;
-                if (!id) throw new Error("ID required");
+        case 'update-wear': {
+    const { id, name, price, originalPrice, description, variants } = body;
+    if (!id) throw new Error("ID required");
 
-                const finalVariants = await Promise.all((variants || []).map(async (v) => {
-                    const vImgKeys = [];
-                    if (v.images && Array.isArray(v.images)) {
-                        for (const img of v.images) {
-                            if (typeof img === 'string' && img.startsWith('data:')) {
-                                const key = await uploadToS3(img);
-                                if (key) vImgKeys.push(key);
-                            } else if (typeof img === 'string') {
-                                // Clean the key if it's already a URL
-                                let cleanKey = img.split('?')[0];
-                                if (cleanKey.includes('.com/')) {
-                                    cleanKey = cleanKey.split('.com/')[1];
-                                }
-                                const bucketName = process.env.IDRIVE_BUCKET_NAME;
-                                if (cleanKey.startsWith(`${bucketName}/`)) {
-                                    cleanKey = cleanKey.replace(`${bucketName}/`, '');
-                                }
-                                vImgKeys.push(cleanKey.replace(/^\/+/, ''));
-                            }
+    const finalVariants = await Promise.all((variants || []).map(async (v) => {
+        const vImgKeys = [];
+        if (v.images && Array.isArray(v.images)) {
+            for (const img of v.images) {
+                if (typeof img === 'string' && img.startsWith('data:')) {
+                    const key = await uploadToS3(img);
+                    if (key) vImgKeys.push(key);
+                } else if (typeof img === 'string') {
+                    let cleanKey = img.trim();
+
+                    // Handle proxy path (e.g. /.netlify/functions/outflickz-image-proxy?key=vault%2F...)
+                    if (cleanKey.includes('key=')) {
+                        const urlParams = new URLSearchParams(cleanKey.split('?')[1]);
+                        const decodedKey = urlParams.get('key');
+                        if (decodedKey) {
+                            cleanKey = decodedKey;
                         }
                     }
-                    return { color: v.color, stockMatrix: v.stockMatrix || {}, images: vImgKeys };
-                }));
 
-                await db.collection('wears').updateOne(
-                    { _id: new ObjectId(id) },
-                    { $set: { name, price: parseFloat(price), description, variants: finalVariants, updatedAt: new Date() } }
-                );
-                
-                return { statusCode: 200, headers, body: JSON.stringify({ message: "Success" }) };
+                    // Handle full URLs or leftover domains
+                    cleanKey = cleanKey.split('?')[0];
+                    if (cleanKey.includes('.com/')) {
+                        cleanKey = cleanKey.split('.com/').pop();
+                    }
+
+                    const bucketName = process.env.IDRIVE_BUCKET_NAME || 'outflickz';
+                    if (cleanKey.startsWith(`${bucketName}/`)) {
+                        cleanKey = cleanKey.replace(`${bucketName}/`, '');
+                    }
+
+                    vImgKeys.push(cleanKey.replace(/^\/+/, ''));
+                }
             }
+        }
+        return { color: v.color, stockMatrix: v.stockMatrix || {}, images: vImgKeys };
+    }));
 
+    await db.collection('wears').updateOne(
+        { _id: new ObjectId(id) },
+        { 
+            $set: { 
+                name, 
+                price: parseFloat(price), 
+                originalPrice: originalPrice ? parseFloat(originalPrice) : null, 
+                description, 
+                variants: finalVariants, 
+                updatedAt: new Date() 
+            } 
+        }
+    );
+    
+    return { statusCode: 200, headers, body: JSON.stringify({ message: "Success" }) };
+}
             case 'delete-wear': {
                 const { id } = body;
                 await db.collection('wears').deleteOne({ _id: new ObjectId(id) });
@@ -498,7 +554,7 @@ exports.handler = async (event, context) => {
             }
        
 case 'add-short': {
-    const { name, price, description, variants } = body;
+    const { name, price, originalPrice, description, variants } = body;
 
     const processedVariants = [];
     if (variants && Array.isArray(variants)) {
@@ -523,6 +579,7 @@ case 'add-short': {
     const result = await db.collection('shorts').insertOne({
         name,
         price: parseFloat(price),
+        originalPrice: originalPrice ? parseFloat(originalPrice) : null, // Added here
         variants: processedVariants,
         description,
         createdAt: new Date()
@@ -560,7 +617,10 @@ case 'get-shorts': {
             return { 
                 ...short, 
                 displayImage: signedDisplay,
-                variants: signedVariants 
+                variants: signedVariants,
+                // Ensure price fields are explicitly passed through
+                price: Number(short.price) || 0,
+                compareAtPrice: Number(short.compareAtPrice || short.originalPrice) || 0
             };
         }));
 
@@ -591,10 +651,19 @@ case 'get-short-details': {
             return { ...v, images: vImgs };
         }));
 
+        const result = { 
+            ...product, 
+            variants: signedVariants, 
+            category: 'shorts',
+            // Ensure price fields are explicitly passed through
+            price: Number(product.price) || 0,
+            compareAtPrice: Number(product.compareAtPrice || product.originalPrice) || 0
+        };
+
         return { 
             statusCode: 200, 
             headers, 
-            body: JSON.stringify({ ...product, variants: signedVariants, category: 'shorts' }) 
+            body: JSON.stringify(result) 
         };
     } catch (err) {
         return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
@@ -602,7 +671,7 @@ case 'get-short-details': {
 }
 
 case 'update-short': {
-    const { id, name, price, description, variants } = body;
+    const { id, name, price, originalPrice, description, variants } = body;
     if (!id) throw new Error("ID required");
 
     const finalVariants = await Promise.all((variants || []).map(async (v) => {
@@ -613,29 +682,51 @@ case 'update-short': {
                     const key = await uploadToS3(img);
                     if (key) vImgKeys.push(key);
                 } else if (typeof img === 'string') {
-                    // Extract CLEAN key (path/file.jpg) before saving back to DB
-                    let cleanKey = img.split('?')[0];
-                    if (cleanKey.includes('.com/')) {
-                        cleanKey = cleanKey.split('.com/')[1];
+                    let cleanKey = img.trim();
+
+                    // Handle proxy path (e.g. /.netlify/functions/outflickz-image-proxy?key=vault%2F...)
+                    if (cleanKey.includes('key=')) {
+                        const urlParams = new URLSearchParams(cleanKey.split('?')[1]);
+                        const decodedKey = urlParams.get('key');
+                        if (decodedKey) {
+                            cleanKey = decodedKey;
+                        }
                     }
-                    const bucketName = process.env.IDRIVE_BUCKET_NAME;
+
+                    // Handle full URLs or leftover domains
+                    cleanKey = cleanKey.split('?')[0];
+                    if (cleanKey.includes('.com/')) {
+                        cleanKey = cleanKey.split('.com/').pop();
+                    }
+
+                    const bucketName = process.env.IDRIVE_BUCKET_NAME || 'outflickz';
                     if (cleanKey.startsWith(`${bucketName}/`)) {
                         cleanKey = cleanKey.replace(`${bucketName}/`, '');
                     }
-                    vImgKeys.push(cleanKey.replace(/^\/+/, '').trim());
+
+                    vImgKeys.push(cleanKey.replace(/^\/+/, ''));
                 }
             }
         }
-        return {
-            color: v.color,
-            stockMatrix: v.stockMatrix || {},
-            images: vImgKeys
+        return { 
+            color: v.color, 
+            stockMatrix: v.stockMatrix || {}, 
+            images: vImgKeys 
         };
     }));
 
     await db.collection('shorts').updateOne(
         { _id: new ObjectId(id) },
-        { $set: { name, price: parseFloat(price), description, variants: finalVariants, updatedAt: new Date() } }
+        { 
+            $set: { 
+                name, 
+                price: parseFloat(price), 
+                originalPrice: originalPrice ? parseFloat(originalPrice) : null, 
+                description, 
+                variants: finalVariants, 
+                updatedAt: new Date() 
+            } 
+        }
     );
     
     return { statusCode: 200, headers, body: JSON.stringify({ message: "Success" }) };
@@ -648,8 +739,9 @@ case 'delete-short': {
     
     return { statusCode: 200, headers, body: JSON.stringify({ message: "Removed" }) };
 }
+
 case 'add-cap': {
-    const { name, price, description, variants } = body;
+    const { name, price, originalPrice, description, variants } = body;
 
     const processedVariants = [];
     if (variants && Array.isArray(variants)) {
@@ -674,6 +766,7 @@ case 'add-cap': {
     const result = await db.collection('caps').insertOne({
         name,
         price: parseFloat(price),
+        originalPrice: originalPrice ? parseFloat(originalPrice) : null,
         variants: processedVariants,
         description,
         createdAt: new Date()
@@ -711,7 +804,10 @@ case 'get-caps': {
             return { 
                 ...cap, 
                 displayImage: signedDisplay,
-                variants: signedVariants 
+                variants: signedVariants,
+                // Ensure price fields are explicitly passed through
+                price: Number(cap.price) || 0,
+                compareAtPrice: Number(cap.compareAtPrice || cap.originalPrice) || 0
             };
         }));
 
@@ -742,10 +838,19 @@ case 'get-cap-details': {
             return { ...v, images: vImgs };
         }));
 
+        const result = { 
+            ...product, 
+            variants: signedVariants, 
+            category: 'caps',
+            // Ensure price fields are explicitly passed through
+            price: Number(product.price) || 0,
+            compareAtPrice: Number(product.compareAtPrice || product.originalPrice) || 0
+        };
+
         return { 
             statusCode: 200, 
             headers, 
-            body: JSON.stringify({ ...product, variants: signedVariants, category: 'caps' }) 
+            body: JSON.stringify(result) 
         };
     } catch (err) {
         return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
@@ -753,7 +858,7 @@ case 'get-cap-details': {
 }
 
 case 'update-cap': {
-    const { id, name, price, description, variants } = body;
+    const { id, name, price, originalPrice, description, variants } = body;
     if (!id) throw new Error("ID required");
 
     const existing = await db.collection('caps').findOne({ _id: new ObjectId(id) });
@@ -769,12 +874,23 @@ case 'update-cap': {
                     const key = await uploadToS3(img);
                     if (key) vImgKeys.push(key);
                 } else if (typeof img === 'string') {
-                    // Existing image - Extract only the clean file path
-                    let cleanKey = img.split('?')[0];
-                    if (cleanKey.includes('.com/')) {
-                        cleanKey = cleanKey.split('.com/')[1];
+                    let cleanKey = img.trim();
+
+                    // Handle proxy path (e.g. /.netlify/functions/outflickz-image-proxy?key=vault%2F...)
+                    if (cleanKey.includes('key=')) {
+                        const urlParams = new URLSearchParams(cleanKey.split('?')[1]);
+                        const decodedKey = urlParams.get('key');
+                        if (decodedKey) {
+                            cleanKey = decodedKey;
+                        }
                     }
-                    const bucketName = process.env.IDRIVE_BUCKET_NAME;
+
+                    // Existing image - Extract only the clean file path
+                    cleanKey = cleanKey.split('?')[0];
+                    if (cleanKey.includes('.com/')) {
+                        cleanKey = cleanKey.split('.com/').pop();
+                    }
+                    const bucketName = process.env.IDRIVE_BUCKET_NAME || 'outflickz';
                     if (cleanKey.startsWith(`${bucketName}/`)) {
                         cleanKey = cleanKey.replace(`${bucketName}/`, '');
                     }
@@ -796,6 +912,7 @@ case 'update-cap': {
             $set: { 
                 name, 
                 price: parseFloat(price), 
+                originalPrice: originalPrice ? parseFloat(originalPrice) : null,
                 description, 
                 variants: finalVariants, 
                 updatedAt: new Date() 
@@ -813,8 +930,9 @@ case 'delete-cap': {
     
     return { statusCode: 200, headers, body: JSON.stringify({ message: "Removed" }) };
 }
+
 case 'add-jersey': {
-    const { name, price, description, variants } = body;
+    const { name, price, originalPrice, description, variants } = body;
 
     const processedVariants = [];
     if (variants && Array.isArray(variants)) {
@@ -836,13 +954,19 @@ case 'add-jersey': {
         }
     }
 
-    const result = await db.collection('jerseys').insertOne({
+    const jerseyDoc = {
         name,
         price: parseFloat(price),
         variants: processedVariants,
         description,
         createdAt: new Date()
-    });
+    };
+
+    if (originalPrice !== undefined && originalPrice !== null && originalPrice !== '') {
+        jerseyDoc.originalPrice = parseFloat(originalPrice);
+    }
+
+    const result = await db.collection('jerseys').insertOne(jerseyDoc);
     
     return { statusCode: 201, headers, body: JSON.stringify(result) };
 }
@@ -918,7 +1042,7 @@ case 'get-jersey-details': {
 }
 
 case 'update-jersey': {
-    const { id, name, price, description, variants } = body;
+    const { id, name, price, originalPrice, description, variants } = body;
     if (!id) throw new Error("ID required");
 
     const finalVariants = await Promise.all((variants || []).map(async (v) => {
@@ -929,12 +1053,23 @@ case 'update-jersey': {
                     const key = await uploadToS3(img);
                     if (key) vImgKeys.push(key);
                 } else if (typeof img === 'string') {
-                    // Extract CLEAN key (path/file.jpg)
-                    let cleanKey = img.split('?')[0];
-                    if (cleanKey.includes('.com/')) {
-                        cleanKey = cleanKey.split('.com/')[1];
+                    let cleanKey = img.trim();
+
+                    // Handle proxy path (e.g. /.netlify/functions/outflickz-image-proxy?key=vault%2F...)
+                    if (cleanKey.includes('key=')) {
+                        const urlParams = new URLSearchParams(cleanKey.split('?')[1]);
+                        const decodedKey = urlParams.get('key');
+                        if (decodedKey) {
+                            cleanKey = decodedKey;
+                        }
                     }
-                    const bucketName = process.env.IDRIVE_BUCKET_NAME;
+
+                    // Extract CLEAN key (path/file.jpg)
+                    cleanKey = cleanKey.split('?')[0];
+                    if (cleanKey.includes('.com/')) {
+                        cleanKey = cleanKey.split('.com/').pop();
+                    }
+                    const bucketName = process.env.IDRIVE_BUCKET_NAME || 'outflickz';
                     if (cleanKey.startsWith(`${bucketName}/`)) {
                         cleanKey = cleanKey.replace(`${bucketName}/`, '');
                     }
@@ -949,9 +1084,23 @@ case 'update-jersey': {
         };
     }));
 
+    const updateFields = { 
+        name, 
+        price: parseFloat(price), 
+        description, 
+        variants: finalVariants, 
+        updatedAt: new Date() 
+    };
+
+    if (originalPrice !== undefined && originalPrice !== null && originalPrice !== '') {
+        updateFields.originalPrice = parseFloat(originalPrice);
+    } else {
+        updateFields.originalPrice = null;
+    }
+
     await db.collection('jerseys').updateOne(
         { _id: new ObjectId(id) },
-        { $set: { name, price: parseFloat(price), description, variants: finalVariants, updatedAt: new Date() } }
+        { $set: updateFields }
     );
     
     return { statusCode: 200, headers, body: JSON.stringify({ message: "Success" }) };
@@ -967,7 +1116,7 @@ case 'delete-jersey': {
 }
 
 case 'add-tanktop': {
-    const { name, price, description, variants } = body;
+    const { name, price, originalPrice, description, variants } = body;
 
     const processedVariants = [];
     if (variants && Array.isArray(variants)) {
@@ -989,17 +1138,22 @@ case 'add-tanktop': {
         }
     }
 
-    const result = await db.collection('tanktops').insertOne({
+    const tanktopDoc = {
         name,
         price: parseFloat(price),
         variants: processedVariants,
         description,
         createdAt: new Date()
-    });
+    };
+
+    if (originalPrice !== undefined && originalPrice !== null && originalPrice !== '') {
+        tanktopDoc.originalPrice = parseFloat(originalPrice);
+    }
+
+    const result = await db.collection('tanktops').insertOne(tanktopDoc);
 
     return { statusCode: 201, headers, body: JSON.stringify(result) };
 }
-
 case 'get-tanktops': {
     try {
         const tanktops = await db.collection('tanktops').find({}).sort({ createdAt: -1 }).toArray();
@@ -1070,7 +1224,7 @@ case 'get-tanktop-details': {
 }
 
 case 'update-tanktop': {
-    const { id, name, price, description, variants } = body;
+    const { id, name, price, originalPrice, description, variants } = body;
     if (!id) throw new Error("ID required");
 
     const finalVariants = await Promise.all((variants || []).map(async (v) => {
@@ -1081,11 +1235,23 @@ case 'update-tanktop': {
                     const key = await uploadToS3(img);
                     if (key) vImgKeys.push(key);
                 } else if (typeof img === 'string') {
-                    let cleanKey = img.split('?')[0];
-                    if (cleanKey.includes('.com/')) {
-                        cleanKey = cleanKey.split('.com/')[1];
+                    let cleanKey = img.trim();
+
+                    // Handle proxy path (e.g. /.netlify/functions/outflickz-image-proxy?key=vault%2F...)
+                    if (cleanKey.includes('key=')) {
+                        const urlParams = new URLSearchParams(cleanKey.split('?')[1]);
+                        const decodedKey = urlParams.get('key');
+                        if (decodedKey) {
+                            cleanKey = decodedKey;
+                        }
                     }
-                    const bucketName = process.env.IDRIVE_BUCKET_NAME;
+
+                    // Extract CLEAN key (path/file.jpg)
+                    cleanKey = cleanKey.split('?')[0];
+                    if (cleanKey.includes('.com/')) {
+                        cleanKey = cleanKey.split('.com/').pop();
+                    }
+                    const bucketName = process.env.IDRIVE_BUCKET_NAME || 'outflickz';
                     if (cleanKey.startsWith(`${bucketName}/`)) {
                         cleanKey = cleanKey.replace(`${bucketName}/`, '');
                     }
@@ -1100,15 +1266,23 @@ case 'update-tanktop': {
         };
     }));
 
+    const updateFields = { 
+        name, 
+        price: parseFloat(price), 
+        description, 
+        variants: finalVariants, 
+        updatedAt: new Date() 
+    };
+
+    if (originalPrice !== undefined && originalPrice !== null && originalPrice !== '') {
+        updateFields.originalPrice = parseFloat(originalPrice);
+    } else {
+        updateFields.originalPrice = null;
+    }
+
     await db.collection('tanktops').updateOne(
         { _id: new ObjectId(id) },
-        { $set: { 
-            name, 
-            price: parseFloat(price), 
-            description, 
-            variants: finalVariants, 
-            updatedAt: new Date() 
-        } }
+        { $set: updateFields }
     );
     
     return { statusCode: 200, headers, body: JSON.stringify({ message: "Success" }) };
@@ -1116,12 +1290,15 @@ case 'update-tanktop': {
 
 case 'delete-tanktop': {
     const { id } = body;
+    if (!id) throw new Error("ID required");
+
     await db.collection('tanktops').deleteOne({ _id: new ObjectId(id) });
     
     return { statusCode: 200, headers, body: JSON.stringify({ message: "Removed" }) };
 }
+
 case 'add-tracksuit': {
-    const { name, price, description, variants } = body;
+    const { name, price, originalPrice, description, variants } = body;
 
     const processedVariants = [];
     if (variants && Array.isArray(variants)) {
@@ -1143,13 +1320,19 @@ case 'add-tracksuit': {
         }
     }
 
-    const result = await db.collection('tracksuits').insertOne({
+    const tracksuitDoc = {
         name,
         price: parseFloat(price),
         variants: processedVariants,
         description,
         createdAt: new Date()
-    });
+    };
+
+    if (originalPrice !== undefined && originalPrice !== null && originalPrice !== '') {
+        tracksuitDoc.originalPrice = parseFloat(originalPrice);
+    }
+
+    const result = await db.collection('tracksuits').insertOne(tracksuitDoc);
     
     return { statusCode: 201, headers, body: JSON.stringify(result) };
 }
@@ -1225,7 +1408,7 @@ case 'get-tracksuit-details': {
 }
 
 case 'update-tracksuit': {
-    const { id, name, price, description, variants } = body;
+    const { id, name, price, originalPrice, description, variants } = body;
     if (!id) throw new Error("ID required");
 
     const finalVariants = await Promise.all((variants || []).map(async (v) => {
@@ -1237,12 +1420,23 @@ case 'update-tracksuit': {
                     const key = await uploadToS3(img);
                     if (key) vImgKeys.push(key);
                 } else if (typeof img === 'string') {
-                    // Existing Image - Clean the key
-                    let cleanKey = img.split('?')[0];
-                    if (cleanKey.includes('.com/')) {
-                        cleanKey = cleanKey.split('.com/')[1];
+                    let cleanKey = img.trim();
+
+                    // Handle proxy path (e.g. /.netlify/functions/outflickz-image-proxy?key=vault%2F...)
+                    if (cleanKey.includes('key=')) {
+                        const urlParams = new URLSearchParams(cleanKey.split('?')[1]);
+                        const decodedKey = urlParams.get('key');
+                        if (decodedKey) {
+                            cleanKey = decodedKey;
+                        }
                     }
-                    const bucketName = process.env.IDRIVE_BUCKET_NAME;
+
+                    // Existing Image - Clean the key
+                    cleanKey = cleanKey.split('?')[0];
+                    if (cleanKey.includes('.com/')) {
+                        cleanKey = cleanKey.split('.com/').pop();
+                    }
+                    const bucketName = process.env.IDRIVE_BUCKET_NAME || 'outflickz';
                     if (cleanKey.startsWith(`${bucketName}/`)) {
                         cleanKey = cleanKey.replace(`${bucketName}/`, '');
                     }
@@ -1257,9 +1451,23 @@ case 'update-tracksuit': {
         };
     }));
 
+    const updateFields = { 
+        name, 
+        price: parseFloat(price), 
+        description, 
+        variants: finalVariants, 
+        updatedAt: new Date() 
+    };
+
+    if (originalPrice !== undefined && originalPrice !== null && originalPrice !== '') {
+        updateFields.originalPrice = parseFloat(originalPrice);
+    } else {
+        updateFields.originalPrice = null;
+    }
+
     await db.collection('tracksuits').updateOne(
         { _id: new ObjectId(id) },
-        { $set: { name, price: parseFloat(price), description, variants: finalVariants, updatedAt: new Date() } }
+        { $set: updateFields }
     );
     
     return { statusCode: 200, headers, body: JSON.stringify({ message: "Success" }) };
@@ -1272,6 +1480,7 @@ case 'delete-tracksuit': {
     
     return { statusCode: 200, headers, body: JSON.stringify({ message: "Removed" }) };
 }
+
             case 'admin-register': {
                 const { firstName, lastName, email, password, masterKey } = body;
                 if (!masterKey || masterKey.trim() !== MASTER_ACCESS_KEY) {
@@ -1357,10 +1566,9 @@ case 'get-admin-profile': {
     }
 }
 
-// --- CASE 2: SECURE PASSWORD UPDATE ---
 case 'update-admin-password': {
     const { token, newPassword, masterKey } = body;
-    const MASTER_SECRET = "Outflickzlimited";
+    const MASTER_SECRET = process.env.MASTER_ACCESS_KEY;
 
     // 1. Validate Master Key
     if (!masterKey || masterKey !== MASTER_SECRET) {
@@ -1394,6 +1602,7 @@ case 'update-admin-password': {
         return { statusCode: 401, headers, body: JSON.stringify({ success: false, message: "Session Invalid" }) };
     }
 }
+
 case 'get-dashboard': {
     try {
         const now = new Date();
@@ -1640,6 +1849,7 @@ case 'delete-social-post': {
         };
     }
 }
+
 case 'get-any-product-details': {
     const { id } = body;
     if (!id) throw new Error("ID required");
@@ -1706,10 +1916,42 @@ case 'get-any-product-details': {
             return { ...v, images: signedVImgs.filter(img => img !== null) };
         }));
 
+        // 5. Build Dynamic Google Rich Snippet (JSON-LD) Schema on Backend
+        const primaryImage = signedVariants?.[0]?.images?.[0] || product.images?.[0] || "https://i.imgur.com/fu8N7I2.jpeg";
+        
+        const schemaData = {
+            "@context": "https://schema.org/",
+            "@type": "Product",
+            "name": product.name || "OUTFLICKZ Streetwear Collection",
+            "image": [primaryImage],
+            "description": product.description || "Exclusive OUTFLICKZ streetwear apparel.",
+            "brand": {
+                "@type": "Brand",
+                "name": "OUTFLICKZ"
+            },
+            "aggregateRating": {
+                "@type": "AggregateRating",
+                "ratingValue": String(product.rating || "4.9"),
+                "reviewCount": String(product.reviewCount || "85"),
+                "bestRating": "5",
+                "worstRating": "1"
+            },
+            "offers": {
+                "@type": "Offer",
+                "priceCurrency": "NGN",
+                "price": String(product.price || "0"),
+                "itemCondition": "https://schema.org/NewCondition",
+                "availability": product.stock > 0 || product.inStock !== false 
+                    ? "https://schema.org/InStock" 
+                    : "https://schema.org/OutOfStock"
+            }
+        };
+
         const result = { 
             ...product, 
             variants: signedVariants,
-            category: foundCollection 
+            category: foundCollection,
+            schemaData // Attached schema ready for frontend insertion
         };
 
         return { 
@@ -1803,14 +2045,16 @@ async function processOrderDeduction(db, reference, orderData, paymentData, meth
     const existingOrder = await db.collection('orders').findOne({ paymentReference: reference });
     if (existingOrder) return { success: true, message: "Already processed", orderId: existingOrder._id };
 
+    const isWalkIn = method === 'pos_walkin' || orderData.source === 'walkin_pos_terminal';
+
     // 2. Prepare Order Document
-    const orderDoc = {
+         const orderDoc = {
         ...orderData,
-        // FIX: Ensure email exists. Check orderData first, then Paystack customer data
         email: orderData.email || paymentData.customer?.email || null,
         paymentReference: reference,
-        paymentMode: `paystack_${paymentData.channel || 'other'}`,
-        status: 'Confirmed',
+        paymentMode: isWalkIn ? `pos_${paymentData.channel || 'terminal'}` : `paystack_${paymentData.channel || 'other'}`,
+        status: isWalkIn ? 'Delivered' : 'Confirmed',
+        fulfillmentStatus: isWalkIn ? 'Delivered' : 'Pending',
         paymentStatus: 'Paid',
         pickupLocation: orderData.deliveryMethod === 'pickup' ? orderData.pickupLocation : null,
         gatewayResponse: paymentData.gateway_response,
@@ -2050,20 +2294,20 @@ case 'get-orders': {
                     item.displaySize = item.size || item.selectedSize || 'OS';
                     item.displayQty = item.qty || item.quantity || 1;
 
-                    // Handle Image Signing
-                    if (item.image && typeof item.image === 'string') {
-                        // If it's a raw S3 key (not a full URL), sign it
-                        if (!item.image.startsWith('http')) {
-                            try {
-                                item.image = await getSecureUrl(item.image);
-                            } catch (s3Err) {
-                                console.error(`Signing failed for ${item.image}`);
-                                item.image = 'https://placehold.co/400x500?text=SIGN+ERROR';
-                            }
-                        }
-                    } else if (!item.image) {
-                        item.image = 'https://placehold.co/400x500?text=NO+IMAGE';
-                    }
+if (item.image && typeof item.image === 'string') {
+    if (!item.image.startsWith('http') && !item.image.startsWith('/.netlify/functions/outflickz-image-proxy')) {
+        try {
+            item.image = await getSecureUrl(item.image);
+        } catch (s3Err) {
+            console.error(`Signing failed for ${item.image}`);
+            item.image = 'https://placehold.co/400x500?text=SIGN+ERROR';
+        }
+    } else if (item.image.startsWith('/.netlify/functions/outflickz-image-proxy')) {
+        // It's already a valid proxy path, leave it as is
+    }
+} else if (!item.image) {
+    item.image = 'https://placehold.co/400x500?text=NO+IMAGE';
+}
                     return item;
                 }));
             }
@@ -2766,6 +3010,161 @@ case 'get-broadcast-history': {
     }
 }
 
+case 'create-sales-account': {
+                const { fullName, email, password } = body;
+                
+                if (!fullName || !email || !password) {
+                    return { statusCode: 400, headers, body: JSON.stringify({ success: false, message: "All fields are required" }) };
+                }
+
+                const existingUser = await db.collection('users').findOne({ email: email.toLowerCase() });
+                if (existingUser) {
+                    return { statusCode: 400, headers, body: JSON.stringify({ success: false, message: "Account with this email already exists" }) };
+                }
+
+                const hashedPassword = await bcrypt.hash(password, 10);
+                await db.collection('users').insertOne({
+                    fullName,
+                    email: email.toLowerCase(),
+                    password: hashedPassword,
+                    role: 'sales',
+                    isBlocked: false,
+                    createdAt: new Date()
+                });
+
+                return { statusCode: 200, headers, body: JSON.stringify({ success: true, message: "Sales account provisioned successfully" }) };
+            }
+
+            case 'get-sales-accounts': {
+                const salesAccounts = await db.collection('users')
+                    .find({ role: 'sales' })
+                    .project({ password: 0 })
+                    .sort({ createdAt: -1 })
+                    .toArray();
+
+                return { statusCode: 200, headers, body: JSON.stringify({ success: true, salesAccounts }) };
+            }
+
+            case 'toggle-sales-status': {
+                const { email, isBlocked } = body;
+                if (!email) {
+                    return { statusCode: 400, headers, body: JSON.stringify({ success: false, message: "Email required" }) };
+                }
+
+                const result = await db.collection('users').updateOne(
+                    { email: email.toLowerCase(), role: 'sales' },
+                    { $set: { isBlocked: Boolean(isBlocked) } }
+                );
+
+                if (result.matchedCount === 0) {
+                    return { statusCode: 404, headers, body: JSON.stringify({ success: false, message: "Sales account not found" }) };
+                }
+
+                return { statusCode: 200, headers, body: JSON.stringify({ success: true, message: "Sales clearance status updated" }) };
+            }
+
+   case 'sales-login': {
+    const { email, password } = body;
+    if (!email || !password) {
+        return { statusCode: 400, headers, body: JSON.stringify({ success: false, message: "Email and password are required" }) };
+    }
+
+    const user = await db.collection('users').findOne({ email: email.toLowerCase(), role: 'sales' });
+    if (!user) {
+        return { statusCode: 401, headers, body: JSON.stringify({ success: false, message: "Invalid credentials or unauthorized role" }) };
+    }
+
+    if (user.isBlocked) {
+        return { statusCode: 403, headers, body: JSON.stringify({ success: false, message: "Access denied: Account is blocked by administrator" }) };
+    }
+
+    const passwordHash = user.hashedPassword || user.password;
+    if (!passwordHash) {
+        return { statusCode: 401, headers, body: JSON.stringify({ success: false, message: "Invalid credentials" }) };
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, passwordHash);
+    if (!isPasswordValid) {
+        return { statusCode: 401, headers, body: JSON.stringify({ success: false, message: "Invalid credentials" }) };
+    }
+
+    const token = jwt.sign(
+        { email: user.email, role: 'sales', fullName: user.fullName },
+        process.env.JWT_SECRET,
+        { expiresIn: '12h' }
+    );
+
+    return { 
+        statusCode: 200, 
+        headers, 
+        body: JSON.stringify({ 
+            success: true, 
+            token, 
+            fullName: user.fullName,
+            message: "Login authorized successfully" 
+        }) 
+    };
+}
+
+case 'create-order': {
+    const { items, salesPerson, pickup, paymentMethod, source } = body;
+    
+    if (!items || !Array.isArray(items) || items.length === 0) {
+        return { 
+            statusCode: 400, 
+            headers, 
+            body: JSON.stringify({ success: false, message: "No items provided in order manifest." }) 
+        };
+    }
+
+    const resolvedSalesPerson = salesPerson && salesPerson.trim() !== '' ? salesPerson.trim() : 'Walk-In Agent';
+    const reference = `POS-WALK-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+    const orderData = {
+        items: items,
+        salesPerson: resolvedSalesPerson,
+        deliveryMethod: 'pickup',
+        pickupLocation: 'In-Store Immediate Handout',
+        paymentMethod: paymentMethod,
+        source: source || 'walkin_pos_terminal'
+    };
+
+    const calculatedSubtotal = items.reduce((sum, item) => {
+        return sum + (Number(item.price || 0) * Number(item.qty || item.quantity || 1));
+    }, 0);
+
+    const paymentData = {
+        channel: paymentMethod,
+        gateway_response: `Successful Walk-In POS Transaction (${paymentMethod.toUpperCase()})`,
+        amount: calculatedSubtotal * 100, // stored in kobo
+        customer: { email: null },
+        paid_at: new Date().toISOString()
+    };
+
+    try {
+        // Pass 'pos_walkin' as the execution method to trigger instant 'Delivered' status
+        const result = await processOrderDeduction(db, reference, orderData, paymentData, 'pos_walkin');
+        
+        return { 
+            statusCode: 200, 
+            headers, 
+            body: JSON.stringify({
+                success: true,
+                message: "Walk-in order processed and marked as DELIVERED.",
+                reference,
+                salesPerson: resolvedSalesPerson,
+                result
+            }) 
+        };
+    } catch (err) {
+        console.error("POS_CHECKOUT_ERROR:", err);
+        return { 
+            statusCode: 500, 
+            headers, 
+            body: JSON.stringify({ success: false, message: "Failed to process walk-in order", error: err.message }) 
+        };
+    }
+}
             default:
                 return { statusCode: 404, headers, body: JSON.stringify({ message: "Action Not Recognized" }) };
         }

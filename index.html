@@ -4,8 +4,6 @@
     <title>Outflickz | Streetwear Experience</title>
 <meta name="description" content="Premium streetwear designed for the modern era. Explore exclusive tees, jerseys, and tracksuits at Outflickz.">
 <meta name="robots" content="index, follow"> <link rel="canonical" href="https://www.outflickz.com/"> <meta property="og:type" content="website">
-<meta name="google-site-verification" content="Z6ROK89ZCUVN1i5qEFeLCyaaeJHYp5-33t4Mi4pxzJs" />
-<meta name="google-site-verification" content="DeJxVatGUGl_-7N6hsw_9U0lgw7wFgVKMKVok3UNRhg" />
 <meta property="og:url" content="https://www.outflickz.com/">
 <meta property="og:title" content="Outflickz | Streetwear Experience">
 <meta name="keywords" content="Outflickz, Outflickz Limited, Streetwear, Urban Fashion, High Fashion, Premium Clothing Nigeria, Outflickz"><meta property="og:description" content="Discover the latest in high-end streetwear. Quality essentials for the culture.">
@@ -55,6 +53,20 @@
 
     nav { height: var(--header-height-mobile); }
     @media (min-width: 1024px) { nav { height: var(--header-height-desktop); } }
+
+     /* Announcement Bar Marquee Animation */
+    @keyframes marquee {
+        0% { transform: translateX(0%); }
+        100% { transform: translateX(-50%); }
+    }
+    .animate-marquee {
+        display: flex;
+        width: 200%;
+        animation: marquee 25s linear infinite;
+    }
+    .animate-marquee:hover {
+        animation-play-state: paused;
+    }
 
     /* 2. Skeleton & Video Fixes */
     .skeleton {
@@ -167,52 +179,70 @@
     }
 </style>
 </head> <body class="bg-white text-black overflow-x-hidden">
-<nav class="fixed w-full z-50 flex justify-between items-center px-5 h-20 md:h-24 md:px-10 bg-white/90 backdrop-blur-xl border-b border-black/5">
-    <div class="flex items-center space-x-4 md:space-x-12 h-full">
-        <div class="text-2xl md:text-3xl font-black tracking-tighter italic cursor-pointer shrink-0" onclick="window.location.href='index.html'">
-            OUTFLICKZ
-        </div>
-        
-        <div class="hidden lg:flex items-center space-x-8">
-            <div class="relative group">
-                <button class="flex items-center space-x-2 text-[10px] font-black uppercase tracking-[0.3em] hover:opacity-60 transition-opacity">
-                    <span>Shop Collection</span>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="m6 9 6 6 6-6"/></svg>
-                </button>
-                <div class="absolute left-0 mt-2 w-56 bg-white border border-black/5 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-[100] py-2">
-                    <a href="index.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">All Products</a>
-                    <a href="/products/wears.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">T-Shirts</a>
-                     <a href="/products/shorts.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">Shorts & Denim</a>
-                     <a href="/products/tanktops.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">TankTops</a>
-                     <a href="/products/tracksuits.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">TrackSuits</a>
-                     <a href="/products/jerseys.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">Jerseys</a>
-                     <a href="/products/accessories.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">Accessories</a>
-
-                </div>
-            </div>
-            <div id="nav-auth-section" class="flex items-center space-x-4 border-l border-black/5 pl-8"></div>
+<nav class="fixed w-full z-50 bg-white/90 backdrop-blur-xl border-b border-black/5 flex flex-col">
+    <!-- 1. Walk-In Store Standalone Top Strip -->
+    <div class="bg-black text-white text-[9px] md:text-[10px] font-black uppercase tracking-[0.25em] py-2.5 overflow-hidden whitespace-nowrap border-b border-zinc-800 w-full">
+        <div class="animate-marquee flex items-center space-x-8">
+            <span class="flex items-center space-x-2">
+                <span class="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
+                <span>Walk-In Store Sales Active: Visit Our Flagship Store Today</span>
+            </span>
+            <span>•</span>
+            <span>Walk-In Store Sale Up To 30% Off</span>
+            <span>•</span>
+            <span>Walk-In Store Sales Active: Visit Our Flagship Store Today</span>
+            <span>•</span>
+            <span>Walk-In Store Sale Up To 30% Off</span>
         </div>
     </div>
 
-    <div class="flex items-center space-x-3 md:space-x-6">
-        <div class="flex items-center">
-            <div id="search-wrapper" class="hidden sm:block">
-                <input type="text" id="productSearch" oninput="filterProducts()" placeholder="SEARCH..." 
-                    class="w-32 md:w-48 bg-zinc-100/80 border-none py-2 px-4 text-[10px] tracking-widest uppercase focus:outline-none rounded-full">
+    <!-- 2. Main Navigation Bar -->
+    <div class="flex justify-between items-center px-5 h-20 md:h-24 md:px-10 bg-white/90 w-full">
+        <div class="flex items-center space-x-4 md:space-x-12 h-full">
+            <div class="text-2xl md:text-3xl font-black tracking-tighter italic cursor-pointer shrink-0" onclick="window.location.href='index.html'">
+                OUTFLICKZ
             </div>
-            <button onclick="toggleSearch()" class="p-2 hover:scale-110 transition-transform">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            
+            <div class="hidden lg:flex items-center space-x-8">
+                <div class="relative group">
+                    <button class="flex items-center space-x-2 text-[10px] font-black uppercase tracking-[0.3em] hover:opacity-60 transition-opacity">
+                        <span>Shop Collection</span>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="m6 9 6 6 6-6"/></svg>
+                    </button>
+                    <div class="absolute left-0 mt-2 w-56 bg-white border border-black/5 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-[100] py-2">
+                        <a href="index.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">All Products</a>
+                        <a href="/products/wears.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">T-Shirts</a>
+                        <a href="/products/shorts.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">Shorts & Denim</a>
+                        <a href="/products/tanktops.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">TankTops</a>
+                        <a href="/products/tracksuits.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">TrackSuits</a>
+                        <a href="/products/jerseys.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">Jerseys</a>
+                        <a href="/products/accessories.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">Accessories</a>
+                    </div>
+                </div>
+                <div id="nav-auth-section" class="flex items-center space-x-4 border-l border-black/5 pl-8"></div>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-3 md:space-x-6">
+            <div class="flex items-center">
+                <div id="search-wrapper" class="hidden sm:block">
+                    <input type="text" id="productSearch" oninput="filterProducts()" placeholder="SEARCH..." 
+                        class="w-32 md:w-48 bg-zinc-100/80 border-none py-2 px-4 text-[10px] tracking-widest uppercase focus:outline-none rounded-full">
+                </div>
+                <button onclick="toggleSearch()" class="p-2 hover:scale-110 transition-transform">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                </button>
+            </div>
+
+            <div class="relative cursor-pointer p-2 hover:scale-110 transition-transform" onclick="window.location.href='products/cart.html'">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+                <span id="cart-count" class="absolute top-1 right-0 text-[9px] font-black bg-black text-white w-4 h-4 flex items-center justify-center rounded-full">0</span>
+            </div>
+
+            <button onclick="toggleSidebar(true)" class="p-2 lg:hidden">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
             </button>
         </div>
-
-        <div class="relative cursor-pointer p-2 hover:scale-110 transition-transform" onclick="window.location.href='products/cart.html'">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
-            <span id="cart-count" class="absolute top-1 right-0 text-[9px] font-black bg-black text-white w-4 h-4 flex items-center justify-center rounded-full">0</span>
-        </div>
-
-        <button onclick="toggleSidebar(true)" class="p-2 lg:hidden">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-        </button>
     </div>
 </nav>
 
@@ -236,6 +266,49 @@
 
     <div id="mobile-auth-section" class="mt-auto border-t border-black/5 pt-8"></div>
 </div>
+
+<!-- Walk-In Store Promotional Modal -->
+<div id="walkInModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm transition-opacity duration-300" style="opacity: 0; display: flex;">
+    <div class="relative bg-white text-black w-[90%] max-w-[420px] p-6 md:p-8 rounded-sm shadow-2xl border border-black/10 flex flex-col items-center text-center animate-item">
+        
+        <!-- Close Button -->
+        <button onclick="closeWalkInModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center hover:bg-black hover:text-white transition-all">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+
+        <!-- Brand Logo -->
+        <div class="w-16 h-16 rounded-full overflow-hidden mb-4 border border-black/10 shadow-md">
+            <img src="https://i.imgur.com/fu8N7I2.jpeg" alt="Outflickz Logo" class="w-full h-full object-cover">
+        </div>
+
+        <!-- Tag / Subtitle -->
+        <span class="text-[9px] font-black uppercase tracking-[0.3em] text-red-600 bg-red-50 px-3 py-1 rounded-full mb-3">
+            Flagship Store Exclusive
+        </span>
+
+        <!-- Main Title -->
+        <h2 class="text-2xl md:text-3xl font-black italic tracking-tighter uppercase mb-2">
+            Walk-In Store Sale
+        </h2>
+
+        <!-- Discount Highlight -->
+        <p class="text-xl md:text-2xl font-black uppercase tracking-wider text-black mb-4">
+            Up To 30% Off
+        </p>
+
+        <!-- Description & Dates -->
+        <p class="text-[11px] text-zinc-500 uppercase tracking-widest leading-relaxed mb-6">
+            Visit our physical flagship store today to experience exclusive collections and huge savings.<br><br>
+            <strong class="text-black">Dates:</strong> September 27, 2026 – November 1, 2026
+        </p>
+
+        <!-- Action Button -->
+        <button onclick="closeWalkInModal()" class="w-full bg-black text-white py-3.5 text-[10px] font-black uppercase tracking-[0.25em] rounded-sm hover:bg-zinc-800 transition-all shadow-lg">
+            Shop Collection Now
+        </button>
+    </div>
+</div>
+
 <section class="relative w-full min-h-[80vh] lg:h-screen bg-black overflow-hidden">
     <div class="hidden lg:grid grid-cols-2 w-full h-full absolute inset-0">
         <div class="relative h-full w-full overflow-hidden bg-zinc-900">
@@ -570,6 +643,7 @@ function renderProducts(list) {
 
     grid.innerHTML = htmlContent;
 }
+
 function createProductCard(p) {
     const variants = Array.isArray(p.variants) ? p.variants : [];
     
@@ -598,10 +672,29 @@ function createProductCard(p) {
     // UPDATED: We use the URL as-is because api.js already secured it
     const defaultImg = rawImg;
 
+    // Price handling for original vs sale price
+    const originalPrice = Number(p.compareAtPrice || p.originalPrice || 0);
+    const currentPrice = Number(p.price || 0);
+    const hasDiscount = originalPrice > currentPrice;
+
+    // Price HTML with increased font size for the current selling price and original price display
+    const priceHtml = isOutOfStock 
+        ? '<span class="text-red-600 text-[18px]">SOLD OUT</span>' 
+        : (hasDiscount 
+            ? `<div class="flex items-center gap-2 justify-end"><span class="line-through text-red-600 font-bold text-[14px]">₦${originalPrice.toLocaleString()}</span><span class="text-black font-black text-[22px]">₦${currentPrice.toLocaleString()}</span></div>`
+            : `<span class="text-black font-black text-[22px]">₦${currentPrice.toLocaleString()}</span>`);
+
     return `
 <div class="group relative cursor-pointer animate-item" onclick="window.location.href='/products/product-detail.html?id=${p._id}'">
     <div id="container-${p._id}" class="aspect-[3/4] bg-zinc-100 overflow-hidden relative border border-black/5 skeleton"> 
         
+        <!-- Hardcoded 30% OFF Sale Badge Label at the Top -->
+        ${hasDiscount && !isOutOfStock ? `
+            <div class="absolute top-3 left-3 z-20 bg-black text-white px-2 py-1 text-[18px] font-black uppercase tracking-widest shadow-md">
+                30% OFF
+            </div>
+        ` : ''}
+
         <div id="sold-out-overlay-${p._id}" class="absolute inset-0 z-10 flex items-center justify-center bg-black/10 pointer-events-none ${isOutOfStock ? '' : 'hidden'}" style="${isOutOfStock ? 'display: flex;' : 'display: none;'}">
             <span class="sold-out-badge">SOLD OUT</span>
         </div>
@@ -617,11 +710,11 @@ function createProductCard(p) {
                 const vIsSoldOut = v.totalStock <= 0;
                 
                 return `<button type="button" 
-                            onmouseover="updatePreview(event, '${p._id}', '${vRaw}', ${vIsSoldOut})" 
-                            onmouseleave="updatePreview(event, '${p._id}', '${defaultImg}', ${isOutOfStock})"
-                            class="color-dot w-3.5 h-3.5 rounded-full border border-white/60 relative pointer-events-auto" 
-                            style="background-color: ${v.color ? v.color.toLowerCase() : '#ccc'};">
-                            ${vIsSoldOut ? '<div class="absolute inset-0 flex items-center justify-center pointer-events-none"><div class="w-full h-[1px] bg-white rotate-45"></div></div>' : ''}
+                        onmouseover="updatePreview(event, '${p._id}', '${vRaw}', ${vIsSoldOut})" 
+                        onmouseleave="updatePreview(event, '${p._id}', '${defaultImg}', ${isOutOfStock})"
+                        class="color-dot w-3.5 h-3.5 rounded-full border border-white/60 relative pointer-events-auto" 
+                        style="background-color: ${v.color ? v.color.toLowerCase() : '#ccc'};">
+                        ${vIsSoldOut ? '<div class="absolute inset-0 flex items-center justify-center pointer-events-none"><div class="w-full h-[1px] bg-white rotate-45"></div></div>' : ''}
                         </button>`;
             }).join('')}
         </div>
@@ -629,7 +722,7 @@ function createProductCard(p) {
     <div class="mt-4 space-y-1">
         <div class="flex justify-between items-start">
             <h3 class="font-bold uppercase text-[20px] tracking-wider text-black">${p.name}</h3>
-            <p class="font-bold text-[18px] text-black">${isOutOfStock ? '<span class="text-red-600">SOLD OUT</span>' : `₦${Number(p.price).toLocaleString()}`}</p>
+            <div class="text-right">${priceHtml}</div>
         </div>
         <p class="text-zinc-400 text-[12px] uppercase tracking-widest">${p.category || 'Collection'} / ${processedVariants.filter(v => v.totalStock > 0).length} Colors Available</p>
     </div>
@@ -928,6 +1021,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log(`Now playing on mobile: ${playlist[currentIdx]}`);
             }
         });
+    }
+});
+
+function closeWalkInModal() {
+    const modal = document.getElementById('walkInModal');
+    if (modal) {
+        modal.style.opacity = '0';
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300); // Matches transition duration
+    }
+}
+
+// Automatically trigger modal popup immediately as the page loads
+window.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('walkInModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        setTimeout(() => {
+            modal.style.opacity = '1';
+        }, 50); // Tiny delay to ensure CSS transition triggers smoothly
     }
 });
 

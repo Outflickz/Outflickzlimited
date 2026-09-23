@@ -33,7 +33,7 @@
     <aside id="sidebar" class="fixed md:relative w-56 h-screen bg-white border-r border-gray-100 p-6 flex flex-col z-40 transition-transform duration-300 -translate-x-full md:translate-x-0">
         <div class="hidden md:block text-xl font-black italic tracking-tighter mb-8 text-center md:text-left cursor-pointer" onclick="window.location.href='dashboard.html'">OUTFLICKZ</div>
         <nav class="space-y-1 flex-1">
-               <a href="wearsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Wears Manager</a>
+             <a href="wearsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Wears Manager</a>
             <a href="shortsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Shorts Manager</a>
             <a href="capsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Caps Manager</a>
             <a href="jerseysproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Jerseys Manager</a>
@@ -74,8 +74,16 @@
                             <label class="text-[8px] font-bold uppercase text-gray-400">Model Name</label>
                             <input type="text" id="t-name" placeholder="e.g. Ribbed Summer Tank" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus font-medium" required>
                             
-                            <label class="text-[8px] font-bold uppercase text-gray-400">Retail Price (₦)</label>
-                            <input type="number" id="t-price" placeholder="15000" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus font-bold" required>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-[8px] font-bold uppercase text-gray-400">Retail Price (₦)</label>
+                                    <input type="number" id="t-price" placeholder="15000" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus font-bold" required>
+                                </div>
+                                <div>
+                                    <label class="text-[8px] font-bold uppercase text-gray-400">Original Price (Opt)</label>
+                                    <input type="number" id="t-original-price" placeholder="20000" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus font-bold">
+                                </div>
+                            </div>
                         </div>
 
                         <div class="space-y-2">
@@ -115,7 +123,7 @@
                                     <th class="p-4 font-bold">Product Details</th>
                                     <th class="p-4 font-bold">Stock Matrix (Size:Qty)</th>
                                     <th class="p-4 font-bold">Total Stock</th>
-                                    <th class="p-4 font-bold text-right">Unit Price</th>
+                                    <th class="p-4 font-bold text-right">Pricing</th>
                                     <th class="p-4 font-bold text-center">Manage</th>
                                 </tr>
                             </thead>
@@ -139,7 +147,6 @@
         fetchTanktops();
     };
 
-    // --- Image Compression Logic ---
     const compressImage = (file, maxWidth = 800, quality = 0.7) => {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -266,6 +273,13 @@
                     return `<div class="mb-2 last:mb-0"><div class="flex items-center gap-2"><span class="font-black text-[8px] uppercase w-16 truncate">${v.color}:</span><div class="flex flex-wrap gap-1">${sizesInStock || '<span class="text-red-500 font-bold">OUT</span>'}</div></div></div>`;
                 }).join('');
 
+                const pricingHtml = t.originalPrice ? `
+                    <div class="flex flex-col items-end">
+                        <span class="text-[10px] font-black">₦${Number(t.price).toLocaleString()}</span>
+                        <span class="text-[8px] text-gray-400 line-through">₦${Number(t.originalPrice).toLocaleString()}</span>
+                    </div>
+                ` : `<span class="text-[10px] font-black">₦${Number(t.price).toLocaleString()}</span>`;
+
                 return `
                 <tr class="hover:bg-gray-50/80 transition-colors">
                     <td class="p-4">
@@ -279,7 +293,7 @@
                     </td>
                     <td class="p-4 text-[8px] font-medium">${matrixHtml}</td>
                     <td class="p-4"><span class="${productTotal < 10 ? 'bg-red-50 text-red-600 border-red-100' : 'bg-green-50 text-green-700 border-green-100'} border px-2 py-1 rounded text-[9px] font-black uppercase">${productTotal} PCS</span></td>
-                    <td class="p-4 text-right"><span class="text-[10px] font-black">₦${Number(t.price).toLocaleString()}</span></td>
+                    <td class="p-4 text-right">${pricingHtml}</td>
                     <td class="p-4 text-center">
                         <div class="flex justify-center gap-3">
                             <button onclick="enterEditMode('${t._id}')" class="text-zinc-400 hover:text-black font-black uppercase text-[8px]">EDIT</button>
@@ -314,7 +328,6 @@
                 for (let i = 0; i < imgInputs.length; i++) {
                     const input = imgInputs[i];
                     if (input.files[0]) {
-                        // COMPRESSION INJECTED HERE
                         const compressedBase64 = await compressImage(input.files[0]);
                         variantImages.push(compressedBase64);
                     } else if (input.getAttribute('data-existing-url')) {
@@ -336,6 +349,7 @@
                 id: document.getElementById('edit-id').value,
                 name: document.getElementById('t-name').value,
                 price: document.getElementById('t-price').value,
+                originalPrice: document.getElementById('t-original-price').value || null,
                 description: document.getElementById('t-desc').value,
                 variants: variants
             };
@@ -365,6 +379,7 @@
         document.getElementById('edit-id').value = item._id;
         document.getElementById('t-name').value = item.name;
         document.getElementById('t-price').value = item.price;
+        document.getElementById('t-original-price').value = item.originalPrice || '';
         document.getElementById('t-desc').value = item.description || '';
         const container = document.getElementById('variants-container');
         container.innerHTML = '';

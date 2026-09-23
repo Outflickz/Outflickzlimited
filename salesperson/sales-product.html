@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OUTFLICKZ | Sales Portal - Product Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        #mobile-menu { transition: transform 0.3s ease-in-out; }
+    </style>
+</head>
+<body class="bg-white text-zinc-900 antialiased selection:bg-black selection:text-white">
+
+    <!-- Top Announcement Bar -->
+    <div class="bg-black text-white text-[9px] uppercase tracking-widest py-2 px-4 text-center font-bold">
+        OUTFLICKZ SALES DESK — AUTHORIZED PERSONNEL PORTAL
+    </div>
+
+    <!-- Navigation Header -->
+    <header class="sticky top-0 z-50 bg-white/85 backdrop-blur-md border-b border-black/5">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-6">
+                <button onclick="toggleSidebar(true)" class="md:hidden p-2 -ml-2 hover:bg-zinc-100 rounded-sm">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+                <a href="sales-pos.html" class="text-lg font-black tracking-tighter uppercase">OUTFLICKZ<span class="text-zinc-400 font-light ml-1 text-xs">SALES</span></a>
+            </div>
+
+            <nav class="hidden md:flex items-center space-x-8 text-[9px] font-bold uppercase tracking-widest">
+                <a href="sales-pos.html" class="hover:text-zinc-400 transition">Catalog</a>
+                <a href="sales-product.html" class="text-black border-b border-black pb-0.5">Sales Desk</a>
+                <a href="sales-cart.html" class="hover:text-zinc-400 transition">Orders</a>
+            </nav>
+
+            <div class="flex items-center space-x-6">
+                <div id="nav-auth-section">
+                    <!-- Dynamically populated via updateAuthUI() -->
+                </div>
+                <a href="sales-cart.html" class="relative p-2 hover:bg-zinc-100 rounded-sm transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                    </svg>
+                    <span id="cart-count" class="absolute top-1 right-1 bg-black text-white text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center">0</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Sales Terminal Container -->
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        <div class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-black/5 pb-6">
+            <div>
+                <h1 class="text-xl font-black uppercase tracking-tight">Sales Execution Terminal</h1>
+                <p class="text-zinc-400 text-[10px] uppercase tracking-widest mt-1">Configure parameters and execute client checkouts instantly</p>
+            </div>
+            <div class="flex items-center space-x-3">
+                <span class="inline-flex items-center px-2.5 py-1 bg-zinc-100 text-[9px] font-bold uppercase tracking-widest border border-black/5">
+                    <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse mr-1.5"></span> Live Inventory Active
+                </span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
+            <!-- Product Selection / Media Column -->
+            <div class="lg:col-span-7 space-y-6">
+                <div class="aspect-[3/4] bg-zinc-100 relative overflow-hidden border border-black/5">
+                    <img id="main-product-image" src="" alt="Product View" class="w-full h-full object-cover">
+                    <div id="sold-out-badge" class="hidden absolute top-4 right-4 bg-red-600 text-white text-[9px] font-black px-3 py-1.5 uppercase tracking-tighter rotate-[-5deg] shadow-xl border border-white">
+                        SOLD OUT
+                    </div>
+                </div>
+                <!-- Thumbnail Strip -->
+                <div id="thumbnail-strip" class="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Configuration & Actions Column -->
+            <div class="lg:col-span-5 space-y-8">
+                <div>
+                    <span id="product-category" class="text-[9px] font-bold uppercase tracking-widest text-zinc-400">Loading...</span>
+                    <h2 id="product-name" class="text-2xl font-black uppercase tracking-tight mt-1">Select Product</h2>
+                    <p id="product-price" class="text-lg font-black mt-2">₦0</p>
+                </div>
+
+                <!-- Variant Color Selector -->
+                <div class="space-y-3">
+                    <label class="text-[9px] font-bold uppercase tracking-widest text-zinc-500 block">Select Color Variant</label>
+                    <div id="color-options" class="flex flex-wrap gap-2.5">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Size Selector -->
+                <div class="space-y-3">
+                    <label class="text-[9px] font-bold uppercase tracking-widest text-zinc-500 block">Select Size & Check Stock</label>
+                    <div id="size-options" class="flex flex-wrap gap-2.5">
+                        <!-- Populated dynamically -->
+                    </div>
+                    <p id="stock-feedback" class="text-[9px] uppercase tracking-wider text-zinc-400 mt-1"></p>
+                </div>
+
+                <!-- Quantity Controller -->
+                <div class="space-y-3">
+                    <label class="text-[9px] font-bold uppercase tracking-widest text-zinc-500 block">Units</label>
+                    <div class="flex items-center space-x-4 border border-black/10 w-32 px-3 py-2">
+                        <button onclick="adjustQty(-1)" class="text-xs font-bold hover:text-zinc-400">-</button>
+                        <span id="purchase-qty-display" class="flex-1 text-center font-bold text-xs">1</span>
+                        <button onclick="adjustQty(1)" class="text-xs font-bold hover:text-zinc-400">+</button>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="space-y-3 pt-4">
+                    <button onclick="addToCart(true)" class="w-full bg-black text-white py-4 text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 transition rounded-sm">
+                        Add to Order Cart
+                    </button>
+                    <button id="buy-btn" onclick="buyNow()" class="w-full border border-black text-black py-4 text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white transition rounded-sm">
+                        Instant Checkout & Verify
+                    </button>
+                </div>
+
+                <!-- Product Description Accordion Info -->
+                <div class="border-t border-black/5 pt-6 space-y-2">
+                    <h4 class="text-[9px] font-bold uppercase tracking-widest">Specification & Fulfillment</h4>
+                    <p id="product-desc" class="text-[10px] text-zinc-500 uppercase tracking-wide leading-relaxed">Select a valid inventory item to view comprehensive specifications and fulfillment guidelines.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Related Sales Slider Section -->
+        <div class="mt-24 border-t border-black/5 pt-12">
+            <h3 class="text-xs font-black uppercase tracking-widest mb-6">Alternative Catalog Items</h3>
+            <div id="related-slider" class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Global Modal Overlay -->
+    <div id="global-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white max-w-sm w-full p-6 text-center space-y-4 border border-black/10 shadow-2xl">
+            <h3 id="modal-title" class="font-black uppercase text-xs tracking-wider">Notice</h3>
+            <p id="modal-message" class="text-[10px] text-zinc-600 uppercase tracking-widest leading-relaxed"></p>
+            <button onclick="closeModal()" class="w-full bg-black text-white py-3 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-800 transition">
+                Understood
+            </button>
+        </div>
+    </div>
+
+    <!-- Mobile Drawer Menu -->
+    <div id="mobile-menu" class="fixed inset-0 bg-black/60 z-50 hidden transform translate-x-full">
+        <div class="absolute right-0 top-0 bottom-0 w-80 bg-white p-6 flex flex-col justify-between">
+            <div class="space-y-6">
+                <div class="flex justify-between items-center border-b border-black/5 pb-4">
+                    <span class="text-xs font-black uppercase tracking-widest">Menu</span>
+                    <button onclick="toggleSidebar(false)" class="p-1 hover:bg-zinc-100">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="flex flex-col space-y-4 text-[10px] font-bold uppercase tracking-widest">
+                    <a href="sales-pos.html" class="hover:text-zinc-400">Catalog</a>
+                    <a href="sales-product.html" class="text-black">Sales Desk</a>
+                    <a href="sales-cart.html" class="hover:text-zinc-400">Orders</a>
+                </div>
+            </div>
+            <div class="text-[8px] text-zinc-400 uppercase tracking-widest text-center">
+                Outflickz Sales Portal v2.4
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Execution Block -->
+    <script>
+        const API_ENDPOINT = '/.netlify/functions/api';
+        const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 mins
+
+        let currentProduct = null;
+        let selectedVariant = null;
+        let selectedSize = null;
+        let currentStockLimit = 0;
+        let purchaseQty = 1;
+
+        // Initialize Terminal on Load
+        window.addEventListener('DOMContentLoaded', () => {
+            autoClearSession();
+            updateAuthUI();
+            updateCartCount();
+            loadProductData();
+        });
+
+        function getOptimizedUrl(url) {
+            if (!url || typeof url !== 'string' || url.includes('placehold.co')) {
+                return 'https://placehold.co/600x800/f4f4f5/000?text=OUTFLICKZ';
+            }
+            
+            // If the API hasn't secured it yet (e.g. it's still "vault/..."), 
+            // we handle it here just in case.
+            if (url.startsWith('vault/')) {
+                return `/.netlify/functions/outflickz-image-proxy?key=${encodeURIComponent(url)}`;
+            }
+
+            return url;
+        }
+
+        async function loadProductData() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const productId = urlParams.get('id');
+
+            // If no ID is passed in the URL, fetch the combined catalog directly
+            if (!productId) {
+                fetchAllProductsForSales();
+                return;
+            }
+
+            try {
+                const res = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'get-product-by-id', id: productId })
+                });
+                
+                // If the Netlify function endpoint returns a 404 or fails, gracefully fallback to fetching all products
+                if (!res.ok) {
+                    console.warn(`Direct product fetch returned status ${res.status}. Falling back to catalog pool...`);
+                    fetchAllProductsForSales();
+                    return;
+                }
+                
+                const data = await res.json();
+                if (data && (data._id || data.id)) {
+                    currentProduct = data;
+                    renderProductDetails(data);
+                    loadRelatedProducts(data._id || data.id);
+                } else {
+                    fetchAllProductsForSales();
+                }
+            } catch (err) {
+                console.warn("Direct Product Load caught network exception, falling back to catalog:", err);
+                fetchAllProductsForSales();
+            }
+        }
+
+        async function fetchAllProductsForSales() {
+            try {
+                const res = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'get-all-products-combined' })
+                });
+                
+                if (!res.ok) throw new Error(`Server returned status ${res.status}`);
+
+                const items = await res.json();
+                const productList = Array.isArray(items) ? items : (items.products || items.data || []);
+
+                const urlParams = new URLSearchParams(window.location.search);
+                const productId = urlParams.get('id');
+
+                if (productId && productList.length > 0) {
+                    currentProduct = productList.find(p => (p._id === productId || p.id === productId)) || productList[0];
+                } else if (productList.length > 0) {
+                    currentProduct = productList[0];
+                }
+
+                if (currentProduct) {
+                    renderProductDetails(currentProduct);
+                    loadRelatedProducts(currentProduct._id || currentProduct.id);
+                } else {
+                    showModal('Inventory Empty', 'NO ACTIVE PRODUCTS FOUND IN DATABASE.', 'error');
+                }
+            } catch (err) {
+                console.error("Catalog Fetch Error:", err);
+                showModal('System Error', 'UNABLE TO CONNECT TO BACKEND API ENDPOINT.', 'error');
+            }
+        }
+
+       function renderProductDetails(product) {
+            document.getElementById('product-category').innerText = product.category || 'wear';
+            document.getElementById('product-name').innerText = product.name;
+            
+            // --- PRICING DISPLAY FIX: Current Price + Original Price Side-by-Side with 30% OFF Badge ---
+            const currentPriceFormatted = `₦${Number(product.price).toLocaleString()}`;
+            const originalPriceVal = product.comparePrice || product.originalPrice;
+            
+            const priceContainer = document.getElementById('product-price').parentElement;
+            if (originalPriceVal && Number(originalPriceVal) > Number(product.price)) {
+                const originalPriceFormatted = `₦${Number(originalPriceVal).toLocaleString()}`;
+                priceContainer.innerHTML = `
+                    <span id="product-price" class="font-bold text-black">${currentPriceFormatted}</span>
+                    <span class="ml-3 text-red-400 line-through text-lg md:text-xl font-normal">${originalPriceFormatted}</span>
+                    <span class="ml-3 bg-black text-white text-[10px] font-bold px-2 py-1 uppercase tracking-wider align-middle">30% OFF</span>
+                `;
+            } else {
+                priceContainer.innerHTML = `
+                    <span id="product-price" class="font-bold text-black">${currentPriceFormatted}</span>
+                `;
+            }
+
+            document.getElementById('product-desc').innerText = product.description || 'No specific metadata provided for this item unit.';
+
+            if (product.variants && product.variants.length > 0) {
+                selectVariant(product.variants[0]);
+                renderColorSwatches(product.variants);
+            }
+        }
+
+        function renderColorSwatches(variants) {
+            const container = document.getElementById('color-options');
+            container.innerHTML = variants.map((v, idx) => `
+                <button onclick="selectVariant(currentProduct.variants[${idx}])" 
+                    class="w-8 h-8 rounded-full border-2 ${selectedVariant && selectedVariant.color === v.color ? 'border-black scale-110' : 'border-zinc-200'} transition-all shadow-sm"
+                    style="background-color: ${v.color.toLowerCase()};"
+                    title="${v.color}">
+                </button>
+            `).join('');
+        }
+
+       function selectVariant(variant) {
+            selectedVariant = variant;
+            selectedSize = null;
+            currentStockLimit = 0;
+            purchaseQty = 1;
+            document.getElementById('purchase-qty-display').innerText = purchaseQty;
+            document.getElementById('stock-feedback').innerText = 'SELECT A SIZE BELOW';
+
+            const rawImages = variant.images || [];
+            const sanitizedImages = rawImages.map(img => getOptimizedUrl(img));
+
+            if (sanitizedImages.length > 0) {
+                // --- IMAGE BADGE FIX: Ensure 30% OFF badge overlay appears on the main image container ---
+                const mainImageContainer = document.getElementById('main-product-image').parentElement;
+                mainImageContainer.style.position = 'relative';
+                
+                if (!mainImageContainer.querySelector('.discount-badge')) {
+                    const badge = document.createElement('div');
+                    badge.className = 'discount-badge absolute top-4 left-4 z-20 bg-black text-white text-[10px] font-black px-3 py-1.5 uppercase tracking-widest shadow-md';
+                    badge.innerText = '30% OFF';
+                    mainImageContainer.appendChild(badge);
+                }
+
+                document.getElementById('main-product-image').src = sanitizedImages[0];
+                renderThumbnails(sanitizedImages);
+            }
+
+            if (currentProduct && currentProduct.variants) {
+                renderColorSwatches(currentProduct.variants);
+            }
+
+            renderSizes(variant);
+        }
+
+        function renderThumbnails(images) {
+            const strip = document.getElementById('thumbnail-strip');
+            strip.innerHTML = images.map((img) => `
+                <div onclick="document.getElementById('main-product-image').src='${img}'" 
+                    class="w-16 h-20 bg-zinc-100 cursor-pointer overflow-hidden border border-black/10 shrink-0 hover:border-black transition">
+                    <img src="${img}" class="w-full h-full object-cover" alt="Thumbnail" onerror="this.src='https://placehold.co/200x200/f4f4f5/000?text=Error'">
+                </div>
+            `).join('');
+        }
+
+        function renderSizes(variant) {
+            const container = document.getElementById('size-options');
+            let sizes = [];
+
+            if (variant.stockMatrix) {
+                sizes = Object.keys(variant.stockMatrix);
+            } else if (variant.sizes) {
+                sizes = variant.sizes;
+            } else {
+                sizes = ['STANDARD'];
+            }
+
+            container.innerHTML = sizes.map(size => {
+                const stockQty = variant.stockMatrix ? Number(variant.stockMatrix[size]) || 0 : Number(variant.stock) || 10;
+                const isOut = stockQty <= 0;
+                return `
+                    <button onclick="selectSize('${size}', ${stockQty})" 
+                        class="px-4 py-2 border text-[9px] font-black uppercase tracking-wider transition ${isOut ? 'opacity-30 border-dashed border-red-400 text-red-500 cursor-not-allowed' : 'border-black/20 hover:border-black'} ${selectedSize === size ? 'bg-black text-white border-black' : ''}"
+                        ${isOut ? 'disabled' : ''}>
+                        ${size} ${isOut ? '(SOLD OUT)' : ''}
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function selectSize(size, stockLimit) {
+            selectedSize = size;
+            currentStockLimit = stockLimit;
+            purchaseQty = 1;
+            document.getElementById('purchase-qty-display').innerText = purchaseQty;
+            document.getElementById('stock-feedback').innerText = `AVAILABLE STOCK: ${stockLimit} UNITS`;
+            
+            if (selectedVariant) {
+                renderSizes(selectedVariant);
+            }
+        }
+
+        function adjustQty(delta) {
+            if (!selectedSize) {
+                showModal('Selection Required', 'PLEASE SELECT A VALID SIZE FIRST.', 'error');
+                return;
+            }
+            let newQty = purchaseQty + delta;
+            if (newQty < 1) newQty = 1;
+            if (newQty > currentStockLimit) {
+                showModal('Stock Limit', `MAXIMUM AVAILABLE UNITS PERMITTED: ${currentStockLimit}`, 'error');
+                return;
+            }
+            purchaseQty = newQty;
+            document.getElementById('purchase-qty-display').innerText = purchaseQty;
+        }
+
+        function showModal(title, message, type = 'info') {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-message').innerText = message;
+            document.getElementById('global-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('global-modal').classList.add('hidden');
+        }
+
+        async function addToCart(showFeedback = true) {
+            if (!selectedVariant || !selectedSize) { 
+                showModal('Selection Required', 'PLEASE SELECT COLOR AND SIZE', 'error');
+                return false; 
+            }
+
+            const stockLimit = Number(currentStockLimit);
+            let cart = JSON.parse(localStorage.getItem('outflickz_cart') || '[]');
+            
+            const productId = currentProduct._id || currentProduct.id;
+            const existingIndex = cart.findIndex(i => 
+                i.id === productId && 
+                i.color === selectedVariant.color && 
+                i.size === selectedSize
+            );
+
+            const currentCartQty = existingIndex > -1 ? Number(cart[existingIndex].qty) : 0;
+            const requestedTotal = currentCartQty + purchaseQty;
+
+            if (requestedTotal > stockLimit) {
+                showModal('Cart Limit', `ONLY ${stockLimit} TOTAL UNITS ALLOWED PER CUSTOMER.`, 'error');
+                return false;
+            }
+
+            const cartItem = {
+                id: productId,
+                name: currentProduct.name,
+                price: currentProduct.price,
+                category: currentProduct.category || "item",
+                color: selectedVariant.color,
+                size: selectedSize,
+                image: getOptimizedUrl(selectedVariant.images[0]),
+                maxStock: stockLimit,
+                qty: requestedTotal
+            };
+
+            if (existingIndex > -1) {
+                cart[existingIndex].qty = requestedTotal;
+                cart[existingIndex].category = cartItem.category; 
+            } else {
+                cart.push(cartItem);
+            }
+
+            localStorage.setItem('outflickz_cart', JSON.stringify(cart));
+            updateCartCount();
+            selectSize(selectedSize, currentStockLimit);
+
+            if (showFeedback) {
+                showModal('Secured', `${currentProduct.name.toUpperCase()} HAS BEEN ADDED TO YOUR CART.`);
+            }
+            return true;
+        }
+
+        async function buyNow() {
+            const buyBtn = document.getElementById('buy-btn');
+            const originalContent = buyBtn.innerHTML;
+            buyBtn.disabled = true;
+            buyBtn.innerHTML = `
+                <div class="flex items-center justify-center space-x-2">
+                    <svg class="animate-spin h-4 w-4 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>VERIFYING ORDER...</span>
+                </div>
+            `;
+
+            const success = await addToCart(false);
+            if(success) {
+                setTimeout(() => { window.location.href = 'sales-cart.html'; }, 500); 
+            } else {
+                buyBtn.innerHTML = originalContent;
+                buyBtn.disabled = false;
+            }
+        }
+
+        async function loadRelatedProducts(currentId) {
+            try {
+                const res = await fetch(API_ENDPOINT, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'get-all-products-combined' }) 
+                });
+                
+                if (!res.ok) return;
+
+                let items = await res.json();
+                let allItems = Array.isArray(items) ? items : (items.products || items.data || []);
+                
+                if (Array.isArray(allItems)) {
+                    let processedItems = allItems.filter(p => (p._id !== currentId && p.id !== currentId));
+                    processedItems = processedItems.map(p => {
+                        let totalStock = 0;
+                        (p.variants || []).forEach(v => {
+                            if (v.stockMatrix) {
+                                Object.values(v.stockMatrix).forEach(qty => totalStock += Number(qty) || 0);
+                            } else if (v.stock) {
+                                totalStock += Number(v.stock) || 0;
+                            }
+                        });
+                        return { ...p, isGloballySoldOut: totalStock <= 0 };
+                    });
+
+                    processedItems.sort((a, b) => a.isGloballySoldOut - b.isGloballySoldOut);
+                    renderRelatedSlider(processedItems.slice(0, 8));
+                }
+            } catch (err) { 
+                console.error("Related Products Error:", err); 
+            }
+        }
+
+        function renderRelatedSlider(items) {
+            const slider = document.getElementById('related-slider');
+            if (!slider) return;
+
+            slider.innerHTML = items.map(p => {
+                const rawImg = p.displayImage || (p.variants?.[0]?.images?.[0]) || '';
+                const displayImg = getOptimizedUrl(rawImg);
+                const pCategory = p.category || 'wear'; 
+                const isSoldOut = p.isGloballySoldOut;
+                const pId = p._id || p.id;
+
+                const swatches = (p.variants || []).map(v => {
+                    const swatchHoverImg = getOptimizedUrl(v.images[0]);
+                    return `
+                    <div class="color-dot w-2.5 h-2.5 rounded-full border border-white/80 shadow-sm" 
+                           style="background-color: ${v.color.toLowerCase()};" 
+                           onmouseover="document.getElementById('rel-img-${pId}').src='${swatchHoverImg}'" 
+                           onclick="event.stopPropagation();">
+                    </div>`;
+                }).join('');
+
+                return `
+                    <div class="related-item group cursor-pointer relative" 
+                           onclick="window.location.href='sales-product.html?id=${pId}&category=${pCategory}'">
+                        <div class="aspect-[3/4] bg-zinc-100 overflow-hidden relative border border-black/5">
+                            ${isSoldOut ? `
+                                <div class="absolute inset-0 bg-white/40 z-20 pointer-events-none"></div>
+                                <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-red-600 text-white text-[8px] font-black px-3 py-1.5 z-30 border border-white uppercase tracking-tighter rotate-[-5deg] shadow-xl">
+                                    SOLD OUT
+                                </div>
+                            ` : ''}
+                            <img id="rel-img-${pId}" 
+                                   src="${displayImg}" 
+                                   alt="${p.name}" 
+                                   loading="lazy" 
+                                   class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-700 ${isSoldOut ? 'grayscale contrast-75' : ''}"
+                                   onerror="this.src='https://placehold.co/600x800/f4f4f5/000?text=Error'">
+                            <div class="absolute bottom-3 left-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                ${swatches}
+                            </div>
+                        </div>
+                        <div class="mt-3 space-y-1 ${isSoldOut ? 'opacity-40' : ''}">
+                            <div class="flex justify-between items-start">
+                                <h3 class="font-bold uppercase text-[9px] tracking-wider">${p.name}</h3>
+                                <p class="font-bold text-[9px] ${isSoldOut ? 'line-through text-zinc-400' : ''}">₦${Number(p.price).toLocaleString()}</p>
+                            </div>
+                            <p class="text-zinc-400 text-[8px] uppercase tracking-widest">
+                                ${isSoldOut ? 'UNAVAILABLE' : `${pCategory} / ${p.variants?.length || 0} Colors`}
+                            </p>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        function updateCartCount() {
+            const cart = JSON.parse(localStorage.getItem('outflickz_cart') || '[]');
+            document.getElementById('cart-count').innerText = cart.length;
+        }
+
+        function toggleSidebar(open) {
+            const menu = document.getElementById('mobile-menu');
+            if (open) {
+                menu.classList.remove('hidden');
+                setTimeout(() => menu.classList.remove('translate-x-full'), 10);
+                document.body.style.overflow = 'hidden';
+            } else {
+                menu.classList.add('translate-x-full');
+                setTimeout(() => menu.classList.add('hidden'), 300);
+                document.body.style.overflow = 'auto';
+            }
+        }
+
+        function updateAuthUI() {
+            const authSection = document.getElementById('nav-auth-section');
+            const userData = JSON.parse(localStorage.getItem('outflickz_user_data') || '{}');
+            const token = localStorage.getItem('outflickz_token');
+
+            if (token && userData.firstName) {
+                authSection.innerHTML = `
+                    <a href="../account/profile.html" class="flex items-center space-x-2 group">
+                        <span class="text-[9px] font-bold uppercase tracking-widest group-hover:text-zinc-500 transition-colors">
+                            Hi, ${userData.firstName}
+                        </span>
+                        <div class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                    </a>
+                `;
+            } else {
+                authSection.innerHTML = `
+                    <div class="flex items-center space-x-4">
+                        <a href="/account/login.html" class="text-[9px] font-bold uppercase tracking-widest hover:text-zinc-500 transition">Sales Login</a>
+                    </div>
+                `;
+            }
+        }
+
+        function autoClearSession() {
+            const now = new Date().getTime();
+            const lastActive = localStorage.getItem('outflickz_last_active');
+            if (lastActive && (now - lastActive > SESSION_TIMEOUT)) {
+                localStorage.removeItem('outflickz_token');
+                localStorage.removeItem('outflickz_user_data');
+                localStorage.removeItem('outflickz_guest_id');
+            }
+            localStorage.setItem('outflickz_last_active', now.toString());
+        }
+    </script>
+</body>
+</html>

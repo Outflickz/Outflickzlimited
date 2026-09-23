@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outflickz | Sales Login</title>
+    <link rel="icon" type="image/jpeg" href="https://i.imgur.com/fu8N7I2.jpeg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap');
+        body { font-family: 'Space Grotesk', sans-serif; font-size: 12px; }
+        ::-webkit-scrollbar { width: 3px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #000; }
+    </style>
+</head>
+<body class="bg-[#fcfcfc] text-black min-h-screen flex items-center justify-center p-4">
+
+    <div class="w-full max-w-md bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
+        <div class="text-center mb-8">
+            <h1 class="text-2xl font-black italic tracking-tighter uppercase mb-2">OUTFLICKZ</h1>
+            <p class="text-[9px] font-black uppercase tracking-[0.3em] text-gray-400">Sales Personnel Clearance Portal</p>
+        </div>
+
+        <form id="sales-login-form" onsubmit="handleSalesLogin(event)" class="space-y-4">
+            <div>
+                <label class="block text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1">Email Address</label>
+                <input type="email" id="sales-email" required placeholder="representative@outflickz.com" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-black text-[11px] focus:outline-none focus:border-black transition-all">
+            </div>
+
+            <div class="relative">
+                <label class="block text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1">Password</label>
+                <input type="password" id="sales-password" required placeholder="••••••••" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 pr-10 text-black text-[11px] focus:outline-none focus:border-black transition-all">
+                <button type="button" onclick="togglePasswordVisibility()" class="absolute right-3 top-8 text-gray-400 hover:text-black">
+                    <svg id="eye-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                </button>
+            </div>
+
+            <div id="form-feedback" class="text-[9px] font-bold uppercase tracking-widest hidden"></div>
+
+            <button type="submit" id="submit-btn" class="w-full bg-black text-white p-3 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all shadow-sm">
+                Authorize Session
+            </button>
+        </form>
+
+        <div class="mt-6 text-center border-t border-gray-100 pt-4">
+            <a href="sales-pos.html" class="text-[8px] font-bold uppercase tracking-widest text-gray-400 hover:text-black transition-all">← Return to Storefront</a>
+        </div>
+    </div>
+
+    <script>
+        const API_ENDPOINT = "/.netlify/functions/api";
+
+        function togglePasswordVisibility() {
+            const input = document.getElementById('sales-password');
+            const icon = document.getElementById('eye-icon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a10.03 10.03 0 012.012-3.23m3.08-2.58A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.542 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21M3 3l18 18"/>`;
+            } else {
+                input.type = 'password';
+                icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>`;
+            }
+        }
+
+        async function handleSalesLogin(event) {
+            event.preventDefault();
+            const email = document.getElementById('sales-email').value.trim();
+            const password = document.getElementById('sales-password').value;
+            const feedback = document.getElementById('form-feedback');
+            const submitBtn = document.getElementById('submit-btn');
+
+            feedback.classList.remove('hidden');
+            submitBtn.disabled = true;
+            submitBtn.innerText = "Verifying Clearance...";
+            feedback.className = "text-[9px] font-bold uppercase tracking-widest text-gray-400 block";
+            feedback.innerText = "Authenticating credentials...";
+
+            try {
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'sales-login',
+                        email,
+                        password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    feedback.className = "text-[9px] font-bold uppercase tracking-widest text-green-600 block";
+                    feedback.innerText = "Access granted. Redirecting to dashboard...";
+                    localStorage.setItem('outflickz_sales_token', data.token);
+                    localStorage.setItem('outflickz_sales_name', data.fullName || email);
+                    setTimeout(() => {
+                        window.location.href = 'sales-dashboard.html';
+                    }, 1000);
+                } else {
+                    feedback.className = "text-[9px] font-bold uppercase tracking-widest text-red-600 block";
+                    feedback.innerText = `Error: ${data.message || 'Invalid login credentials.'}`;
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = "Authorize Session";
+                }
+            } catch (err) {
+                console.error("SALES_LOGIN_ERROR:", err);
+                feedback.className = "text-[9px] font-bold uppercase tracking-widest text-red-600 block";
+                feedback.innerText = "Network transmission error. Check connection.";
+                submitBtn.disabled = false;
+                submitBtn.innerText = "Authorize Session";
+            }
+        }
+    </script>
+</body>
+</html>

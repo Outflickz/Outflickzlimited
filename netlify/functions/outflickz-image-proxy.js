@@ -16,21 +16,26 @@ exports.handler = async (event) => {
     if (!key) return { statusCode: 400, body: "Missing Key" };
 
     try {
-        let finalKey = decodeURIComponent(key).trim().split('?')[0];
+        let rawKey = decodeURIComponent(key).trim();
+        let finalKey = rawKey;
 
-        // If it's a full URL, extract the path after the domain
-        if (finalKey.includes('.com/')) {
-            finalKey = finalKey.split('.com/').pop();
+        // Safely extract pathname if a full URL is passed (works for any TLD/domain)
+        try {
+            const parsedUrl = new URL(rawKey);
+            finalKey = parsedUrl.pathname;
+        } catch (e) {
+            // Not a full URL, treat as a direct relative key/path
+            finalKey = rawKey.split('?')[0];
         }
+
+        // Remove leading slashes
+        finalKey = finalKey.replace(/^\/+/, '');
 
         // Remove bucket name if it's at the start (e.g., "outflickz/vault/img.jpg")
         const bucketPrefix = bucketName + '/';
         if (finalKey.startsWith(bucketPrefix)) {
             finalKey = finalKey.substring(bucketPrefix.length);
         }
-
-        // Clean leading slashes so we get "vault/image.jpg"
-        finalKey = finalKey.replace(/^\/+/, '');
 
         console.log(`DEBUG_IDRIVE: Bucket=${bucketName} | Key=${finalKey}`);
 

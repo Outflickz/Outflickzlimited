@@ -61,7 +61,8 @@
                         
                         <div class="space-y-2">
                             <input type="text" id="c-name" placeholder="Cap Name (e.g. Signature Trucker)" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus font-medium" required>
-                            <input type="number" id="c-price" placeholder="Price ₦" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus font-bold" required>
+                            <input type="number" id="c-price" placeholder="Current Price ₦" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus font-bold" required>
+                            <input type="number" id="c-original-price" placeholder="Original Price ₦ (Optional)" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus font-medium">
                         </div>
 
                         <div class="space-y-2">
@@ -242,6 +243,8 @@
                     return `<div class="text-[8px] mb-0.5"><span class="font-black uppercase text-zinc-800">${v.color}:</span> ${v.stock} Units</div>`;
                 }).join('');
 
+                const originalPriceHtml = c.originalPrice ? `<span class="text-[7px] text-gray-400 line-through block">₦${Number(c.originalPrice).toLocaleString()}</span>` : '';
+
                 return `
                 <tr class="hover:bg-gray-50 transition-colors">
                     <td class="p-4">
@@ -260,6 +263,7 @@
                         </span>
                     </td>
                     <td class="p-4 text-right">
+                        ${originalPriceHtml}
                         <span class="text-[9px] font-black tracking-tighter">₦${Number(c.price).toLocaleString()}</span>
                     </td>
                     <td class="p-4 text-center">
@@ -292,7 +296,6 @@
                 for (let i = 0; i < imgInputs.length; i++) {
                     const input = imgInputs[i];
                     if (input.files[0]) {
-                        // COMPRESSION ADDED
                         const compressedBase64 = await compressImage(input.files[0]);
                         variantImages.push(compressedBase64);
                     } else if (input.getAttribute('data-existing-url')) {
@@ -312,6 +315,7 @@
                 id: document.getElementById('edit-id').value,
                 name: document.getElementById('c-name').value,
                 price: document.getElementById('c-price').value,
+                originalPrice: document.getElementById('c-original-price').value || null,
                 description: document.getElementById('c-desc').value,
                 variants: variants
             };
@@ -341,6 +345,7 @@
         document.getElementById('edit-id').value = cap._id;
         document.getElementById('c-name').value = cap.name;
         document.getElementById('c-price').value = cap.price;
+        document.getElementById('c-original-price').value = cap.originalPrice || '';
         document.getElementById('c-desc').value = cap.description || '';
         const container = document.getElementById('variants-container');
         container.innerHTML = '';

@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outflickz Admin | Sales Team Management</title>
+    <link rel="icon" type="image/jpeg" href="https://i.imgur.com/fu8N7I2.jpeg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap');
+        body { font-family: 'Space Grotesk', sans-serif; font-size: 12px; }
+        ::-webkit-scrollbar { width: 3px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #000; }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-5px) rotate(1deg); }
+        }
+        .animate-float { animation: float 4s ease-in-out infinite; }
+
+        @media (max-width: 768px) {
+            #sidebar {
+                top: 56px; 
+                height: calc(100vh - 56px);
+            }
+        }
+    </style>
+</head>
+<body class="bg-[#fcfcfc] text-black min-h-screen flex overflow-x-hidden">
+
+    <div class="md:hidden fixed top-0 w-full h-[56px] px-4 flex justify-between items-center bg-white z-[60] border-b border-gray-100">
+        <div class="text-lg font-black italic tracking-tighter">OUTFLICKZ</div>
+        <button onclick="toggleSidebar()" class="text-xl text-black p-2">☰</button>
+    </div>
+
+    <div class="fixed bottom-6 right-6 z-[100] animate-float">
+        <div class="bg-white border-2 border-black p-3 rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center space-x-3 min-w-[140px]">
+            <div class="relative flex h-3 w-3">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+            </div>
+            <div>
+                <p class="text-[7px] font-black uppercase tracking-widest text-gray-400 leading-none">System Link</p>
+                <h4 class="text-[10px] font-bold uppercase text-black">Encrypted</h4>
+            </div>
+        </div>
+    </div>
+
+    <aside id="sidebar" class="fixed md:relative w-56 h-screen bg-white border-r border-gray-100 p-6 flex flex-col z-[50] transition-transform duration-300 -translate-x-full md:translate-x-0">
+        <div class="hidden md:block text-xl font-black italic tracking-tighter mb-8 text-center md:text-left cursor-pointer" onclick="window.location.href='dashboard.html'">OUTFLICKZ</div>
+        
+        <nav class="space-y-1 flex-1 overflow-y-auto pt-4 md:pt-0">
+            <a href="dashboard.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Vault Overview</a>
+            <a href="orderConfirmation.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Order Confirmation</a>
+            <a href="salescreate.html" class="flex items-center w-full p-2.5 rounded-md bg-black text-white text-[9px] uppercase tracking-widest font-bold transition-all shadow-sm">Sales Create</a>
+            <a href="stockslogs.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Stocks Logs</a>
+            <a href="wearsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Wears Manager</a>
+            <a href="shortsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Shorts Manager</a>
+            <a href="capsproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Caps Manager</a>
+            <a href="jerseysproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Jerseys Manager</a>
+            <a href="tankstopproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">TankTop Manager</a>
+            <a href="tracksuitproduct.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">TrackSuit Manager</a>
+            <a href="adminpost.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Admin Post</a>
+            <a href="membership.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Membership</a>
+            <a href="newsletter.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Global Broadcast</a>
+            <a href="settings.html" class="flex items-center w-full p-2.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-black text-[9px] uppercase tracking-widest font-bold transition-all">Settings</a>
+        </nav>
+
+        <div class="pt-6 border-t border-gray-100">
+            <button onclick="handleLogout()" class="flex items-center space-x-2 text-[8px] uppercase tracking-[0.2em] text-red-600 font-bold hover:opacity-70 transition-all">
+                TERMINATE SESSION
+            </button>
+        </div>
+    </aside>
+
+    <div id="overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/20 backdrop-blur-sm hidden z-[45]"></div>
+
+    <main class="flex-1 p-4 md:p-10 mt-14 md:mt-0 relative">
+        <header class="mb-8">
+            <h1 class="text-2xl md:text-3xl font-bold uppercase tracking-tighter">Sales Personnel Portal</h1>
+            <p class="text-gray-400 text-[9px] uppercase tracking-[0.2em] mt-1">Provision accounts and manage login clearance parameters</p>
+        </header>
+
+        <!-- CREATE SALES ACCOUNT SECTION -->
+        <div class="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm mb-10">
+            <h2 class="text-[10px] font-black uppercase tracking-[0.3em] mb-6 text-gray-400 border-b border-gray-100 pb-2">Register Sales Representative</h2>
+            
+            <form id="sales-create-form" onsubmit="handleCreateSales(event)" class="space-y-4 max-w-2xl">
+                <div>
+                    <label class="block text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1">Full Name</label>
+                    <input type="text" id="sales-fullname" required placeholder="Enter full name" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-black text-[11px] focus:outline-none focus:border-black transition-all">
+                </div>
+
+                <div>
+                    <label class="block text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1">Email Address</label>
+                    <input type="email" id="sales-email" required placeholder="representative@outflickz.com" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-black text-[11px] focus:outline-none focus:border-black transition-all">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="relative">
+                        <label class="block text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1">Password</label>
+                        <input type="password" id="sales-password" required placeholder="••••••••" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 pr-10 text-black text-[11px] focus:outline-none focus:border-black transition-all">
+                        <button type="button" onclick="togglePasswordVisibility('sales-password', 'eye-icon-1')" class="absolute right-3 top-8 text-gray-400 hover:text-black">
+                            <svg id="eye-icon-1" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        </button>
+                    </div>
+
+                    <div class="relative">
+                        <label class="block text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1">Confirm Password</label>
+                        <input type="password" id="sales-confirmpassword" required placeholder="••••••••" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 pr-10 text-black text-[11px] focus:outline-none focus:border-black transition-all">
+                        <button type="button" onclick="togglePasswordVisibility('sales-confirmpassword', 'eye-icon-2')" class="absolute right-3 top-8 text-gray-400 hover:text-black">
+                            <svg id="eye-icon-2" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="form-feedback" class="text-[9px] font-bold uppercase tracking-widest hidden"></div>
+
+                <button type="submit" id="submit-btn" class="bg-black text-white px-6 py-3 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all shadow-sm">
+                    Provision Sales Account
+                </button>
+            </form>
+        </div>
+
+        <!-- VIEW & MANAGE SALES ACCOUNTS SECTION -->
+        <div class="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+            <div class="flex justify-between items-center mb-6 border-b border-gray-100 pb-2">
+                <h2 class="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Active Sales Personnel Database</h2>
+                <button onclick="loadSalesPersonnel()" class="text-[8px] font-bold uppercase tracking-widest text-black bg-gray-50 hover:bg-gray-100 border border-gray-200 px-3 py-1.5 rounded-md transition-all">Refresh List</button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-gray-100 text-[8px] font-black uppercase tracking-widest text-gray-400">
+                            <th class="py-3 px-4">Representative</th>
+                            <th class="py-3 px-4">Email</th>
+                            <th class="py-3 px-4">Status</th>
+                            <th class="py-3 px-4">Created Date</th>
+                            <th class="py-3 px-4 text-right">Clearance Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sales-table-body" class="divide-y divide-gray-50 text-[10px]">
+                        <tr>
+                            <td colspan="5" class="py-6 text-center text-gray-400 uppercase tracking-widest">Loading personnel records...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_ENDPOINT = "/.netlify/functions/api";
+
+        window.onload = () => {
+            if (!localStorage.getItem('outflickz_admin_token')) {
+                window.location.href = 'login.html';
+            } else {
+                loadSalesPersonnel();
+            }
+        };
+
+        function togglePasswordVisibility(fieldId, iconId) {
+            const input = document.getElementById(fieldId);
+            const icon = document.getElementById(iconId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a10.03 10.03 0 012.012-3.23m3.08-2.58A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.542 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21M3 3l18 18"/>`;
+            } else {
+                input.type = 'password';
+                icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>`;
+            }
+        }
+
+        async function handleCreateSales(event) {
+            event.preventDefault();
+            const fullName = document.getElementById('sales-fullname').value.trim();
+            const email = document.getElementById('sales-email').value.trim();
+            const password = document.getElementById('sales-password').value;
+            const confirmPassword = document.getElementById('sales-confirmpassword').value;
+            const feedback = document.getElementById('form-feedback');
+            const submitBtn = document.getElementById('submit-btn');
+
+            feedback.classList.remove('hidden');
+
+            if (password !== confirmPassword) {
+                feedback.className = "text-[9px] font-bold uppercase tracking-widest text-red-600 block";
+                feedback.innerText = "Error: Passwords do not match.";
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerText = "Provisioning Account...";
+            feedback.className = "text-[9px] font-bold uppercase tracking-widest text-gray-400 block";
+            feedback.innerText = "Transmitting credentials to secure server...";
+
+            try {
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('outflickz_admin_token')}`
+                    },
+                    body: JSON.stringify({
+                        action: 'create-sales-account',
+                        fullName,
+                        email,
+                        password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    feedback.className = "text-[9px] font-bold uppercase tracking-widest text-green-600 block";
+                    feedback.innerText = "Success: Sales representative account provisioned successfully.";
+                    document.getElementById('sales-create-form').reset();
+                    loadSalesPersonnel();
+                } else {
+                    feedback.className = "text-[9px] font-bold uppercase tracking-widest text-red-600 block";
+                    feedback.innerText = `Error: ${data.message || 'Failed to create sales account.'}`;
+                }
+            } catch (err) {
+                console.error("CREATE_SALES_ERROR:", err);
+                feedback.className = "text-[9px] font-bold uppercase tracking-widest text-red-600 block";
+                feedback.innerText = "Network transmission error. Check connection.";
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = "Provision Sales Account";
+            }
+        }
+
+        async function loadSalesPersonnel() {
+            const tableBody = document.getElementById('sales-table-body');
+            try {
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('outflickz_admin_token')}`
+                    },
+                    body: JSON.stringify({
+                        action: 'get-sales-accounts'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.salesAccounts && data.salesAccounts.length > 0) {
+                    tableBody.innerHTML = data.salesAccounts.map(user => `
+                        <tr class="hover:bg-gray-50 transition-all">
+                            <td class="py-3 px-4 font-bold uppercase tracking-tight">${user.fullName}</td>
+                            <td class="py-3 px-4 text-gray-500">${user.email}</td>
+                            <td class="py-3 px-4">
+                                <span class="px-2 py-0.5 rounded-full text-[7px] font-black uppercase tracking-widest ${user.isBlocked ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-700'}">
+                                    ${user.isBlocked ? 'Blocked' : 'Active'}
+                                </span>
+                            </td>
+                            <td class="py-3 px-4 text-gray-400 text-[9px]">${new Date(user.createdAt || Date.now()).toLocaleDateString()}</td>
+                            <td class="py-3 px-4 text-right">
+                                <button onclick="toggleBlockStatus('${user.email}', ${!user.isBlocked})" class="px-3 py-1 rounded text-[8px] font-black uppercase tracking-widest transition-all ${user.isBlocked ? 'bg-black text-white hover:bg-gray-800' : 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200'}">
+                                    ${user.isBlocked ? 'Unblock Login' : 'Block Login'}
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tableBody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-gray-400 uppercase tracking-widest">No sales personnel accounts found.</td></tr>`;
+                }
+            } catch (err) {
+                console.error("LOAD_SALES_ERROR:", err);
+                tableBody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-red-500 uppercase tracking-widest">Failed to load accounts.</td></tr>`;
+            }
+        }
+
+        async function toggleBlockStatus(email, blockState) {
+            const actionText = blockState ? 'block' : 'unblock';
+            if (!confirm(`Are you sure you want to ${actionText} login access for ${email}?`)) return;
+
+            try {
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('outflickz_admin_token')}`
+                    },
+                    body: JSON.stringify({
+                        action: 'toggle-sales-status',
+                        email,
+                        isBlocked: blockState
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    loadSalesPersonnel();
+                } else {
+                    alert(`Action failed: ${data.message || 'Unable to update clearance status.'}`);
+                }
+            } catch (err) {
+                console.error("TOGGLE_STATUS_ERROR:", err);
+                alert("Network error updating status.");
+            }
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('-translate-x-full');
+            document.getElementById('overlay').classList.toggle('hidden');
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('outflickz_admin_token');
+            window.location.href = 'login.html';
+        }
+    </script>
+</body>
+</html>

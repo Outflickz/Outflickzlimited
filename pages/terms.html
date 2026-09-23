@@ -41,12 +41,12 @@
                         <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="m6 9 6 6 6-6"/></svg>
                     </button>
                     <div class="absolute left-0 mt-2 w-48 bg-white border border-black/5 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-[100] py-2">
-                        <a href="index.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">All Products</a>
-                        <a href="wears.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">T-Shirts</a>
-                        <a href="tanktops.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">Tank Tops</a>
-                        <a href="shorts.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">Shorts</a>
-                        <a href="tracksuits.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">Tracksuits</a>
-                        <a href="accessories.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">Accessories</a>
+                        <a href="../index.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">All Products</a>
+                        <a href="/products/wears.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">T-Shirts</a>
+                        <a href="/products/tanktops.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">Tank Tops</a>
+                        <a href="/products/shorts.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">Shorts</a>
+                        <a href="/products/tracksuits.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">Tracksuits</a>
+                        <a href="/products/accessories.html" class="block px-5 py-3 text-[8px] font-bold uppercase tracking-widest hover:bg-zinc-50">Accessories</a>
                     </div>
                 </div>
                 <div id="nav-auth-section" class="flex items-center space-x-4 border-l border-black/5 pl-8"></div>
@@ -56,32 +56,32 @@
         <div class="flex items-center space-x-3 md:space-x-6">
             <div class="flex items-center">
                 <div id="search-wrapper">
-                    <input type="text" id="productSearch" oninput="filterProducts()" placeholder="SEARCH..." 
+                    <input type="text" id="productSearch" oninput="filterProducts(event)" onkeydown="if(event.key === 'Enter') executeSearch()" placeholder="SEARCH..." 
                         class="w-full bg-zinc-100/80 border-none py-1.5 px-3 text-[9px] tracking-widest uppercase focus:outline-none rounded-sm">
                 </div>
-                <button onclick="toggleSearch()" class="p-1"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></button>
+                <button onclick="toggleSearch()" class="p-1" aria-label="Toggle Search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></button>
             </div>
-            <div class="relative cursor-pointer" onclick="window.location.href='products/cart.html'">
+            <div class="relative cursor-pointer" onclick="window.location.href='../products/cart.html'">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
                 <span id="cart-count" class="absolute -top-1 -right-2 text-[8px] font-black bg-black text-white w-3.5 h-3.5 flex items-center justify-center rounded-full">0</span>
             </div>
-            <button onclick="toggleSidebar(true)" class="p-1"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
+            <button onclick="toggleSidebar(true)" class="p-1" aria-label="Open Menu"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
         </div>
     </nav>
 
     <div id="mobile-menu" class="p-8 flex flex-col">
         <div class="flex justify-between items-center mb-16">
             <div class="text-xl font-black italic tracking-tighter">OUTFLICKZ</div>
-            <button onclick="toggleSidebar(false)" class="p-2"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            <button onclick="toggleSidebar(false)" class="p-2" aria-label="Close Menu"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
         </div>
         <nav class="flex flex-col space-y-5 text-xl font-bold uppercase tracking-tighter mb-10">
-            <a href="index.html" onclick="toggleSidebar(false)">All Products</a>
-            <a href="wears.html" onclick="toggleSidebar(false)">T-Shirts</a>
-            <a href="tanktops.html" onclick="toggleSidebar(false)">Tank Tops</a>
-            <a href="shorts.html" onclick="toggleSidebar(false)">Shorts</a>
-            <a href="tracksuits.html" onclick="toggleSidebar(false)">Tracksuits</a>
-            <a href="jerseys.html" onclick="toggleSidebar(false)">Jerseys</a>
-            <a href="accessories.html" onclick="toggleSidebar(false)">Accessories</a>
+            <a href="../index.html" onclick="toggleSidebar(false)">All Products</a>
+            <a href="/products/wears.html" onclick="toggleSidebar(false)">T-Shirts</a>
+            <a href="/products/tanktops.html" onclick="toggleSidebar(false)">Tank Tops</a>
+            <a href="/products/shorts.html" onclick="toggleSidebar(false)">Shorts</a>
+            <a href="/products/tracksuits.html" onclick="toggleSidebar(false)">Tracksuits</a>
+            <a href="/products/jerseys.html" onclick="toggleSidebar(false)">Jerseys</a>
+            <a href="/products/accessories.html" onclick="toggleSidebar(false)">Accessories</a>
         </nav>
         <div id="mobile-auth-section" class="mt-auto pb-10"></div>
     </div>
@@ -171,7 +171,22 @@
 
         function toggleSearch() {
             const wrapper = document.getElementById('search-wrapper');
+            const input = document.getElementById('productSearch');
             wrapper.classList.toggle('active');
+            if (wrapper.classList.contains('active')) {
+                input.focus();
+            }
+        }
+
+        function filterProducts(event) {
+            // Placeholder for live filtering or dynamic search preview triggers
+        }
+
+        function executeSearch() {
+            const query = document.getElementById('productSearch').value.trim();
+            if (query) {
+                window.location.href = `../index.html?search=${encodeURIComponent(query)}`;
+            }
         }
 
         function toggleSidebar(open) {
@@ -189,15 +204,23 @@
             const authSection = document.getElementById('nav-auth-section');
             const mobileAuth = document.getElementById('mobile-auth-section');
             const userData = JSON.parse(localStorage.getItem('outflickz_user_data') || '{}');
-            const html = userData.firstName ? `<a href="/account/profile.html" class="text-[9px] font-bold uppercase tracking-widest">Hi, ${userData.firstName}</a>` : `<a href="/account/login.html" class="text-[9px] font-bold uppercase tracking-widest bg-black text-white px-3 py-1.5 rounded-sm">Join Outflickz</a>`;
-            if(authSection) authSection.innerHTML = html;
-            if(mobileAuth) mobileAuth.innerHTML = html;
+            const html = userData.firstName 
+                ? `<a href="../account/profile.html" class="text-[9px] font-bold uppercase tracking-widest">Hi, ${userData.firstName}</a>` 
+                : `<a href="../account/login.html" class="text-[9px] font-bold uppercase tracking-widest bg-black text-white px-3 py-1.5 rounded-sm">Join Outflickz</a>`;
+            if (authSection) authSection.innerHTML = html;
+            if (mobileAuth) mobileAuth.innerHTML = html;
+        }
+
+        function updateCartCount() {
+            const cart = JSON.parse(localStorage.getItem('outflickz_cart') || '[]');
+            const count = cart.reduce((total, item) => total + (item.quantity || 1), 0);
+            const badge = document.getElementById('cart-count');
+            if (badge) badge.innerText = count;
         }
 
         window.onload = () => {
             updateAuthUI();
-            const cart = JSON.parse(localStorage.getItem('outflickz_cart') || '[]');
-            document.getElementById('cart-count').innerText = cart.length;
+            updateCartCount();
         };
     </script>
 </body>

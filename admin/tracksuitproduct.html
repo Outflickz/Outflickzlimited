@@ -62,7 +62,8 @@
                         
                         <div class="space-y-2">
                             <input type="text" id="t-name" placeholder="Tracksuit Model Name" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus" required>
-                            <input type="number" id="t-price" placeholder="Price ₦" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus" required>
+                            <input type="number" id="t-price" placeholder="Current Price ₦" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus" required>
+                            <input type="number" id="t-original-price" placeholder="Original Price ₦ (Optional)" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus">
                         </div>
 
                         <div class="space-y-2">
@@ -144,7 +145,6 @@
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
 
-                    // Convert to WebP for best compression/quality ratio
                     const dataUrl = canvas.toDataURL('image/webp', quality);
                     resolve(dataUrl);
                 };
@@ -247,6 +247,10 @@
                     return `<div class="mb-1 pb-1 border-b border-gray-50 last:border-0"><span class="font-black text-black uppercase">${v.color}:</span> <span class="text-gray-500">${stockDetails || 'Out of Stock'}</span></div>`;
                 }).join('');
 
+                const priceDisplay = t.originalPrice ? 
+                    `<div class="flex flex-col items-end"><span class="text-[9px] font-black">₦${Number(t.price).toLocaleString()}</span><span class="text-[7px] text-gray-400 line-through">₦${Number(t.originalPrice).toLocaleString()}</span></div>` :
+                    `<span class="text-[9px] font-black">₦${Number(t.price).toLocaleString()}</span>`;
+
                 return `
                 <tr class="hover:bg-gray-50 transition-colors">
                     <td class="p-4">
@@ -260,7 +264,7 @@
                     </td>
                     <td class="p-4 text-[8px]">${matrixHtml}</td>
                     <td class="p-4"><span class="${grandTotal < 5 ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-black'} px-2 py-0.5 rounded text-[9px] font-bold uppercase">${grandTotal} Units</span></td>
-                    <td class="p-4 text-right"><span class="text-[9px] font-black">₦${Number(t.price).toLocaleString()}</span></td>
+                    <td class="p-4 text-right">${priceDisplay}</td>
                     <td class="p-4 text-center">
                         <div class="flex justify-center space-x-2">
                             <button onclick="enterEditMode('${t._id}')" class="text-gray-400 hover:text-black font-bold uppercase text-[8px] underline">Edit</button>
@@ -295,7 +299,6 @@
                 for (let i = 0; i < imgInputs.length; i++) {
                     const input = imgInputs[i];
                     if (input.files[0]) {
-                        // COMPRESSION APPLIED HERE
                         const compressedBase64 = await compressImage(input.files[0]);
                         variantImages.push(compressedBase64);
                     } else if (input.getAttribute('data-existing-url')) {
@@ -317,6 +320,7 @@
                 id: document.getElementById('edit-id').value,
                 name: document.getElementById('t-name').value,
                 price: document.getElementById('t-price').value,
+                originalPrice: document.getElementById('t-original-price').value || null,
                 description: document.getElementById('t-desc').value,
                 variants: variants
             };
@@ -347,6 +351,7 @@
         document.getElementById('edit-id').value = tracksuit._id;
         document.getElementById('t-name').value = tracksuit.name;
         document.getElementById('t-price').value = tracksuit.price;
+        document.getElementById('t-original-price').value = tracksuit.originalPrice || '';
         document.getElementById('t-desc').value = tracksuit.description || '';
         const container = document.getElementById('variants-container');
         container.innerHTML = '';

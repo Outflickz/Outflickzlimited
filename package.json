@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@upstash/redis": "^1.38.4",
     "aws-sdk": "^2.1693.0",
     "bcryptjs": "^3.0.3",
     "jsonwebtoken": "^9.0.3",

@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OUTFLICKZ | Sales Portal - Walk-In Order Terminal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        #mobile-menu { transition: transform 0.3s ease-in-out; }
+    </style>
+</head>
+<body class="bg-white text-zinc-900 antialiased selection:bg-black selection:text-white">
+
+    <!-- Top Announcement Bar -->
+    <div class="bg-black text-white text-[9px] uppercase tracking-widest py-2 px-4 text-center font-bold">
+        OUTFLICKZ WALK-IN SALES DESK — POS TERMINAL
+    </div>
+
+    <!-- Navigation Header -->
+    <header class="sticky top-0 z-50 bg-white/85 backdrop-blur-md border-b border-black/5">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-6">
+                <button onclick="toggleSidebar(true)" class="md:hidden p-2 -ml-2 hover:bg-zinc-100 rounded-sm">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+                <a href="sales-pos.html" class="text-lg font-black tracking-tighter uppercase">OUTFLICKZ<span class="text-zinc-400 font-light ml-1 text-xs">SALES</span></a>
+            </div>
+
+            <nav class="hidden md:flex items-center space-x-8 text-[9px] font-bold uppercase tracking-widest">
+                <a href="sales-pos.html" class="hover:text-zinc-400 transition">Catalog</a>
+                <a href="sales-product.html" class="hover:text-zinc-400 transition">Sales Desk</a>
+                <a href="sales-cart.html" class="text-black border-b border-black pb-0.5">Order Terminal</a>
+            </nav>
+
+            <div class="flex items-center space-x-6">
+                <div id="nav-auth-section">
+                    <!-- Dynamically populated via updateAuthUI() -->
+                </div>
+                <a href="sales-cart.html" class="relative p-2 bg-zinc-100 rounded-sm transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                    </svg>
+                    <span id="cart-count" class="absolute top-1 right-1 bg-black text-white text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center">0</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Checkout Terminal Container -->
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        <div class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-black/5 pb-6">
+            <div>
+                <h1 class="text-xl font-black uppercase tracking-tight">Walk-In POS Checkout Terminal</h1>
+                <p class="text-zinc-400 text-[10px] uppercase tracking-widest mt-1">Review items, assign sales personnel, specify pickup status, and complete transaction</p>
+            </div>
+            <div class="flex items-center space-x-3">
+                <a href="sales-product.html" class="px-4 py-2 border border-black text-[9px] font-black uppercase tracking-widest hover:bg-black hover:text-white transition">
+                    + Add More Items
+                </a>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
+            <!-- Left Column: Cart Items List -->
+            <div class="lg:col-span-7 space-y-6">
+                <div class="border-b border-black/5 pb-4 flex justify-between items-center">
+                    <h2 class="text-xs font-black uppercase tracking-widest">Cart Manifest (<span id="manifest-count">0</span> Units)</h2>
+                    <button onclick="clearCart()" class="text-[9px] font-bold uppercase tracking-widest text-red-600 hover:underline">Clear Manifest</button>
+                </div>
+
+                <div id="cart-items-container" class="space-y-4">
+                    <!-- Populated dynamically -->
+                </div>
+
+                <!-- Empty State -->
+                <div id="empty-cart-state" class="hidden py-16 text-center space-y-4 border border-dashed border-black/10">
+                    <svg class="w-10 h-10 mx-auto text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                    </svg>
+                    <div class="space-y-1">
+                        <h3 class="text-xs font-black uppercase tracking-wider">No Active Units in Manifest</h3>
+                        <p class="text-[10px] text-zinc-400 uppercase tracking-widest">Return to the sales desk to configure product allocations.</p>
+                    </div>
+                    <a href="sales-product.html" class="inline-block bg-black text-white px-6 py-3 text-[9px] font-black uppercase tracking-widest hover:bg-zinc-800 transition">
+                        Open Sales Desk
+                    </a>
+                </div>
+            </div>
+
+            <!-- Right Column: POS Setup & Payment Options -->
+            <div class="lg:col-span-5 space-y-8 bg-zinc-50 p-6 border border-black/5">
+                <div>
+                    <h3 class="text-xs font-black uppercase tracking-widest">POS Setup & Settlement</h3>
+                    <p class="text-[9px] text-zinc-400 uppercase tracking-widest mt-0.5">Assign sales rep, select pick-up option and settlement method</p>
+                </div>
+
+                <form id="checkout-form" onsubmit="processSalesCheckout(event)" class="space-y-4">
+                    <!-- Sales Person Name -->
+                    <div class="space-y-1.5">
+                        <label class="text-[9px] font-bold uppercase tracking-widest text-zinc-600 block">Sales Person Name *</label>
+                        <input type="text" id="sales-person-name" required placeholder="Enter your full name" class="w-full bg-white border border-black/10 px-3 py-2.5 text-xs uppercase focus:outline-none focus:border-black">
+                    </div>
+
+                    <!-- Pick Up Option: Yes / No -->
+                    <div class="space-y-2 pt-1">
+                        <label class="text-[9px] font-bold uppercase tracking-widest text-zinc-600 block">Immediate Store Pick-Up? *</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <label class="border border-black/20 p-3 flex flex-col items-center justify-center cursor-pointer hover:border-black transition bg-white select-none">
+                                <input type="radio" name="pickup_option" value="yes" checked class="mb-1 accent-black">
+                                <span class="text-[9px] font-black uppercase tracking-wider">Yes (Pick Up)</span>
+                            </label>
+                            <label class="border border-black/20 p-3 flex flex-col items-center justify-center cursor-pointer hover:border-black transition bg-white select-none">
+                                <input type="radio" name="pickup_option" value="no" class="mb-1 accent-black">
+                                <span class="text-[9px] font-black uppercase tracking-wider">No</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Payment Option Selectors -->
+                    <div class="space-y-2 pt-1">
+                        <label class="text-[9px] font-bold uppercase tracking-widest text-zinc-600 block">Select Settlement Option *</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <label class="border border-black/20 p-3 flex flex-col items-center justify-center cursor-pointer hover:border-black transition bg-white select-none">
+                                <input type="radio" name="payment_method" value="bank_transfer" checked class="mb-1 accent-black" onchange="togglePaymentInstructions('bank_transfer')">
+                                <span class="text-[8px] font-black uppercase tracking-wider text-center">Bank Transfer</span>
+                            </label>
+                            <label class="border border-black/20 p-3 flex flex-col items-center justify-center cursor-pointer hover:border-black transition bg-white select-none">
+                                <input type="radio" name="payment_method" value="card" class="mb-1 accent-black" onchange="togglePaymentInstructions('card')">
+                                <span class="text-[8px] font-black uppercase tracking-wider text-center">Card Payment</span>
+                            </label>
+                            <label class="border border-black/20 p-3 flex flex-col items-center justify-center cursor-pointer hover:border-black transition bg-white select-none">
+                                <input type="radio" name="payment_method" value="cash" class="mb-1 accent-black" onchange="togglePaymentInstructions('cash')">
+                                <span class="text-[8px] font-black uppercase tracking-wider text-center">Cash Payment</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Payment Instructions Box -->
+                    <div id="payment-instruction-box" class="p-3 bg-white border border-black/10 text-[9px] uppercase tracking-wider text-zinc-600 space-y-1">
+                        <span class="font-bold text-black block">Bank Transfer Instructions:</span>
+                        <span>Confirm client transfer to company account before completing POS checkout.</span>
+                    </div>
+
+                    <!-- Order Summary Breakdown -->
+                    <div class="border-t border-black/10 pt-4 space-y-2">
+                        <div class="flex justify-between text-[10px] uppercase">
+                            <span class="text-zinc-500">Subtotal</span>
+                            <span id="summary-subtotal" class="font-bold">₦0</span>
+                        </div>
+                        <div class="flex justify-between text-[10px] uppercase">
+                            <span class="text-zinc-500">Store Fulfillment</span>
+                            <span class="font-bold">₦0 (Walk-In)</span>
+                        </div>
+                        <div class="flex justify-between text-xs font-black uppercase pt-2 border-t border-black/10">
+                            <span>Total Settlement</span>
+                            <span id="summary-total" class="text-black text-sm">₦0</span>
+                        </div>
+                    </div>
+
+                    <!-- Submit Action Button -->
+                    <button type="submit" id="checkout-submit-btn" class="w-full bg-black text-white py-4 text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 transition rounded-sm shadow-lg">
+                        Complete POS Transaction
+                    </button>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- Global Modal Overlay -->
+    <div id="global-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white max-w-sm w-full p-6 text-center space-y-4 border border-black/10 shadow-2xl">
+            <h3 id="modal-title" class="font-black uppercase text-xs tracking-wider">Notice</h3>
+            <p id="modal-message" class="text-[10px] text-zinc-600 uppercase tracking-widest leading-relaxed"></p>
+            <button onclick="closeModal()" class="w-full bg-black text-white py-3 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-800 transition">
+                Understood
+            </button>
+        </div>
+    </div>
+
+    <!-- Mobile Drawer Menu -->
+    <div id="mobile-menu" class="fixed inset-0 bg-black/60 z-50 hidden transform translate-x-full">
+        <div class="absolute right-0 top-0 bottom-0 w-80 bg-white p-6 flex flex-col justify-between">
+            <div class="space-y-6">
+                <div class="flex justify-between items-center border-b border-black/5 pb-4">
+                    <span class="text-xs font-black uppercase tracking-widest">Menu</span>
+                    <button onclick="toggleSidebar(false)" class="p-1 hover:bg-zinc-100">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="flex flex-col space-y-4 text-[10px] font-bold uppercase tracking-widest">
+                    <a href="sales-pos.html" class="hover:text-zinc-400">Catalog</a>
+                    <a href="sales-product.html" class="hover:text-zinc-400">Sales Desk</a>
+                    <a href="sales-cart.html" class="text-black">Order Terminal</a>
+                </div>
+            </div>
+            <div class="text-[8px] text-zinc-400 uppercase tracking-widest text-center">
+                Outflickz Sales Portal v2.4
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Execution Block -->
+    <script>
+        const API_ENDPOINT = '/.netlify/functions/api';
+
+        window.addEventListener('DOMContentLoaded', () => {
+            updateAuthUI();
+            loadCartManifest();
+        });
+
+        function getOptimizedUrl(url) {
+            if (!url || typeof url !== 'string' || url.includes('placehold.co')) {
+                return 'https://placehold.co/600x800/f4f4f5/000?text=OUTFLICKZ';
+            }
+            if (url.startsWith('vault/')) {
+                return `/.netlify/functions/outflickz-image-proxy?key=${encodeURIComponent(url)}`;
+            }
+            return url;
+        }
+
+        function loadCartManifest() {
+            const cart = JSON.parse(localStorage.getItem('outflickz_cart') || '[]');
+            const container = document.getElementById('cart-items-container');
+            const emptyState = document.getElementById('empty-cart-state');
+            const manifestCount = document.getElementById('manifest-count');
+            const cartCountBadge = document.getElementById('cart-count');
+
+            manifestCount.innerText = cart.length;
+            cartCountBadge.innerText = cart.length;
+
+            if (cart.length === 0) {
+                container.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                updateSummary(0);
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            let subtotal = 0;
+
+            container.innerHTML = cart.map((item, index) => {
+                const itemTotal = Number(item.price) * Number(item.qty);
+                subtotal += itemTotal;
+                const sanitizedImg = getOptimizedUrl(item.image);
+
+                return `
+                    <div class="flex gap-4 p-4 border border-black/5 bg-white items-center">
+                        <div class="w-16 h-20 bg-zinc-100 shrink-0 overflow-hidden border border-black/10">
+                            <img src="${sanitizedImg}" alt="${item.name}" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/200x200/f4f4f5/000?text=Error'">
+                        </div>
+                        <div class="flex-1 space-y-1">
+                            <div class="flex justify-between items-start">
+                                <h4 class="font-black uppercase text-[10px] tracking-wider">${item.name}</h4>
+                                <button onclick="removeItem(${index})" class="text-zinc-400 hover:text-red-600 text-[9px] uppercase font-bold">Remove</button>
+                            </div>
+                            <p class="text-[9px] text-zinc-500 uppercase tracking-widest">Color: ${item.color} | Size: ${item.size}</p>
+                            <div class="flex justify-between items-center pt-2">
+                                <div class="flex items-center space-x-2 border border-black/10 px-2 py-1">
+                                    <button onclick="updateQuantity(${index}, -1)" class="text-[10px] font-bold px-1">-</button>
+                                    <span class="text-[10px] font-bold px-1">${item.qty}</span>
+                                    <button onclick="updateQuantity(${index}, 1)" class="text-[10px] font-bold px-1">+</button>
+                                </div>
+                                <span class="font-black text-xs">₦${itemTotal.toLocaleString()}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            updateSummary(subtotal);
+        }
+
+        function updateQuantity(index, delta) {
+            let cart = JSON.parse(localStorage.getItem('outflickz_cart') || '[]');
+            if (!cart[index]) return;
+
+            let newQty = cart[index].qty + delta;
+            const maxStock = cart[index].maxStock || 10;
+
+            if (newQty < 1) {
+                removeItem(index);
+                return;
+            }
+            if (newQty > maxStock) {
+                showModal('Stock Limit', `MAXIMUM PERMITTED UNITS FOR THIS CONFIGURATION IS ${maxStock}.`, 'error');
+                return;
+            }
+
+            cart[index].qty = newQty;
+            localStorage.setItem('outflickz_cart', JSON.stringify(cart));
+            loadCartManifest();
+        }
+
+        function removeItem(index) {
+            let cart = JSON.parse(localStorage.getItem('outflickz_cart') || '[]');
+            cart.splice(index, 1);
+            localStorage.setItem('outflickz_cart', JSON.stringify(cart));
+            loadCartManifest();
+        }
+
+        function clearCart() {
+            localStorage.removeItem('outflickz_cart');
+            loadCartManifest();
+        }
+
+        function updateSummary(subtotal) {
+            document.getElementById('summary-subtotal').innerText = `₦${subtotal.toLocaleString()}`;
+            document.getElementById('summary-total').innerText = `₦${subtotal.toLocaleString()}`;
+        }
+
+        function togglePaymentInstructions(method) {
+            const box = document.getElementById('payment-instruction-box');
+            if (method === 'bank_transfer') {
+                box.innerHTML = `
+                    <span class="font-bold text-black block">Bank Transfer Instructions:</span>
+                    <span>Confirm client transfer to company account before completing POS checkout.</span>
+                `;
+            } else if (method === 'card') {
+                box.innerHTML = `
+                    <span class="font-bold text-black block">Card Payment Instructions:</span>
+                    <span>Insert or tap client card on the POS terminal machine and confirm successful charge approval.</span>
+                `;
+            } else {
+                box.innerHTML = `
+                    <span class="font-bold text-black block">Cash Payment Instructions:</span>
+                    <span>Collect physical cash payment directly from the walk-in client and verify drawer balance.</span>
+                `;
+            }
+        }
+async function processSalesCheckout(event) {
+    event.preventDefault();
+    const cart = JSON.parse(localStorage.getItem('outflickz_cart') || '[]');
+    if (cart.length === 0) {
+        showModal('Manifest Empty', 'ADD UNITS TO CART BEFORE EXECUTING CHECKOUT.', 'error');
+        return;
+    }
+
+    const salesPersonName = document.getElementById('sales-person-name').value.trim();
+    const pickupOption = document.querySelector('input[name="pickup_option"]:checked').value;
+    const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
+
+    const submitBtn = document.getElementById('checkout-submit-btn');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = `PROCESSING POS TRANSACTION...`;
+
+    try {
+        const payload = {
+            action: 'create-order',
+            items: cart,
+            salesPerson: salesPersonName,
+            pickup: pickupOption,
+            paymentMethod: paymentMethod,
+            source: 'walkin_pos_terminal'
+        };
+
+        const res = await fetch(API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        // Parse backend JSON response
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+            throw new Error(data.message || `Server returned status ${res.status}`);
+        }
+
+        // Save order payload WITH the generated database reference from MongoDB
+        localStorage.setItem('outflickz_last_order', JSON.stringify({
+            reference: data.reference,
+            salesPerson: data.salesPerson || salesPersonName,
+            paymentMethod: paymentMethod,
+            pickup: pickupOption,
+            items: cart,
+            timestamp: new Date().toISOString()
+        }));
+
+        localStorage.removeItem('outflickz_cart');
+        
+        showModal('Confirmed', 'ORDER SUCCESSFULLY STORED IN DATABASE. REDIRECTING...', 'success');
+        setTimeout(() => {
+            window.location.href = 'sales-success.html';
+        }, 1200);
+
+    } catch (err) {
+        console.error("Checkout Execution Error:", err);
+        // Show real error modal instead of redirecting on API failure
+        showModal('Checkout Failed', err.message || 'FAILED TO PROCESS POS TRANSACTION IN DATABASE.', 'error');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    }
+}
+
+        function showModal(title, message, type = 'info') {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-message').innerText = message;
+            document.getElementById('global-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('global-modal').classList.add('hidden');
+        }
+
+        function toggleSidebar(open) {
+            const menu = document.getElementById('mobile-menu');
+            if (open) {
+                menu.classList.remove('hidden');
+                setTimeout(() => menu.classList.remove('translate-x-full'), 10);
+                document.body.style.overflow = 'hidden';
+            } else {
+                menu.classList.add('translate-x-full');
+                setTimeout(() => menu.classList.add('hidden'), 300);
+                document.body.style.overflow = 'auto';
+            }
+        }
+
+    function updateAuthUI() {
+    const authSection = document.getElementById('nav-auth-section');
+    const userData = JSON.parse(localStorage.getItem('outflickz_user_data') || '{}');
+    const token = localStorage.getItem('outflickz_token');
+    const salesInput = document.getElementById('sales-person-name');
+
+    // 1. Determine agent name (Logged in user -> Saved Sales Name -> Default Fallback)
+    const agentName = (token && userData.firstName) 
+        ? `${userData.firstName} ${userData.lastName || ''}`.trim() 
+        : (localStorage.getItem('outflickz_sales_name') || 'KEMI SOTUBO');
+
+    // 2. Always auto-fill input field
+    if (salesInput) {
+        salesInput.value = agentName;
+    }
+
+    // 3. Update navbar auth section
+    if (authSection) {
+        if (token && userData.firstName) {
+            authSection.innerHTML = `
+                <span class="text-[9px] font-bold uppercase tracking-widest">
+                    Agent: ${userData.firstName}
+                </span>
+            `;
+        } else {
+            authSection.innerHTML = `
+                <span class="text-[9px] font-bold uppercase tracking-widest text-zinc-400">
+                    POS Terminal Active (${agentName})
+                </span>
+            `;
+        }
+    }
+
+        }
+    </script>
+</body>
+</html>

@@ -76,7 +76,8 @@
                         
                         <div class="space-y-2">
                             <input type="text" id="w-name" placeholder="Item Name" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus" required>
-                            <input type="number" id="w-price" placeholder="Price ₦" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus" required>
+                            <input type="number" id="w-price" placeholder="Selling Price ₦" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus" required>
+                            <input type="number" id="w-original-price" placeholder="Original Price ₦ (Optional - For Sales)" class="bg-gray-50 border border-gray-100 p-2.5 rounded-md w-full input-focus">
                         </div>
 
                         <div class="space-y-2">
@@ -263,6 +264,19 @@
                     const stockDetails = Object.entries(v.stockMatrix).filter(([sz, qty]) => qty > 0).map(([sz, qty]) => `${sz}:${qty}`).join(' | ');
                     return `<div class="mb-1 pb-1 border-b border-gray-50 last:border-0"><span class="font-black text-black uppercase">${v.color}:</span> <span class="text-gray-500">${stockDetails || 'Out of Stock'}</span></div>`;
                 }).join('');
+                
+                let priceHtml = '';
+                if (w.originalPrice && Number(w.originalPrice) > Number(w.price)) {
+                    priceHtml = `
+                        <div class="flex flex-col items-end">
+                            <span class="text-[8px] text-gray-400 line-through">₦${Number(w.originalPrice).toLocaleString()}</span>
+                            <span class="text-[9px] font-black text-black">₦${Number(w.price).toLocaleString()}</span>
+                        </div>
+                    `;
+                } else {
+                    priceHtml = `<span class="text-[9px] font-black">₦${Number(w.price).toLocaleString()}</span>`;
+                }
+
                 return `
                 <tr class="hover:bg-gray-50 transition-colors">
                     <td class="p-4">
@@ -276,7 +290,7 @@
                     </td>
                     <td class="p-4 text-[8px]">${matrixHtml}</td>
                     <td class="p-4"><span class="${grandTotal < 5 ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-black'} px-2 py-0.5 rounded text-[9px] font-bold uppercase">${grandTotal} Units</span></td>
-                    <td class="p-4 text-right"><span class="text-[9px] font-black">₦${Number(w.price).toLocaleString()}</span></td>
+                    <td class="p-4 text-right">${priceHtml}</td>
                     <td class="p-4 text-center">
                         <div class="flex justify-center space-x-2">
                             <button onclick="enterEditMode('${w._id}')" class="text-gray-400 hover:text-black font-bold uppercase text-[8px] underline">Edit</button>
@@ -335,6 +349,7 @@
                 id: document.getElementById('edit-id').value,
                 name: document.getElementById('w-name').value,
                 price: document.getElementById('w-price').value,
+                originalPrice: document.getElementById('w-original-price').value || null,
                 description: document.getElementById('w-desc').value,
                 variants: variants
             };
@@ -365,6 +380,7 @@
         document.getElementById('edit-id').value = wear._id;
         document.getElementById('w-name').value = wear.name;
         document.getElementById('w-price').value = wear.price;
+        document.getElementById('w-original-price').value = wear.originalPrice || '';
         document.getElementById('w-desc').value = wear.description || '';
         const container = document.getElementById('variants-container');
         container.innerHTML = '';
@@ -375,6 +391,7 @@
         isEditing = false;
         document.getElementById('wear-form').reset();
         document.getElementById('edit-id').value = '';
+        document.getElementById('w-original-price').value = '';
         document.getElementById('form-header').innerText = "Create New Asset";
         document.getElementById('submit-btn').innerText = "Upload to Vault";
         document.getElementById('cancel-edit').classList.add('hidden');

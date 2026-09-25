@@ -351,7 +351,7 @@
         grid.innerHTML = htmlContent;
     }
 
-   function createProductCard(p) {
+ function createProductCard(p) {
     const variants = Array.isArray(p.variants) ? p.variants : [];
     
     const isValidUrl = (url) => {
@@ -380,12 +380,12 @@
     const currentPrice = Number(p.price || 0);
     const hasDiscount = originalPrice > currentPrice;
 
-    // Price HTML with increased font size for the current selling price
+    // Responsive Price HTML optimized for mobile and desktop views
     const priceHtml = isOutOfStock 
-        ? '<span class="text-red-600 text-[18px]">SOLD OUT</span>' 
+        ? '<span class="text-red-600 text-[14px] md:text-[18px] font-bold">SOLD OUT</span>' 
         : (hasDiscount 
-            ? `<div class="flex items-center gap-2 justify-end"><span class="line-through text-red-600 font-bold text-[14px]">₦${originalPrice.toLocaleString()}</span><span class="text-black font-black text-[22px]">₦${currentPrice.toLocaleString()}</span></div>`
-            : `<span class="text-black font-black text-[22px]">₦${currentPrice.toLocaleString()}</span>`);
+            ? `<div class="flex flex-col md:flex-row items-end md:items-center gap-1 md:gap-2"><span class="line-through text-red-600 font-bold text-[12px] md:text-[14px]">₦${originalPrice.toLocaleString()}</span><span class="text-black font-black text-[16px] md:text-[22px]">₦${currentPrice.toLocaleString()}</span></div>`
+            : `<span class="text-black font-black text-[16px] md:text-[22px]">₦${currentPrice.toLocaleString()}</span>`);
 
     return `
     <div class="group relative cursor-pointer animate-item" onclick="window.location.href='/products/product-detail.html?id=${p._id}'">
@@ -393,7 +393,7 @@
             
             <!-- Hardcoded -30% OFF Sale Badge Label at the Top -->
             ${hasDiscount && !isOutOfStock ? `
-                <div class="absolute top-3 left-3 z-20 bg-black text-white px-2 py-1 text-[18px] font-black uppercase tracking-widest shadow-md">
+                <div class="absolute top-3 left-3 z-20 bg-black text-white px-2 py-1 text-[12px] md:text-[18px] font-black uppercase tracking-widest shadow-md">
                     30% OFF
                 </div>
             ` : ''}
@@ -413,21 +413,21 @@
                     const vIsSoldOut = v.totalStock <= 0;
                     
                     return `<button type="button" 
-                                onmouseover="updatePreview(event, '${p._id}', '${vRaw}', ${vIsSoldOut})" 
-                                onmouseleave="updatePreview(event, '${p._id}', '${defaultImg}', ${isOutOfStock})"
-                                class="color-dot w-3.5 h-3.5 rounded-full border border-white/60 relative pointer-events-auto" 
-                                style="background-color: ${v.color ? v.color.toLowerCase() : '#ccc'};">
-                                ${vIsSoldOut ? '<div class="absolute inset-0 flex items-center justify-center pointer-events-none"><div class="w-full h-[1px] bg-white rotate-45"></div></div>' : ''}
+                            onmouseover="updatePreview(event, '${p._id}', '${vRaw}',${vIsSoldOut})" 
+                            onmouseleave="updatePreview(event, '${p._id}', '${defaultImg}',${isOutOfStock})"
+                            class="color-dot w-3.5 h-3.5 rounded-full border border-white/60 relative pointer-events-auto" 
+                            style="background-color: ${v.color ? v.color.toLowerCase() : '#ccc'};">
+                            ${vIsSoldOut ? '<div class="absolute inset-0 flex items-center justify-center pointer-events-none"><div class="w-full h-[1px] bg-white rotate-45"></div></div>' : ''}
                             </button>`;
                 }).join('')}
             </div>
         </div>
-        <div class="mt-4 space-y-1">
-            <div class="flex justify-between items-start">
-                <h3 class="font-bold uppercase text-[20px] tracking-wider text-black">${p.name}</h3>
-                <div class="text-right">${priceHtml}</div>
+        <div class="mt-3 space-y-1">
+            <div class="flex justify-between items-start gap-2">
+                <h3 class="font-bold uppercase text-[14px] md:text-[20px] tracking-wider text-black leading-tight">${p.name}</h3>
+                <div class="text-right shrink-0">${priceHtml}</div>
             </div>
-            <p class="text-zinc-400 text-[12px] uppercase tracking-widest">${p.category || 'Collection'} / ${processedVariants.filter(v => v.totalStock > 0).length} Colors Available</p>
+            <p class="text-zinc-400 text-[10px] md:text-[12px] uppercase tracking-widest">${p.category || 'Collection'} / ${processedVariants.filter(v => v.totalStock > 0).length} Colors Available</p>
         </div>
     </div>`;
 }

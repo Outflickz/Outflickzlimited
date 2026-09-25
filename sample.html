@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outflickz | Streetwear Experience</title>
+    <meta name="description" content="Premium streetwear designed for the modern era. Explore exclusive tees, jerseys, and tracksuits at Outflickz.">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://www.outflickz.com/">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://www.outflickz.com/">
+    <meta property="og:title" content="Outflickz | Streetwear Experience">
+    <meta name="keywords" content="Outflickz, Outflickz Limited, Streetwear, Urban Fashion, High Fashion, Premium Clothing Nigeria">
+    <meta property="og:description" content="Discover the latest in high-end streetwear. Quality essentials for the culture.">
+    <meta property="og:image" content="https://i.imgur.com/fu8N7I2.jpeg">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://www.outflickz.com/">
+    <meta name="twitter:title" content="Outflickz | Streetwear Experience">
+    <meta name="twitter:description" content="Premium streetwear designed for the modern era. Shop the collection.">
+    <meta name="twitter:image" content="https://i.imgur.com/fu8N7I2.jpeg">
+    <meta name="twitter:site" content="@outflickz">
+    <link rel="icon" type="image/jpeg" href="https://i.imgur.com/fu8N7I2.jpeg">
+
+    <!-- Tailwind CSS Script -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Store",
+      "name": "Outflickz",
+      "url": "https://www.outflickz.com/",
+      "logo": "https://i.imgur.com/fu8N7I2.jpeg",
+      "description": "Premium streetwear experience. Discover exclusive collections and urban fashion essentials.",
+      "image": "https://i.imgur.com/fu8N7I2.jpeg",
+      "address": {
+        "@type": "PostalAddress",
+        "addressCountry": "NG"
+      },
+      "priceRange": "$$"
+    }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700;900&display=swap');
+        
+        :root {
+            --header-height-mobile: 72px;
+            --header-height-desktop: 96px;
+        }
+
+        body { 
+            font-family: 'Space Grotesk', sans-serif; 
+            margin: 0; 
+            padding: 0; 
+            scroll-behavior: smooth;
+        }
+
+        /* 1. Core Layout Utilities */
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        nav { height: var(--header-height-mobile); }
+        @media (min-width: 1024px) { nav { height: var(--header-height-desktop); } }
+
+        /* Announcement Bar Marquee Animation */
+        @keyframes marquee {
+            0% { transform: translateX(0%); }
+            100% { transform: translateX(-50%); }
+        }
+        .animate-marquee {
+            display: flex;
+            width: 200%;
+            animation: marquee 25s linear infinite;
+        }
+        .animate-marquee:hover {
+            animation-play-state: paused;
+        }
+
+        /* 2. Interactive Color Dots & Overlay Enhancements */
+        [id^="sold-out-overlay-"] {
+            pointer-events: none !important; 
+        }
+
+        .color-dot { 
+            width: 16px; 
+            height: 16px; 
+            border-radius: 50%; 
+            border: 2px solid rgba(255,255,255,0.8); 
+            transition: transform 0.3s ease, border-color 0.3s ease;
+            pointer-events: auto !important;
+            z-index: 60 !important;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .color-dot:hover {
+            transform: scale(1.35);
+            border-color: #000 !important;
+        }
+
+        .swatch-container {
+            z-index: 60 !important;
+            pointer-events: auto !important;
+        }
+
+        /* Smooth Image Transitions */
+        [id^="img-"] {
+            transition: opacity 0.4s ease, transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            will-change: opacity, transform;
+        }
+
+        /* 3. Navigation & Search */
+        #mobile-menu {
+            position: fixed;
+            inset: 0 0 0 auto;
+            width: 100%;
+            background: white;
+            z-index: 70;
+            transform: translateX(100%);
+            transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            will-change: transform;
+        }
+
+        @media (min-width: 1024px) { 
+            #mobile-menu { width: 450px; border-left: 1px solid rgba(0,0,0,0.05); } 
+        }
+
+        #mobile-menu:not(.translate-x-full) { 
+            transform: translateX(0); 
+            box-shadow: -20px 0 60px rgba(0,0,0,0.15); 
+        }
+
+        #search-wrapper { 
+            width: 0; opacity: 0; overflow: hidden; display: flex;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+        }
+        #search-wrapper.active { width: 220px; opacity: 1; margin-right: 8px; }
+        @media (min-width: 768px) {
+            #search-wrapper.active { width: 280px; margin-right: 12px; }
+        }
+
+        /* 4. Product Cards & Badges */
+        .animate-item { animation: fadeIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .sold-out-badge {
+            background-color: #ef4444;
+            color: white;
+            text-transform: uppercase;
+            font-weight: 900;
+            font-size: 9px;
+            padding: 6px 14px;
+            letter-spacing: 0.2em;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+
+        /* 5. Social Gallery */
+        #social-gallery-grid {
+            display: flex; gap: 16px; overflow-x: auto;
+            scroll-snap-type: x mandatory; scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch; padding-bottom: 20px;
+        }
+        #social-gallery-grid > div {
+            scroll-snap-align: start;
+        }
+    </style>
+</head>
+<body class="bg-white text-black overflow-x-hidden">
+
+    <nav class="fixed w-full z-50 bg-white/95 backdrop-blur-xl border-b border-black/5 flex flex-col">
+        <!-- Walk-In Store Standalone Top Strip -->
+        <div class="bg-black text-white text-[9px] md:text-[10px] font-black uppercase tracking-[0.25em] py-2 overflow-hidden whitespace-nowrap border-b border-zinc-800 w-full">
+            <div class="animate-marquee flex items-center space-x-8">
+                <span class="flex items-center space-x-2">
+                    <span class="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
+                    <span>Walk-In Store Sales Active: Visit Our Flagship Store Today</span>
+                </span>
+                <span>•</span>
+                <span>Walk-In Store Sale Up To 30% Off</span>
+                <span>•</span>
+                <span>Walk-In Store Sales Active: Visit Our Flagship Store Today</span>
+                <span>•</span>
+                <span>Walk-In Store Sale Up To 30% Off</span>
+            </div>
+        </div>
+
+        <!-- Main Navigation Bar -->
+        <div class="flex justify-between items-center px-4 md:px-10 h-16 md:h-24 bg-white/95 w-full">
+            <div class="flex items-center space-x-4 md:space-x-12 h-full">
+                <div class="text-xl md:text-3xl font-black tracking-tighter italic cursor-pointer shrink-0" onclick="window.location.href='index.html'">
+                    OUTFLICKZ
+                </div>
+                
+                <div class="hidden lg:flex items-center space-x-8">
+                    <div class="relative group">
+                        <button class="flex items-center space-x-2 text-[10px] font-black uppercase tracking-[0.3em] hover:opacity-60 transition-opacity">
+                            <span>Shop Collection</span>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="m6 9 6 6 6-6"/></svg>
+                        </button>
+                        <div class="absolute left-0 mt-2 w-56 bg-white border border-black/5 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-[100] py-2">
+                            <a href="index.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">All Products</a>
+                            <a href="products/wears.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">T-Shirts</a>
+                            <a href="products/shorts.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">Shorts & Denim</a>
+                            <a href="products/tanktops.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">TankTops</a>
+                            <a href="products/tracksuits.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">TrackSuits</a>
+                            <a href="products/jerseys.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">Jerseys</a>
+                            <a href="products/accessories.html" class="block px-6 py-4 text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-50">Accessories</a>
+                        </div>
+                    </div>
+                    <div id="nav-auth-section" class="flex items-center space-x-4 border-l border-black/5 pl-8"></div>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2 md:space-x-6">
+                <div class="flex items-center">
+                    <div id="search-wrapper">
+                        <input type="text" id="productSearch" oninput="filterProducts()" placeholder="SEARCH..." 
+                            class="w-full bg-zinc-100/90 border-none py-2 px-3 md:px-4 text-[10px] tracking-widest uppercase focus:outline-none rounded-full">
+                    </div>
+                    <button onclick="toggleSearch()" class="p-2 hover:scale-110 transition-transform" aria-label="Toggle Search">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </button>
+                </div>
+
+                <div class="relative cursor-pointer p-2 hover:scale-110 transition-transform" onclick="window.location.href='products/cart.html'" aria-label="Cart">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+                    <span id="cart-count" class="absolute top-1 right-0 text-[9px] font-black bg-black text-white w-4 h-4 flex items-center justify-center rounded-full">0</span>
+                </div>
+
+                <button onclick="toggleSidebar(true)" class="p-2 lg:hidden" aria-label="Open Menu">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div id="mobile-menu" class="fixed inset-y-0 right-0 w-full sm:w-[400px] bg-white z-[70] p-6 md:p-8 flex flex-col shadow-2xl translate-x-full transition-transform duration-500 ease-in-out">
+        <div class="flex justify-between items-center mb-8 md:mb-12">
+            <div class="text-2xl font-black italic tracking-tighter">OUTFLICKZ</div>
+            <button onclick="toggleSidebar(false)" class="p-3 bg-zinc-100 rounded-full hover:bg-black hover:text-white transition-colors" aria-label="Close Menu">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+        
+        <nav class="flex flex-col space-y-4 md:space-y-6 text-xl md:text-2xl font-black uppercase tracking-tighter mb-10 overflow-y-auto">
+            <a href="index.html" onclick="toggleSidebar(false)" class="hover:text-zinc-500 transition-colors">All Products</a>
+            <a href="products/wears.html" onclick="toggleSidebar(false)" class="hover:text-zinc-500 transition-colors">T-Shirts</a>
+            <a href="products/tanktops.html" onclick="toggleSidebar(false)" class="hover:text-zinc-500 transition-colors">Tank Tops</a>
+            <a href="products/shorts.html" onclick="toggleSidebar(false)" class="hover:text-zinc-500 transition-colors">Shorts & Denims</a>
+            <a href="products/tracksuits.html" onclick="toggleSidebar(false)" class="hover:text-zinc-500 transition-colors">Tracksuits</a>
+            <a href="products/jerseys.html" onclick="toggleSidebar(false)" class="hover:text-zinc-500 transition-colors">Jerseys</a>
+            <a href="products/accessories.html" onclick="toggleSidebar(false)" class="hover:text-zinc-500 transition-colors">Accessories</a>
+        </nav>
+
+        <div id="mobile-auth-section" class="mt-auto border-t border-black/5 pt-6 pb-4"></div>
+    </div>
+
+    <div id="walkInModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm transition-opacity duration-300 p-4" style="opacity: 0; display: flex;">
+        <div class="relative bg-white text-black w-full max-w-[420px] p-6 md:p-8 rounded-sm shadow-2xl border border-black/10 flex flex-col items-center text-center animate-item">
+            <button onclick="closeWalkInModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center hover:bg-black hover:text-white transition-all" aria-label="Close modal">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+
+            <div class="w-16 h-16 rounded-full overflow-hidden mb-4 border border-black/10 shadow-md">
+                <img src="https://i.imgur.com/fu8N7I2.jpeg" alt="Outflickz Logo" class="w-full h-full object-cover">
+            </div>
+
+            <span class="text-[9px] font-black uppercase tracking-[0.3em] text-red-600 bg-red-50 px-3 py-1 rounded-full mb-3">
+                Flagship Store Exclusive
+            </span>
+
+            <h2 class="text-2xl md:text-3xl font-black italic tracking-tighter uppercase mb-2">
+                Walk-In Store Sale
+            </h2>
+
+            <p class="text-xl md:text-2xl font-black uppercase tracking-wider text-black mb-4">
+                Up To 30% Off
+            </p>
+
+            <p class="text-[11px] text-zinc-500 uppercase tracking-widest leading-relaxed mb-6">
+                Visit our physical flagship store today to experience exclusive collections and huge savings.<br><br>
+                <strong class="text-black">Dates:</strong> September 27, 2026 – November 1, 2026
+            </p>
+
+            <button onclick="closeWalkInModal()" class="w-full bg-black text-white py-3.5 text-[10px] font-black uppercase tracking-[0.25em] rounded-sm hover:bg-zinc-800 transition-all shadow-lg">
+                Shop Collection Now
+            </button>
+        </div>
+    </div>
+
+    <section class="relative w-full h-[85vh] sm:h-[80vh] lg:h-screen bg-black overflow-hidden pt-[var(--header-height-mobile)] lg:pt-0">
+        <!-- Desktop Layout: Split Images (2 Columns) -->
+        <div class="hidden lg:grid grid-cols-2 w-full h-full absolute inset-0">
+            <div class="relative h-full w-full overflow-hidden bg-zinc-900">
+                <img src="https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&q=80&w=1200" alt="Style Redefined 1" class="w-full h-full object-cover opacity-90 border-r border-white/10 hover:scale-105 transition-transform duration-1000">
+            </div>
+            <div class="relative h-full w-full overflow-hidden bg-zinc-900">
+                <img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=1200" alt="Style Redefined 2" class="w-full h-full object-cover opacity-90 hover:scale-105 transition-transform duration-1000">
+            </div>
+        </div>
+
+        <!-- Mobile & Tablet Layout: Optimized Single/Dual Split Image Hero -->
+        <div class="block lg:hidden w-full h-full absolute inset-0 bg-zinc-900">
+            <img src="https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&q=80&w=800" alt="Style Redefined" class="w-full h-full object-cover opacity-90">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+        </div>
+
+        <!-- Text Overlay -->
+        <div class="absolute bottom-[10%] left-[6%] right-[6%] md:left-[5%] text-white z-10 pointer-events-none">
+            <h1 class="text-5xl sm:text-6xl md:text-8xl font-black italic tracking-tighter uppercase leading-[0.9] drop-shadow-2xl">
+                STYLE<br>REDEFINED
+            </h1>
+            <p class="text-[10px] md:text-[12px] tracking-[0.7em] md:tracking-[0.9em] uppercase mt-4 opacity-90">
+                Shop Now
+            </p>
+        </div>
+    </section>
+
+    <main class="py-6 md:py-12 bg-white min-h-screen">
+        <div class="px-5 md:px-10 mb-6 bg-white py-4 border-b border-black/5">
+            <div class="flex items-center justify-between">
+                <h2 class="text-[10px] font-black uppercase tracking-[0.3em]">Curated Collection</h2>
+                <span class="text-[9px] text-zinc-400 uppercase tracking-widest hidden md:block">Shuffle Mode Active</span>
+            </div>
+        </div>
+        
+        <div id="product-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-10 md:gap-y-12 px-4 md:px-10">
+            <!-- Dynamic product cards populate here -->
+        </div>
+    </main>
+
+    <section class="pt-16 pb-12 md:pt-32 md:pb-24 border-t border-black/5 bg-white overflow-hidden">
+        <div class="text-center mb-10 md:mb-16 px-4">
+            <h3 class="text-[10px] md:text-[12px] font-black uppercase tracking-[0.4em] text-zinc-900">Outflickz Community</h3>
+        </div>
+
+        <div class="relative max-w-[1400px] mx-auto px-4 group">
+            <button onclick="scrollGallery('left')" class="absolute left-4 top-1/2 -translate-y-1/2 z-30 p-3 bg-white/90 backdrop-blur-md shadow-xl opacity-0 group-hover:opacity-100 transition-all hidden md:flex items-center justify-center border border-black/5 hover:bg-black hover:text-white rounded-full" aria-label="Scroll left">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            
+            <button onclick="scrollGallery('right')" class="absolute right-4 top-1/2 -translate-y-1/2 z-30 p-3 bg-white/90 backdrop-blur-md shadow-xl opacity-0 group-hover:opacity-100 transition-all hidden md:flex items-center justify-center border border-black/5 hover:bg-black hover:text-white rounded-full" aria-label="Scroll right">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+
+            <div id="social-gallery-grid" class="flex gap-4 md:gap-6 overflow-x-auto snap-x snap-mandatory hide-scrollbar justify-start items-center pb-8">
+                <div class="w-full py-20 text-center animate-pulse text-[8px] uppercase tracking-[0.4em] opacity-30">
+                    Syncing Community Feed...
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="fixed bottom-5 right-5 z-[9999] flex flex-col items-end">
+        <div id="chat-window" class="hidden mb-4 w-[calc(100vw-2.5rem)] sm:w-[350px] bg-white rounded-2xl shadow-2xl border border-black/5 overflow-hidden transition-all duration-300 origin-bottom-right scale-95 opacity-0">
+            <div class="bg-zinc-900 p-4 text-white">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-sm font-bold tracking-tight">Hi there</h3>
+                    <button onclick="toggleChat()" class="opacity-70 hover:opacity-100" aria-label="Close Chat">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <p class="text-[11px] opacity-70 mt-1">Welcome Guest</p>
+            </div>
+
+            <div class="p-4 bg-zinc-50 min-h-[140px]">
+                <div class="bg-white p-3 rounded-lg shadow-sm border border-black/5 text-[12px] leading-relaxed">
+                    Welcome to Outflickz Support 👋<br>
+                    How would you like to secure your order? Choose a platform below to start chatting.
+                </div>
+            </div>
+
+            <div class="p-4 bg-white border-t border-black/5">
+                <div class="flex gap-2 mb-3">
+                    <button id="btn-wa" onclick="setPlatform('wa')" class="flex-1 py-2 px-3 border border-black/10 rounded-md flex items-center justify-center gap-2 hover:bg-zinc-50 transition-all">
+                        <span class="text-[10px] font-bold uppercase tracking-widest">WhatsApp</span>
+                    </button>
+                    <button id="btn-tg" onclick="setPlatform('tg')" class="flex-1 py-2 px-3 border border-black/10 rounded-md flex items-center justify-center gap-2 hover:bg-zinc-50 transition-all">
+                        <span class="text-[10px] font-bold uppercase tracking-widest">Telegram</span>
+                    </button>
+                </div>
+                
+                <div class="relative flex items-center">
+                    <input type="text" id="chat-input" placeholder="Type your message..." 
+                        class="w-full bg-zinc-100 border-none py-3 px-4 pr-12 text-[11px] rounded-full focus:outline-none">
+                    <button onclick="sendChatMessage()" class="absolute right-2 p-2 text-zinc-400 hover:text-black transition-colors" aria-label="Send message">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <button onclick="toggleChat()" class="w-14 h-14 bg-black text-white rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform duration-300" aria-label="Toggle Support Chat">
+            <svg id="toggle-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        </button>
+    </div>
+
+    <footer class="bg-white border-t border-black/5 pt-8 md:pt-12 pb-6 px-4 md:px-10">
+        <div class="max-w-[1400px] mx-auto">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-y-8 md:gap-12 mb-8 md:mb-10 text-center md:text-left">
+                <div class="flex md:block justify-center md:justify-start">
+                    <div class="text-lg md:text-xl font-black italic tracking-tighter uppercase">OUTFLICKZ</div>
+                </div>
+
+                <div class="col-span-1 md:col-span-3 grid grid-cols-3 gap-4 md:gap-12">
+                    <div class="flex flex-col space-y-2">
+                        <h4 class="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-1">Support</h4>
+                        <a href="pages/contact.html" class="text-[8px] md:text-[9px] text-zinc-500 uppercase tracking-widest hover:text-black transition-colors">Contact</a>
+                        <a href="pages/shipping.html" class="text-[8px] md:text-[9px] text-zinc-500 uppercase tracking-widest hover:text-black transition-colors">Shipping</a>
+                        <a href="pages/refunded.html" class="text-[8px] md:text-[9px] text-zinc-500 uppercase tracking-widest hover:text-black transition-colors">Refunds</a>
+                    </div>
+
+                    <div class="flex flex-col space-y-2">
+                        <h4 class="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-1">Legal</h4>
+                        <a href="pages/privacy.html" class="text-[8px] md:text-[9px] text-zinc-500 uppercase tracking-widest hover:text-black transition-colors">Privacy</a>
+                        <a href="pages/terms.html" class="text-[8px] md:text-[9px] text-zinc-500 uppercase tracking-widest hover:text-black transition-colors">Terms</a>
+                    </div>
+
+                    <div class="flex flex-col space-y-2 items-center md:items-start">
+                        <h4 class="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-1">Location</h4>
+                        <div class="inline-flex items-center space-x-1 border border-black/5 bg-zinc-50 px-2 py-1.5 w-fit rounded-sm cursor-pointer hover:border-black/20 transition-all">
+                            <span class="text-[8px] font-black">NG (₦)</span>
+                            <svg width="6" height="6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="m6 9 6 6 6-6"/></svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-6 border-t border-black/5 flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left">
+                <p class="text-[7px] md:text-[8px] text-zinc-400 uppercase tracking-[0.2em]">© 2026 OUTFLICKZ LIMITED. ALL RIGHTS RESERVED.</p>
+                <div class="flex space-x-4"></div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Sample Product Database for Outflickz Store
+        const products = [
+            {
+                id: 1,
+                name: "OUTFX Heavyweight Boxy Tee",
+                price: "₦35,000",
+                category: "wears",
+                isSoldOut: false,
+                variants: [
+                    { color: "#000000", colorName: "Black", image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&q=80&w=800" },
+                    { color: "#ffffff", colorName: "White", image: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?auto=format&fit=crop&q=80&w=800" },
+                    { color: "#52525b", colorName: "Charcoal", image: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?auto=format&fit=crop&q=80&w=800" }
+                ]
+            },
+            {
+                id: 2,
+                name: "Cyberpunk Techwear Tracksuit",
+                price: "₦95,000",
+                category: "tracksuits",
+                isSoldOut: true,
+                variants: [
+                    { color: "#18181b", colorName: "Obsidian", image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=800" },
+                    { color: "#1e3a8a", colorName: "Navy", image: "https://images.unsplash.com/photo-1555689502-c4b22d76c56f?auto=format&fit=crop&q=80&w=800" }
+                ]
+            },
+            {
+                id: 3,
+                name: "Urban Cargo Utility Shorts",
+                price: "₦48,000",
+                category: "shorts",
+                isSoldOut: false,
+                variants: [
+                    { color: "#78350f", colorName: "Khaki", image: "https://images.unsplash.com/photo-1591195853828-11db59a44f6b?auto=format&fit=crop&q=80&w=800" },
+                    { color: "#09090b", colorName: "Black", image: "https://images.unsplash.com/photo-1562157873-818bc0726f68?auto=format&fit=crop&q=80&w=800" }
+                ]
+            },
+            {
+                id: 4,
+                name: "Legacy Limited Match Jersey",
+                price: "₦42,000",
+                category: "jerseys",
+                isSoldOut: false,
+                variants: [
+                    { color: "#ffffff", colorName: "Home", image: "https://images.unsplash.com/photo-1577211053235-f426e2ac02bb?auto=format&fit=crop&q=80&w=800" },
+                    { color: "#dc2626", colorName: "Away", image: "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&q=80&w=800" }
+                ]
+            }
+        ];
+
+        const communityImages = [
+            "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&q=80&w=600",
+            "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=600",
+            "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&q=80&w=600",
+            "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?auto=format&fit=crop&q=80&w=600",
+            "https://images.unsplash.com/photo-1555689502-c4b22d76c56f?auto=format&fit=crop&q=80&w=600"
+        ];
+
+        // UI Toggle Functions
+        function toggleSearch() {
+            const searchWrapper = document.getElementById('search-wrapper');
+            searchWrapper.classList.toggle('active');
+            if(searchWrapper.classList.contains('active')) {
+                document.getElementById('productSearch').focus();
+            }
+        }
+
+        function toggleSidebar(open) {
+            const menu = document.getElementById('mobile-menu');
+            if (open) {
+                menu.classList.remove('translate-x-full');
+            } else {
+                menu.classList.add('translate-x-full');
+            }
+        }
+
+        function closeWalkInModal() {
+            const modal = document.getElementById('walkInModal');
+            modal.style.opacity = '0';
+            setTimeout(() => { modal.style.display = 'none'; }, 300);
+        }
+
+        let chatOpen = false;
+        function toggleChat() {
+            chatOpen = !chatOpen;
+            const chatWindow = document.getElementById('chat-window');
+            if (chatOpen) {
+                chatWindow.classList.remove('hidden');
+                setTimeout(() => {
+                    chatWindow.classList.remove('scale-95', 'opacity-0');
+                    chatWindow.classList.add('scale-100', 'opacity-100');
+                }, 10);
+            } else {
+                chatWindow.classList.remove('scale-100', 'opacity-100');
+                chatWindow.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => { chatWindow.classList.add('hidden'); }, 300);
+            }
+        }
+
+        let selectedPlatform = 'wa';
+        function setPlatform(platform) {
+            selectedPlatform = platform;
+            const btnWa = document.getElementById('btn-wa');
+            const btnTg = document.getElementById('btn-tg');
+            if(platform === 'wa') {
+                btnWa.style.borderColor = '#000';
+                btnTg.style.borderColor = 'rgba(0,0,0,0.1)';
+            } else {
+                btnTg.style.borderColor = '#000';
+                btnWa.style.borderColor = 'rgba(0,0,0,0.1)';
+            }
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const msg = input.value.trim();
+            if(!msg) return;
+            const phone = "2348000000000"; // Placeholder Support Line
+            const url = selectedPlatform === 'wa' 
+                ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+                : `https://t.me/outflickz?text=${encodeURIComponent(msg)}`;
+            window.open(url, '_blank');
+            input.value = '';
+        }
+
+        function switchProductImage(productId, variantIndex) {
+            const product = products.find(p => p.id === productId);
+            if (!product || !product.variants[variantIndex]) return;
+            const imgElement = document.getElementById(`img-${productId}`);
+            if (imgElement) {
+                imgElement.style.opacity = '0.4';
+                setTimeout(() => {
+                    imgElement.src = product.variants[variantIndex].image;
+                    imgElement.style.opacity = '1';
+                }, 150);
+            }
+        }
+
+        function filterProducts() {
+            const query = document.getElementById('productSearch').value.toLowerCase();
+            const filtered = products.filter(p => p.name.toLowerCase().includes(query) || p.category.toLowerCase().includes(query));
+            renderProducts(filtered);
+        }
+
+        function renderProducts(items) {
+            const grid = document.getElementById('product-grid');
+            if(!grid) return;
+            
+            if(items.length === 0) {
+                grid.innerHTML = `<div class="col-span-full py-16 text-center text-zinc-400 uppercase tracking-widest text-[10px]">No exclusive pieces found.</div>`;
+                return;
+            }
+
+            grid.innerHTML = items.map(p => `
+                <div class="group flex flex-col animate-item">
+                    <div class="relative w-full aspect-[3/4] bg-zinc-100 overflow-hidden mb-3 rounded-sm">
+                        <!-- Sold Out Badge -->
+                        ${p.isSoldOut ? `<div id="sold-out-overlay-${p.id}" class="absolute top-3 left-3 z-30 sold-out-badge">Sold Out</div>` : ''}
+
+                        <!-- Main Product Image -->
+                        <img id="img-${p.id}" src="${p.variants[0].image}" alt="${p.name}" class="w-full h-full object-cover">
+
+                        <!-- Color Swatch Dots -->
+                        <div class="swatch-container absolute bottom-3 right-3 flex items-center space-x-2 bg-black/40 backdrop-blur-md px-2.5 py-1.5 rounded-full">
+                            ${p.variants.map((v, idx) => `
+                                <button onclick="switchProductImage(${p.id}, ${idx})" 
+                                    class="color-dot" 
+                                    style="background-color: ${v.color};" 
+                                    title="${v.colorName}"
+                                    aria-label="Select ${v.colorName} variant">
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-start mt-1">
+                        <div>
+                            <h3 class="text-[11px] md:text-[12px] font-bold uppercase tracking-wider">${p.name}</h3>
+                            <p class="text-[10px] text-zinc-500 uppercase tracking-widest mt-0.5">${p.price}</p>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderCommunityGallery() {
+            const gallery = document.getElementById('social-gallery-grid');
+            if(!gallery) return;
+            gallery.innerHTML = communityImages.map(img => `
+                <div class="min-w-[240px] sm:min-w-[280px] md:min-w-[320px] aspect-[4/5] bg-zinc-100 rounded-sm overflow-hidden relative group shrink-0">
+                    <img src="${img}" alt="Community Style" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700">
+                    <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                        <span class="text-white text-[9px] font-bold uppercase tracking-widest">#OutflickzCulture</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function scrollGallery(direction) {
+            const gallery = document.getElementById('social-gallery-grid');
+            if(!gallery) return;
+            const scrollAmount = 340;
+            gallery.scrollBy({ left: direction === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
+        }
+
+        window.onload = function() {
+            renderProducts(products);
+            renderCommunityGallery();
+        };
+    </script>
+</body>
+</html>

@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Outflickz | Streetwear Experience</title>
 <meta name="description" content="Premium streetwear designed for the modern era. Explore exclusive tees, jerseys, and tracksuits at Outflickz.">
 <meta name="robots" content="index, follow"> <link rel="canonical" href="https://www.outflickz.com/"> <meta property="og:type" content="website">
@@ -38,9 +36,8 @@
     @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap');
     
     :root {
-        /* Adjusted to reliably fit both announcement strip + main bar */
-        --header-height-mobile: 115px;
-        --header-height-desktop: 132px;
+        --header-height-mobile: 80px;
+        --header-height-desktop: 96px;
     }
 
     body { 
@@ -50,12 +47,14 @@
         scroll-behavior: smooth;
     }
 
+    /* 1. Core Layout Utilities */
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
     nav { height: var(--header-height-mobile); }
     @media (min-width: 1024px) { nav { height: var(--header-height-desktop); } }
 
+     /* Announcement Bar Marquee Animation */
     @keyframes marquee {
         0% { transform: translateX(0%); }
         100% { transform: translateX(-50%); }
@@ -69,6 +68,7 @@
         animation-play-state: paused;
     }
 
+    /* 2. Skeleton & Video Fixes */
     .skeleton {
         position: relative;
         overflow: hidden;
@@ -85,11 +85,23 @@
     }
 
     @keyframes shimmer { 100% { transform: translateX(100%); } }
+    #heroVideo {
+        aspect-ratio: 16 / 9;
+        background: #000;
+        object-fit: cover;
+    }
 
+    @media (max-width: 1023px) {
+        #heroVideo { aspect-ratio: 9 / 16; }
+    }
+
+    /* 3. THE HOVER FIX: Swap Logic */
+    /* This ensures the "Sold Out" badge doesn't steal the mouse hover from the dots */
     [id^="sold-out-overlay-"] {
         pointer-events: none !important; 
     }
 
+    /* This forces the dots to the front so JavaScript can see the mouse */
     .color-dot { 
         width: 14px; 
         height: 14px; 
@@ -97,26 +109,32 @@
         border: 1px solid rgba(255,255,255,0.5); 
         transition: transform 0.3s ease;
         pointer-events: auto !important;
-        z-index: 60 !important;
+        z-index: 60 !important; /* Higher than everything else */
         cursor: pointer;
     }
 
-    .color-dot:hover {
-        transform: scale(1.3);
-        border-color: white !important;
-        box-shadow: 0 0 8px rgba(0,0,0,0.3);
-    }
+    /* Add a hover effect to make the dots more 'clickable' */
+.color-dot:hover {
+    transform: scale(1.3);
+    border-color: white !important;
+    box-shadow: 0 0 8px rgba(0,0,0,0.3);
+}
 
-    .swatch-container {
-        z-index: 60 !important;
-        pointer-events: auto !important;
-    }
+    /* Ensure the container of the dots is always above the image and overlay */
+.swatch-container {
+    z-index: 60 !important;
+    pointer-events: auto !important;
+}
 
+
+
+    /* Smooth Image Transitions */
     [id^="img-"] {
         transition: opacity 0.4s ease, transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
         will-change: opacity, transform;
     }
 
+    /* 4. Navigation & Search */
     #mobile-menu {
         position: fixed;
         inset: 0 0 0 auto;
@@ -138,6 +156,7 @@
     }
     #search-wrapper.active { width: 250px; opacity: 1; margin-right: 12px; }
 
+    /* 5. Product Cards & Badges */
     .animate-item { animation: fadeIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -152,16 +171,15 @@
         box-shadow: 0 4px 12px rgba(255, 0, 0, 0.25);
     }
 
+    /* 6. Social Gallery */
     #social-gallery-grid {
         display: flex; gap: 16px; overflow-x: auto;
         snap-type: x mandatory; scroll-behavior: smooth;
         -webkit-overflow-scrolling: touch; padding-bottom: 20px;
     }
 </style>
-</head> 
-<body class="bg-white text-black overflow-x-hidden">
-
-<nav class="fixed top-0 left-0 w-full z-50 bg-white/90 backdrop-blur-xl border-b border-black/5 flex flex-col">
+</head> <body class="bg-white text-black overflow-x-hidden">
+<nav class="fixed w-full z-50 bg-white/90 backdrop-blur-xl border-b border-black/5 flex flex-col">
     <!-- 1. Walk-In Store Standalone Top Strip -->
     <div class="bg-black text-white text-[9px] md:text-[10px] font-black uppercase tracking-[0.25em] py-2.5 overflow-hidden whitespace-nowrap border-b border-zinc-800 w-full">
         <div class="animate-marquee flex items-center space-x-8">
@@ -179,9 +197,9 @@
     </div>
 
     <!-- 2. Main Navigation Bar -->
-    <div class="flex justify-between items-center px-5 h-16 md:h-24 md:px-10 bg-white/90 w-full">
+    <div class="flex justify-between items-center px-5 h-20 md:h-24 md:px-10 bg-white/90 w-full">
         <div class="flex items-center space-x-4 md:space-x-12 h-full">
-            <div class="text-2xl md:text-3xl font-black italic tracking-tighter cursor-pointer shrink-0" onclick="window.location.href='index.html'">
+            <div class="text-2xl md:text-3xl font-black tracking-tighter italic cursor-pointer shrink-0" onclick="window.location.href='index.html'">
                 OUTFLICKZ
             </div>
             
@@ -238,20 +256,20 @@
     
     <nav class="flex flex-col space-y-6 text-2xl font-black uppercase tracking-tighter mb-10">
         <a href="index.html" onclick="toggleSidebar(false)">All Products</a>
-        <a href="products/wears.html" onclick="toggleSidebar(false)">T-Shirts</a>
-        <a href="products/tanktops.html" onclick="toggleSidebar(false)">Tank Tops</a>
-        <a href="products/shorts.html" onclick="toggleSidebar(false)">Shorts & Denims</a>
-        <a href="products/tracksuits.html" onclick="toggleSidebar(false)">Tracksuits</a>
-        <a href="products/jerseys.html" onclick="toggleSidebar(false)">Jerseys</a>
-        <a href="products/accessories.html" onclick="toggleSidebar(false)">Accessories</a>
-    </nav>
+    <a href="products/wears.html" onclick="toggleSidebar(false)">T-Shirts</a>
+    <a href="products/tanktops.html" onclick="toggleSidebar(false)">Tank Tops</a>
+    <a href="products/shorts.html" onclick="toggleSidebar(false)">Shorts & Denims</a>
+    <a href="products/tracksuits.html" onclick="toggleSidebar(false)">Tracksuits</a>
+    <a href="products/jerseys.html" onclick="toggleSidebar(false)">Jerseys</a>
+    <a href="products/accessories.html" onclick="toggleSidebar(false)">Accessories</a>
+        </nav>
 
     <div id="mobile-auth-section" class="mt-auto border-t border-black/5 pt-8"></div>
 </div>
 
-<!-- Walk-In Store Promotional Modal (Fixed layout sizing & padding) -->
-<div id="walkInModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 transition-opacity duration-300" style="opacity: 0; display: flex;">
-    <div class="relative bg-white text-black w-full max-w-[380px] p-6 md:p-8 rounded-sm shadow-2xl border border-black/10 flex flex-col items-center text-center animate-item max-h-[90vh] overflow-y-auto">
+<!-- Walk-In Store Promotional Modal -->
+<div id="walkInModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm transition-opacity duration-300" style="opacity: 0; display: flex;">
+    <div class="relative bg-white text-black w-[90%] max-w-[420px] p-6 md:p-8 rounded-sm shadow-2xl border border-black/10 flex flex-col items-center text-center animate-item">
         
         <!-- Close Button -->
         <button onclick="closeWalkInModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center hover:bg-black hover:text-white transition-all">
@@ -259,7 +277,7 @@
         </button>
 
         <!-- Brand Logo -->
-        <div class="w-16 h-16 rounded-full overflow-hidden mb-4 border border-black/10 shadow-md shrink-0">
+        <div class="w-16 h-16 rounded-full overflow-hidden mb-4 border border-black/10 shadow-md">
             <img src="https://i.imgur.com/fu8N7I2.jpeg" alt="Outflickz Logo" class="w-full h-full object-cover">
         </div>
 
@@ -291,21 +309,21 @@
     </div>
 </div>
 
-<!-- Responsive Hero Section with proper variable top spacing -->
-<section class="relative w-full min-h-[80vh] lg:h-screen bg-black overflow-hidden pt-[var(--header-height-mobile)] lg:pt-[var(--header-height-desktop)]">
+<section class="relative w-full min-h-[80vh] lg:h-screen bg-black overflow-hidden">
     <!-- Desktop Layout: Split Images (2 Columns) -->
-    <div class="hidden lg:grid grid-cols-2 w-full h-full absolute inset-0 pt-[var(--header-height-desktop)]">
+    <div class="hidden lg:grid grid-cols-2 w-full h-full absolute inset-0">
         <div class="relative h-full w-full overflow-hidden bg-zinc-900">
             <img src="outflickz-image1.jpg" alt="Style Redefined 1" class="w-full h-full object-cover opacity-90 border-r border-white/10">
         </div>
+
         <div class="relative h-full w-full overflow-hidden bg-zinc-900">
             <img src="outflickz-image2.jpg" alt="Style Redefined 2" class="w-full h-full object-cover opacity-90">
         </div>
     </div>
 
-    <!-- Mobile Layout: Single Full Image -->
-    <div class="block lg:hidden w-full h-full absolute inset-0 pt-[var(--header-height-mobile)] bg-zinc-900">
-        <img src="outflickz-image2.jpg" alt="Style Redefined" class="w-full h-full object-cover opacity-90">
+    <!-- Mobile Layout: Single Image -->
+    <div class="block lg:hidden w-full h-full absolute inset-0 bg-zinc-900">
+        <img src="outflickz-image1.jpg" alt="Style Redefined" class="w-full h-full object-cover opacity-90">
     </div>
 
     <!-- Text Overlay -->
@@ -315,7 +333,7 @@
     </div>
 </section>
 
-<main class="py-2 md:py-4 bg-white min-h-screen">
+  <main class="py-2 md:py-4 bg-white min-h-screen">
     <div class="px-6 md:px-10 mb-8 bg-white py-4 border-b border-black/5">
         <div class="flex items-center justify-between">
             <h2 class="text-[10px] font-black uppercase tracking-[0.3em]">Curated Collection</h2>
@@ -327,8 +345,7 @@
     </div>
 </main>
 
-
-<section class="pt-20 pb-12 md:pt-32 md:pb-24 border-t border-black/5 bg-white overflow-hidden">
+ <section class="pt-20 pb-12 md:pt-32 md:pb-24 border-t border-black/5 bg-white overflow-hidden">
     <div class="text-center mb-12 md:mb-16">
         <h3 class="text-[10px] md:text-[12px] font-black uppercase tracking-[0.4em] text-zinc-900">Outflickz Community</h3>
     </div>
@@ -350,7 +367,8 @@
     </div>
 </section>
 
-<div class="fixed bottom-5 right-5 z-[9999] flex flex-col items-end">
+ <div class="fixed bottom-5 right-5 z-[9999] flex flex-col items-end">
+    
     <div id="chat-window" class="hidden mb-4 w-[300px] sm:w-[350px] bg-white rounded-2xl shadow-2xl border border-black/5 overflow-hidden transition-all duration-300 origin-bottom-right scale-95 opacity-0">
         <div class="bg-zinc-900 p-4 text-white">
             <div class="flex justify-between items-center">
@@ -396,14 +414,17 @@
     </button>
 </div>
 
-<footer class="bg-white border-t border-black/5 pt-8 md:pt-12 pb-6 px-4 md:px-10">
+
+ <footer class="bg-white border-t border-black/5 pt-8 md:pt-12 pb-6 px-4 md:px-10">
     <div class="max-w-[1400px] mx-auto">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-y-6 md:gap-12 mb-6 md:mb-10">
+            
             <div class="flex md:block justify-center md:justify-start">
                 <div class="text-lg md:text-xl font-black italic tracking-tighter uppercase">OUTFLICKZ</div>
             </div>
 
             <div class="col-span-1 md:col-span-3 grid grid-cols-3 gap-2 md:gap-12">
+                
                 <div class="flex flex-col space-y-1.5">
                     <h4 class="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-1">Support</h4>
                     <a href="pages/contact.html" class="text-[7px] md:text-[9px] text-zinc-500 uppercase tracking-widest hover:text-black transition-colors">Contact</a>
@@ -433,7 +454,6 @@
         </div>
     </div>
 </footer>
-
 
    <script>
     const API_ENDPOINT = "/.netlify/functions/api"; 
@@ -614,6 +634,7 @@ function renderProducts(list) {
 function createProductCard(p) {
     const variants = Array.isArray(p.variants) ? p.variants : [];
     
+    // UPDATED: Allow relative paths (like vault/...) and proxy paths
     const isValidUrl = (url) => {
         if (!url || typeof url !== 'string') return false;
         return url.startsWith('vault/') || url.startsWith('/.netlify/') || url.startsWith('http');
@@ -632,19 +653,23 @@ function createProductCard(p) {
     const isOutOfStock = p.isOutOfStock || (processedVariants.length > 0 && processedVariants.every(v => v.totalStock <= 0));
     const backupImages = processedVariants.flatMap(v => v.cleanImages);
     
+    // Get the raw source link from p.displayImage (which is now a secure proxy link)
     let rawImg = p.displayImage || (backupImages.length > 0 ? backupImages[0] : 'https://placehold.co/600x800/f4f4f5/000?text=OUTFLICKZ');
+    
+    // UPDATED: We use the URL as-is because api.js already secured it
     const defaultImg = rawImg;
 
+    // Price handling for original vs sale price
     const originalPrice = Number(p.compareAtPrice || p.originalPrice || 0);
     const currentPrice = Number(p.price || 0);
     const hasDiscount = originalPrice > currentPrice;
 
-    // Responsive Price HTML optimized for mobile and desktop views
+    // Price HTML with increased font size for the current selling price and original price display
     const priceHtml = isOutOfStock 
-        ? '<span class="text-red-600 text-[14px] md:text-[18px] font-bold">SOLD OUT</span>' 
+        ? '<span class="text-red-600 text-[18px]">SOLD OUT</span>' 
         : (hasDiscount 
-            ? `<div class="flex flex-col md:flex-row items-end md:items-center gap-1 md:gap-2"><span class="line-through text-red-600 font-bold text-[12px] md:text-[14px]">₦${originalPrice.toLocaleString()}</span><span class="text-black font-black text-[14px] md:text-[18px]">₦${currentPrice.toLocaleString()}</span></div>`
-            : `<span class="text-black font-black text-[14px] md:text-[18px]">₦${currentPrice.toLocaleString()}</span>`);
+            ? `<div class="flex items-center gap-2 justify-end"><span class="line-through text-red-600 font-bold text-[14px]">₦${originalPrice.toLocaleString()}</span><span class="text-black font-black text-[22px]">₦${currentPrice.toLocaleString()}</span></div>`
+            : `<span class="text-black font-black text-[22px]">₦${currentPrice.toLocaleString()}</span>`);
 
     return `
 <div class="group relative cursor-pointer animate-item" onclick="window.location.href='/products/product-detail.html?id=${p._id}'">
@@ -652,7 +677,7 @@ function createProductCard(p) {
         
         <!-- Hardcoded 30% OFF Sale Badge Label at the Top -->
         ${hasDiscount && !isOutOfStock ? `
-            <div class="absolute top-3 left-3 z-20 bg-black text-white px-2 py-1 text-[12px] md:text-[18px] font-black uppercase tracking-widest shadow-md">
+            <div class="absolute top-3 left-3 z-20 bg-black text-white px-2 py-1 text-[18px] font-black uppercase tracking-widest shadow-md">
                 30% OFF
             </div>
         ` : ''}
@@ -672,8 +697,8 @@ function createProductCard(p) {
                 const vIsSoldOut = v.totalStock <= 0;
                 
                 return `<button type="button" 
-                        onmouseover="updatePreview(event, '${p._id}', '${vRaw}',${vIsSoldOut})" 
-                        onmouseleave="updatePreview(event, '${p._id}', '${defaultImg}',${isOutOfStock})"
+                        onmouseover="updatePreview(event, '${p._id}', '${vRaw}', ${vIsSoldOut})" 
+                        onmouseleave="updatePreview(event, '${p._id}', '${defaultImg}', ${isOutOfStock})"
                         class="color-dot w-3.5 h-3.5 rounded-full border border-white/60 relative pointer-events-auto" 
                         style="background-color: ${v.color ? v.color.toLowerCase() : '#ccc'};">
                         ${vIsSoldOut ? '<div class="absolute inset-0 flex items-center justify-center pointer-events-none"><div class="w-full h-[1px] bg-white rotate-45"></div></div>' : ''}
@@ -681,12 +706,12 @@ function createProductCard(p) {
             }).join('')}
         </div>
     </div>
-    <div class="mt-3 space-y-1">
-        <div class="flex justify-between items-start gap-2">
-            <h3 class="font-bold uppercase text-[14px] md:text-[20px] tracking-wider text-black leading-tight">${p.name}</h3>
-            <div class="text-right shrink-0">${priceHtml}</div>
+    <div class="mt-4 space-y-1">
+        <div class="flex justify-between items-start">
+            <h3 class="font-bold uppercase text-[20px] tracking-wider text-black">${p.name}</h3>
+            <div class="text-right">${priceHtml}</div>
         </div>
-        <p class="text-zinc-400 text-[10px] md:text-[12px] uppercase tracking-widest">${p.category || 'Collection'} / ${processedVariants.filter(v => v.totalStock > 0).length} Colors Available</p>
+        <p class="text-zinc-400 text-[12px] uppercase tracking-widest">${p.category || 'Collection'} / ${processedVariants.filter(v => v.totalStock > 0).length} Colors Available</p>
     </div>
 </div>`;
 }

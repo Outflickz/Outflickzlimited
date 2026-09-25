@@ -243,6 +243,7 @@
     let isRefreshing = false;
     let selectedPlatform = 'wa';
 
+
     window.onload = () => {
         updateAuthUI();
         fetchWears();
@@ -299,59 +300,28 @@
         }
     }
 
-    function renderProducts(list) {
-        const grid = document.getElementById('product-grid');
-        if (!grid) return;
+   function renderProducts(list) {
+    const grid = document.getElementById('product-grid');
+    if (!grid) return;
 
-        const currentCards = grid.querySelectorAll('.group[id^="container-"]');
+    const currentCards = grid.querySelectorAll('.group[id^="container-"]');
 
-        if (currentCards.length > 0 && list.length === currentCards.length) {
-            list.forEach(p => {
-                const img = document.getElementById(`img-${p._id}`);
-                const secureUrl = p.displayImage; 
-                
-                if (img && secureUrl && img.src !== secureUrl) {
-                    img.src = secureUrl;
-                }
-            });
-            return;
-        }
-
-        let htmlContent = '';
-        const isMobile = window.innerWidth < 1024;
-        const insertAfter = isMobile ? 4 : 8;
-
-        list.forEach((p, index) => {
-            htmlContent += createProductCard(p);
-
-            if (index === insertAfter - 1) {
-                htmlContent += `
-                <div id="lookbook-section" class="col-span-full w-full py-12 md:py-24 bg-white">
-                    <div class="text-center mb-10 md:mb-16">
-                        <h3 class="text-[11px] md:text-[13px] font-black uppercase tracking-[0.5em] text-black">
-                            Exclusive Look
-                        </h3>
-                    </div>
-                    <div class="hide-scrollbar overflow-x-auto w-full">
-                        <div class="flex gap-5 md:gap-8 px-6 md:px-12 pb-10">
-                            ${COLLECTION_IMAGES.map((img) => `
-                                <div class="flex-shrink-0 w-[80vw] md:w-[450px] aspect-[2/3] overflow-hidden rounded-sm shadow-xl">
-                                    <img src="${img}" 
-                                         class="w-full h-full object-cover hover:scale-105 transition-transform duration-1000" 
-                                         loading="lazy" 
-                                         onerror="this.src='https://placehold.co/600x900?text=OUTFLICKZ'">
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                </div>`;
+    if (currentCards.length > 0 && list.length === currentCards.length) {
+        list.forEach(p => {
+            const img = document.getElementById(`img-${p._id}`);
+            const secureUrl = p.displayImage; 
+            
+            if (img && secureUrl && img.src !== secureUrl) {
+                img.src = secureUrl;
             }
         });
-
-        grid.innerHTML = htmlContent;
+        return;
     }
 
- function createProductCard(p) {
+    // Render all product cards seamlessly without lookbook interruption
+    grid.innerHTML = list.map(p => createProductCard(p)).join('');
+}
+  function createProductCard(p) {
     const variants = Array.isArray(p.variants) ? p.variants : [];
     
     const isValidUrl = (url) => {
@@ -380,12 +350,12 @@
     const currentPrice = Number(p.price || 0);
     const hasDiscount = originalPrice > currentPrice;
 
-    // Responsive Price HTML optimized for mobile and desktop views
+    // Responsive Price HTML optimized for mobile and desktop
     const priceHtml = isOutOfStock 
-        ? '<span class="text-red-600 text-[14px] md:text-[18px] font-bold">SOLD OUT</span>' 
+        ? '<span class="text-red-600 text-[14px] md:text-[18px]">SOLD OUT</span>' 
         : (hasDiscount 
-            ? `<div class="flex flex-col md:flex-row items-end md:items-center gap-1 md:gap-2"><span class="line-through text-red-600 font-bold text-[12px] md:text-[14px]">₦${originalPrice.toLocaleString()}</span><span class="text-black font-black text-[16px] md:text-[22px]">₦${currentPrice.toLocaleString()}</span></div>`
-            : `<span class="text-black font-black text-[16px] md:text-[22px]">₦${currentPrice.toLocaleString()}</span>`);
+            ? `<div class="flex items-center gap-1.5 md:gap-2 justify-end"><span class="line-through text-red-600 font-bold text-[11px] md:text-[14px]">₦${originalPrice.toLocaleString()}</span><span class="text-black font-black text-[14px] md:text-[20px]">₦${currentPrice.toLocaleString()}</span></div>`
+            : `<span class="text-black font-black text-[14px] md:text-[20px]">₦${currentPrice.toLocaleString()}</span>`);
 
     return `
     <div class="group relative cursor-pointer animate-item" onclick="window.location.href='/products/product-detail.html?id=${p._id}'">
@@ -424,8 +394,8 @@
         </div>
         <div class="mt-3 space-y-1">
             <div class="flex justify-between items-start gap-2">
-                <h3 class="font-bold uppercase text-[14px] md:text-[20px] tracking-wider text-black leading-tight">${p.name}</h3>
-                <div class="text-right shrink-0">${priceHtml}</div>
+                <h3 class="font-bold uppercase text-[13px] md:text-[20px] tracking-wider text-black leading-tight">${p.name}</h3>
+                <div class="text-right flex-shrink-0">${priceHtml}</div>
             </div>
             <p class="text-zinc-400 text-[10px] md:text-[12px] uppercase tracking-widest">${p.category || 'Collection'} / ${processedVariants.filter(v => v.totalStock > 0).length} Colors Available</p>
         </div>

@@ -368,26 +368,35 @@
             `).join('');
         }
 
-        function renderSizes(variant) {
+       function renderSizes(variant) {
             const container = document.getElementById('size-options');
             let sizes = [];
 
             if (variant.stockMatrix) {
                 sizes = Object.keys(variant.stockMatrix);
-            } else if (variant.sizes) {
+            } else if (variant.sizes && variant.sizes.length > 0) {
                 sizes = variant.sizes;
             } else {
-                sizes = ['STANDARD'];
+                sizes = variant.size ? [variant.size] : ['ONE SIZE'];
             }
 
             container.innerHTML = sizes.map(size => {
-                const stockQty = variant.stockMatrix ? Number(variant.stockMatrix[size]) || 0 : Number(variant.stock) || 10;
+                // Dynamically fetch actual stock from variant.stockMatrix or fallback to variant.stock
+                let stockQty = 0;
+                if (variant.stockMatrix && variant.stockMatrix[size] !== undefined) {
+                    stockQty = Number(variant.stockMatrix[size]) || 0;
+                } else if (variant.stock !== undefined) {
+                    stockQty = Number(variant.stock) || 0;
+                } else {
+                    stockQty = 0;
+                }
+
                 const isOut = stockQty <= 0;
                 return `
                     <button onclick="selectSize('${size}', ${stockQty})" 
                         class="px-4 py-2 border text-[9px] font-black uppercase tracking-wider transition ${isOut ? 'opacity-30 border-dashed border-red-400 text-red-500 cursor-not-allowed' : 'border-black/20 hover:border-black'} ${selectedSize === size ? 'bg-black text-white border-black' : ''}"
                         ${isOut ? 'disabled' : ''}>
-                        ${size} ${isOut ? '(SOLD OUT)' : ''}
+                        ${size} ${isOut ? '(SOLD OUT)' : `(${stockQty} LEFT)`}
                     </button>
                 `;
             }).join('');

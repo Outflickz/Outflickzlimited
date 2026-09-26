@@ -1651,35 +1651,39 @@ case 'get-dashboard': {
             getCollectionMetrics('jerseys'), getCollectionMetrics('tanktops'), getCollectionMetrics('tracksuits'),
             
             // UPDATED: Aggregating Revenue, Shipping, and Tax separately
-            db.collection('orders').aggregate([
-                { $match: { status: 'Confirmed' } },
-                { 
-                    $group: { 
-                        _id: null, 
-                        totalGross: { $sum: { $toDouble: "$amountPaid" } }, 
-                        totalShipping: { $sum: { $toDouble: { $ifNull: ["$shippingFee", 0] } } },
-                        totalTax: { $sum: { $toDouble: { $ifNull: ["$taxAmount", 0] } } } 
-                    } 
-                }
-            ]).toArray(),
+           // 1. Revenue Metrics Aggregation
+db.collection('orders').aggregate([
+    { $match: { status: { $in: ['Confirmed', 'Delivered', 'completed', 'success'] } } },
+    { 
+        $group: { 
+            _id: null, 
+            totalGross: { $sum: { $toDouble: "$amountPaid" } }, 
+            totalShipping: { $sum: { $toDouble: { $ifNull: ["$shippingFee", 0] } } },
+            totalTax: { $sum: { $toDouble: { $ifNull: ["$taxAmount", 0] } } } 
+        } 
+    }
+]).toArray(),
 
-            db.collection('orders').aggregate([
-                { $match: { status: 'Confirmed', createdAt: { $gte: startOfWeek } } },
-                { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, dailyTotal: { $sum: "$amountPaid" } } },
-                { $sort: { "_id": 1 } }
-            ]).toArray(),
+// 2. Weekly Aggregation
+db.collection('orders').aggregate([
+    { $match: { status: { $in: ['Confirmed', 'Delivered', 'completed', 'success'] }, createdAt: { $gte: startOfWeek } } },
+    { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, dailyTotal: { $sum: "$amountPaid" } } },
+    { $sort: { "_id": 1 } }
+]).toArray(),
 
-            db.collection('orders').aggregate([
-                { $match: { status: 'Confirmed' } },
-                { $group: { _id: { $dateToString: { format: "%Y-%m", date: "$createdAt" } }, monthTotal: { $sum: "$amountPaid" } } },
-                { $sort: { "_id": -1 } },
-                { $limit: 6 }
-            ]).toArray(),
+// 3. Monthly Aggregation
+db.collection('orders').aggregate([
+    { $match: { status: { $in: ['Confirmed', 'Delivered', 'completed', 'success'] } } },
+    { $group: { _id: { $dateToString: { format: "%Y-%m", date: "$createdAt" } }, monthTotal: { $sum: "$amountPaid" } } },
+    { $sort: { "_id": -1 } },
+    { $limit: 6 }
+]).toArray(),
 
-            db.collection('orders').aggregate([
-                { $match: { status: 'Confirmed', createdAt: { $gte: startOfToday } } },
-                { $group: { _id: { $hour: "$createdAt" }, total: { $sum: "$amountPaid" } } }
-            ]).toArray()
+// 4. Daily Aggregation (Hourly)
+db.collection('orders').aggregate([
+    { $match: { status: { $in: ['Confirmed', 'Delivered', 'completed', 'success'] }, createdAt: { $gte: startOfToday } } },
+    { $group: { _id: { $hour: "$createdAt" }, total: { $sum: "$amountPaid" } } }
+]).toArray()
         ]);
 
         // Aggregate Totals
@@ -2048,7 +2052,7 @@ async function processOrderDeduction(db, reference, orderData, paymentData, meth
     const isWalkIn = method === 'pos_walkin' || orderData.source === 'walkin_pos_terminal';
 
     // 2. Prepare Order Document
-         const orderDoc = {
+    const orderDoc = {
         ...orderData,
         email: orderData.email || paymentData.customer?.email || null,
         paymentReference: reference,
@@ -2068,23 +2072,21 @@ async function processOrderDeduction(db, reference, orderData, paymentData, meth
     // 3. Save Order & Capture ID
     const orderResult = await db.collection('orders').insertOne(orderDoc);
     orderDoc._id = orderResult.insertedId;
-// 4. Email Dispatch (Wait and Verify)
-if (orderDoc.email) {
-    console.log(`INITIATING_EMAIL_DISPATCH: Sending to ${orderDoc.email}`);
-    
-    // We MUST await here so Netlify doesn't kill the function early
-    try {
-        await sendOrderEmails(orderDoc);
-        console.log("EMAIL_DISPATCH_SUCCESSFUL");
-    } catch (err) {
-        // If email fails, we still want the order to be processed, so we just log the error
-        console.error("BLOCKING_EMAIL_FAILURE:", err.message);
-    }
-} else {
-    console.warn("EMAIL_SKIPPED: No email address found for reference:", reference);
-}
 
-    // 5. Inventory Deduction Logic
+    // 4. Email Dispatch (Wait and Verify)
+    if (orderDoc.email) {
+        console.log(`INITIATING_EMAIL_DISPATCH: Sending to ${orderDoc.email}`);
+        try {
+            await sendOrderEmails(orderDoc);
+            console.log("EMAIL_DISPATCH_SUCCESSFUL");
+        } catch (err) {
+            console.error("BLOCKING_EMAIL_FAILURE:", err.message);
+        }
+    } else {
+        console.warn("EMAIL_SKIPPED: No email address found for reference:", reference);
+    }
+
+    // 5. Robust Inventory Deduction Loop
     const inventoryUpdates = (orderData.items || []).map(async (item) => {
         const collectionMap = {
             'wear': 'wears', 'wears': 'wears',
@@ -2092,29 +2094,29 @@ if (orderDoc.email) {
             'cap': 'caps', 'caps': 'caps',
             'jersey': 'jerseys', 'jerseys': 'jerseys',
             'tracksuit': 'tracksuits', 'tracksuits': 'tracksuits',
-            'tanktop': 'tanktops'
+            'tanktop': 'tanktops', 'tanktops': 'tanktops'
         };
 
         const category = (item.category || 'wear').toLowerCase().trim();
         const collectionName = collectionMap[category] || (category.endsWith('s') ? category : category + 's');
         
         const rawId = item._id || item.id;
-        if (!rawId) return { error: "Missing ID", itemName: item.name };
-
+        if (!rawId) return { error: "Missing ID", itemName: item.name, success: false };
         const qtyToDeduct = -Math.abs(Number(item.qty || item.quantity || 1));
-        
-        console.log(`Deducting: ${item.name} (${item.size || 'No Size'}) from ${collectionName}`);
 
-        let filter = { _id: new ObjectId(rawId) };
-        let update = {};
-        let options = { arrayFilters: [{ "v.color": item.color }] };
+        const itemColor = (item.color || 'No Color').trim();
+        const colorRegex = new RegExp(itemColor, 'i');
 
-        const hasSize = item.size && !['One Size', '', 'OS', 'N/A'].includes(item.size);
-
-        // Filter variants to match the specific color
-        filter["variants"] = { 
-            $elemMatch: { color: item.color } 
+        let filter = { 
+            _id: new ObjectId(rawId),
+            "variants.color": colorRegex 
         };
+        
+        let update = {};
+        let options = { arrayFilters: [{ "v.color": colorRegex }] };
+
+        const normalizedSize = (item.size || '').trim().toLowerCase();
+        const hasSize = normalizedSize && !['one size', 'os', 'n/a', 'no size'].includes(normalizedSize);
 
         if (hasSize) {
             update = { 
@@ -2130,7 +2132,7 @@ if (orderDoc.email) {
             const res = await db.collection(collectionName).updateOne(filter, update, options);
             
             if (res.modifiedCount === 0) {
-                console.error(`FAILED_DEDUCTION: No match for ${item.name}. Ref: ${rawId} | Color: ${item.color}`);
+                console.error(`FAILED_DEDUCTION: No match for ${item.name}. Ref: ${rawId} | Color: ${itemColor}`);
                 return { name: item.name, success: false };
             }
             

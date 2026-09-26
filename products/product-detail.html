@@ -503,13 +503,13 @@ function renderProductData(isCap) {
             document.getElementById('p-price').innerHTML = `
                 <span class="text-black">${currentPriceFormatted}</span>
                 <span class="ml-3 text-red-400 line-through text-lg md:text-xl font-normal">${originalPriceFormatted}</span>
-                <span class="ml-3 bg-black text-white text-[18px] font-bold px-2 py-1 uppercase tracking-wider align-middle">30% OFF</span>
+                <span class="ml-3 bg-black text-white text-[16px] font-bold px-2 py-1 uppercase tracking-wider align-middle">UP TO 30% OFF</span>
             `;
         } else {
             // Fallback if no comparison price is set, but 30% badge is forced or desired based on schema
             document.getElementById('p-price').innerHTML = `
                 <span class="text-black">${currentPriceFormatted}</span>
-                <span class="ml-3 bg-black text-white text-[18px] font-bold px-2 py-1 uppercase tracking-wider align-middle">30% OFF</span>
+                <span class="ml-3 bg-black text-white text-[16px] font-bold px-2 py-1 uppercase tracking-wider align-middle">UP TO 30% OFF</span>
             `;
         }
 

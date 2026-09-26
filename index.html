@@ -39,8 +39,8 @@
     
     :root {
         /* Adjusted to reliably fit both announcement strip + main bar */
-        --header-height-mobile: 115px;
-        --header-height-desktop: 132px;
+         --header-height-mobile: 72px;
+         --header-height-desktop: 96px;
     }
 
     body { 
@@ -290,11 +290,10 @@
         </button>
     </div>
 </div>
-
-<!-- Responsive Hero Section with proper variable top spacing -->
-<section class="relative w-full min-h-[80vh] lg:h-screen bg-black overflow-hidden pt-[var(--header-height-mobile)] lg:pt-[var(--header-height-desktop)]">
+<!-- Responsive Hero Section with full-bleed layout and zero gap -->
+<section class="relative w-full h-[75vh] lg:h-[100dvh] bg-black overflow-hidden">
     <!-- Desktop Layout: Split Images (2 Columns) -->
-    <div class="hidden lg:grid grid-cols-2 w-full h-full absolute inset-0 pt-[var(--header-height-desktop)]">
+    <div class="hidden lg:grid grid-cols-2 w-full h-full absolute inset-0">
         <div class="relative h-full w-full overflow-hidden bg-zinc-900">
             <img src="outflickz-image1.jpg" alt="Style Redefined 1" class="w-full h-full object-cover opacity-90 border-r border-white/10">
         </div>
@@ -303,14 +302,18 @@
         </div>
     </div>
 
-    <!-- Mobile Layout: Single Full Image -->
-    <div class="block lg:hidden w-full h-full absolute inset-0 pt-[var(--header-height-mobile)] bg-zinc-900">
-        <img src="outflickz-image2.jpg" alt="Style Redefined" class="w-full h-full object-cover opacity-90">
+    <!-- Mobile Layout: Multiple Automatically Cycling Images -->
+    <div class="block lg:hidden w-full h-full absolute inset-0 bg-zinc-900 overflow-hidden" id="mobile-hero-slider">
+        <img src="outflickz-image1.jpg" alt="Style Redefined 1" class="mobile-hero-slide absolute inset-0 w-full h-full object-cover opacity-100 transition-opacity duration-1000">
+        <img src="outflickz-image2.jpg" alt="Style Redefined 2" class="mobile-hero-slide absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-1000">
+        <img src="outflickz-image3.jpg" alt="Style Redefined 3" class="mobile-hero-slide absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-1000">
+        <img src="outflickz-image4.jpg" alt="Style Redefined 4" class="mobile-hero-slide absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-1000">
+        <img src="outflickz-image5.JPG" alt="Style Redefined 5" class="mobile-hero-slide absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-1000">
     </div>
 
     <!-- Text Overlay -->
     <div class="absolute bottom-[10%] left-[5%] text-white z-10 pointer-events-none">
-        <h1 class="text-6xl md:text-8xl font-black italic tracking-tighter uppercase leading-none drop-shadow-2xl">STYLE<br>REDEFINED</h1>
+        <h1 class="text-5xl sm:text-6xl md:text-8xl font-black italic tracking-tighter uppercase leading-none drop-shadow-2xl">STYLE<br>REDEFINED</h1>
         <p class="text-[10px] md:text-[12px] tracking-[0.9em] uppercase mt-4 opacity-80">Shop Now</p>
     </div>
 </section>
@@ -1007,31 +1010,26 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-/**
- * Independent Video Mute Toggle
- * @param {HTMLElement} btn - The specific button element clicked
- * @param {string} videoId - The ID of the video to toggle
- */
-function toggleVideoMute(btn, videoId) {
-    const video = document.getElementById(videoId);
-    if (!video) return;
+document.addEventListener("DOMContentLoaded", () => {
+    const slides = document.querySelectorAll('.mobile-hero-slide');
+    if (slides.length <= 1) return;
 
-    // Find the icon span inside the clicked button
-    const icon = btn.querySelector('span');
+    let currentIndex = 0;
+    const intervalTime = 3000; 
 
-    // Toggle mute state for this specific video ONLY
-    video.muted = !video.muted;
+    setInterval(() => {
+        // Hide current slide
+        slides[currentIndex].classList.remove('opacity-100');
+        slides[currentIndex].classList.add('opacity-0');
 
-    // Update the icon for this button ONLY
-    icon.innerHTML = video.muted ? '🔇' : '🔊';
+        // Advance to next index
+        currentIndex = (currentIndex + 1) % slides.length;
 
-    // Optional: Add a subtle glow/background when unmuted to show it's active
-    if (!video.muted) {
-        btn.classList.add('bg-white/20');
-    } else {
-        btn.classList.remove('bg-white/20');
-    }
-}
+        // Show next slide
+        slides[currentIndex].classList.remove('opacity-0');
+        slides[currentIndex].classList.add('opacity-100');
+    }, intervalTime);
+});
 </script>
 </body>
 </html>

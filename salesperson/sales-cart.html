@@ -435,7 +435,7 @@ async function processSalesCheckout(event) {
     // 1. Determine agent name (Logged in user -> Saved Sales Name -> Default Fallback)
     const agentName = (token && userData.firstName) 
         ? `${userData.firstName} ${userData.lastName || ''}`.trim() 
-        : (localStorage.getItem('outflickz_sales_name') || 'KEMI SOTUBO');
+        : (localStorage.getItem('outflickz_sales_name') || 'OLUWATOYOSI JOY');
 
     // 2. Always auto-fill input field
     if (salesInput) {

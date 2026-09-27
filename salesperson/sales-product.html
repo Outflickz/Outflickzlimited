@@ -286,9 +286,7 @@
        function renderProductDetails(product) {
             document.getElementById('product-category').innerText = product.category || 'wear';
             document.getElementById('product-name').innerText = product.name;
-            
-            // --- PRICING DISPLAY FIX: Current Price + Original Price Side-by-Side with 30% OFF Badge ---
-            const currentPriceFormatted = `₦${Number(product.price).toLocaleString()}`;
+                        const currentPriceFormatted = `₦${Number(product.price).toLocaleString()}`;
             const originalPriceVal = product.comparePrice || product.originalPrice;
             
             const priceContainer = document.getElementById('product-price').parentElement;

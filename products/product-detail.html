@@ -310,22 +310,21 @@
     let IS_FETCHING_REFRESH = false;
 
 
-    /**
- * Resolves images for the Detail Page.
- * Since api.js already secured the URLs, we just pass them through.
- */
 function getOptimizedUrl(url) {
     if (!url || typeof url !== 'string' || url.includes('placehold.co')) {
         return 'https://placehold.co/600x800/f4f4f5/000?text=OUTFLICKZ';
     }
     
-    // If the API hasn't secured it yet (e.g. it's still "vault/..."), 
-    // we handle it here just in case.
-    if (url.startsWith('vault/')) {
-        return `/.netlify/functions/outflickz-image-proxy?key=${encodeURIComponent(url)}`;
+    // If it's already a full URL or relative netlify path, keep it
+    if (url.startsWith('http') || url.startsWith('/.netlify/')) {
+        return url;
     }
-
-    return url;
+    
+    // Clean up leading vault/ slashes
+    const cleanPath = url.trim().replace(/^\/+/, '').replace(/^vault\//, '');
+    
+    // Route through your main API endpoint proxy route
+    return `/.netlify/functions/api?key=vault/${cleanPath}`;
 }
 
     /**
@@ -514,7 +513,7 @@ function renderProductData(isCap) {
         renderColors(isCap);
     }
 
-    function selectColor(colorName, isCap) {
+  function selectColor(colorName, isCap) {
         selectedVariant = currentProduct.variants.find(v => v.color === colorName);
         document.querySelectorAll('.color-pill').forEach(btn => {
             btn.classList.toggle('active', btn.innerText.trim() === colorName.toUpperCase());
@@ -522,18 +521,27 @@ function renderProductData(isCap) {
         
         const images = (selectedVariant?.images?.length) ? selectedVariant.images : (currentProduct.images || []);
         
-        // --- IMAGE BADGE FIX: Added 30% OFF Badge overlay on the main product image container ---
+        // --- SILENT BACKGROUND PRELOADER ---
+        // Preload all variant images immediately so switching colors feels instant
+        images.forEach(img => {
+            const preload = new Image();
+            preload.src = getOptimizedUrl(img);
+        });
+
+        // --- IMAGE GALLERY RENDERER ---
         document.getElementById('image-gallery').innerHTML = images.map((img, idx) => `
-            <div class="img-container aspect-[3/4] border border-black/5 flex-shrink-0 relative">
+            <div class="img-container aspect-[3/4] border border-black/5 flex-shrink-0 relative bg-zinc-100 overflow-hidden">
                 ${idx === 0 ? `
                     <div class="absolute top-4 left-4 z-20 bg-black text-white text-[10px] font-black px-3 py-1.5 uppercase tracking-widest shadow-md">
+                        UP TO 30% OFF
                     </div>
                 ` : ''}
-                <img src="${getOptimizedUrl(img, 1200, 85)}" 
+                <img src="${getOptimizedUrl(img)}" 
                      onerror="handleImageError(this)"
                      fetchpriority="${idx === 0 ? 'high' : 'low'}" 
-                     class="w-full h-full object-cover img-blur" 
-                     onload="this.classList.add('img-clear'); this.dataset.refreshing='false';">
+                     loading="${idx === 0 ? 'eager' : 'lazy'}"
+                     class="w-full h-full object-cover transition-opacity duration-500 opacity-0" 
+                     onload="this.style.opacity='1'; this.dataset.refreshing='false';">
             </div>
         `).join('');
         

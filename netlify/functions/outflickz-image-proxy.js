@@ -45,11 +45,15 @@ exports.handler = async (event) => {
             Expires: 3600 
         });
 
-        return {
-            statusCode: 302,
-            headers: { "Location": signedUrl, "Access-Control-Allow-Origin": "*" },
-            body: '' 
-        };
+       return {
+    statusCode: 302,
+    headers: { 
+        "Location": signedUrl, 
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=86400" // Cache the redirect for 24 hours
+    },
+    body: '' 
+};
     } catch (err) {
         console.error("PROXY_ERROR:", err.message);
         return { statusCode: 500, body: err.message };

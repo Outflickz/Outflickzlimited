@@ -1866,7 +1866,6 @@ case 'get-any-product-details': {
         // 1. Search across all MongoDB collections
         for (const col of collections) {
             try {
-                // Ensure id is a valid ObjectId before querying
                 const queryId = id.length === 24 ? new ObjectId(id) : id;
                 product = await db.collection(col).findOne({ _id: queryId });
                 
@@ -1875,7 +1874,6 @@ case 'get-any-product-details': {
                     break; 
                 }
             } catch (oidErr) {
-                // If ObjectId conversion fails for one collection, move to the next
                 continue; 
             }
         }
@@ -1888,8 +1886,8 @@ case 'get-any-product-details': {
             };
         }
 
-        // 2. Helper to clean and sign keys (prevents broken links if full URLs are in DB)
-        const cleanAndSign = async (input) => {
+        // 2. Synchronous helper to clean and build proxy URL instantly
+        const cleanAndSign = (input) => {
             if (!input || typeof input !== 'string') return null;
             let key = input;
             if (input.includes('.com/')) {
@@ -1898,27 +1896,22 @@ case 'get-any-product-details': {
                 key = input.split('?')[0];
             }
             const finalKey = key.replace(/[…\s]/g, '').trim();
-            return await getSecureUrl(finalKey);
+            return getSecureUrl(finalKey);
         };
 
-        // 3. Sign Top-level images
+        // 3. Process Top-level images synchronously
         if (product.images && Array.isArray(product.images)) {
-            product.images = await Promise.all(
-                product.images.map(k => cleanAndSign(k))
-            );
+            product.images = product.images.map(k => cleanAndSign(k));
         }
 
-        // 4. Sign Variant images
-        const signedVariants = await Promise.all((product.variants || []).map(async v => {
+        // 4. Process Variant images synchronously
+        const signedVariants = (product.variants || []).map(v => {
             let signedVImgs = [];
             if (v.images && Array.isArray(v.images)) {
-                signedVImgs = await Promise.all(
-                    v.images.map(k => cleanAndSign(k))
-                );
+                signedVImgs = v.images.map(k => cleanAndSign(k));
             }
-            // Filter out any nulls from failed signs
             return { ...v, images: signedVImgs.filter(img => img !== null) };
-        }));
+        });
 
         // 5. Build Dynamic Google Rich Snippet (JSON-LD) Schema on Backend
         const primaryImage = signedVariants?.[0]?.images?.[0] || product.images?.[0] || "https://i.imgur.com/fu8N7I2.jpeg";
@@ -1955,15 +1948,16 @@ case 'get-any-product-details': {
             ...product, 
             variants: signedVariants,
             category: foundCollection,
-            schemaData // Attached schema ready for frontend insertion
+            schemaData 
         };
 
         return { 
             statusCode: 200, 
             headers: {
                 ...headers,
-                'X-Cache': 'DISABLED',
-                'Cache-Control': 'no-store, no-cache, must-revalidate'
+                'X-Cache': 'ENABLED',
+                // Enable safe caching for product details pages (cache at edge/browser for 15 minutes)
+                'Cache-Control': 'public, max-age=900, stale-while-revalidate=1800'
             }, 
             body: JSON.stringify(result)
         };
@@ -2780,40 +2774,34 @@ case 'get-broadcast-audience': {
     }
 }
 case 'get-all-products': {
-    // 1. Redis logic completely removed to prevent 500 errors.
-    // 2. We no longer check for forceRefresh as every call is now "fresh".
-
     try {
-        // 3. Fetching from MongoDB collections in parallel
         const collections = ['wears', 'shorts', 'caps', 'jerseys', 'tanktops', 'tracksuits'];
         const allResults = await Promise.all(
             collections.map(col => 
-                db.collection(col).find({}, { projection: { name: 1, price: 1, mainImage: 1, variants: 1 } }).toArray()
+                db.collection(col).find({}, { projection: { name: 1, price: 1, mainImage: 1, variants: 1, compareAtPrice: 1, category: 1 } }).toArray()
             )
         );
         
         const products = allResults.flat();
 
-        // 4. Generate Proxy URLs on the fly
-        const signedProducts = await Promise.all(products.map(async (p) => {
-            // Pulling the raw key (e.g., "vault/image.jpg")
+        // Since getSecureUrl is now synchronous, we map cleanly without inner awaits for the URL
+        const signedProducts = products.map((p) => {
             let imgKey = p.mainImage || p.variants?.[0]?.images?.[0];
+            let mainUrl = imgKey ? getSecureUrl(imgKey) : null;
 
-            if (imgKey && typeof imgKey === 'string') {
-                // Ensure we are passing only the path, not a full URL with old tokens
-                let cleanKey = imgKey.split('?')[0];
-                if (cleanKey.includes('.com/')) {
-                    cleanKey = cleanKey.split('.com/')[1];
-                }
-                const finalKey = cleanKey.replace(/[…\s]/g, '').trim();
+            // Map variants synchronously
+            const processedVariants = (p.variants || []).map((v) => {
+                const processedVariantImages = (v.images || []).map((vImg) => getSecureUrl(vImg));
+                return { ...v, images: processedVariantImages };
+            });
 
-                // Generate the Proxy URL
-                const url = await getSecureUrl(finalKey); 
-                return { ...p, mainImage: url, variants: undefined }; 
-            }
-            
-            return { ...p, mainImage: null, variants: undefined };
-        }));
+            return { 
+                ...p, 
+                displayImage: mainUrl, 
+                mainImage: mainUrl, 
+                variants: processedVariants 
+            };
+        });
 
         const responseBody = JSON.stringify({ success: true, products: signedProducts });
 
@@ -2821,8 +2809,8 @@ case 'get-all-products': {
             statusCode: 200, 
             headers: {
                 ...headers,
-                'X-Cache': 'DISABLED',
-                'Cache-Control': 'no-store, no-cache, must-revalidate'
+                'X-Cache': 'ENABLED',
+                'Cache-Control': 'public, max-age=900, stale-while-revalidate=1800'
             }, 
             body: responseBody 
         };

@@ -495,6 +495,7 @@ let IS_REFRESHING_WEARS = false;
             processedProducts.sort((a, b) => a.isOutOfStock - b.isOutOfStock);
 
             MASTER_PRODUCTS = processedProducts;
+            preloadVariantImages(MASTER_PRODUCTS);
             renderProducts(MASTER_PRODUCTS);
         }
     } catch (err) { 
@@ -948,6 +949,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+function preloadVariantImages(products) {
+    products.forEach(p => {
+        if (p.variants) {
+            p.variants.forEach(v => {
+                if (v.cleanImages) {
+                    v.cleanImages.forEach(url => {
+                        const preloadImg = new Image();
+                        preloadImg.src = url;
+                    });
+                }
+            });
+        }
+    });
+}
 
 // Automatically trigger modal popup immediately as the page loads
 window.addEventListener('DOMContentLoaded', () => {

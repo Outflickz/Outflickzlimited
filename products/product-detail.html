@@ -491,11 +491,9 @@ function renderProductData(isCap) {
         document.getElementById('p-name').innerText = currentProduct.name;
         document.getElementById('p-desc').innerText = currentProduct.description || 'Exclusive Outflickz streetwear.';
         
-        // --- PRICING DISPLAY FIX: Current Price + Original Price Side-by-Side ---
         const priceContainer = document.getElementById('p-price').parentElement; // assuming parent holds price or update target directly
         const currentPriceFormatted = `₦${Number(currentProduct.price).toLocaleString()}`;
         
-        // Check if original price exists (checking for comparePrice or originalPrice fields)
         const originalPriceVal = currentProduct.comparePrice || currentProduct.originalPrice;
         
         if (originalPriceVal && Number(originalPriceVal) > Number(currentProduct.price)) {
@@ -506,7 +504,6 @@ function renderProductData(isCap) {
                 <span class="ml-3 bg-black text-white text-[16px] font-bold px-2 py-1 uppercase tracking-wider align-middle">UP TO 30% OFF</span>
             `;
         } else {
-            // Fallback if no comparison price is set, but 30% badge is forced or desired based on schema
             document.getElementById('p-price').innerHTML = `
                 <span class="text-black">${currentPriceFormatted}</span>
                 <span class="ml-3 bg-black text-white text-[16px] font-bold px-2 py-1 uppercase tracking-wider align-middle">UP TO 30% OFF</span>

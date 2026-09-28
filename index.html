@@ -162,22 +162,6 @@
 <body class="bg-white text-black overflow-x-hidden">
 
 <nav class="fixed top-0 left-0 w-full z-50 bg-white/90 backdrop-blur-xl border-b border-black/5 flex flex-col">
-    <!-- 1. Walk-In Store Standalone Top Strip -->
-    <div class="bg-black text-white text-[9px] md:text-[10px] font-black uppercase tracking-[0.25em] py-2.5 overflow-hidden whitespace-nowrap border-b border-zinc-800 w-full">
-        <div class="animate-marquee flex items-center space-x-8">
-            <span class="flex items-center space-x-2">
-                <span class="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
-                <span>Walk-In Store Sales Active: Visit Our Flagship Store Today</span>
-            </span>
-            <span>•</span>
-            <span>Walk-In Store Sale Up To 30% Off</span>
-            <span>•</span>
-            <span>Walk-In Store Sales Active: Visit Our Flagship Store Today</span>
-            <span>•</span>
-            <span>Walk-In Store Sale Up To 30% Off</span>
-        </div>
-    </div>
-
     <!-- 2. Main Navigation Bar -->
     <div class="flex justify-between items-center px-5 h-16 md:h-24 md:px-10 bg-white/90 w-full">
         <div class="flex items-center space-x-4 md:space-x-12 h-full">
@@ -249,47 +233,6 @@
     <div id="mobile-auth-section" class="mt-auto border-t border-black/5 pt-8"></div>
 </div>
 
-<!-- Walk-In Store Promotional Modal (Fixed layout sizing & padding) -->
-<div id="walkInModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 transition-opacity duration-300" style="opacity: 0; display: flex;">
-    <div class="relative bg-white text-black w-full max-w-[380px] p-6 md:p-8 rounded-sm shadow-2xl border border-black/10 flex flex-col items-center text-center animate-item max-h-[90vh] overflow-y-auto">
-        
-        <!-- Close Button -->
-        <button onclick="closeWalkInModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center hover:bg-black hover:text-white transition-all">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-        </button>
-
-        <!-- Brand Logo -->
-        <div class="w-16 h-16 rounded-full overflow-hidden mb-4 border border-black/10 shadow-md shrink-0">
-            <img src="https://i.imgur.com/fu8N7I2.jpeg" alt="Outflickz Logo" class="w-full h-full object-cover">
-        </div>
-
-        <!-- Tag / Subtitle -->
-        <span class="text-[9px] font-black uppercase tracking-[0.3em] text-red-600 bg-red-50 px-3 py-1 rounded-full mb-3">
-            Flagship Store Exclusive
-        </span>
-
-        <!-- Main Title -->
-        <h2 class="text-2xl md:text-3xl font-black italic tracking-tighter uppercase mb-2">
-            Walk-In Store Sale
-        </h2>
-
-        <!-- Discount Highlight -->
-        <p class="text-xl md:text-2xl font-black uppercase tracking-wider text-black mb-4">
-            Up To 30% Off
-        </p>
-
-        <!-- Description & Dates -->
-        <p class="text-[11px] text-zinc-500 uppercase tracking-widest leading-relaxed mb-6">
-            Visit our physical flagship store today to experience exclusive collections and huge savings.<br><br>
-            <strong class="text-black">Dates:</strong> September 27, 2026 – November 1, 2026
-        </p>
-
-        <!-- Action Button -->
-        <button onclick="closeWalkInModal()" class="w-full bg-black text-white py-3.5 text-[10px] font-black uppercase tracking-[0.25em] rounded-sm hover:bg-zinc-800 transition-all shadow-lg">
-            Shop Collection Now
-        </button>
-    </div>
-</div>
 <!-- Responsive Hero Section with full-bleed layout and zero gap -->
 <section class="relative w-full h-[75vh] lg:h-[100dvh] bg-black overflow-hidden">
     <!-- Desktop Layout: Split Images (2 Columns) -->
@@ -1005,16 +948,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
-
-function closeWalkInModal() {
-    const modal = document.getElementById('walkInModal');
-    if (modal) {
-        modal.style.opacity = '0';
-        setTimeout(() => {
-            modal.style.display = 'none';
-        }, 300); // Matches transition duration
-    }
-}
 
 // Automatically trigger modal popup immediately as the page loads
 window.addEventListener('DOMContentLoaded', () => {

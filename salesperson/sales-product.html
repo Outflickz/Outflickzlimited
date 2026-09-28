@@ -295,7 +295,7 @@
                 priceContainer.innerHTML = `
                     <span id="product-price" class="font-bold text-black">${currentPriceFormatted}</span>
                     <span class="ml-3 text-red-400 line-through text-lg md:text-xl font-normal">${originalPriceFormatted}</span>
-                    <span class="ml-3 bg-black text-white text-[10px] font-bold px-2 py-1 uppercase tracking-wider align-middle">30% OFF</span>
+                    <span class="ml-3 bg-black text-white text-[10px] font-bold px-2 py-1 uppercase tracking-wider align-middle">UP TO 30% OFF</span>
                 `;
             } else {
                 priceContainer.innerHTML = `
@@ -341,7 +341,7 @@
                 if (!mainImageContainer.querySelector('.discount-badge')) {
                     const badge = document.createElement('div');
                     badge.className = 'discount-badge absolute top-4 left-4 z-20 bg-black text-white text-[10px] font-black px-3 py-1.5 uppercase tracking-widest shadow-md';
-                    badge.innerText = '30% OFF';
+                    badge.innerText = ' UP TO 30% OFF';
                     mainImageContainer.appendChild(badge);
                 }
 

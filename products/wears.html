@@ -291,6 +291,7 @@
 
                 processedWears.sort((a, b) => a.isOutOfStock - b.isOutOfStock);
                 MASTER_PRODUCTS = processedWears;
+                preloadVariantImages(MASTER_PRODUCTS);
                 renderProducts(MASTER_PRODUCTS);
             }
         } catch (err) {
@@ -428,6 +429,21 @@
             img.src = 'https://placehold.co/600x800/000000/FFFFFF?text=OUTFLICKZ';
         }
     }
+
+    function preloadVariantImages(products) {
+    products.forEach(p => {
+        if (p.variants) {
+            p.variants.forEach(v => {
+                if (v.cleanImages) {
+                    v.cleanImages.forEach(url => {
+                        const preloadImg = new Image();
+                        preloadImg.src = url;
+                    });
+                }
+            });
+        }
+    });
+}
 
     async function loadRelatedProducts(currentId) {
         try {

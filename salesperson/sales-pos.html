@@ -482,8 +482,13 @@ function createProductCard(p, index) {
             ? `<div class="flex items-center gap-1.5 md:gap-2 justify-end"><span class="line-through text-red-600 font-bold text-[11px] md:text-[14px]">₦${originalPrice.toLocaleString()}</span><span class="text-black font-black text-[14px] md:text-[20px]">₦${currentPrice.toLocaleString()}</span></div>`
             : `<span class="text-black font-black text-[14px] md:text-[20px]">₦${currentPrice.toLocaleString()}</span>`);
 
+    // --- ENCODED PREVIEW VARIABLES FOR INSTANT LOAD ---
+    const safeName = encodeURIComponent(p.name || '');
+    const safeCategory = encodeURIComponent(p.category || 'Collection');
+    const safeImg = encodeURIComponent(defaultImg);
+
     return `
-    <div class="group relative cursor-pointer animate-item" onclick="window.location.href='sales-product.html?id=${p._id}'">
+    <div class="group relative cursor-pointer animate-item" onclick="window.location.href='sales-product.html?id=${p._id}&category=${safeCategory}&img=${safeImg}&name=${safeName}&price=${currentPrice}'">
         <div id="container-${p._id}" class="aspect-[3/4] bg-zinc-100 overflow-hidden relative border border-black/5 skeleton"> 
             
             <!-- Hardcoded -30% OFF Sale Badge Label at the Top -->
@@ -526,7 +531,6 @@ function createProductCard(p, index) {
         </div>
     </div>`;
 }
-
 
 function updatePreview(event, productId, newSrc, isVariantSoldOut) {
     if (event) event.stopPropagation(); 

@@ -211,9 +211,29 @@
             return url;
         }
 
-        async function loadProductData() {
+       async function loadProductData() {
             const urlParams = new URLSearchParams(window.location.search);
             const productId = urlParams.get('id');
+
+            // --- INSTANT PREVIEW INJECTION ---
+            // If query params are present, paint the UI immediately before fetching
+            const instantName = urlParams.get('name');
+            const instantPrice = urlParams.get('price');
+            const instantCategory = urlParams.get('category');
+            const instantImg = urlParams.get('img');
+
+            if (instantName && instantPrice) {
+                document.getElementById('product-name').innerText = decodeURIComponent(instantName);
+                document.getElementById('product-category').innerText = decodeURIComponent(instantCategory || 'wear');
+                document.getElementById('product-price').innerText = `₦${Number(instantPrice).toLocaleString()}`;
+                
+                if (instantImg) {
+                    const decodedImg = decodeURIComponent(instantImg);
+                    document.getElementById('main-product-image').src = decodedImg;
+                    renderThumbnails([decodedImg]);
+                }
+            }
+            // ---------------------------------
 
             // If no ID is passed in the URL, fetch the combined catalog directly
             if (!productId) {
@@ -227,9 +247,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'get-product-by-id', id: productId })
                 });
-                
-                // If the Netlify function endpoint returns a 404 or fails, gracefully fallback to fetching all products
-                if (!res.ok) {
+                                if (!res.ok) {
                     console.warn(`Direct product fetch returned status ${res.status}. Falling back to catalog pool...`);
                     fetchAllProductsForSales();
                     return;
@@ -238,7 +256,7 @@
                 const data = await res.json();
                 if (data && (data._id || data.id)) {
                     currentProduct = data;
-                    renderProductDetails(data);
+                    renderProductDetails(data); // Overwrites with complete backend details (variants, sizes, full description, etc.)
                     loadRelatedProducts(data._id || data.id);
                 } else {
                     fetchAllProductsForSales();

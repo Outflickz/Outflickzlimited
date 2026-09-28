@@ -301,6 +301,7 @@
                 processedShorts.sort((a, b) => a.isOutOfStock - b.isOutOfStock);
 
                 MASTER_PRODUCTS = processedShorts;
+                preloadVariantImages(MASTER_PRODUCTS);
                 renderProducts(MASTER_PRODUCTS);
             }
         } catch (err) {
@@ -309,6 +310,21 @@
             if (grid) grid.innerHTML = `<p class="col-span-full text-center py-20 uppercase tracking-widest text-[9px]">Server Connection Error</p>`;
         }
     }
+
+    function preloadVariantImages(products) {
+    products.forEach(p => {
+        if (p.variants) {
+            p.variants.forEach(v => {
+                if (v.cleanImages) {
+                    v.cleanImages.forEach(url => {
+                        const preloadImg = new Image();
+                        preloadImg.src = url;
+                    });
+                }
+            });
+        }
+    });
+}
 
     function renderProducts(list) {
         const grid = document.getElementById('product-grid');

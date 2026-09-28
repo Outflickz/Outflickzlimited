@@ -235,38 +235,11 @@
             }
             // ---------------------------------
 
-            // If no ID is passed in the URL, fetch the combined catalog directly
-            if (!productId) {
-                fetchAllProductsForSales();
-                return;
-            }
-
-            try {
-                const res = await fetch(API_ENDPOINT, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'get-product-by-id', id: productId })
-                });
-                                if (!res.ok) {
-                    console.warn(`Direct product fetch returned status ${res.status}. Falling back to catalog pool...`);
-                    fetchAllProductsForSales();
-                    return;
-                }
-                
-                const data = await res.json();
-                if (data && (data._id || data.id)) {
-                    currentProduct = data;
-                    renderProductDetails(data); // Overwrites with complete backend details (variants, sizes, full description, etc.)
-                    loadRelatedProducts(data._id || data.id);
-                } else {
-                    fetchAllProductsForSales();
-                }
-            } catch (err) {
-                console.warn("Direct Product Load caught network exception, falling back to catalog:", err);
-                fetchAllProductsForSales();
-            }
+            // If no ID is passed in the URL, or if we want to fetch the combined catalog pool safely
+            // without hitting the unsupported 'get-product-by-id' endpoint, go directly here:
+            fetchAllProductsForSales();
         }
-
+        
         async function fetchAllProductsForSales() {
             try {
                 const res = await fetch(API_ENDPOINT, {

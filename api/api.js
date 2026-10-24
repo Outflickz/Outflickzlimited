@@ -4,6 +4,8 @@ const jwt = require('jsonwebtoken');
 const AWS = require('aws-sdk');
 const sharp = require('sharp'); 
 const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const MONGODB_URI = process.env.MONGODB_URI;
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -117,6 +119,9 @@ const transporter = nodemailer.createTransport({
     debug: true,
     logger: true 
 });
+
+
+
 async function sendOrderEmails(order, status = 'New') {
     if (!order || !order.email) {
         console.error("EMAIL_ABORTED: No recipient email found.");
@@ -137,18 +142,14 @@ async function sendOrderEmails(order, status = 'New') {
     }));
 
     // 2. Updated Financial Calculations
-    // Subtotal based on items
     const subtotal = signedItems.reduce((acc, item) => acc + (Number(item.price || 0) * Number(item.qty || 1)), 0);
-    
-    // Support both naming conventions (shippingCost or shippingFee)
     const shipping = Number(order.shippingFee || order.shippingCost || 0);
-    
-    // Support both naming conventions (tax or taxAmount)
     const tax = Number(order.taxAmount || order.tax || 0);
-    
     const total = subtotal + shipping + tax;
 
-    const fromAddress = `"${process.env.EMAIL_FROM_NAME}" <${process.env.EMAIL_USER}>`;
+    const fromEmail = process.env.EMAIL_FROM || 'orders@outflickz.com';
+    const fromName = process.env.EMAIL_FROM_NAME || 'OUTFLICKZ';
+    const fromAddress = `"${fromName}" <${fromEmail}>`;
     const logoUrl = "https://i.imgur.com/fu8N7I2.jpeg";
 
     // 3. Pickup vs Shipping Detection Logic
@@ -276,12 +277,12 @@ async function sendOrderEmails(order, status = 'New') {
     </body>
     </html>`;
 
-    // 7. Execution Logic
+    // 7. Execution Logic using Resend
     try {
         const adminSubject = `⚡ [${order.deliveryMethod?.toUpperCase()}] New Order ₦${total.toLocaleString()} - ${order.firstName}`;
 
         const tasks = [
-            transporter.sendMail({
+            resend.emails.send({
                 from: fromAddress,
                 to: order.email,
                 subject: subject,
@@ -290,14 +291,16 @@ async function sendOrderEmails(order, status = 'New') {
             })
         ];
 
-        if (status === 'New') {
-            tasks.push(transporter.sendMail({
-                from: fromAddress,
-                to: process.env.ADMIN_EMAIL,
-                subject: adminSubject,
-                html: emailTemplate(true),
-                text: `New ${order.deliveryMethod} Order from ${order.firstName}.`
-            }));
+        if (status === 'New' && process.env.ADMIN_EMAIL) {
+            tasks.push(
+                resend.emails.send({
+                    from: fromAddress,
+                    to: process.env.ADMIN_EMAIL,
+                    subject: adminSubject,
+                    html: emailTemplate(true),
+                    text: `New ${order.deliveryMethod} Order from ${order.firstName}.`
+                })
+            );
         }
 
         await Promise.all(tasks);
@@ -308,7 +311,9 @@ async function sendOrderEmails(order, status = 'New') {
 }
 
 async function sendVerificationEmail(email, otp, firstName) {
-    const fromAddress = `"${process.env.EMAIL_FROM_NAME}" <${process.env.EMAIL_USER}>`;
+    const fromEmail = process.env.EMAIL_FROM || 'support@outflickz.com';
+    const fromName = process.env.EMAIL_FROM_NAME || 'OUTFLICKZ';
+    const fromAddress = `${fromName} <${fromEmail}>`;
     const logoUrl = "https://i.imgur.com/fu8N7I2.jpeg";
 
     const otpTemplate = `
@@ -329,15 +334,16 @@ async function sendVerificationEmail(email, otp, firstName) {
     `;
 
     try {
-        await transporter.sendMail({
+        await resend.emails.send({
             from: fromAddress,
             to: email,
             subject: `VERIFY YOUR OUTFLICKZ ACCESS: ${otp}`,
             html: otpTemplate,
             text: `Your OUTFLICKZ verification code is: ${otp}`
         });
+        console.log(`VERIFICATION_EMAIL_SENT: ${email}`);
     } catch (error) {
-        console.error("OTP_EMAIL_ERROR:", error);
+        console.error("OTP_EMAIL_ERROR:", error.message);
     }
 }
 
@@ -2630,8 +2636,6 @@ case 'mass-broadcast': {
         // --- C. ASSET SIGNING & GRID FORMATTING ---
         let assetsHtml = "";
         if (template === 'arrivals' && imageAssets?.length > 0) {
-            // Sign the private URLs once before the loop to save compute/latency
-            // We use a 7-day expiry (604800s) because broadcast emails linger in inboxes
             const signedAssets = await Promise.all(imageAssets.map(async (img) => {
                 try {
                     return await getSecureUrl(img, 604800); 
@@ -2652,7 +2656,6 @@ case 'mass-broadcast': {
         const formattedMessage = message.replace(/\n/g, '<br>');
 
         // --- D. MASTER RESPONSIVE TEMPLATE ---
-        // Includes the Brand Logo + Brand Name "OUTFLICKZ"
         const emailHtml = `
             <!DOCTYPE html>
             <html>
@@ -2681,7 +2684,7 @@ case 'mass-broadcast': {
                                             <div style="margin-top: 30px; text-align: center;">
                                                 <a href="https://outflickz.com" 
                                                    style="background: #000000; color: #ffffff; padding: 15px 35px; text-decoration: none; 
-                                                          font-weight: bold; border-radius: 4px; display: inline-block; font-size: 13px; letter-spacing: 2px;">
+                                                         font-weight: bold; border-radius: 4px; display: inline-block; font-size: 13px; letter-spacing: 2px;">
                                                     SHOP THE COLLECTION
                                                 </a>
                                             </div>
@@ -2700,20 +2703,24 @@ case 'mass-broadcast': {
                 </body>
             </html>`;
 
-        // E. Execution: Individual Dispatch Loop
+        // --- E. Execution: Individual Dispatch Loop using Resend ---
+        const fromEmail = process.env.EMAIL_FROM || 'news@outflickz.com';
+        const fromName = process.env.EMAIL_FROM_NAME || 'OUTFLICKZ';
+        const fromAddress = `${fromName} <${fromEmail}>`;
+
         let dispatchedCount = 0;
         let failedEmails = [];
 
         for (const email of targetList) {
             try {
-                await transporter.sendMail({
-                    from: `"${process.env.EMAIL_FROM_NAME}" <${process.env.EMAIL_USER}>`,
+                await resend.emails.send({
+                    from: fromAddress,
                     to: email,
                     subject: subject,
                     html: emailHtml
                 });
                 dispatchedCount++;
-                // Anti-spam delay
+                // Anti-spam delay to respect rate limits
                 await new Promise(r => setTimeout(r, 200)); 
             } catch (err) {
                 failedEmails.push({ email, error: err.message });

@@ -147,7 +147,7 @@ async function sendOrderEmails(order, status = 'New') {
     const tax = Number(order.taxAmount || order.tax || 0);
     const total = subtotal + shipping + tax;
 
-    const fromEmail = process.env.EMAIL_FROM || 'orders@outflickz.com';
+    const fromEmail = process.env.EMAIL_FROM || 'outflickz@outflickz.com';
     const fromName = process.env.EMAIL_FROM_NAME || 'OUTFLICKZ';
     const fromAddress = `"${fromName}" <${fromEmail}>`;
     const logoUrl = "https://i.imgur.com/fu8N7I2.jpeg";
@@ -277,9 +277,8 @@ async function sendOrderEmails(order, status = 'New') {
     </body>
     </html>`;
 
-    // 7. Execution Logic using Resend
-    try {
-        const adminSubject = `⚡ [${order.deliveryMethod?.toUpperCase()}] New Order ₦${total.toLocaleString()} - ${order.firstName}`;
+  try {
+        const adminSubject = `⚡ [${order.deliveryMethod?.toUpperCase()}] New Order ₦${total.toLocaleString()} ${order.firstName}`;
 
         const tasks = [
             resend.emails.send({
@@ -311,9 +310,17 @@ async function sendOrderEmails(order, status = 'New') {
 }
 
 async function sendVerificationEmail(email, otp, firstName) {
-    const fromEmail = process.env.EMAIL_FROM || 'support@outflickz.com';
-    const fromName = process.env.EMAIL_FROM_NAME || 'OUTFLICKZ';
+    if (!process.env.RESEND_API_KEY) {
+        console.error("FATAL: RESEND_API_KEY is missing or undefined in environment variables!");
+    } else {
+        console.log("RESEND_API_KEY is present (starts with):", process.env.RESEND_API_KEY.substring(0, 5) + "...");
+    }
+    const rawFromEmail = process.env.EMAIL_FROM || 'outflickz@outflickz.com';
+    const rawFromName = process.env.EMAIL_FROM_NAME || 'OUTFLICKZ';
+        const fromEmail = rawFromEmail.trim();
+    const fromName = rawFromName.trim();
     const fromAddress = `${fromName} <${fromEmail}>`;
+    
     const logoUrl = "https://i.imgur.com/fu8N7I2.jpeg";
 
     const otpTemplate = `
@@ -334,16 +341,23 @@ async function sendVerificationEmail(email, otp, firstName) {
     `;
 
     try {
-        await resend.emails.send({
+        console.log(`Attempting to send email to ${email} from ${fromAddress}...`);
+        
+        const response = await resend.emails.send({
             from: fromAddress,
             to: email,
             subject: `VERIFY YOUR OUTFLICKZ ACCESS: ${otp}`,
             html: otpTemplate,
             text: `Your OUTFLICKZ verification code is: ${otp}`
         });
-        console.log(`VERIFICATION_EMAIL_SENT: ${email}`);
+
+        console.log(`VERIFICATION_EMAIL_SENT successfully! Response:`, JSON.stringify(response));
+        return { success: true, response };
     } catch (error) {
-        console.error("OTP_EMAIL_ERROR:", error.message);
+        // Print the full error object so we see status codes or validation details in Netlify logs
+        console.error("OTP_EMAIL_ERROR FULL OBJECT:", JSON.stringify(error, null, 2));
+        console.error("OTP_EMAIL_ERROR MESSAGE:", error.message);
+        throw error; // Rethrow so the calling route knows the email failed if needed
     }
 }
 
@@ -2165,16 +2179,26 @@ case 'update-order-status': {
 }
 
 case 'user-request-otp': {
-    const { email, firstName } = JSON.parse(event.body);
+    console.log("🟢 HIT: user-request-otp case reached!");
+    
+    const body = JSON.parse(event.body || '{}');
+    const { email, firstName } = body;
+    
+    if (!email) {
+        console.error("❌ ERROR: Email is missing from request body!");
+        return { statusCode: 400, headers, body: JSON.stringify({ message: "EMAIL REQUIRED" }) };
+    }
+
     const cleanEmail = email.toLowerCase().trim();
+    console.log(`🔍 Checking database for existing user: ${cleanEmail}`);
 
     // Check if user exists
     const existingUser = await db.collection('users').findOne({ email: cleanEmail });
     if (existingUser) {
+        console.log(`⚠️ User already exists: ${cleanEmail}`);
         return { statusCode: 400, headers, body: JSON.stringify({ message: "EMAIL ALREADY REGISTERED" }) };
     }
 
-    // Generate 6-digit OTP & Expiry (10 mins)
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60000);
 
@@ -2185,6 +2209,7 @@ case 'user-request-otp': {
         { upsert: true }
     );
 
+    console.log(`🚀 Triggering sendVerificationEmail for ${cleanEmail} with OTP: ${otp}`);
     await sendVerificationEmail(cleanEmail, otp, firstName);
 
     return { statusCode: 200, headers, body: JSON.stringify({ success: true, message: "OTP SENT" }) };
@@ -2704,7 +2729,7 @@ case 'mass-broadcast': {
             </html>`;
 
         // --- E. Execution: Individual Dispatch Loop using Resend ---
-        const fromEmail = process.env.EMAIL_FROM || 'news@outflickz.com';
+        const fromEmail = process.env.EMAIL_FROM || 'outflickz@outflickz.com';
         const fromName = process.env.EMAIL_FROM_NAME || 'OUTFLICKZ';
         const fromAddress = `${fromName} <${fromEmail}>`;
 

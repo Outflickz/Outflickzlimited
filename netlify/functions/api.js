@@ -202,7 +202,7 @@ async function sendOrderEmails(order, status = 'New') {
     const total = subtotal + shipping + tax;
 
     // Resend Sender Configuration
-    const rawFromEmail = process.env.EMAIL_FROM || 'outflickz@outflickz.com';
+    const rawFromEmail = process.env.EMAIL_FROM || 'support@outflickz.com';
     const rawFromName = process.env.EMAIL_FROM_NAME || 'OUTFLICKZ';
     const fromAddress = `${rawFromName.trim()} <${rawFromEmail.trim()}>`;
     const logoUrl = "https://i.imgur.com/fu8N7I2.jpeg";
@@ -379,7 +379,7 @@ async function sendVerificationEmail(email, otp, firstName) {
         console.log("RESEND_API_KEY is present (starts with):", process.env.RESEND_API_KEY.substring(0, 5) + "...");
     }
 
-    const rawFromEmail = process.env.EMAIL_FROM || 'outflickz@outflickz.com';
+    const rawFromEmail = process.env.EMAIL_FROM || 'support@outflickz.com';
     const rawFromName = process.env.EMAIL_FROM_NAME || 'OUTFLICKZ';
     const fromEmail = rawFromEmail.trim();
     const fromName = rawFromName.trim();

@@ -34,12 +34,9 @@ let cachedDb = null;
 let cachedClient = null; 
 
 async function connectToDatabase() {
-    // 1. If already connected, return the cached database
     if (cachedDb && cachedClient && cachedClient.topology && cachedClient.topology.isConnected()) {
         return cachedDb;
     }
-
-    // 2. Setup connection options for Serverless Stability
     const options = {
         connectTimeoutMS: 10000,
         serverSelectionTimeoutMS: 10000,
@@ -93,6 +90,7 @@ async function uploadToS3(fileBase64) {
         return null;
     }
 }
+
 // Remove 'async' so it returns a string immediately
 function getSecureUrl(key) {
     if (!key || typeof key !== 'string') return null;
@@ -143,38 +141,81 @@ async function isRateLimited(ip, limit = 30, windowInSeconds = 60) {
 }
 
 async function sendOrderEmails(order, status = 'New') {
-    if (!order || !order.email) {
-        console.error("EMAIL_ABORTED: No recipient email found.");
+    if (!order) {
+        console.error("EMAIL_ABORTED: No order object found.");
         return;
     }
 
-    // 1. Generate Signed URLs for the private images
+    const recipientEmail = order.email || process.env.ADMIN_EMAIL;
+    if (!recipientEmail) {
+        console.error("EMAIL_ABORTED: No recipient email or admin email found.");
+        return;
+    }
+
+    if (!process.env.RESEND_API_KEY) {
+        console.error("FATAL: RESEND_API_KEY is missing or undefined in environment variables!");
+    }
+
+    // 1. Generate Direct Absolute Pre-signed S3 URLs for Email Clients
     const signedItems = await Promise.all((order.items || []).map(async (item) => {
-        let displayImage = 'https://via.placeholder.com/200x250?text=No+Image';
+        let displayImage = '';
+        
         if (item.image) {
             try {
-                displayImage = await getSecureUrl(item.image);
+                let rawInput = item.image;
+                let cleanKey = rawInput;
+
+                // Handle if item.image is already a proxy path: extract the 'key' query parameter
+                if (rawInput.includes('outflickz-image-proxy')) {
+                    const urlParams = new URLSearchParams(rawInput.split('?')[1]);
+                    cleanKey = urlParams.get('key') || rawInput;
+                }
+
+                // Strip domain or extra query clutter
+                cleanKey = cleanKey.split('?')[0].trim();
+                if (cleanKey.includes('.com/')) {
+                    cleanKey = cleanKey.split('.com/').pop();
+                }
+                const bucketName = "outflickz";
+                if (cleanKey.startsWith(bucketName + '/')) {
+                    cleanKey = cleanKey.substring(bucketName.length + 1);
+                }
+                cleanKey = cleanKey.replace(/^\/+/, '');
+
+                // Generate a real absolute pre-signed S3 URL valid for 7 days
+                displayImage = await s3.getSignedUrlPromise('getObject', {
+                    Bucket: BUCKET_NAME,
+                    Key: cleanKey,
+                    Expires: 604800 // 7 days in seconds
+                });
             } catch (err) {
-                console.error("SIGNING_ERROR_FOR_EMAIL:", err);
+                console.error("S3_SIGNING_ERROR_FOR_EMAIL:", err);
             }
         }
         return { ...item, signedImage: displayImage };
     }));
 
     // 2. Updated Financial Calculations
-    const subtotal = signedItems.reduce((acc, item) => acc + (Number(item.price || 0) * Number(item.qty || 1)), 0);
-    
+    const subtotal = signedItems.reduce((acc, item) => acc + (Number(item.price || 0) * Number(item.qty || item.quantity || 1)), 0);
     const shipping = Number(order.shippingFee || order.shippingCost || 0);
     const tax = Number(order.taxAmount || order.tax || 0);
-    
     const total = subtotal + shipping + tax;
 
-    const fromAddress = `"${process.env.EMAIL_FROM_NAME}" <${process.env.EMAIL_USER}>`;
+    // Resend Sender Configuration
+    const rawFromEmail = process.env.EMAIL_FROM || 'outflickz@outflickz.com';
+    const rawFromName = process.env.EMAIL_FROM_NAME || 'OUTFLICKZ';
+    const fromAddress = `${rawFromName.trim()} <${rawFromEmail.trim()}>`;
     const logoUrl = "https://i.imgur.com/fu8N7I2.jpeg";
 
-    // 3. Pickup vs Shipping Detection Logic
+    // 3. Pickup vs Shipping & Smart Name Handling
     const isPickup = (order.deliveryMethod === 'pickup');
     const refSuffix = (order.reference || '000').slice(-6).toUpperCase();
+
+    const customerIdentifier = order.firstName 
+        ? `${order.firstName} ${order.lastName || ''}`.trim() 
+        : (order.email ? order.email.toLowerCase().trim() : 'Walk-In Customer');
+
+    const customerGreetingName = order.firstName || (order.email ? order.email.split('@')[0] : 'Valued Customer');
 
     // 4. Dynamic Status & Logistics Copy
     let headline, subHeadline, mainMessage, subject;
@@ -183,37 +224,37 @@ async function sendOrderEmails(order, status = 'New') {
         headline = isPickup ? "READY FOR COLLECTION" : "DISPATCH INITIALIZED";
         subHeadline = isPickup ? "ORDER AT PICKUP POINT" : "ORDER ITEMS IN TRANSIT";
         mainMessage = isPickup 
-            ? `Hi ${order.firstName}, your selection is ready. You can now visit our ${order.pickupLocation || 'designated branch'} to collect your package. Please have your Order ID ready.`
-            : `Hi ${order.firstName}, your selection has been cleared from our vault and is currently on its way to your location. Prepare for arrival.`;
+            ? `Hi ${customerGreetingName}, your selection is ready. You can now visit our ${order.pickupLocation || 'designated branch'} to collect your package. Please have your Order ID ready.`
+            : `Hi ${customerGreetingName}, your selection has been cleared from our vault and is currently on its way to your location. Prepare for arrival.`;
         subject = isPickup ? `OUTFLICKZ: READY FOR PICKUP #${refSuffix}` : `OUTFLICKZ: YOUR SELECTION IS IN TRANSIT #${refSuffix}`;
     } else if (status === 'Delivered') {
         headline = "COLLECTION SECURED";
         subHeadline = isPickup ? "PICKUP COMPLETED" : "PACKAGE SUCCESSFULLY DELIVERED";
-        mainMessage = `Your package has been successfully ${isPickup ? 'picked up' : 'delivered'}! We hope you enjoy your new OUTFLICKZ collection. Thank you for your patronage—it’s been a pleasure serving you.`;
+        mainMessage = `Hi ${customerGreetingName}, your package has been successfully ${isPickup ? 'picked up' : 'delivered'}! We hope you enjoy your new OUTFLICKZ collection. Thank you for your patronage—it’s been a pleasure serving you.`;
         subject = `OUTFLICKZ: COMPLETED #${refSuffix}`;
     } else {
         headline = "ORDER SELECTION SECURED";
         subHeadline = "TRANSACTION VERIFIED";
-        mainMessage = `Hi ${order.firstName}, thank you for your order. We are officially preparing your selection. ${isPickup ? "We will notify you the moment it is ready at the pickup branch." : "Stay ready for dispatch."}`;
+        mainMessage = `Hi ${customerGreetingName}, thank you for your order. We are officially preparing your selection. ${isPickup ? "We will notify you the moment it is ready at the pickup branch." : "Stay ready for dispatch."}`;
         subject = `THANK YOU: VAULT SECURED #${refSuffix}`;
     }
 
-    // 5. Build Items HTML
+    // 5. Build Items HTML using the absolute S3 signed image URLs
     const itemsHtml = signedItems.map(item => `
         <tr>
             <td style="padding: 10px 0;">
                 <table width="100%" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border: 1px solid #e0e0e0; border-bottom: 4px solid #000000; border-radius: 8px;">
                     <tr>
                         <td width="100" style="padding: 15px;">
-                            <img src="${item.signedImage}" width="80" style="width: 80px; height: auto; display: block; filter: grayscale(100%); border-radius: 4px; border: 1px solid #eee;">
+                            ${item.signedImage ? `<img src="${item.signedImage}" width="80" style="width: 80px; height: 100px; object-fit: cover; display: block; filter: grayscale(100%); border-radius: 4px; border: 1px solid #eee;" alt="Product Image">` : ''}
                         </td>
                         <td style="padding: 15px 15px 15px 0;" valign="middle">
                             <p style="margin: 0; font-family: sans-serif; font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #000;">${item.name || 'Vault Item'}</p>
                             <p style="margin: 4px 0; font-family: sans-serif; font-size: 10px; color: #888; text-transform: uppercase;">${item.color || 'Default'} / ${item.size || item.displaySize || 'OS'}</p>
-                            <p style="margin: 0; font-family: sans-serif; font-size: 11px; font-weight: bold; color: #000;">QTY: ${item.qty || 1}</p>
+                            <p style="margin: 0; font-family: sans-serif; font-size: 11px; font-weight: bold; color: #000;">QTY: ${item.qty || item.quantity || 1}</p>
                         </td>
                         <td align="right" style="padding-right: 20px;" valign="middle">
-                            <p style="margin: 0; font-family: sans-serif; font-size: 13px; font-weight: 900; color: #000;">₦${(Number(item.price || 0) * Number(item.qty || 1)).toLocaleString()}</p>
+                            <p style="margin: 0; font-family: sans-serif; font-size: 13px; font-weight: 900; color: #000;">₦${(Number(item.price || 0) * Number(item.qty || item.quantity || 1)).toLocaleString()}</p>
                         </td>
                     </tr>
                 </table>
@@ -221,7 +262,7 @@ async function sendOrderEmails(order, status = 'New') {
         </tr>
     `).join('');
 
-    // 6. Build Master Template
+    // 6. Master Template Generator Function
     const emailTemplate = (isForAdmin = false) => `
     <!DOCTYPE html>
     <html>
@@ -248,10 +289,10 @@ async function sendOrderEmails(order, status = 'New') {
                         <tr>
                             <td style="padding: 30px 0 10px 0;">
                                 <h2 style="margin: 0; font-size: 18px; font-weight: 900; color: #000; text-transform: uppercase;">
-                                    ${isForAdmin ? `Order From: ${order.firstName} ${order.lastName}` : subHeadline}
+                                    ${isForAdmin ? `Order From: ${customerIdentifier}` : subHeadline}
                                 </h2>
                                 <p style="margin: 10px 0; font-size: 14px; line-height: 1.6; color: #444;">
-                                    ${isForAdmin ? `A new ${order.deliveryMethod} transaction has been processed. Immediate action required.` : mainMessage}
+                                    ${isForAdmin ? `A new ${order.deliveryMethod || 'pickup'} transaction has been processed by ${order.salesPerson || 'Agent'}. Immediate action required.` : mainMessage}
                                 </p>
                             </td>
                         </tr>
@@ -276,7 +317,7 @@ async function sendOrderEmails(order, status = 'New') {
                                     <p style="font-size: 13px; margin: 5px 0;"><strong>Method:</strong> ${isPickup ? 'Local Pickup' : 'Standard Shipping'}</p>
                                     
                                     ${isPickup ? `
-                                        <p style="font-size: 13px; margin: 5px 0;"><strong>Branch:</strong> ${order.pickupLocation || 'Warehouse Main'}</p>
+                                        <p style="font-size: 13px; margin: 5px 0;"><strong>Branch / Agent:</strong> ${order.pickupLocation || 'Warehouse Main'} (${order.salesPerson || 'N/A'})</p>
                                         <p style="font-size: 11px; color: #888; margin-top: 10px; text-transform: uppercase;">* Show this email at the counter for verification.</p>
                                     ` : `
                                         <p style="font-size: 13px; margin: 10px 0 5px 0;"><strong>Shipping Address:</strong></p>
@@ -297,34 +338,37 @@ async function sendOrderEmails(order, status = 'New') {
     </body>
     </html>`;
 
-    // 7. Execution Logic
+    // 7. Execution Logic using Resend API
     try {
-        const adminSubject = `⚡ [${order.deliveryMethod?.toUpperCase()}] New Order ₦${total.toLocaleString()} - ${order.firstName}`;
+        const adminSubject = `⚡ [${order.deliveryMethod?.toUpperCase() || 'POS'}] New Order ₦${total.toLocaleString()} - ${customerIdentifier}`;
 
-        const tasks = [
-            transporter.sendMail({
+        const tasks = [];
+        if (order.email) {
+            tasks.push(resend.emails.send({
                 from: fromAddress,
-                to: order.email,
+                to: [order.email.toLowerCase().trim()],
+                replyTo: rawFromEmail.trim(),
                 subject: subject,
                 html: emailTemplate(false),
                 text: mainMessage
-            })
-        ];
+            }));
+        }
 
-        if (status === 'New') {
-            tasks.push(transporter.sendMail({
+        if (status === 'New' && process.env.ADMIN_EMAIL) {
+            tasks.push(resend.emails.send({
                 from: fromAddress,
-                to: process.env.ADMIN_EMAIL,
+                to: [process.env.ADMIN_EMAIL.trim()],
+                replyTo: rawFromEmail.trim(),
                 subject: adminSubject,
                 html: emailTemplate(true),
-                text: `New ${order.deliveryMethod} Order from ${order.firstName}.`
+                text: `New ${order.deliveryMethod || 'order'} transaction processed from ${customerIdentifier}. Total: ₦${total.toLocaleString()}`
             }));
         }
 
         await Promise.all(tasks);
-        console.log(`EMAILS_SENT_SUCCESSFULLY: ${order.reference} (Mode: ${order.deliveryMethod})`);
+        console.log(`EMAILS_SENT_SUCCESSFULLY via Resend for reference: ${order.reference} (Mode: ${order.deliveryMethod})`);
     } catch (error) {
-        console.error("EMAIL_TRANSPORT_ERROR:", error.message);
+        console.error("RESEND_EMAIL_TRANSPORT_ERROR:", error.message || error);
     }
 }
 
@@ -334,29 +378,45 @@ async function sendVerificationEmail(email, otp, firstName) {
     } else {
         console.log("RESEND_API_KEY is present (starts with):", process.env.RESEND_API_KEY.substring(0, 5) + "...");
     }
+
     const rawFromEmail = process.env.EMAIL_FROM || 'outflickz@outflickz.com';
     const rawFromName = process.env.EMAIL_FROM_NAME || 'OUTFLICKZ';
-        const fromEmail = rawFromEmail.trim();
+    const fromEmail = rawFromEmail.trim();
     const fromName = rawFromName.trim();
+    
+    // Proper RFC 5322 formatting helps prevent spam filters from rejecting the header
     const fromAddress = `${fromName} <${fromEmail}>`;
     
     const logoUrl = "https://i.imgur.com/fu8N7I2.jpeg";
 
+    // Clean, responsive, spam-safe HTML template
     const otpTemplate = `
-    <div style="background-color: #f0f0f0; padding: 40px; font-family: sans-serif; text-align: center;">
-        <div style="max-width: 450px; margin: 0 auto; background: #fff; padding: 40px; border-bottom: 8px solid #000; border-radius: 12px;">
-            <img src="${logoUrl}" width="100" style="margin-bottom: 20px;">
-            <h2 style="letter-spacing: 4px; text-transform: uppercase; font-weight: 900;">IDENTITY VERIFICATION</h2>
-            <p style="color: #666; font-size: 14px;">Hi ${firstName}, use the vault access code below to verify your account.</p>
-            
-            <div style="margin: 30px 0; padding: 20px; border: 2px dashed #000; border-radius: 8px; background: #fafafa;">
-                <span style="font-size: 32px; font-weight: 900; letter-spacing: 10px; color: #000;">${otp}</span>
-            </div>
-            
-            <p style="font-size: 11px; color: #999; text-transform: uppercase;">This code is valid for 10 minutes. If you did not request this, ignore this email.</p>
-        </div>
-        <p style="font-size: 10px; color: #bbb; margin-top: 20px;">OUTFLICKZ &copy; 2026 SECURE REGISTRATION</p>
-    </div>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Verify Your Account</title>
+    </head>
+    <body style="background-color: #f4f4f5; margin: 0; padding: 40px 0; font-family: 'Space Grotesk', Helvetica, Arial, sans-serif; text-align: center;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 480px; margin: 0 auto; background: #ffffff; padding: 40px; border-bottom: 8px solid #000000; border-radius: 12px;">
+            <tr>
+                <td>
+                    <img src="${logoUrl}" width="80" alt="Outflickz Logo" style="margin-bottom: 24px; border-radius: 50%;">
+                    <h2 style="font-size: 18px; letter-spacing: 3px; text-transform: uppercase; font-weight: 900; color: #000000; margin-top: 0;">IDENTITY VERIFICATION</h2>
+                    <p style="color: #52525b; font-size: 13px; line-height: 1.5; margin-bottom: 24px;">Hi ${firstName}, use the secure vault access code below to verify your email address.</p>
+                    
+                    <div style="margin: 24px 0; padding: 20px; border: 2px dashed #000000; border-radius: 8px; background: #fafafa;">
+                        <span style="font-size: 28px; font-weight: 900; letter-spacing: 8px; color: #000000;">${otp}</span>
+                    </div>
+                    
+                    <p style="font-size: 11px; color: #71717a; text-transform: uppercase; letter-spacing: 1px; margin-top: 24px;">This code expires in 10 minutes. If you did not request this, please ignore this email.</p>
+                </td>
+            </tr>
+        </table>
+        <p style="font-size: 10px; color: #a1a1aa; margin-top: 20px; letter-spacing: 1px;">OUTFLICKZ &copy; 2026 SECURE VAULT</p>
+    </body>
+    </html>
     `;
 
     try {
@@ -364,19 +424,19 @@ async function sendVerificationEmail(email, otp, firstName) {
         
         const response = await resend.emails.send({
             from: fromAddress,
-            to: email,
-            subject: `VERIFY YOUR OUTFLICKZ ACCESS: ${otp}`,
+            to: [email.toLowerCase().trim()],
+            replyTo: fromEmail, // Essential: prevents spam filters from marking transactional mail as unrepliable/spam
+            subject: `Your Outflickz Verification Code: ${otp}`, // Professional, non-spammy subject line casing
             html: otpTemplate,
-            text: `Your OUTFLICKZ verification code is: ${otp}`
+            text: `Hi ${firstName},\n\nYour OUTFLICKZ verification code is: ${otp}\n\nThis code is valid for 10 minutes.` // Plaintext version is MANDATORY to avoid spam filters
         });
 
         console.log(`VERIFICATION_EMAIL_SENT successfully! Response:`, JSON.stringify(response));
         return { success: true, response };
     } catch (error) {
-        // Print the full error object so we see status codes or validation details in Netlify logs
         console.error("OTP_EMAIL_ERROR FULL OBJECT:", JSON.stringify(error, null, 2));
         console.error("OTP_EMAIL_ERROR MESSAGE:", error.message);
-        throw error; // Rethrow so the calling route knows the email failed if needed
+        throw error;
     }
 }
 
@@ -2066,10 +2126,13 @@ async function processOrderDeduction(db, reference, orderData, paymentData, meth
 
     const isWalkIn = method === 'pos_walkin' || orderData.source === 'walkin_pos_terminal';
 
-    // 2. Prepare Order Document
+    // 2. Prepare Order Document with Admin Fallback for Walk-ins
+    // If orderData.email is missing, use ADMIN_EMAIL so walk-ins still generate an internal record/receipt
+    const resolvedEmail = orderData.email || paymentData.customer?.email || process.env.ADMIN_EMAIL || null;
+
     const orderDoc = {
         ...orderData,
-        email: orderData.email || paymentData.customer?.email || null,
+        email: resolvedEmail,
         paymentReference: reference,
         paymentMode: isWalkIn ? `pos_${paymentData.channel || 'terminal'}` : `paystack_${paymentData.channel || 'other'}`,
         status: isWalkIn ? 'Delivered' : 'Confirmed',
@@ -2088,17 +2151,18 @@ async function processOrderDeduction(db, reference, orderData, paymentData, meth
     const orderResult = await db.collection('orders').insertOne(orderDoc);
     orderDoc._id = orderResult.insertedId;
 
-    // 4. Email Dispatch (Wait and Verify)
-    if (orderDoc.email) {
-        console.log(`INITIATING_EMAIL_DISPATCH: Sending to ${orderDoc.email}`);
+    // 4. Email Dispatch (Handles both Customer & Admin Notifications via Resend)
+    if (orderDoc.email || process.env.ADMIN_EMAIL) {
+        console.log(`INITIATING_EMAIL_DISPATCH: Processing notifications for reference ${reference}`);
         try {
-            await sendOrderEmails(orderDoc);
+            // Passing 'New' status forces sendOrderEmails to dispatch to both customer and ADMIN_EMAIL
+            await sendOrderEmails(orderDoc, 'New');
             console.log("EMAIL_DISPATCH_SUCCESSFUL");
         } catch (err) {
             console.error("BLOCKING_EMAIL_FAILURE:", err.message);
         }
     } else {
-        console.warn("EMAIL_SKIPPED: No email address found for reference:", reference);
+        console.warn("EMAIL_SKIPPED: No recipient email or admin email configured for reference:", reference);
     }
 
     // 5. Robust Inventory Deduction Loop
@@ -2408,14 +2472,43 @@ case 'update-order-status': {
     }
 }
 
+// --- 1. REQUEST OTP WITH API-BASED DISPOSABLE CHECK ---
 case 'user-request-otp': {
-    const { email, firstName } = JSON.parse(event.body);
+    const body = JSON.parse(event.body || '{}');
+    const { email, firstName } = body;
+
+    if (!email) {
+        return { statusCode: 400, headers, body: JSON.stringify({ success: false, message: "EMAIL REQUIRED" }) };
+    }
+
     const cleanEmail = email.toLowerCase().trim();
 
-    // Check if user exists
+    // 1. Call a Professional Email Verification API
+    try {
+        // Example using Abstract API (or swap out with your preferred provider's endpoint)
+        const apiKey = process.env.EMAIL_VALIDATION_API_KEY; 
+        const apiResponse = await fetch(`https://emailvalidation.abstractapi.com/v1/?api_key=${apiKey}&email=${encodeURIComponent(cleanEmail)}`);
+        const validationData = await apiResponse.json();
+
+        // Check if the API flags the email as disposable or invalid syntax/MX
+        if (validationData.is_disposable?.value === true || validationData.deliverability === 'DELIVERABLE' === false) {
+            return { 
+                statusCode: 400, 
+                headers, 
+                body: JSON.stringify({ 
+                    success: false, 
+                    message: "TEMPORARY, DISPOSABLE, OR INVALID EMAILS ARE NOT ALLOWED." 
+                }) 
+            };
+        }
+    } catch (apiErr) {
+        console.error("EMAIL_VALIDATION_API_ERROR:", apiErr);
+        // Fail-safe option: Decide whether to let it pass or block if the API errors out
+    }
+
     const existingUser = await db.collection('users').findOne({ email: cleanEmail });
     if (existingUser) {
-        return { statusCode: 400, headers, body: JSON.stringify({ message: "EMAIL ALREADY REGISTERED" }) };
+        return { statusCode: 400, headers, body: JSON.stringify({ success: false, message: "EMAIL ALREADY REGISTERED" }) };
     }
 
     // Generate 6-digit OTP & Expiry (10 mins)
@@ -2425,7 +2518,7 @@ case 'user-request-otp': {
     // Store OTP in a temporary collection
     await db.collection('otp_verifications').updateOne(
         { email: cleanEmail },
-        { $set: { otp, expiresAt, firstName } },
+        { $set: { otp, expiresAt, firstName: firstName || '' } },
         { upsert: true }
     );
 
@@ -2434,25 +2527,35 @@ case 'user-request-otp': {
     return { statusCode: 200, headers, body: JSON.stringify({ success: true, message: "OTP SENT" }) };
 }
 
+
 // --- 2. VERIFY & CREATE ACCOUNT ---
 case 'user-register-verify': {
-    const { firstName, lastName, email, phone, shipping, password, otp } = JSON.parse(event.body);
+    const body = JSON.parse(event.body || '{}');
+    const { firstName, lastName, email, phone, shipping, password, otp } = body;
+
+    if (!email || !otp) {
+        return { statusCode: 400, headers, body: JSON.stringify({ success: false, message: "MISSING REQUIRED FIELDS" }) };
+    }
+
     const cleanEmail = email.toLowerCase().trim();
 
     // Check OTP record
     const record = await db.collection('otp_verifications').findOne({ email: cleanEmail });
     
     if (!record || record.otp !== otp) {
-        return { statusCode: 400, headers, body: JSON.stringify({ message: "INVALID OTP" }) };
+        return { statusCode: 400, headers, body: JSON.stringify({ success: false, message: "INVALID OTP" }) };
     }
     if (new Date() > record.expiresAt) {
-        return { statusCode: 400, headers, body: JSON.stringify({ message: "OTP EXPIRED" }) };
+        return { statusCode: 400, headers, body: JSON.stringify({ success: false, message: "OTP EXPIRED" }) };
     }
 
     // Everything is valid -> Save User
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = {
-        firstName, lastName, phone, shipping,
+        firstName, 
+        lastName, 
+        phone, 
+        shipping,
         email: cleanEmail,
         password: hashedPassword,
         role: 'customer',
@@ -2462,14 +2565,32 @@ case 'user-register-verify': {
     await db.collection('users').insertOne(newUser);
     await db.collection('otp_verifications').deleteOne({ email: cleanEmail }); // Cleanup
 
-    return { statusCode: 201, headers, body: JSON.stringify({ success: true, message: "ACCOUNT CREATED" }) };
+    return { 
+        statusCode: 201, 
+        headers, 
+        body: JSON.stringify({ 
+            success: true, 
+            message: "ACCOUNT CREATED", 
+            email: cleanEmail 
+        }) 
+    };
 }
 
-// --- USER LOGIN ---
+// --- 3. USER LOGIN ---
 case 'user-login': {
-    const { email, password } = JSON.parse(event.body);
+    const body = JSON.parse(event.body || '{}');
+    const { email, password } = body;
 
-    const user = await db.collection('users').findOne({ email: email.toLowerCase().trim() });
+    if (!email || !password) {
+        return { 
+            statusCode: 400, headers, 
+            body: JSON.stringify({ success: false, message: "EMAIL AND PASSWORD REQUIRED" }) 
+        };
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+
+    const user = await db.collection('users').findOne({ email: cleanEmail });
     if (!user) {
         return { 
             statusCode: 401, headers, 
@@ -2505,7 +2626,7 @@ case 'user-login': {
         }) 
     };
 }
-           
+
          case 'get-user-vault': {
     const body = JSON.parse(event.body || "{}");
     const { token } = body;
@@ -3116,9 +3237,8 @@ case 'create-sales-account': {
         }) 
     };
 }
-
 case 'create-order': {
-    const { items, salesPerson, pickup, paymentMethod, source } = body;
+    const { items, salesPerson, email, pickup, paymentMethod, source } = body;
     
     if (!items || !Array.isArray(items) || items.length === 0) {
         return { 
@@ -3131,9 +3251,13 @@ case 'create-order': {
     const resolvedSalesPerson = salesPerson && salesPerson.trim() !== '' ? salesPerson.trim() : 'Walk-In Agent';
     const reference = `POS-WALK-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
+    // Normalize and clean customer email if provided
+    const cleanCustomerEmail = email && email.trim() !== '' ? email.toLowerCase().trim() : null;
+
     const orderData = {
         items: items,
         salesPerson: resolvedSalesPerson,
+        email: cleanCustomerEmail, // Explicitly pass customer email here
         deliveryMethod: 'pickup',
         pickupLocation: 'In-Store Immediate Handout',
         paymentMethod: paymentMethod,
@@ -3148,12 +3272,11 @@ case 'create-order': {
         channel: paymentMethod,
         gateway_response: `Successful Walk-In POS Transaction (${paymentMethod.toUpperCase()})`,
         amount: calculatedSubtotal * 100, // stored in kobo
-        customer: { email: null },
+        customer: { email: cleanCustomerEmail }, // Pass email to customer object as well
         paid_at: new Date().toISOString()
     };
 
     try {
-        // Pass 'pos_walkin' as the execution method to trigger instant 'Delivered' status
         const result = await processOrderDeduction(db, reference, orderData, paymentData, 'pos_walkin');
         
         return { 
@@ -3161,7 +3284,7 @@ case 'create-order': {
             headers, 
             body: JSON.stringify({
                 success: true,
-                message: "Walk-in order processed and marked as DELIVERED.",
+                message: "Walk-in order processed and marked as DELIVERED. Email receipts dispatched.",
                 reference,
                 salesPerson: resolvedSalesPerson,
                 result

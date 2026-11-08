@@ -97,7 +97,7 @@
             <div class="lg:col-span-5 space-y-8 bg-zinc-50 p-6 border border-black/5">
                 <div>
                     <h3 class="text-xs font-black uppercase tracking-widest">POS Setup & Settlement</h3>
-                    <p class="text-[9px] text-zinc-400 uppercase tracking-widest mt-0.5">Assign sales rep, select pick-up option and settlement method</p>
+                    <p class="text-[9px] text-zinc-400 uppercase tracking-widest mt-0.5">Assign sales rep, enter customer details, and select settlement method</p>
                 </div>
 
                 <form id="checkout-form" onsubmit="processSalesCheckout(event)" class="space-y-4">
@@ -105,6 +105,13 @@
                     <div class="space-y-1.5">
                         <label class="text-[9px] font-bold uppercase tracking-widest text-zinc-600 block">Sales Person Name *</label>
                         <input type="text" id="sales-person-name" required placeholder="Enter your full name" class="w-full bg-white border border-black/10 px-3 py-2.5 text-xs uppercase focus:outline-none focus:border-black">
+                    </div>
+
+                    <!-- Customer Email Field for Digital Receipt -->
+                    <div class="space-y-1.5">
+                        <label class="text-[9px] font-bold uppercase tracking-widest text-zinc-600 block">Customer Email Address (For Receipt)</label>
+                        <input type="email" id="customer-email" placeholder="customer@example.com" class="w-full bg-white border border-black/10 px-3 py-2.5 text-xs focus:outline-none focus:border-black" style="text-transform: lowercase;">
+                        <span class="text-[8px] text-zinc-400 uppercase tracking-wider block">Optional: Leave blank to route copy to store admin.</span>
                     </div>
 
                     <!-- Pick Up Option: Yes / No -->
@@ -336,72 +343,74 @@
             }
         }
         
-async function processSalesCheckout(event) {
-    event.preventDefault();
-    const cart = JSON.parse(localStorage.getItem('outflickz_cart') || '[]');
-    if (cart.length === 0) {
-        showModal('Manifest Empty', 'ADD UNITS TO CART BEFORE EXECUTING CHECKOUT.', 'error');
-        return;
-    }
+        async function processSalesCheckout(event) {
+            event.preventDefault();
+            const cart = JSON.parse(localStorage.getItem('outflickz_cart') || '[]');
+            if (cart.length === 0) {
+                showModal('Manifest Empty', 'ADD UNITS TO CART BEFORE EXECUTING CHECKOUT.', 'error');
+                return;
+            }
 
-    const salesPersonName = document.getElementById('sales-person-name').value.trim();
-    const pickupOption = document.querySelector('input[name="pickup_option"]:checked').value;
-    const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
+            const salesPersonName = document.getElementById('sales-person-name').value.trim();
+            const customerEmail = document.getElementById('customer-email').value.trim().toLowerCase();
+            const pickupOption = document.querySelector('input[name="pickup_option"]:checked').value;
+            const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
 
-    const submitBtn = document.getElementById('checkout-submit-btn');
-    const originalText = submitBtn.innerHTML;
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = `PROCESSING POS TRANSACTION...`;
+            const submitBtn = document.getElementById('checkout-submit-btn');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `PROCESSING POS TRANSACTION...`;
 
-    try {
-        const payload = {
-            action: 'create-order',
-            items: cart,
-            salesPerson: salesPersonName,
-            pickup: pickupOption,
-            paymentMethod: paymentMethod,
-            source: 'walkin_pos_terminal'
-        };
+            try {
+                const payload = {
+                    action: 'create-order',
+                    items: cart,
+                    salesPerson: salesPersonName,
+                    email: customerEmail || null, // Passes customer email to backend
+                    pickup: pickupOption,
+                    paymentMethod: paymentMethod,
+                    source: 'walkin_pos_terminal'
+                };
 
-        const res = await fetch(API_ENDPOINT, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+                const res = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
 
-        // Parse backend JSON response
-        const data = await res.json();
+                // Parse backend JSON response
+                const data = await res.json();
 
-        if (!res.ok || !data.success) {
-            throw new Error(data.message || `Server returned status ${res.status}`);
+                if (!res.ok || !data.success) {
+                    throw new Error(data.message || `Server returned status ${res.status}`);
+                }
+
+                // Save order payload WITH the generated database reference from MongoDB
+                localStorage.setItem('outflickz_last_order', JSON.stringify({
+                    reference: data.reference,
+                    salesPerson: data.salesPerson || salesPersonName,
+                    email: customerEmail || null,
+                    paymentMethod: paymentMethod,
+                    pickup: pickupOption,
+                    items: cart,
+                    timestamp: new Date().toISOString()
+                }));
+
+                localStorage.removeItem('outflickz_cart');
+                
+                showModal('Confirmed', 'ORDER SUCCESSFULLY STORED IN DATABASE. REDIRECTING...', 'success');
+                setTimeout(() => {
+                    window.location.href = 'sales-success.html';
+                }, 1200);
+
+            } catch (err) {
+                console.error("Checkout Execution Error:", err);
+                showModal('Checkout Failed', err.message || 'FAILED TO PROCESS POS TRANSACTION IN DATABASE.', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
         }
-
-        // Save order payload WITH the generated database reference from MongoDB
-        localStorage.setItem('outflickz_last_order', JSON.stringify({
-            reference: data.reference,
-            salesPerson: data.salesPerson || salesPersonName,
-            paymentMethod: paymentMethod,
-            pickup: pickupOption,
-            items: cart,
-            timestamp: new Date().toISOString()
-        }));
-
-        localStorage.removeItem('outflickz_cart');
-        
-        showModal('Confirmed', 'ORDER SUCCESSFULLY STORED IN DATABASE. REDIRECTING...', 'success');
-        setTimeout(() => {
-            window.location.href = 'sales-success.html';
-        }, 1200);
-
-    } catch (err) {
-        console.error("Checkout Execution Error:", err);
-        // Show real error modal instead of redirecting on API failure
-        showModal('Checkout Failed', err.message || 'FAILED TO PROCESS POS TRANSACTION IN DATABASE.', 'error');
-    } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = originalText;
-    }
-}
 
         function showModal(title, message, type = 'info') {
             document.getElementById('modal-title').innerText = title;
@@ -426,39 +435,35 @@ async function processSalesCheckout(event) {
             }
         }
 
-    function updateAuthUI() {
-    const authSection = document.getElementById('nav-auth-section');
-    const userData = JSON.parse(localStorage.getItem('outflickz_user_data') || '{}');
-    const token = localStorage.getItem('outflickz_token');
-    const salesInput = document.getElementById('sales-person-name');
+        function updateAuthUI() {
+            const authSection = document.getElementById('nav-auth-section');
+            const userData = JSON.parse(localStorage.getItem('outflickz_user_data') || '{}');
+            const token = localStorage.getItem('outflickz_token');
+            const salesInput = document.getElementById('sales-person-name');
 
-    // 1. Determine agent name (Logged in user -> Saved Sales Name -> Default Fallback)
-    const agentName = (token && userData.firstName) 
-        ? `${userData.firstName} ${userData.lastName || ''}`.trim() 
-        : (localStorage.getItem('outflickz_sales_name') || 'OLUWATOYOSI JOY');
+            const agentName = (token && userData.firstName) 
+                ? `${userData.firstName} ${userData.lastName || ''}`.trim() 
+                : (localStorage.getItem('outflickz_sales_name') || 'OLUWATOYOSI JOY');
 
-    // 2. Always auto-fill input field
-    if (salesInput) {
-        salesInput.value = agentName;
-    }
+            if (salesInput) {
+                salesInput.value = agentName;
+            }
 
-    // 3. Update navbar auth section
-    if (authSection) {
-        if (token && userData.firstName) {
-            authSection.innerHTML = `
-                <span class="text-[9px] font-bold uppercase tracking-widest">
-                    Agent: ${userData.firstName}
-                </span>
-            `;
-        } else {
-            authSection.innerHTML = `
-                <span class="text-[9px] font-bold uppercase tracking-widest text-zinc-400">
-                    POS Terminal Active (${agentName})
-                </span>
-            `;
-        }
-    }
-
+            if (authSection) {
+                if (token && userData.firstName) {
+                    authSection.innerHTML = `
+                        <span class="text-[9px] font-bold uppercase tracking-widest">
+                            Agent: ${userData.firstName}
+                        </span>
+                    `;
+                } else {
+                    authSection.innerHTML = `
+                        <span class="text-[9px] font-bold uppercase tracking-widest text-zinc-400">
+                            POS Terminal Active (${agentName})
+                        </span>
+                    `;
+                }
+            }
         }
     </script>
 </body>

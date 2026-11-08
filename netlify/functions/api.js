@@ -5,6 +5,8 @@ const AWS = require('aws-sdk');
 const sharp = require('sharp'); 
 const nodemailer = require('nodemailer');
 const { Redis } = require('@upstash/redis');
+const { Resend } = require('resend');
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 
 
@@ -327,7 +329,17 @@ async function sendOrderEmails(order, status = 'New') {
 }
 
 async function sendVerificationEmail(email, otp, firstName) {
-    const fromAddress = `"${process.env.EMAIL_FROM_NAME}" <${process.env.EMAIL_USER}>`;
+    if (!process.env.RESEND_API_KEY) {
+        console.error("FATAL: RESEND_API_KEY is missing or undefined in environment variables!");
+    } else {
+        console.log("RESEND_API_KEY is present (starts with):", process.env.RESEND_API_KEY.substring(0, 5) + "...");
+    }
+    const rawFromEmail = process.env.EMAIL_FROM || 'outflickz@outflickz.com';
+    const rawFromName = process.env.EMAIL_FROM_NAME || 'OUTFLICKZ';
+        const fromEmail = rawFromEmail.trim();
+    const fromName = rawFromName.trim();
+    const fromAddress = `${fromName} <${fromEmail}>`;
+    
     const logoUrl = "https://i.imgur.com/fu8N7I2.jpeg";
 
     const otpTemplate = `
@@ -348,17 +360,26 @@ async function sendVerificationEmail(email, otp, firstName) {
     `;
 
     try {
-        await transporter.sendMail({
+        console.log(`Attempting to send email to ${email} from ${fromAddress}...`);
+        
+        const response = await resend.emails.send({
             from: fromAddress,
             to: email,
             subject: `VERIFY YOUR OUTFLICKZ ACCESS: ${otp}`,
             html: otpTemplate,
             text: `Your OUTFLICKZ verification code is: ${otp}`
         });
+
+        console.log(`VERIFICATION_EMAIL_SENT successfully! Response:`, JSON.stringify(response));
+        return { success: true, response };
     } catch (error) {
-        console.error("OTP_EMAIL_ERROR:", error);
+        // Print the full error object so we see status codes or validation details in Netlify logs
+        console.error("OTP_EMAIL_ERROR FULL OBJECT:", JSON.stringify(error, null, 2));
+        console.error("OTP_EMAIL_ERROR MESSAGE:", error.message);
+        throw error; // Rethrow so the calling route knows the email failed if needed
     }
 }
+
 
 exports.handler = async (event, context) => {
  context.callbackWaitsForEmptyEventLoop = false;
